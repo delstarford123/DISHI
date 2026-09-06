@@ -10,11 +10,29 @@ class EventDashboardView extends StatelessWidget {
 
   void _copyShareLink(BuildContext context, String eventId) {
     // URL matching the Python backend route we created
-    final url = 'https://swapeatbackend.vercel.app/e/$eventId';
+    final url = 'https://dishi.delstarfordworks.co.ke/event?id=$eventId';
     Clipboard.setData(ClipboardData(text: url));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Share Link Copied! Try pasting in WhatsApp to see the rich preview.'))
     );
+  }
+
+  void _scanTicket(BuildContext context, String eventId) {
+    showDialog(context: context, builder: (_) => AlertDialog(
+      backgroundColor: const Color(0xFF131A2A),
+      title: const Text('Scan QR Ticket', style: TextStyle(color: Colors.white)),
+      content: Container(
+        height: 200, width: 200,
+        decoration: BoxDecoration(border: Border.all(color: MPesaTheme.neonCyan, width: 2), borderRadius: BorderRadius.circular(16)),
+        child: const Center(child: Icon(Icons.qr_code_scanner, color: MPesaTheme.neonCyan, size: 64)),
+      ),
+      actions: [
+        TextButton(onPressed: () {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ticket Validated Successfully!'), backgroundColor: MPesaTheme.primaryGreen));
+        }, child: const Text('Simulate Scan', style: TextStyle(color: MPesaTheme.neonCyan)))
+      ],
+    ));
   }
 
   @override
@@ -96,16 +114,46 @@ class EventDashboardView extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: MPesaTheme.neonCyan),
-                              ),
-                              onPressed: () => _copyShareLink(context, eventId),
-                              icon: const Icon(Icons.share, color: MPesaTheme.neonCyan),
-                              label: const Text('Copy Share Link', style: TextStyle(color: MPesaTheme.neonCyan)),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Ticket Breakdown (Phase 6)', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('Early Bird: ${event['earlyBirdSold'] ?? 0}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                    Text('Regular: ${event['regularSold'] ?? 0}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                    Text('VIP: ${event['vipSold'] ?? 0}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                  ],
+                                ),
+                              ],
                             ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.neonCyan, padding: const EdgeInsets.symmetric(vertical: 12)),
+                                  onPressed: () => _scanTicket(context, eventId),
+                                  icon: const Icon(Icons.qr_code_scanner, color: Colors.black),
+                                  label: const Text('Scan', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(side: const BorderSide(color: MPesaTheme.neonCyan), padding: const EdgeInsets.symmetric(vertical: 12)),
+                                  onPressed: () => _copyShareLink(context, eventId),
+                                  icon: const Icon(Icons.share, color: MPesaTheme.neonCyan),
+                                  label: const Text('Share Link', style: TextStyle(color: MPesaTheme.neonCyan)),
+                                ),
+                              ),
+                            ],
                           )
                         ],
                       ),

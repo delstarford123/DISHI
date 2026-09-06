@@ -283,14 +283,110 @@ def mpesa_callback():
                     
             elif action == 'harambee_donate':
                 campaign_id = metadata.get('campaign_id')
+                campaign_title = metadata.get('campaign_title', 'Education Fund')
+                donor_email = metadata.get('donor_email')
+                donor_name = metadata.get('donor_name', 'Anonymous')
+                
                 # Credit the student wallet
                 user_ref.update({'walletBalance': firestore.Increment(credit_amt)})
                 
-                # Update Harambee Campaign raised amount
+                # Update Harambee Campaign raised amount and donors
                 if campaign_id:
-                    db.collection('harambee_campaigns').document(campaign_id).update({
-                        'raisedAmount': firestore.Increment(credit_amt)
-                    })
+                    campaign_ref = db.collection('harambee_campaigns').document(campaign_id)
+                    try:
+                        camp_doc = campaign_ref.get()
+                        if camp_doc.exists:
+                            donors = list(camp_doc.to_dict().get('donors', []))
+                            donors.append({
+                                'name': donor_name,
+                                'amount': credit_amt,
+                                'timestamp': datetime.utcnow() # Using datetime for instant list placement
+                            })
+                            # Note: UI expects 'raised' not 'raisedAmount'
+                            campaign_ref.update({
+                                'raised': firestore.Increment(credit_amt),
+                                'donors': donors
+                            })
+                    except Exception as e:
+                        print(f"Failed to update campaign donors: {e}")
+                        campaign_ref.update({'raised': firestore.Increment(credit_amt)})
+                
+                # Send Thank You Email
+                if donor_email:
+                    try:
+                        from flask import current_app
+                        from flask_mail import Message
+                        from app import mail
+                        
+                        if mail is not None:
+                            from routes.email_utils import harambee_thank_you_email
+                            subj, html_body = harambee_thank_you_email(user_name, campaign_title, credit_amt)
+                            msg = Message(
+                                subject=subj,
+                                sender=current_app.config.get('MAIL_USERNAME', 'info@delstarfordworks.co.ke'),
+                                recipients=[donor_email],
+                                html=html_body,
+                                body=f"Thank you for donating KES {credit_amt} to {user_name}'s campaign!"
+                            )
+                            mail.send(msg)
+                    except Exception as e:
+                        print(f"Failed to send harambee thank you email: {e}")
+            
+            elif metadata.get('type') == 'event_ticket' or action == 'event_ticket':
+                event_id = metadata.get('eventId')
+                tier = metadata.get('tier', 'Regular')
+                buyer_email = metadata.get('email')
+                
+                if event_id:
+                    import uuid
+                    ticket_id = str(uuid.uuid4()).split('-')[0].upper()
+                    
+                    event_ref = db.collection('events').document(event_id)
+                    try:
+                        event_doc = event_ref.get()
+                        if event_doc.exists:
+                            e_data = event_doc.to_dict()
+                            
+                            # Increment sales
+                            update_data = {
+                                'ticketsSold': firestore.Increment(1),
+                                'revenue': firestore.Increment(credit_amt)
+                            }
+                            if tier == 'VIP':
+                                update_data['vipSold'] = firestore.Increment(1)
+                            elif tier == 'Early Bird':
+                                update_data['earlyBirdSold'] = firestore.Increment(1)
+                            else:
+                                update_data['regularSold'] = firestore.Increment(1)
+                                
+                            event_ref.update(update_data)
+                            
+                            # Credit organizer wallet (assuming user_id is the organizer for STK payload logic, but typically event.creatorId should get the money. We will credit user_id as per current STK structure)
+                            user_ref.update({'walletBalance': firestore.Increment(credit_amt)})
+                            
+                            # Send Ticket Email
+                            if buyer_email:
+                                try:
+                                    from flask import current_app
+                                    from flask_mail import Message
+                                    from app import mail
+                                    
+                                    if mail is not None:
+                                        from routes.email_utils import event_ticket_email
+                                        subj, html_body = event_ticket_email(e_data.get('title', 'Event'), tier, credit_amt, ticket_id)
+                                        msg = Message(
+                                            subject=subj,
+                                            sender=current_app.config.get('MAIL_USERNAME', 'info@delstarfordworks.co.ke'),
+                                            recipients=[buyer_email],
+                                            html=html_body,
+                                            body=f"Your {tier} ticket for {e_data.get('title', 'Event')} has been purchased! ID: {ticket_id}"
+                                        )
+                                        mail.send(msg)
+                                except Exception as e:
+                                    print(f"Failed to send event ticket email: {e}")
+                                    
+                    except Exception as e:
+                        print(f"Failed to process event ticket: {e}")
                     
             elif action == 'pay_rent':
                 app_id = metadata.get('application_id')

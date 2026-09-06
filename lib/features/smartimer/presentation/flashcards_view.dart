@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // -- CUSTOM DESIGN COLORS --
 const Color _bgColor = Color(0xFF0C101B);
@@ -11,6 +12,7 @@ const Color _surfaceLight = Color(0xFF1A2235);
 const Color _neonCyan = Color(0xFF05D5AA);
 const Color _neonPink = Color(0xFFFF2A6D);
 const Color _textSecondary = Color(0xFF8B9BB4);
+const Color _neonPurple = Color(0xFF9C27B0);
 
 class FlashcardsView extends StatefulWidget {
   const FlashcardsView({super.key});
@@ -21,10 +23,14 @@ class FlashcardsView extends StatefulWidget {
 
 class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProviderStateMixin {
   final String _studentId = FirebaseAuth.instance.currentUser?.uid ?? "demo_student";
-  List<dynamic> _cards = [];
+  List<dynamic> _allCards = [];
+  List<dynamic> _filteredCards = [];
   int _currentIndex = 0;
   bool _isLoading = true;
   bool _isReversed = false;
+  int _currentStreak = 0;
+  String _selectedCategory = 'All';
+
   late AnimationController _animationController;
   late Animation<double> _animation;
 
@@ -37,12 +43,24 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
     );
     _animation = Tween<double>(begin: 0, end: 1).animate(_animationController);
     _fetchCards();
+    _fetchStreak();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchStreak() async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(_studentId).get();
+      if (doc.exists) {
+        setState(() {
+          _currentStreak = doc.data()?['flashcardStreak'] ?? 0;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _fetchCards() async {
@@ -55,43 +73,28 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          _cards = data['flashcards'] ?? [];
-          
-          // Filter to only show cards that are due for review
-          // For demonstration, if no cards are due or list is empty, we will add a fallback dummy card
-          if (_cards.isEmpty) {
-            _cards = [
-              {
-                'id': 'dummy1',
-                'question': 'What is the time complexity of searching in a balanced BST?',
-                'answer': 'O(log n)'
-              },
-              {
-                'id': 'dummy2',
-                'question': 'What does HTTP stand for?',
-                'answer': 'HyperText Transfer Protocol'
-              }
-            ];
-          }
+          _allCards = data['flashcards'] ?? [];
+          _filterCards();
         });
       } else {
         throw Exception('Failed to load flashcards');
       }
     } catch (e) {
-      // Fallback data if network fails
-      setState(() {
-        _cards = [
-          {
-            'id': 'dummy1',
-            'question': 'What is the time complexity of searching in a balanced BST?',
-            'answer': 'O(log n)'
-          }
-        ];
-      });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading cards: $e')));
     } finally {
       setState(() { _isLoading = false; });
     }
+  }
+
+  void _filterCards() {
+    if (_selectedCategory == 'All') {
+      _filteredCards = List.from(_allCards);
+    } else {
+      _filteredCards = _allCards.where((c) => c['unitCode'] == _selectedCategory).toList();
+    }
+    _currentIndex = 0;
+    _isReversed = false;
+    _animationController.reset();
   }
 
   void _flipCard() {
@@ -106,17 +109,17 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
   }
 
   Future<void> _submitReview(int quality) async {
-    final currentCard = _cards[_currentIndex];
+    final currentCard = _filteredCards[_currentIndex];
     
     // Optimistically move to next card
     setState(() {
       _isReversed = false;
       _animationController.reset();
-      if (_currentIndex < _cards.length - 1) {
+      if (_currentIndex < _filteredCards.length - 1) {
         _currentIndex++;
       } else {
         // Done with deck
-        _cards = [];
+        _filteredCards = [];
       }
     });
 
@@ -125,46 +128,190 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
         Uri.parse('https://swapeatbackend.vercel.app/api/v3/academic/flashcards/review'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'student_id': _studentId,
-          'card_id': currentCard['id'],
+          'studentId': _studentId,
+          'cardId': currentCard['id'],
           'quality': quality,
         })
       ).timeout(const Duration(seconds: 30));
       
-      if (response.statusCode != 200) {
-        throw Exception('Failed to update flashcard');
+      if (response.statusCode == 200) {
+        final resData = jsonDecode(response.body);
+        if (resData['streak'] != null && mounted) {
+          setState(() {
+            _currentStreak = resData['streak'];
+          });
+        }
       }
     } catch (e) {
       print("Review submission failed: $e");
     }
   }
 
+  Future<void> _shareToMatch(Map<String, dynamic> card) async {
+    // Show a dialog with recent chats
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: _cardColor,
+          title: const Text('Share to Match', style: TextStyle(color: Colors.white)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('chats').where('participants', arrayContains: _studentId).snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                if (snapshot.data!.docs.isEmpty) return const Text('No active chats found.', style: TextStyle(color: Colors.white70));
+                
+                return ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, idx) {
+                    final chatDoc = snapshot.data!.docs[idx];
+                    return ListTile(
+                      leading: const Icon(Icons.person, color: _neonPink),
+                      title: Text('Chat: ${chatDoc.id.substring(0, 8)}...', style: const TextStyle(color: Colors.white)),
+                      onTap: () async {
+                        await FirebaseFirestore.instance.collection('chats').doc(chatDoc.id).collection('messages').add({
+                          'type': 'flashcard',
+                          'question': card['question'],
+                          'answer': card['answer'],
+                          'senderId': _studentId,
+                          'timestamp': FieldValue.serverTimestamp(),
+                          'isRead': false,
+                        });
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Flashcard Sent! 💌'), backgroundColor: _neonPink));
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      }
+    );
+  }
+
+  void _addCustomCard() {
+    final qController = TextEditingController();
+    final aController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardColor,
+        title: const Text('Create Flashcard', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: qController, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Question', labelStyle: TextStyle(color: _textSecondary))),
+            TextField(controller: aController, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Answer', labelStyle: TextStyle(color: _textSecondary))),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
+            onPressed: () async {
+              if (qController.text.isNotEmpty && aController.text.isNotEmpty) {
+                await http.post(
+                  Uri.parse('https://swapeatbackend.vercel.app/api/v3/academic/flashcards'),
+                  headers: {'Content-Type': 'application/json'},
+                  body: jsonEncode({
+                    'studentId': _studentId,
+                    'unitCode': 'Custom',
+                    'front': qController.text,
+                    'back': aController.text,
+                  })
+                );
+                Navigator.pop(context);
+                _fetchCards();
+              }
+            }, 
+            child: const Text('SAVE')
+          )
+        ],
+      )
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Unique categories from available cards
+    final Set<String> categories = {'All'};
+    for (var c in _allCards) {
+      if (c['unitCode'] != null) categories.add(c['unitCode']);
+    }
+
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text('SM-2 Flashcards', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Row(
+          children: [
+            const Text('Daily Flashcards', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(color: Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+              child: Row(
+                children: [
+                  const Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
+                  const SizedBox(width: 4),
+                  Text('$_currentStreak', style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            )
+          ],
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(icon: const Icon(Icons.add, color: _neonCyan), onPressed: _addCustomCard, tooltip: 'Add Custom Card'),
+        ],
       ),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator(color: _neonPink))
         : Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Category Filter
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: categories.map((cat) {
+                  final isSelected = _selectedCategory == cat;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ChoiceChip(
+                      label: Text(cat, style: TextStyle(color: isSelected ? Colors.white : _textSecondary)),
+                      selected: isSelected,
+                      selectedColor: _neonPurple,
+                      backgroundColor: _surfaceLight,
+                      onSelected: (val) {
+                        if (val) setState(() { _selectedCategory = cat; _filterCards(); });
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 24),
+            
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Deck: All', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                Text('${_cards.length - _currentIndex} to review', style: const TextStyle(color: _neonPink, fontWeight: FontWeight.bold)),
+                Text('Deck: $_selectedCategory', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                Text('${_filteredCards.length - _currentIndex} to review', style: const TextStyle(color: _neonPink, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 32),
             Expanded(
-              child: _cards.isEmpty
+              child: _filteredCards.isEmpty
                   ? const Center(child: Text("You're all caught up for today!", style: TextStyle(color: Colors.white, fontSize: 18)))
                   : GestureDetector(
                       onTap: _flipCard,
@@ -180,11 +327,11 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
                               ..rotateY(angle),
                             alignment: Alignment.center,
                             child: isFront 
-                                ? _buildCardFace(_cards[_currentIndex]['question'] ?? '', false) 
+                                ? _buildCardFace(_filteredCards[_currentIndex]['question'] ?? _filteredCards[_currentIndex]['front'] ?? '', false, _filteredCards[_currentIndex]) 
                                 : Transform(
-                                    transform: Matrix4.identity()..rotateY(pi), // Flip text back to readable
+                                    transform: Matrix4.identity()..rotateY(pi),
                                     alignment: Alignment.center,
-                                    child: _buildCardFace(_cards[_currentIndex]['answer'] ?? '', true)
+                                    child: _buildCardFace(_filteredCards[_currentIndex]['answer'] ?? _filteredCards[_currentIndex]['back'] ?? '', true, _filteredCards[_currentIndex])
                                   ),
                           );
                         }
@@ -192,7 +339,7 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
                     ),
             ),
             const SizedBox(height: 24),
-            Text(_isReversed ? 'How well did you know this?' : 'Tap card to reveal answer', style: const TextStyle(color: _textSecondary)),
+            Center(child: Text(_isReversed ? 'How well did you know this?' : 'Tap card to reveal answer', style: const TextStyle(color: _textSecondary))),
             const SizedBox(height: 32),
             AnimatedOpacity(
               opacity: _isReversed ? 1.0 : 0.0,
@@ -215,10 +362,10 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
     );
   }
 
-  Widget _buildCardFace(String text, bool isAnswer) {
+  Widget _buildCardFace(String text, bool isAnswer, Map<String, dynamic> card) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: _cardColor,
         borderRadius: BorderRadius.circular(24),
@@ -227,12 +374,25 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
           BoxShadow(color: isAnswer ? _neonCyan.withOpacity(0.1) : Colors.purpleAccent.withOpacity(0.1), blurRadius: 20, spreadRadius: 5)
         ]
       ),
-      child: Center(
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-        ),
+      child: Stack(
+        children: [
+          Center(
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: IconButton(
+              icon: const Icon(Icons.send, color: _neonPink),
+              tooltip: 'Send to Match',
+              onPressed: () => _shareToMatch(card),
+            )
+          )
+        ],
       ),
     );
   }
@@ -246,7 +406,7 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      onPressed: _isReversed ? onPressed : null, // Disable if not reversed
+      onPressed: _isReversed ? onPressed : null,
       child: Text(label, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
     );
   }

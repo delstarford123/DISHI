@@ -364,3 +364,72 @@ def monthly_nutrition_report_email(student_name: str, month_name: str, macros: d
       </div>
     """
     return subject, _base_template(content, preheader=f"View {student_name}'s monthly nutrition breakdown for {month_name}")
+
+def harambee_thank_you_email(student_name: str, campaign_title: str, amount: float) -> tuple:
+    """
+    Returns (subject, html_body) for a Harambee campaign donation thank you email.
+    """
+    name = student_name or "a DISHI Student"
+    subject = f"Thank You! Your Harambee Donation was Successful 💚"
+    
+    content = f"""
+      <p class="greeting">Thank You for Your Support! 🙌</p>
+      <p class="body-text" style="margin-top:8px;">
+        Your generous contribution of <strong style="color:#F8FAFC;">KES {amount:,.0f}</strong> has been successfully received and credited.
+      </p>
+      
+      <div class="divider"></div>
+      
+      <div class="highlight">
+        <p style="font-size:12px;text-transform:uppercase;color:#64748B;letter-spacing:1px;margin-bottom:6px;">Campaign Supported</p>
+        <p style="font-size:16px;font-weight:600;color:#F8FAFC;margin-bottom:12px;">{campaign_title or 'Education Fund'}</p>
+        <p><strong>Beneficiary:</strong> {name}</p>
+      </div>
+      
+      <p class="body-text" style="margin-top:20px;">
+        On behalf of {name} and the DISHI community, thank you for making a difference. Your support goes directly toward helping them achieve their goals.
+      </p>
+      
+      <div style="text-align:center;">
+        <a href="https://dishi.delstarfordworks.co.ke" class="btn">Discover More on DISHI &rarr;</a>
+      </div>
+    """
+    return subject, _base_template(content, preheader="Your donation receipt and thank you message.")
+
+def event_ticket_email(event_title: str, ticket_tier: str, amount: float, ticket_id: str) -> tuple:
+    """
+    Returns (subject, html_body) for a successful event ticket purchase.
+    """
+    subject = f"🎟️ Your Ticket for {event_title} is Here!"
+    
+    content = f"""
+      <p class="greeting">You're Going to {event_title}! 🎉</p>
+      <p class="body-text" style="margin-top:8px;">
+        Thank you for purchasing your ticket. We've successfully processed your payment of <strong style="color:#F8FAFC;">KES {amount:,.0f}</strong>.
+      </p>
+      
+      <div class="divider"></div>
+      
+      <div style="text-align:center;margin:28px 0;">
+        <p style="font-size:12px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:2px;margin-bottom:16px;">Your QR Ticket</p>
+        <div style="display:inline-block;background:linear-gradient(135deg,#0D3B26,#1A5C3A);
+                    border:2px solid {DISHI_PRIMARY_GREEN};border-radius:16px;
+                    padding:20px 40px;">
+          <!-- Using a mock QR Code API for the email -->
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ticket_scan_{ticket_id}&bgcolor=0D3B26&color=05D5AA" alt="QR Code" width="200" height="200" style="border-radius:8px;"/>
+        </div>
+        <p style="margin-top:14px;font-size:13px;color:#94A3B8;">
+          🎟️ Tier: <strong style="color:#F8FAFC;">{ticket_tier}</strong><br/>
+          Ticket ID: {ticket_id}
+        </p>
+      </div>
+
+      <div class="highlight">
+        <p><strong>Note:</strong> Present this QR code at the entrance. The organizer will scan it using the DISHI app to grant you access.</p>
+      </div>
+      
+      <div style="text-align:center;">
+        <a href="https://dishi.delstarfordworks.co.ke" class="btn">View in DISHI App &rarr;</a>
+      </div>
+    """
+    return subject, _base_template(content, preheader=f"Your {ticket_tier} ticket for {event_title}")

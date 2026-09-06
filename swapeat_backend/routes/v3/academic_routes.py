@@ -271,6 +271,8 @@ def manage_tasks():
         return jsonify({"error": str(e)}), 500
 
 from datetime import datetime, timezone, timedelta
+import random
+from utils.flashcards_generator import get_365_flashcards
 
 @v3_bp.route('/academic/focus/heatmap', methods=['GET'])
 def get_focus_heatmap():
@@ -489,18 +491,16 @@ def manage_flashcards():
             cards = [{"id": c.id, **c.to_dict()} for c in query]
             
             if not cards:
-                from datetime import timedelta
-                # Auto-generate 365 flashcards for the student
+                # Auto-generate 365 flashcards for the student using the massive generator
                 now = datetime.now(timezone.utc)
-                topics = ['Academic (Calculus)', 'History (Kenya)', 'Relationships', 'Tech (Programming)', 'Finance (Crypto)']
-                batch = db.batch()
+                generated_cards = get_365_flashcards()
                 
-                for i in range(365):
-                    topic = topics[i % len(topics)]
+                batch = db.batch()
+                for i, card_info in enumerate(generated_cards):
                     card_data = {
-                        'unitCode': topic,
-                        'question': f"Daily Flashcard #{i+1} ({topic})",
-                        'answer': f"This is the answer for day {i+1}. Keep studying!",
+                        'unitCode': card_info['category'],
+                        'question': card_info['question'],
+                        'answer': card_info['answer'],
                         'repetition': 0,
                         'interval': 0,
                         'easeFactor': 2.5,
@@ -510,7 +510,8 @@ def manage_flashcards():
                     doc_ref = db.collection('users').document(student_id).collection('academic_flashcards').document()
                     batch.set(doc_ref, card_data)
                     
-                    if i == 0:
+                    # Return the first 50 to the frontend immediately so we don't overwhelm payload
+                    if i < 50:
                         c = card_data.copy()
                         c['id'] = doc_ref.id
                         cards.append(c)
@@ -573,9 +574,31 @@ def review_flashcard():
             'easeFactor': ease,
             'nextReviewDate': next_date.strftime('%Y-%m-%d')
         }
-        
         card_ref.update(updates)
-        return jsonify({"message": "Review logged", "updates": updates}), 200
+        
+        # Track streak
+        user_ref = db.collection('users').document(student_id)
+        user_doc = user_ref.get()
+        if user_doc.exists:
+            udata = user_doc.to_dict()
+            last_review = udata.get('lastFlashcardReviewDate')
+            today_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+            current_streak = udata.get('flashcardStreak', 0)
+            
+            if last_review != today_str:
+                # Need to increment streak. Check if it was yesterday to keep streak alive
+                yesterday_str = (datetime.now(timezone.utc) - timedelta(days=1)).strftime('%Y-%m-%d')
+                if last_review == yesterday_str:
+                    current_streak += 1
+                else:
+                    current_streak = 1 # Reset streak
+                
+                user_ref.update({
+                    'lastFlashcardReviewDate': today_str,
+                    'flashcardStreak': current_streak
+                })
+
+        return jsonify({"message": "Review logged", "updates": updates, "streak": current_streak if user_doc.exists else 0}), 200
         
     except Exception as e:
         logger.error(f"Error reviewing flashcard: {e}")

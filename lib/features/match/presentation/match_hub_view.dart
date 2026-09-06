@@ -10,7 +10,7 @@ import 'match_double_date_view.dart';
 import 'match_crush_radar_view.dart';
 import 'match_event_date_view.dart';
 import 'match_study_buddy_view.dart';
-import 'match_vibe_check_dialog.dart';
+import 'match_vibe_inbox_view.dart';
 import 'match_love_language_dialog.dart';
 import 'match_voice_recorder_dialog.dart';
 import 'match_spill_the_tea_view.dart';
@@ -120,8 +120,8 @@ class MatchHubView extends StatelessWidget {
                 _buildListCard('Study Buddy', 'Find librar...', Icons.menu_book, Colors.green, () {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const MatchStudyBuddyView()));
                 }),
-                _buildListCard('Vibe Check', 'Quick Q&A...', Icons.psychology, Colors.purpleAccent, () {
-                  showDialog(context: context, builder: (context) => const MatchVibeCheckDialog());
+                _buildListCard('Vibe Check', 'Your Inbox...', Icons.psychology, Colors.purpleAccent, () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const MatchVibeInboxView()));
                 }),
                 _buildListCard('Love Language', 'Find your s...', Icons.favorite, Colors.redAccent, () {
                   showDialog(context: context, builder: (context) => const MatchLoveLanguageDialog());

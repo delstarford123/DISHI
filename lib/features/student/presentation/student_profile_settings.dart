@@ -96,8 +96,14 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('users').doc(widget.userModel.uid).snapshots(),
+      body: Builder(
+        builder: (context) {
+          final actualUid = widget.userModel.uid.isNotEmpty ? widget.userModel.uid : FirebaseAuth.instance.currentUser?.uid;
+          if (actualUid == null || actualUid.isEmpty) {
+            return const Center(child: Text("Error: User ID is missing."));
+          }
+          return StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance.collection('users').doc(actualUid).snapshots(),
         builder: (context, snapshot) {
           final liveImageUrl = snapshot.hasData && snapshot.data!.exists 
               ? (snapshot.data!.data() as Map<String, dynamic>)['profileImageUrl'] 
@@ -216,6 +222,8 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
             ],
           );
         },
+      );
+      },
       ),
     );
   }

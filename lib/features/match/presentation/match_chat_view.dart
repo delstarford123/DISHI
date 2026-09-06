@@ -1,7 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'match_dishi_date_dialog.dart';
 import 'match_call_view.dart' as match_call;
 
@@ -35,13 +40,80 @@ class MatchChatView extends StatefulWidget {
 class _MatchChatViewState extends State<MatchChatView> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  bool _isWhisperMode = false;
   
+  // Voice Note State
+  final Record _audioRecorder = Record();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isRecording = false;
+  bool _isUploadingAudio = false;
+  String? _currentlyPlayingAudio;
+  
+  bool _isWhisperMode = false;
+  bool _isTyping = false;
+  Timer? _typingTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _markMessagesAsRead();
+    
+    // Typing listener
+    _textController.addListener(() {
+      if (_textController.text.isNotEmpty && !_isTyping) {
+        _setTypingStatus(true);
+      }
+      _typingTimer?.cancel();
+      _typingTimer = Timer(const Duration(seconds: 2), () {
+        if (_isTyping) _setTypingStatus(false);
+      });
+    });
+
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (state == PlayerState.completed || state == PlayerState.stopped) {
+        if (mounted) setState(() => _currentlyPlayingAudio = null);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _setTypingStatus(false);
+    _typingTimer?.cancel();
+    _textController.dispose();
+    _scrollController.dispose();
+    _audioRecorder.dispose();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _setTypingStatus(bool isTyping) async {
+    _isTyping = isTyping;
+    try {
+      await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).set({
+        'typing_${widget.myUid}': isTyping,
+      }, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  Future<void> _markMessagesAsRead() async {
+    final unreadMsgs = await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(widget.chatId)
+        .collection('messages')
+        .where('senderId', isNotEqualTo: widget.myUid)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    for (var doc in unreadMsgs.docs) {
+      doc.reference.update({'isRead': true});
+    }
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          0.0, // Reversing list view
+          0.0, 
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -53,78 +125,97 @@ class _MatchChatViewState extends State<MatchChatView> {
     if (_textController.text.trim().isEmpty) return;
     final text = _textController.text.trim();
     _textController.clear();
+    _setTypingStatus(false);
 
     if (_isWhisperMode) {
-      _sendWhisper(text);
+      await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).collection('messages').add({
+        'type': 'whisper',
+        'text': text,
+        'senderId': widget.myUid,
+        'timestamp': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(seconds: 10))),
+        'isRead': false,
+        'reactions': {},
+      });
     } else {
-      await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(widget.chatId)
-          .collection('messages')
-          .add({
+      await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).collection('messages').add({
         'type': 'text',
         'text': text,
         'senderId': widget.myUid,
         'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
+        'reactions': {},
       });
-      _scrollToBottom();
+    }
+    _scrollToBottom();
+  }
+
+  // ---- AUDIO MESSAGING ----
+  Future<void> _startRecording() async {
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        final dir = await getTemporaryDirectory();
+        final path = p.join(dir.path, 'chat_audio_${DateTime.now().millisecondsSinceEpoch}.m4a');
+        await _audioRecorder.start(path: path);
+        setState(() => _isRecording = true);
+      }
+    } catch (e) {
+      debugPrint('Error starting record: $e');
     }
   }
 
-  Future<void> _sendWhisper(String text) async {
-    await FirebaseFirestore.instance
-        .collection('chats')
-        .doc(widget.chatId)
-        .collection('messages')
-        .add({
-      'type': 'whisper',
-      'text': text,
-      'senderId': widget.myUid,
-      'timestamp': FieldValue.serverTimestamp(),
-      'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(seconds: 10))),
-    });
-    _scrollToBottom();
+  Future<void> _stopAndSendRecording() async {
+    try {
+      final path = await _audioRecorder.stop();
+      setState(() => _isRecording = false);
+      if (path != null) {
+        _uploadAndSendAudio(path);
+      }
+    } catch (e) {
+      debugPrint('Error stopping record: $e');
+    }
   }
 
-  Future<void> _sendIcebreaker() async {
-    final gameData = {
-      'truths': ['I have 3 dogs', 'I broke my leg in Paris'],
-      'lie': 'I speak 4 languages'
-    };
-    
-    await FirebaseFirestore.instance
-        .collection('chats')
-        .doc(widget.chatId)
-        .collection('messages')
-        .add({
-      'type': 'icebreaker',
-      'gameData': gameData,
-      'senderId': widget.myUid,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
-    _scrollToBottom();
-  }
+  Future<void> _uploadAndSendAudio(String path) async {
+    setState(() => _isUploadingAudio = true);
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final storageRef = FirebaseStorage.instance.ref().child('chat_audio/${widget.chatId}_$timestamp.m4a');
+      await storageRef.putFile(File(path), SettableMetadata(contentType: 'audio/m4a'));
+      final downloadUrl = await storageRef.getDownloadURL();
 
-  void _openDishiDateDialog() async {
-    final result = await showDialog(
-      context: context, 
-      builder: (context) => const MatchDishiDateDialog()
-    );
-    
-    if (result != null) {
-      await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(widget.chatId)
-          .collection('messages')
-          .add({
-        'type': 'dishi_date',
-        'venue': result['venue'],
-        'splitAmount': result['splitAmount'],
+      await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).collection('messages').add({
+        'type': 'audio',
+        'audioUrl': downloadUrl,
         'senderId': widget.myUid,
         'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
+        'reactions': {},
       });
       _scrollToBottom();
+    } catch (e) {
+      debugPrint('Error uploading audio: $e');
+    } finally {
+      if (mounted) setState(() => _isUploadingAudio = false);
     }
+  }
+
+  Future<void> _playPauseAudio(String url) async {
+    if (_currentlyPlayingAudio == url) {
+      await _audioPlayer.pause();
+      setState(() => _currentlyPlayingAudio = null);
+    } else {
+      await _audioPlayer.play(UrlSource(url));
+      setState(() => _currentlyPlayingAudio = url);
+    }
+  }
+
+  // ---- REACTIONS ----
+  void _addReaction(String msgId, String emoji) async {
+    final docRef = FirebaseFirestore.instance.collection('chats').doc(widget.chatId).collection('messages').doc(msgId);
+    await docRef.set({
+      'reactions': {widget.myUid: emoji}
+    }, SetOptions(merge: true));
   }
 
   @override
@@ -150,43 +241,38 @@ class _MatchChatViewState extends State<MatchChatView> {
           IconButton(
             icon: const Icon(Icons.call, color: Colors.greenAccent), 
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => match_call.MatchCallView(
-                userName: widget.matchName,
-                userAvatar: widget.matchAvatar ?? '',
-                calleeId: widget.matchId ?? '',
-                isVideoCall: false,
-                isIncoming: false,
-              )));
+              Navigator.push(context, MaterialPageRoute(builder: (_) => match_call.MatchCallView(userName: widget.matchName, userAvatar: widget.matchAvatar ?? '', calleeId: widget.matchId ?? '', isVideoCall: false, isIncoming: false)));
             },
-            tooltip: 'Audio Call',
           ),
           IconButton(
             icon: const Icon(Icons.videocam, color: Colors.greenAccent), 
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => match_call.MatchCallView(
-                userName: widget.matchName,
-                userAvatar: widget.matchAvatar ?? '',
-                calleeId: widget.matchId ?? '',
-                isVideoCall: true,
-                isIncoming: false,
-              )));
+              Navigator.push(context, MaterialPageRoute(builder: (_) => match_call.MatchCallView(userName: widget.matchName, userAvatar: widget.matchAvatar ?? '', calleeId: widget.matchId ?? '', isVideoCall: true, isIncoming: false)));
             },
-            tooltip: 'Video Call',
-          ),
-          IconButton(
-            icon: const Icon(Icons.videogame_asset, color: Colors.cyanAccent), 
-            onPressed: _sendIcebreaker,
-            tooltip: 'Send Icebreaker',
-          ),
-          IconButton(
-            icon: const Icon(Icons.local_pizza, color: Colors.orange), 
-            onPressed: _openDishiDateDialog,
-            tooltip: 'Propose Dishi Date',
           ),
         ],
       ),
       body: Column(
         children: [
+          // Typing Indicator Area
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance.collection('chats').doc(widget.chatId).snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData && snapshot.data!.exists) {
+                final data = snapshot.data!.data() as Map<String, dynamic>;
+                final opponentId = widget.matchId; // Or derive from users array
+                if (opponentId != null && data['typing_$opponentId'] == true) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+                    alignment: Alignment.centerLeft,
+                    child: Text('${widget.matchName} is typing...', style: const TextStyle(color: _neonPink, fontSize: 12, fontStyle: FontStyle.italic)),
+                  );
+                }
+              }
+              return const SizedBox();
+            }
+          ),
+
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -197,43 +283,84 @@ class _MatchChatViewState extends State<MatchChatView> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator(color: _neonPink));
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No messages yet', style: TextStyle(color: Colors.white54)));
+                  return const Center(child: Text('No messages yet. Send an Icebreaker!', style: TextStyle(color: Colors.white54)));
                 }
 
                 final docs = snapshot.data!.docs;
+                
+                // Mark unread as read automatically
+                WidgetsBinding.instance.addPostFrameCallback((_) => _markMessagesAsRead());
+
                 return ListView.builder(
                   controller: _scrollController,
                   reverse: true,
                   padding: const EdgeInsets.all(16),
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
-                    final msg = docs[index].data() as Map<String, dynamic>;
+                    final doc = docs[index];
+                    final msg = doc.data() as Map<String, dynamic>;
                     final isMe = msg['senderId'] == widget.myUid;
                     
-                    if (msg['type'] == 'text') {
-                      return _buildMessageBubble(msg['text'] ?? '', isMe);
-                    } else if (msg['type'] == 'whisper') {
-                      final expiresAt = msg['expiresAt'] as Timestamp?;
-                      if (expiresAt != null && DateTime.now().isAfter(expiresAt.toDate())) {
-                        return const SizedBox(); // Vanished
-                      }
-                      return _buildWhisperBubble(msg['text'] ?? '', isMe, 5); // Simplification for whisper timer
-                    } else if (msg['type'] == 'icebreaker') {
-                      return _buildIcebreakerBubble(isMe);
-                    } else if (msg['type'] == 'dishi_date') {
-                      return _buildDishiDateBubble(msg['venue'] ?? '', msg['splitAmount'] ?? 0, isMe);
-                    } else if (msg['type'] == 'system_nudge') {
-                      return _buildSystemNudgeBubble(msg['text'] ?? '');
-                    }
-                    return const SizedBox();
+                    return GestureDetector(
+                      onLongPress: () {
+                        // Emoji Reaction Menu
+                        showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => Container(
+                            margin: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(color: _surfaceLight, borderRadius: BorderRadius.circular(30)),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: ['❤️', '😂', '🔥', '👍', '👀'].map((emoji) => GestureDetector(
+                                onTap: () {
+                                  _addReaction(doc.id, emoji);
+                                  Navigator.pop(context);
+                                },
+                                child: Text(emoji, style: const TextStyle(fontSize: 32)),
+                              )).toList(),
+                            ),
+                          )
+                        );
+                      },
+                      child: Column(
+                        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                        children: [
+                          if (msg['type'] == 'text')
+                            _buildMessageBubble(msg, isMe)
+                          else if (msg['type'] == 'audio')
+                            _buildAudioBubble(msg, isMe)
+                          else if (msg['type'] == 'whisper')
+                            _buildWhisperBubble(msg, isMe)
+                          else if (msg['type'] == 'flashcard')
+                            _buildFlashcardBubble(msg, isMe),
+                            
+                          // Display Reactions
+                          if (msg['reactions'] != null && (msg['reactions'] as Map).isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4, bottom: 8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(color: _surfaceLight, borderRadius: BorderRadius.circular(12)),
+                                child: Text((msg['reactions'] as Map).values.toSet().join(' '), style: const TextStyle(fontSize: 12)),
+                              ),
+                            )
+                        ],
+                      ),
+                    );
                   },
                 );
               }
             ),
           ),
+          
+          if (_isUploadingAudio)
+            const LinearProgressIndicator(color: _neonPink, backgroundColor: Colors.transparent),
+
           Container(
             padding: const EdgeInsets.all(16),
             color: _cardColor,
@@ -242,7 +369,7 @@ class _MatchChatViewState extends State<MatchChatView> {
                 IconButton(
                   icon: Icon(Icons.remove_red_eye, color: _isWhisperMode ? _neonPurple : _textSecondary), 
                   onPressed: () => setState(() => _isWhisperMode = !_isWhisperMode),
-                  tooltip: 'Whisper Mode',
+                  tooltip: 'Whisper Mode (Disappearing Messages)',
                 ),
                 Expanded(
                   child: TextField(
@@ -259,10 +386,20 @@ class _MatchChatViewState extends State<MatchChatView> {
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: _neonPink), 
-                  onPressed: _sendMessage
-                ),
+                if (_textController.text.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.send, color: _neonPink), 
+                    onPressed: _sendMessage
+                  )
+                else
+                  GestureDetector(
+                    onLongPressStart: (_) => _startRecording(),
+                    onLongPressEnd: (_) => _stopAndSendRecording(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Icon(_isRecording ? Icons.mic : Icons.mic_none, color: _isRecording ? Colors.redAccent : _neonPink),
+                    ),
+                  )
               ],
             ),
           )
@@ -271,154 +408,126 @@ class _MatchChatViewState extends State<MatchChatView> {
     );
   }
 
-  Widget _buildMessageBubble(String text, bool isMe) {
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isMe ? _neonPink : _surfaceLight,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMe ? 16 : 0),
-            bottomRight: Radius.circular(isMe ? 0 : 16),
-          ),
-        ),
-        child: Text(text, style: const TextStyle(color: Colors.white)),
-      ),
-    );
-  }
-
-  Widget _buildWhisperBubble(String text, bool isMe, int timeLeft) {
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          border: Border.all(color: _neonPurple, width: 1.5),
-          boxShadow: [
-            BoxShadow(color: _neonPurple.withOpacity(0.2), blurRadius: 10)
-          ],
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMe ? 16 : 0),
-            bottomRight: Radius.circular(isMe ? 0 : 16),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(text, style: const TextStyle(color: Colors.white, fontStyle: FontStyle.italic)),
-            const SizedBox(height: 4),
-            Text('Vanishing in $timeLeft\s', style: const TextStyle(color: _neonPurple, fontSize: 10, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIcebreakerBubble(bool isMe) {
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        width: 250,
-        decoration: BoxDecoration(
-          color: Colors.cyan.withOpacity(0.1),
-          border: Border.all(color: Colors.cyanAccent),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            const Icon(Icons.casino, color: Colors.cyanAccent, size: 32),
-            const SizedBox(height: 8),
-            const Text('Two Truths and a Lie', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            _buildIcebreakerOption('I have 3 dogs'),
-            const SizedBox(height: 8),
-            _buildIcebreakerOption('I speak 4 languages'),
-            const SizedBox(height: 8),
-            _buildIcebreakerOption('I broke my leg in Paris'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIcebreakerOption(String text) {
+  Widget _buildMessageBubble(Map<String, dynamic> msg, bool isMe) {
+    final text = msg['text'] ?? '';
+    final isRead = msg['isRead'] ?? false;
+    
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(8)),
-      child: Text(text, style: const TextStyle(color: Colors.white70), textAlign: TextAlign.center),
-    );
-  }
-
-  Widget _buildDishiDateBubble(String venue, int amount, bool isMe) {
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.1),
-          border: Border.all(color: Colors.orange),
-          borderRadius: BorderRadius.circular(16),
+      margin: const EdgeInsets.only(bottom: 4, top: 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isMe ? _neonPink : _surfaceLight,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(16),
+          topRight: const Radius.circular(16),
+          bottomLeft: Radius.circular(isMe ? 16 : 0),
+          bottomRight: Radius.circular(isMe ? 0 : 16),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.local_pizza, color: Colors.orange, size: 20),
-                SizedBox(width: 8),
-                Text('Dishi Date Proposal!', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text('Venue: $venue', style: const TextStyle(color: Colors.white)),
-            Text('Split: $amount KSH', style: const TextStyle(color: Colors.white)),
-            const SizedBox(height: 12),
-            if (!isMe)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, minimumSize: const Size(80, 36)),
-                    onPressed: () {},
-                    child: const Text('ACCEPT', style: TextStyle(color: Colors.white)),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red, minimumSize: const Size(80, 36)),
-                    onPressed: () {},
-                    child: const Text('DECLINE', style: TextStyle(color: Colors.white)),
-                  ),
-                ],
-              )
-            else
-              const Text('Waiting for response...', style: TextStyle(color: Colors.white54, fontStyle: FontStyle.italic)),
-          ],
-        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(text, style: const TextStyle(color: Colors.white)),
+          if (isMe)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Icon(isRead ? Icons.done_all : Icons.done, size: 14, color: isRead ? Colors.blueAccent : Colors.white54),
+            )
+        ],
       ),
     );
   }
 
-  Widget _buildSystemNudgeBubble(String text) {
+  Widget _buildAudioBubble(Map<String, dynamic> msg, bool isMe) {
+    final url = msg['audioUrl'] ?? '';
+    final isPlaying = _currentlyPlayingAudio == url;
+    
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 12),
-      alignment: Alignment.center,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(20)),
-        child: Text(text, style: const TextStyle(color: Colors.white54, fontSize: 12, fontStyle: FontStyle.italic)),
+      margin: const EdgeInsets.only(bottom: 4, top: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isMe ? _neonPink.withOpacity(0.8) : _surfaceLight,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(16),
+          topRight: const Radius.circular(16),
+          bottomLeft: Radius.circular(isMe ? 16 : 0),
+          bottomRight: Radius.circular(isMe ? 0 : 16),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white),
+            onPressed: () => _playPauseAudio(url),
+          ),
+          const SizedBox(width: 8),
+          const Text('Voice Note', style: TextStyle(color: Colors.white)),
+          const SizedBox(width: 24),
+          if (isMe)
+            Icon(msg['isRead'] == true ? Icons.done_all : Icons.done, size: 14, color: msg['isRead'] == true ? Colors.blueAccent : Colors.white54),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWhisperBubble(Map<String, dynamic> msg, bool isMe) {
+    final text = msg['text'] ?? '';
+    final expiresAt = msg['expiresAt'] as Timestamp?;
+    if (expiresAt != null && DateTime.now().isAfter(expiresAt.toDate())) {
+      return const SizedBox(); // Vanished
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4, top: 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        border: Border.all(color: _neonPurple, width: 1.5),
+        boxShadow: [BoxShadow(color: _neonPurple.withOpacity(0.2), blurRadius: 10)],
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(16),
+          topRight: const Radius.circular(16),
+          bottomLeft: Radius.circular(isMe ? 16 : 0),
+          bottomRight: Radius.circular(isMe ? 0 : 16),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(text, style: const TextStyle(color: Colors.white, fontStyle: FontStyle.italic)),
+          const SizedBox(height: 4),
+          const Text('Disappearing Message', style: TextStyle(color: _neonPurple, fontSize: 10, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFlashcardBubble(Map<String, dynamic> msg, bool isMe) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4, top: 4),
+      padding: const EdgeInsets.all(16),
+      width: 250,
+      decoration: BoxDecoration(
+        color: Colors.yellowAccent.withOpacity(0.1),
+        border: Border.all(color: Colors.yellowAccent),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.style, color: Colors.yellowAccent, size: 16),
+              SizedBox(width: 8),
+              Text('Shared Flashcard', style: TextStyle(color: Colors.yellowAccent, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(msg['question'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text('Answer: ${msg['answer'] ?? ''}', style: const TextStyle(color: Colors.white70)),
+        ],
       ),
     );
   }

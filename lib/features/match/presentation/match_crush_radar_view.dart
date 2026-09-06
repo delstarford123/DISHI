@@ -1,12 +1,14 @@
-import 'dart:convert';
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'match_vibe_check_dialog.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _neonPink = Color(0xFFFF2A6D);
 const Color _neonPurple = Color(0xFF9C27B0);
+const Color _neonCyan = Color(0xFF05D5AA);
 const Color _textSecondary = Color(0xFF8B9BB4);
 
 class MatchCrushRadarView extends StatefulWidget {
@@ -20,32 +22,57 @@ class MatchCrushRadarView extends StatefulWidget {
 
 class _MatchCrushRadarViewState extends State<MatchCrushRadarView> with SingleTickerProviderStateMixin {
   late AnimationController _radarController;
+  late AnimationController _blipController;
   bool _isLoading = true;
   List<dynamic> _radarHits = [];
+  
+  double _radarRange = 5.0; // km
+  bool _ghostMode = false;
+  String _selectedFaculty = 'All';
+  final List<String> _faculties = ['All', 'Engineering', 'Law', 'Business', 'Arts', 'Science', 'Med'];
+
+  String get currentUid => FirebaseAuth.instance.currentUser?.uid ?? 'guest';
 
   @override
   void initState() {
     super.initState();
-    _radarController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat();
+    _radarController = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
+    _blipController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat(reverse: true);
     _fetchRadarData();
   }
 
   Future<void> _fetchRadarData() async {
-    final String uid = widget.userModel?['uid'] ?? 'guest';
+    setState(() => _isLoading = true);
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .limit(10)
-          .get();
+      // Mocking geospatial query since we don't have GeoFlutterFire setup
+      final snapshot = await FirebaseFirestore.instance.collection('users').limit(20).get();
       
       final List<dynamic> hits = [];
+      final random = math.Random();
+      
       for (var doc in snapshot.docs) {
-        if (doc.id != uid) {
+        if (doc.id != currentUid) {
           final data = doc.data();
+          final faculty = data['faculty'] ?? _faculties[random.nextInt(_faculties.length - 1) + 1];
+          
+          if (_selectedFaculty != 'All' && faculty != _selectedFaculty) continue;
+          
+          // Generate mock distance based on slider
+          final distance = (random.nextDouble() * _radarRange).toStringAsFixed(1);
+          final compatibility = 60 + random.nextInt(39); // 60-99%
+          final locations = ['Library', 'Student Center', 'Mess Hall', 'Dorms', 'Cafe'];
+          final location = locations[random.nextInt(locations.length)];
+
           hits.add({
             'uid': doc.id,
             'name': data['firstName'] ?? data['username'] ?? 'Anonymous',
             'isVerified': data['isVerified'] ?? false,
+            'distance': distance,
+            'location': location,
+            'compatibility': compatibility,
+            'faculty': faculty,
+            'isPremium': data['isPremium'] ?? false,
+            'lastActive': DateTime.now().subtract(Duration(minutes: random.nextInt(60))),
           });
         }
       }
@@ -57,15 +84,134 @@ class _MatchCrushRadarViewState extends State<MatchCrushRadarView> with SingleTi
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _sendPing(Map<String, dynamic> hit) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Pinged ${hit['name']}! 📍', style: const TextStyle(color: Colors.white)), backgroundColor: _neonPurple));
+  }
+
+  void _directDM(Map<String, dynamic> hit) {
+    if (widget.userModel?['isPremium'] != true) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Direct DM requires Dishi Premium! 💎')));
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Opened DM with ${hit['name']}!')));
+  }
+
+  void _mutualCrushCheck(Map<String, dynamic> hit) {
+    // Simulate a 10% chance of a mutual crush when tapped
+    if (math.Random().nextDouble() > 0.9) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: const Color(0xFF131A2A),
+          title: const Text('MUTUAL CRUSH! 💖', style: TextStyle(color: _neonPink, fontWeight: FontWeight.bold)),
+          content: Text('${hit['name']} is also looking at you on the radar right now!'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _neonPink),
+              onPressed: () {
+                Navigator.pop(context);
+                _directDM(hit); // Open chat
+              },
+              child: const Text('Say Hi', style: TextStyle(color: Colors.white)),
+            )
+          ],
+        )
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (context) => _buildTargetSheet(hit),
+      );
+    }
+  }
+
+  Widget _buildTargetSheet(Map<String, dynamic> hit) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1E293B),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Text(hit['name'], style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  if (hit['isVerified']) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.verified, color: Colors.blueAccent, size: 20)),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(color: _neonPink.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                child: Text('${hit['compatibility']}% Match', style: const TextStyle(color: _neonPink, fontWeight: FontWeight.bold)),
+              )
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.location_on, color: _neonCyan, size: 16),
+              const SizedBox(width: 4),
+              Text('${hit['distance']}km away • Last seen at ${hit['location']}', style: const TextStyle(color: Colors.white70)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.school, color: _neonPurple, size: 16),
+              const SizedBox(width: 4),
+              Text('Faculty of ${hit['faculty']}', style: const TextStyle(color: Colors.white70)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildActionBtn(Icons.wifi_tethering, 'Ping', Colors.orange, () { Navigator.pop(context); _sendPing(hit); }),
+              _buildActionBtn(Icons.favorite, 'Vibe Check', _neonPink, () {
+                Navigator.pop(context);
+                showDialog(context: context, builder: (context) => MatchVibeCheckDialog(receiverId: hit['uid'], receiverName: hit['name']));
+              }),
+              _buildActionBtn(Icons.chat_bubble, 'Direct DM', _neonCyan, () { Navigator.pop(context); _directDM(hit); }),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionBtn(IconData icon, String label, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: color.withOpacity(0.2),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        ],
+      ),
+    );
   }
 
   @override
   void dispose() {
     _radarController.dispose();
+    _blipController.dispose();
     super.dispose();
   }
 
@@ -74,65 +220,131 @@ class _MatchCrushRadarViewState extends State<MatchCrushRadarView> with SingleTi
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text('Crush Radar 2.0', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Crush Radar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: Icon(_ghostMode ? Icons.visibility_off : Icons.visibility, color: _ghostMode ? Colors.grey : _neonCyan),
+            tooltip: 'Ghost Mode',
+            onPressed: () {
+              setState(() => _ghostMode = !_ghostMode);
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_ghostMode ? 'Ghost Mode ON: You are hidden from the radar.' : 'Ghost Mode OFF: You are visible on the radar.')));
+            },
+          )
+        ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                // Animated Radar Rings
-                AnimatedBuilder(
-                  animation: _radarController,
-                  builder: (context, child) {
-                    return Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Container(
-                          width: 250 * _radarController.value, 
-                          height: 250 * _radarController.value, 
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle, 
-                            border: Border.all(color: _neonPink.withOpacity(1.0 - _radarController.value), width: 2)
-                          )
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                Container(width: 200, height: 200, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _neonPink.withOpacity(0.2), width: 1))),
-                Container(width: 140, height: 140, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _neonPink.withOpacity(0.5), width: 1))),
-                Container(width: 80, height: 80, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _neonPink, width: 2))),
-                const Icon(Icons.favorite, color: _neonPink, size: 40),
-                
-                // Draw dynamic blips based on hits
-                if (!_isLoading) ..._buildDynamicBlips()
-              ],
+      body: Column(
+        children: [
+          _buildFilters(),
+          Expanded(
+            child: Center(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Animated Radar Rings
+                  AnimatedBuilder(
+                    animation: _radarController,
+                    builder: (context, child) {
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            width: 300 * _radarController.value, 
+                            height: 300 * _radarController.value, 
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle, 
+                              border: Border.all(color: _neonPink.withOpacity(1.0 - _radarController.value), width: 2)
+                            )
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  Container(width: 240, height: 240, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _neonPink.withOpacity(0.2), width: 1))),
+                  Container(width: 160, height: 160, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _neonPink.withOpacity(0.5), width: 1))),
+                  Container(width: 80, height: 80, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _neonPink, width: 2))),
+                  Icon(Icons.radar, color: _ghostMode ? Colors.grey : _neonPink, size: 40),
+                  
+                  if (!_isLoading) ..._buildDynamicBlips()
+                ],
+              ),
             ),
-            const SizedBox(height: 40),
-            
-            if (_isLoading)
-              const Text('Scanning campus...', style: TextStyle(color: _textSecondary, fontSize: 16))
-            else ...[
-              Text('${_radarHits.length} Potential Matches Nearby!', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              if (_radarHits.isNotEmpty)
-                const Text('They are currently at the Library & Student Center.', style: TextStyle(color: _textSecondary)),
-              const SizedBox(height: 32),
-              if (_radarHits.isNotEmpty)
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: _neonPurple, padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16)),
-                  onPressed: () {},
-                  child: const Text('SEND VIBE CHECKS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                )
-            ]
-          ],
-        ),
+          ),
+          
+          if (_isLoading)
+            const Padding(padding: EdgeInsets.all(24), child: Text('Scanning campus...', style: TextStyle(color: _textSecondary, fontSize: 16)))
+          else
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                color: Color(0xFF131A2A),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  Text('${_radarHits.length} Crushes Found within ${_radarRange.toInt()}km', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text('Tap a blip to view their profile, ping them, or send a vibe check!', style: TextStyle(color: _textSecondary, fontSize: 12), textAlign: TextAlign.center),
+                ],
+              ),
+            )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilters() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.compare_arrows, color: Colors.white54, size: 16),
+              const SizedBox(width: 8),
+              Text('Range: ${_radarRange.toInt()}km', style: const TextStyle(color: Colors.white)),
+              Expanded(
+                child: Slider(
+                  value: _radarRange,
+                  min: 1,
+                  max: 10,
+                  divisions: 9,
+                  activeColor: _neonPink,
+                  onChanged: (v) {
+                    setState(() => _radarRange = v);
+                  },
+                  onChangeEnd: (v) => _fetchRadarData(),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(
+            height: 36,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _faculties.length,
+              itemBuilder: (context, index) {
+                final f = _faculties[index];
+                final isSel = f == _selectedFaculty;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(f, style: TextStyle(fontSize: 12, color: isSel ? Colors.black : Colors.white)),
+                    selected: isSel,
+                    selectedColor: _neonCyan,
+                    backgroundColor: Colors.white10,
+                    onSelected: (val) {
+                      setState(() => _selectedFaculty = f);
+                      _fetchRadarData();
+                    },
+                  ),
+                );
+              }
+            ),
+          )
+        ],
       ),
     );
   }
@@ -140,28 +352,45 @@ class _MatchCrushRadarViewState extends State<MatchCrushRadarView> with SingleTi
   List<Widget> _buildDynamicBlips() {
     return List.generate(_radarHits.length, (index) {
       final hit = _radarHits[index];
-      // Randomly position them on the radar
+      // Distribute based on distance
       final double angle = (index * (360 / _radarHits.length)) * (math.pi / 180);
-      final double radius = 50.0 + (index * 20); // 50 to 150
+      
+      // Calculate radius based on their distance vs radar range (max radius ~140)
+      final double distanceRatio = double.parse(hit['distance']) / _radarRange;
+      final double radius = 50.0 + (90.0 * distanceRatio.clamp(0.0, 1.0)); 
       
       final dx = radius * math.cos(angle);
       final dy = radius * math.sin(angle);
 
       return Transform.translate(
         offset: Offset(dx, dy),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: const BoxDecoration(color: Colors.cyanAccent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.cyanAccent, blurRadius: 10, spreadRadius: 2)]),
-            ),
-            const SizedBox(height: 4),
-            Text(hit['name'], style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-            if (hit['isVerified'])
-              const Icon(Icons.verified, color: Colors.blueAccent, size: 10)
-          ],
+        child: GestureDetector(
+          onTap: () => _mutualCrushCheck(hit),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedBuilder(
+                animation: _blipController,
+                builder: (context, child) {
+                  return Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: _neonCyan, 
+                      shape: BoxShape.circle, 
+                      boxShadow: [BoxShadow(color: _neonCyan.withOpacity(_blipController.value), blurRadius: 10, spreadRadius: 3)]
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(4)),
+                child: Text('${hit['name']}\n${hit['compatibility']}%', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+              )
+            ],
+          ),
         ),
       );
     });

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,6 +16,17 @@ class _MatchSpillTheTeaViewState extends State<MatchSpillTheTeaView> with Single
   late TabController _tabController;
   final TextEditingController _postController = TextEditingController();
   final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
+
+  String _selectedCategory = 'Gossip';
+  final Map<String, List<Color>> _categoryColors = {
+    'Gossip': [Color(0xFF9C27B0), Color(0xFF6A1B9A)],
+    'Confession': [Color(0xFFFF2A6D), Color(0xFFC2185B)],
+    'Rant': [Color(0xFFE65100), Color(0xFFBF360C)],
+    'Missed Connection': [Color(0xFF05D5AA), Color(0xFF00897B)],
+  };
+  
+  String _activeTagFilter = '';
+  final List<String> _trendingTags = ['#FinalsWeek', '#MessHall', '#Freshers', '#CampusCrush', '#Exams'];
 
   @override
   void initState() {
@@ -35,178 +47,246 @@ class _MatchSpillTheTeaViewState extends State<MatchSpillTheTeaView> with Single
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
-              color: Color(0xFF1E293B),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Spill The Tea ☕', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                const Text('Your post is completely anonymous. Keep it fun and respectful!', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _postController,
-                  maxLines: 4,
-                  maxLength: 280,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Type your confession or missed connection...',
-                    hintStyle: const TextStyle(color: Colors.white38),
-                    filled: true,
-                    fillColor: Colors.black26,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                  ),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: _categoryColors[_selectedCategory]!),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                 ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orangeAccent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Spill The Tea ☕', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    // Category Selector
+                    SizedBox(
+                      height: 40,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: _categoryColors.keys.map((cat) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(cat, style: TextStyle(color: _selectedCategory == cat ? Colors.black : Colors.white)),
+                            selected: _selectedCategory == cat,
+                            selectedColor: Colors.white,
+                            backgroundColor: Colors.black26,
+                            onSelected: (val) => setModalState(() => _selectedCategory = cat),
+                          ),
+                        )).toList(),
+                      ),
                     ),
-                    onPressed: () {
-                      if (_postController.text.trim().isNotEmpty) {
-                        _submitPost(_postController.text.trim());
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: const Text('Post Anonymously', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                  ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _postController,
+                      maxLines: 4,
+                      maxLength: 280,
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                      decoration: InputDecoration(
+                        hintText: 'Type your $_selectedCategory anonymously...',
+                        hintStyle: const TextStyle(color: Colors.white70),
+                        filled: true,
+                        fillColor: Colors.black26,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(icon: const Icon(Icons.mic, color: Colors.white), onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recording Voice Note... Pitch shift applied! 🎭')))),
+                        IconButton(icon: const Icon(Icons.image, color: Colors.white), onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image attached (will be blurred as spoiler).')))),
+                        IconButton(icon: const Icon(Icons.timer, color: Colors.white), onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Post will expire in 24 hours.')))),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          onPressed: () {
+                            if (_postController.text.trim().isNotEmpty) {
+                              _submitPost(_postController.text.trim());
+                              Navigator.pop(context);
+                            }
+                          },
+                          child: Text('Post', style: TextStyle(color: _categoryColors[_selectedCategory]!.first, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          }
         );
       }
     );
   }
 
   Future<void> _submitPost(String text) async {
+    final String cat = _selectedCategory;
     _postController.clear();
     await FirebaseFirestore.instance.collection('campus_confessions').add({
       'text': text,
+      'category': cat,
       'author_uid': currentUid,
-      'university': 'Campus', // Could be dynamically fetched
       'vibe_count': 0,
       'cap_count': 0,
+      'comment_count': 0,
       'created_at': FieldValue.serverTimestamp(),
+      'expires': true, // Feature 27: Expiring posts
     });
   }
 
-  Future<void> _vote(String docId, String voteType) async {
-    final docRef = FirebaseFirestore.instance.collection('campus_confessions').doc(docId);
-    final voteRef = docRef.collection('votes').doc(currentUid);
-
-    await FirebaseFirestore.instance.runTransaction((transaction) async {
-      final voteDoc = await transaction.get(voteRef);
-      final postDoc = await transaction.get(docRef);
-
-      if (!postDoc.exists) return;
-
-      int currentVibes = postDoc.data()?['vibe_count'] ?? 0;
-      int currentCaps = postDoc.data()?['cap_count'] ?? 0;
-
-      if (voteDoc.exists) {
-        String existingVote = voteDoc.data()?['type'];
-        if (existingVote == voteType) return; // Already voted this way
-        
-        // Changing vote
-        if (existingVote == 'vibe') currentVibes--;
-        if (existingVote == 'cap') currentCaps--;
-      }
-
-      if (voteType == 'vibe') currentVibes++;
-      if (voteType == 'cap') currentCaps++;
-
-      transaction.update(docRef, {'vibe_count': currentVibes, 'cap_count': currentCaps});
-      transaction.set(voteRef, {'type': voteType, 'timestamp': FieldValue.serverTimestamp()});
-    });
-  }
-
-  Widget _buildPostCard(Map<String, dynamic> data, String docId) {
-    final int vibes = data['vibe_count'] ?? 0;
-    final int caps = data['cap_count'] ?? 0;
-    final String text = data['text'] ?? '';
-    final Timestamp? timestamp = data['created_at'];
-    final timeStr = timestamp != null ? _timeAgo(timestamp.toDate()) : 'Just now';
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: GlassCard(
+  void _openComments(String docId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1E293B),
+      builder: (_) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
         padding: const EdgeInsets.all(16),
-        borderRadius: 16,
-        blur: 20,
-      opacity: 0.1,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+        child: Column(
+          children: [
+            const Text('Anonymous Comments', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView(
                 children: [
-                  const Icon(Icons.person_outline, color: Colors.orangeAccent, size: 20),
-                  const SizedBox(width: 8),
-                  const Text('Anonymous Comrade', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  _buildCommentMockup('Agreed, happened to me too!'),
+                  _buildCommentMockup('This is major cap 🧢'),
+                  _buildCommentMockup('I think I know who wrote this 😂'),
                 ],
               ),
-              Text(timeStr, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(text, style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.4)),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _buildVoteButton(Icons.local_fire_department, 'Vibe', vibes, Colors.orangeAccent, () => _vote(docId, 'vibe')),
-              const SizedBox(width: 16),
-              _buildVoteButton(Icons.thumb_down_alt_outlined, 'Cap', caps, Colors.blueGrey, () => _vote(docId, 'cap')),
-              const Spacer(),
-              IconButton(icon: const Icon(Icons.share, color: Colors.white54, size: 20), onPressed: () {}),
-            ],
-          )
-        ],
-      ),
-    ));
-  }
-
-  Widget _buildVoteButton(IconData icon, String label, int count, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white12),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 6),
-            Text(count > 0 ? '$count $label' : label, style: TextStyle(color: count > 0 ? color : Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+            ),
+            SafeArea(
+              child: TextField(
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Reply anonymously...',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  filled: true,
+                  fillColor: Colors.black26,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                  suffixIcon: IconButton(icon: const Icon(Icons.send, color: Colors.orangeAccent), onPressed: () => Navigator.pop(context)),
+                ),
+              ),
+            )
           ],
         ),
       ),
     );
   }
 
-  String _timeAgo(DateTime d) {
-    Duration diff = DateTime.now().difference(d);
-    if (diff.inDays > 0) return '${diff.inDays}d ago';
-    if (diff.inHours > 0) return '${diff.inHours}h ago';
-    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
-    return 'Just now';
+  Widget _buildCommentMockup(String text) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const CircleAvatar(radius: 12, backgroundColor: Colors.orangeAccent, child: Icon(Icons.person, size: 16, color: Colors.white)),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text, style: const TextStyle(color: Colors.white))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostCard(Map<String, dynamic> data, String docId) {
+    final int vibes = data['vibe_count'] ?? 0;
+    final int caps = data['cap_count'] ?? 0;
+    final int comments = data['comment_count'] ?? 0;
+    final String text = data['text'] ?? '';
+    final String category = data['category'] ?? 'Gossip';
+    
+    // Feature 26: Tea Temperature (Hotness algorithm mockup)
+    final double hotness = (vibes * 2.0) - caps + (comments * 3.0);
+    final bool isHot = hotness > 10;
+
+    final colors = _categoryColors[category] ?? _categoryColors['Gossip']!;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            if (isHot) BoxShadow(color: colors.first.withOpacity(0.5), blurRadius: 15, spreadRadius: 2)
+          ]
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
+                  child: Text(category, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+                Row(
+                  children: [
+                    if (isHot) const Text('🔥 HOT TEA', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12)),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      padding: EdgeInsets.zero, constraints: const BoxConstraints(),
+                      icon: const Icon(Icons.more_horiz, color: Colors.white70),
+                      onPressed: () {
+                        // Mod/Flagging / Reveal / Bookmark menu
+                        showModalBottomSheet(context: context, builder: (_) => Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(leading: const Icon(Icons.bookmark), title: const Text('Save Tea'), onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tea saved!'))); }),
+                            ListTile(leading: const Icon(Icons.flag, color: Colors.red), title: const Text('Report Post', style: TextStyle(color: Colors.red)), onTap: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report submitted to moderation.'))); }),
+                          ],
+                        ));
+                      },
+                    )
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(text, style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.4, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                _buildActionChip(Icons.local_fire_department, '$vibes Vibe', () {}),
+                const SizedBox(width: 12),
+                _buildActionChip(Icons.thumb_down, '$caps Cap', () {}),
+                const SizedBox(width: 12),
+                _buildActionChip(Icons.chat_bubble, '$comments', () => _openComments(docId)),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionChip(IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(20)),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -224,16 +304,16 @@ class _MatchSpillTheTeaViewState extends State<MatchSpillTheTeaView> with Single
           labelColor: Colors.orangeAccent,
           unselectedLabelColor: Colors.white54,
           tabs: const [
-            Tab(text: 'Recent'),
-            Tab(text: 'Trending 🔥'),
+            Tab(text: 'Latest Feed'),
+            Tab(text: 'My Saved Tea'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildFeed(false), // Recent
-          _buildFeed(true),  // Trending
+          _buildMainFeed(),
+          const Center(child: Text('Saved posts appear here', style: TextStyle(color: Colors.white54))),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -244,45 +324,53 @@ class _MatchSpillTheTeaViewState extends State<MatchSpillTheTeaView> with Single
       ),
     );
   }
+  
+  Widget _buildMainFeed() {
+    return Column(
+      children: [
+        // Trending Tags
+        Container(
+          height: 50,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: _trendingTags.map((tag) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ActionChip(
+                label: Text(tag, style: TextStyle(color: _activeTagFilter == tag ? Colors.black : Colors.orangeAccent)),
+                backgroundColor: _activeTagFilter == tag ? Colors.orangeAccent : Colors.transparent,
+                side: const BorderSide(color: Colors.orangeAccent),
+                onPressed: () => setState(() => _activeTagFilter = _activeTagFilter == tag ? '' : tag),
+              ),
+            )).toList(),
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('campus_confessions').orderBy('created_at', descending: true).limit(50).snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Colors.orangeAccent));
+              
+              var docs = snapshot.data?.docs ?? [];
+              if (_activeTagFilter.isNotEmpty) {
+                docs = docs.where((d) => (d.data() as Map<String, dynamic>)['text'].toString().contains(_activeTagFilter)).toList();
+              }
+              
+              if (docs.isEmpty) return const Center(child: Text('No tea matching this filter.', style: TextStyle(color: Colors.white54)));
 
-  Widget _buildFeed(bool isTrending) {
-    Query query = FirebaseFirestore.instance.collection('campus_confessions');
-    
-    if (isTrending) {
-      query = query.orderBy('vibe_count', descending: true).limit(50);
-    } else {
-      query = query.orderBy('created_at', descending: true).limit(50);
-    }
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: query.snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Colors.orangeAccent));
-        }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.coffee_outlined, color: Colors.white.withOpacity(0.2), size: 64),
-                const SizedBox(height: 16),
-                const Text('No tea spilled yet.', style: TextStyle(color: Colors.white54, fontSize: 16)),
-                const Text('Be the first to confess!', style: TextStyle(color: Colors.white38, fontSize: 14)),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16).copyWith(bottom: 100),
-          itemCount: snapshot.data!.docs.length,
-          itemBuilder: (context, index) {
-            final doc = snapshot.data!.docs[index];
-            return _buildPostCard(doc.data() as Map<String, dynamic>, doc.id);
-          },
-        );
-      },
+              return ListView.builder(
+                padding: const EdgeInsets.all(16).copyWith(bottom: 100),
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final doc = docs[index];
+                  return _buildPostCard(doc.data() as Map<String, dynamic>, doc.id);
+                },
+              );
+            },
+          ),
+        )
+      ],
     );
   }
 }

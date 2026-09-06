@@ -62,6 +62,17 @@ class _MatchMatchesHubState extends State<MatchMatchesHub> {
     }
   }
 
+  String _getUniversalChatId(String uid1, String uid2) {
+    final List<String> ids = [uid1, uid2];
+    ids.sort();
+    return '${ids[0]}_${ids[1]}';
+  }
+
+  void _openChat(Map<String, dynamic> user) {
+    final chatId = _getUniversalChatId(_currentUid, user['id']);
+    Navigator.push(context, MaterialPageRoute(builder: (_) => MatchChatView(chatId: chatId, myUid: _currentUid, matchName: user['displayName'] ?? 'Student', matchAvatar: user['profileImageUrl'])));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -133,8 +144,8 @@ class _MatchMatchesHubState extends State<MatchMatchesHub> {
             itemCount: _matches.length > 5 ? 5 : _matches.length,
             itemBuilder: (context, index) {
               final user = _matches[index];
-              return GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MatchChatView(chatId: '${_currentUid}_${user['id']}', myUid: _currentUid, matchName: user['displayName'] ?? 'Student', matchAvatar: user['profileImageUrl']))),
+              return InkWell(
+                onTap: () => _openChat(user),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Column(
@@ -201,12 +212,7 @@ class _MatchMatchesHubState extends State<MatchMatchesHub> {
         ],
       ),
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => MatchChatView(
-          chatId: '${_currentUid}_${user['id']}', 
-          myUid: _currentUid,
-          matchName: name,
-          matchAvatar: avatar,
-        )));
+        _openChat(user);
       },
     );
   }

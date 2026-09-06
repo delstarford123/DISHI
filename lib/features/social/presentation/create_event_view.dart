@@ -24,6 +24,14 @@ class _CreateEventViewState extends State<CreateEventView> {
   final _priceController = TextEditingController();
   final _descController = TextEditingController();
   
+  // Phase 6 Additions
+  final _vipPriceController = TextEditingController();
+  final _regularCapacityController = TextEditingController();
+  final _vipCapacityController = TextEditingController();
+  final _earlyBirdCapacityController = TextEditingController();
+  final _promoCodeController = TextEditingController();
+  final _promoDiscountController = TextEditingController();
+  
   final _capacityController = TextEditingController();
   final _earlyBirdPriceController = TextEditingController();
   final _earlyBirdDeadlineController = TextEditingController();
@@ -73,8 +81,14 @@ class _CreateEventViewState extends State<CreateEventView> {
         'description': _descController.text.trim(),
         'category': _selectedCategory,
         'capacity': int.tryParse(_capacityController.text.trim()) ?? 0,
+        'regularCapacity': int.tryParse(_regularCapacityController.text.trim()) ?? 0,
+        'vipPrice': double.tryParse(_vipPriceController.text.trim()),
+        'vipCapacity': int.tryParse(_vipCapacityController.text.trim()) ?? 0,
         'earlyBirdPrice': double.tryParse(_earlyBirdPriceController.text.trim()),
+        'earlyBirdCapacity': int.tryParse(_earlyBirdCapacityController.text.trim()) ?? 0,
         'earlyBirdDeadline': _earlyBirdDeadlineController.text.trim(),
+        'promoCode': _promoCodeController.text.trim().toUpperCase(),
+        'promoDiscount': double.tryParse(_promoDiscountController.text.trim()) ?? 0.0,
         'payoutType': _payoutType,
         'payoutDestination': _payoutDestinationController.text.trim(),
         'imageUrl': imageUrl,
@@ -82,6 +96,9 @@ class _CreateEventViewState extends State<CreateEventView> {
         'creatorName': widget.user['name'] ?? widget.user['displayName'] ?? 'DISHI User',
         'createdAt': FieldValue.serverTimestamp(),
         'ticketsSold': 0,
+        'vipSold': 0,
+        'earlyBirdSold': 0,
+        'regularSold': 0,
         'views': 0,
         'revenue': 0.0,
       };
@@ -179,21 +196,43 @@ class _CreateEventViewState extends State<CreateEventView> {
                     _buildTextField(_descController, 'Description (Supports Markdown)', Icons.description, maxLines: 3),
                     const SizedBox(height: 24),
 
-                    const Text('Ticketing & Capacity', style: TextStyle(color: MPesaTheme.neonCyan, fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text('Ticketing & Inventory (Phase 6)', style: TextStyle(color: MPesaTheme.neonCyan, fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    _buildTextField(_capacityController, 'Total Overall Capacity', Icons.people, isNumber: true),
                     const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(child: _buildTextField(_priceController, 'Regular Price', Icons.attach_money, isNumber: true)),
                         const SizedBox(width: 16),
-                        Expanded(child: _buildTextField(_capacityController, 'Total Capacity', Icons.people, isNumber: true)),
+                        Expanded(child: _buildTextField(_regularCapacityController, 'Regular Cap', Icons.inventory, isNumber: true)),
                       ],
                     ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        Expanded(child: _buildTextField(_earlyBirdPriceController, 'Early Bird Price (Opt)', Icons.local_offer, isNumber: true, isRequired: false)),
+                        Expanded(child: _buildTextField(_earlyBirdPriceController, 'Early Bird Price', Icons.local_offer, isNumber: true, isRequired: false)),
                         const SizedBox(width: 16),
-                        Expanded(child: _buildTextField(_earlyBirdDeadlineController, 'Early Bird Deadline', Icons.timer, isRequired: false)),
+                        Expanded(child: _buildTextField(_earlyBirdCapacityController, 'Early Bird Cap', Icons.inventory, isNumber: true, isRequired: false)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(_earlyBirdDeadlineController, 'Early Bird Deadline', Icons.timer, isRequired: false),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(child: _buildTextField(_vipPriceController, 'VIP Price', Icons.star, isNumber: true, isRequired: false)),
+                        const SizedBox(width: 16),
+                        Expanded(child: _buildTextField(_vipCapacityController, 'VIP Cap', Icons.inventory, isNumber: true, isRequired: false)),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    const Text('Promo & Marketing', style: TextStyle(color: MPesaTheme.neonCyan, fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(child: _buildTextField(_promoCodeController, 'Promo Code (Opt)', Icons.discount, isRequired: false)),
+                        const SizedBox(width: 16),
+                        Expanded(child: _buildTextField(_promoDiscountController, '% Discount', Icons.percent, isNumber: true, isRequired: false)),
                       ],
                     ),
                     const SizedBox(height: 24),

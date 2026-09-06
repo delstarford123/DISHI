@@ -275,7 +275,8 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
                                 name, 
                                 '$fakeSchool • $subtext', 
                                 glowColor, 
-                                icon
+                                icon,
+                                avatarUrl,
                               ),
                             ),
                           );
@@ -331,7 +332,7 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
     );
   }
 
-  Widget _buildGlowingAvatar(String name, String subtext, Color glowColor, IconData icon) {
+  Widget _buildGlowingAvatar(String name, String subtext, Color glowColor, IconData icon, String? avatarUrl) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -359,7 +360,8 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
           child: CircleAvatar(
             radius: 35,
             backgroundColor: Colors.black,
-            child: Icon(icon, size: 40, color: Colors.white),
+            backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+            child: avatarUrl == null || avatarUrl.isEmpty ? Icon(icon, size: 40, color: Colors.white) : null,
           ),
         ),
         const SizedBox(height: 8),

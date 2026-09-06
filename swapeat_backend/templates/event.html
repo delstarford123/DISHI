@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ event.title if event else 'Event Ticket' }} | DISHI Web</title>
+    <style>
+        :root {
+            --bg-dark: #0C101B;
+            --card-bg: #131A2A;
+            --neon-cyan: #05D5AA;
+            --text-main: #FFFFFF;
+            --text-secondary: #8B9BB4;
+            --error-red: #FF3B30;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(5, 213, 170, 0.2);
+            text-align: center;
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            background-color: var(--bg-dark);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            border: 2px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            font-size: 32px;
+            font-weight: bold;
+        }
+        h1 {
+            font-size: 24px;
+            margin: 0 0 10px;
+        }
+        .organizer {
+            color: var(--neon-cyan);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .desc {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+        .form-group {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #2A364F;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 8px;
+            border: none;
+            background-color: var(--neon-cyan);
+            color: #000;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .error {
+            color: var(--error-red);
+            background-color: rgba(255, 59, 48, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 59, 48, 0.3);
+        }
+        .ticket-info {
+            background-color: var(--bg-dark);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: left;
+            border: 1px dashed var(--neon-cyan);
+        }
+        .ticket-info p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .ticket-info strong {
+            color: var(--neon-cyan);
+        }
+        #status-msg {
+            margin-top: 15px;
+            font-size: 14px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="logo">🎟️</div>
+    
+    {% if error %}
+        <div class="error">{{ error }}</div>
+        <p style="color: var(--text-secondary)">Please ask the organizer for a valid ticket link.</p>
+    {% elif event %}
+        <h1>{{ event.title }}</h1>
+        <div class="organizer">by {{ event.creatorName }}</div>
+        
+        <div class="desc">{{ event.description }}</div>
+        
+        <div class="ticket-info">
+            <p><strong>Date:</strong> {{ event.date }} @ {{ event.time }}</p>
+            <p><strong>Location:</strong> {{ event.location }}</p>
+            <p><strong>Regular Price:</strong> KES {{ event.price }}</p>
+            {% if event.vipPrice %}
+            <p><strong>VIP Price:</strong> KES {{ event.vipPrice }}</p>
+            {% endif %}
+            {% if event.earlyBirdPrice %}
+            <p><strong>Early Bird:</strong> KES {{ event.earlyBirdPrice }}</p>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="ticketType">Select Ticket</label>
+            <select id="ticketType" onchange="updatePrice()">
+                <option value="Regular|{{ event.price }}">Regular - KES {{ event.price }}</option>
+                {% if event.vipPrice %}
+                <option value="VIP|{{ event.vipPrice }}">VIP - KES {{ event.vipPrice }}</option>
+                {% endif %}
+                {% if event.earlyBirdPrice %}
+                <option value="Early Bird|{{ event.earlyBirdPrice }}">Early Bird - KES {{ event.earlyBirdPrice }}</option>
+                {% endif %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email Address (To receive your QR Ticket)</label>
+            <input type="email" id="email" placeholder="student@university.ac.ke" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="phone">M-PESA Phone Number</label>
+            <input type="tel" id="phone" placeholder="2547..." pattern="^254[0-9]{9}$" required>
+        </div>
+        
+        <button class="btn" id="payBtn" onclick="initiatePayment()">Pay KES <span id="btnPrice">{{ event.price }}</span></button>
+        <div id="status-msg"></div>
+    {% endif %}
+</div>
+
+<script>
+    let currentAmount = {{ event.price if event else 0 }};
+    let currentTier = 'Regular';
+    
+    function updatePrice() {
+        const val = document.getElementById('ticketType').value;
+        const parts = val.split('|');
+        currentTier = parts[0];
+        currentAmount = parts[1];
+        document.getElementById('btnPrice').innerText = currentAmount;
+    }
+
+    async function initiatePayment() {
+        const phone = document.getElementById('phone').value;
+        const email = document.getElementById('email').value;
+        const btn = document.getElementById('payBtn');
+        const statusMsg = document.getElementById('status-msg');
+        
+        if (!phone || !phone.startsWith('254') || phone.length !== 12) {
+            statusMsg.style.display = 'block';
+            statusMsg.style.color = 'var(--error-red)';
+            statusMsg.innerText = 'Please enter a valid M-PESA number starting with 254';
+            return;
+        }
+        if (!email || !email.includes('@')) {
+            statusMsg.style.display = 'block';
+            statusMsg.style.color = 'var(--error-red)';
+            statusMsg.innerText = 'Please enter a valid email address.';
+            return;
+        }
+        
+        btn.disabled = true;
+        btn.innerText = 'Processing...';
+        statusMsg.style.display = 'block';
+        statusMsg.style.color = 'var(--text-secondary)';
+        statusMsg.innerText = 'Initiating M-PESA STK Push... Check your phone.';
+        
+        try {
+            const res = await fetch('/api/v1/mpesa/stkpush', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    phone_number: phone,
+                    amount: currentAmount,
+                    reason: 'Event Ticket',
+                    metadata: {
+                        type: 'event_ticket',
+                        eventId: '{{ event.id if event else "" }}',
+                        tier: currentTier,
+                        email: email
+                    }
+                })
+            });
+            
+            const data = await res.json();
+            
+            if (res.ok) {
+                statusMsg.style.color = 'var(--neon-cyan)';
+                statusMsg.innerText = 'Enter your M-PESA PIN to complete the purchase. Your ticket will be emailed to you shortly!';
+            } else {
+                statusMsg.style.color = 'var(--error-red)';
+                statusMsg.innerText = data.error || 'Failed to initiate payment.';
+                btn.disabled = false;
+                btn.innerText = `Pay KES ${currentAmount}`;
+            }
+        } catch (e) {
+            statusMsg.style.color = 'var(--error-red)';
+            statusMsg.innerText = 'Network error. Please try again.';
+            btn.disabled = false;
+            btn.innerText = `Pay KES ${currentAmount}`;
+        }
+    }
+</script>
+
+</body>
+</html>

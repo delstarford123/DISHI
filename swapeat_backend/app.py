@@ -109,6 +109,8 @@ from routes.match_interactive_routes import match_interactive_bp
 from routes.match_campus_routes import match_campus_bp
 from routes.match_premium_routes import match_premium_bp
 from routes.events_routes import events_bp
+from routes.virtual_card_routes import card_bp
+from routes.vibe_routes import vibe_bp
 
 
 
@@ -154,6 +156,8 @@ app.register_blueprint(match_interactive_bp,url_prefix='/api/v1/match_interactiv
 app.register_blueprint(match_campus_bp,     url_prefix='/api/v1/match_campus')
 app.register_blueprint(match_premium_bp,    url_prefix='/api/v1/match_premium')
 app.register_blueprint(events_bp)
+app.register_blueprint(card_bp)
+app.register_blueprint(vibe_bp, url_prefix='/api/vibe')
 
 
 
@@ -183,41 +187,83 @@ def about_page():
 @app.route('/fund')
 def harambee_fund():
     dishi_id = request.args.get('dishi_id')
+    campaign_id = request.args.get('campaign')
     dest = request.args.get('dest', 'walletBalance')
-    if not dishi_id:
-        return render_template('harambee.html', error="Invalid or missing DISHI ID.", student_name="Student", user_id="", dest=dest)
+    
+    if not dishi_id and not campaign_id:
+        return render_template('harambee.html', error="Invalid or missing link.", student_name="Student", user_id="", dest=dest)
     
     try:
         from firebase_admin import firestore
         db = firestore.client()
         
-        # First check by document ID directly
         user_doc = None
-        doc = db.collection('users').document(dishi_id).get()
-        if doc.exists:
-            user_doc = doc
+        campaign_data = None
+        
+        if campaign_id:
+            camp_doc = db.collection('harambee_campaigns').document(campaign_id).get()
+            if camp_doc.exists:
+                campaign_data = camp_doc.to_dict()
+                campaign_data['id'] = camp_doc.id
+                
+                student_id = campaign_data.get('studentId')
+                if student_id:
+                    user_doc = db.collection('users').document(student_id).get()
+                    if not user_doc.exists:
+                        user_doc = None
         else:
-            # Fallback to dishiId
-            users_ref = db.collection('users').where('dishiId', '==', dishi_id).limit(1).get()
-            if not users_ref:
-                # Fallback to legacy swapeatCode
-                users_ref = db.collection('users').where('swapeatCode', '==', dishi_id).limit(1).get()
-            
-            if users_ref:
-                user_doc = users_ref[0]
+            # First check by document ID directly
+            doc = db.collection('users').document(dishi_id).get()
+            if doc.exists:
+                user_doc = doc
+            else:
+                # Fallback to dishiId
+                users_ref = db.collection('users').where('dishiId', '==', dishi_id).limit(1).get()
+                if not users_ref:
+                    # Fallback to legacy swapeatCode
+                    users_ref = db.collection('users').where('swapeatCode', '==', dishi_id).limit(1).get()
+                
+                if users_ref:
+                    user_doc = users_ref[0]
             
         if not user_doc:
-            return render_template('harambee.html', error="We couldn't find a student with that DISHI ID.", student_name="Student", user_id="", dest=dest)
+            return render_template('harambee.html', error="We couldn't find a student or campaign for this link.", student_name="Student", user_id="", dest=dest)
             
         user_data = user_doc.to_dict()
         student_name = user_data.get('displayName') or user_data.get('name') or 'Student'
-        # Use the real Firestore document ID — this is what the STK push needs
         real_user_id = user_doc.id
         
-        return render_template('harambee.html', student_name=student_name, user_id=real_user_id, dest=dest)
+        return render_template('harambee.html', student_name=student_name, user_id=real_user_id, dest=dest, campaign=campaign_data)
     except Exception as e:
         print(f"Harambee lookup error: {e}")
-        return render_template('harambee.html', error="An error occurred while looking up the student. Please try again.", student_name="Student", user_id="", dest=dest)
+        return render_template('harambee.html', error="An error occurred while loading this page. Please try again.", student_name="Student", user_id="", dest=dest)
+
+# ─── Event Web Ticketing ────────────────────────────────────────────────────────
+@app.route('/event')
+def event_ticket():
+    """
+    Web page to buy event tickets via M-PESA.
+    """
+    event_id = request.args.get('id')
+    
+    if not event_id:
+        return render_template('event.html', error="Invalid Event Link.")
+        
+    try:
+        from firebase_admin import firestore
+        db = firestore.client()
+        
+        event_doc = db.collection('events').document(event_id).get()
+        if not event_doc.exists:
+            return render_template('event.html', error="Event not found.")
+            
+        event_data = event_doc.to_dict()
+        event_data['id'] = event_doc.id
+        
+        return render_template('event.html', event=event_data)
+    except Exception as e:
+        print(f"Event lookup error: {e}")
+        return render_template('event.html', error="An error occurred while loading this page.")
 
 # ─── System Announcements ───────────────────────────────────────────────────────
 @app.route('/api/v1/system/announce', methods=['POST'])
