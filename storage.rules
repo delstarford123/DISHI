@@ -43,9 +43,11 @@ service firebase.storage {
       allow write: if isAuth()
                 && isValidImage()
                 && (imageId.matches(request.auth.uid + '.*')
+                    || imageId.matches('profile_' + request.auth.uid + '.*')
                     || imageId.matches('deliv_vehicle_' + request.auth.uid + '.*'));
       allow delete: if isAuth()
                 && (imageId.matches(request.auth.uid + '.*')
+                    || imageId.matches('profile_' + request.auth.uid + '.*')
                     || imageId.matches('deliv_vehicle_' + request.auth.uid + '.*'));
     }
 
@@ -181,6 +183,15 @@ service firebase.storage {
     match /chat_attachments/{chatId}/{fileId} {
       allow read: if isAuth();
       allow write: if isAuth() && isValidDocument();
+      allow delete: if isAuth();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 14. EVENT IMAGES
+    // ─────────────────────────────────────────────────────────────────────────
+    match /event_images/{imageId} {
+      allow read: if true;
+      allow write: if isAuth() && isValidImage();
       allow delete: if isAuth();
     }
   }

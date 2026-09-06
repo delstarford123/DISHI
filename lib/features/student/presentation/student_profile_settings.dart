@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/theme/mpesa_theme.dart';
 import '../../deliv/presentation/deliv_driver_dashboard.dart';
@@ -49,7 +50,8 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
 
       setState(() => _isUploading = true);
 
-      final String fileName = 'profile_${widget.userModel.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final String actualUid = FirebaseAuth.instance.currentUser?.uid ?? widget.userModel.uid;
+      final String fileName = 'profile_${actualUid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final Reference storageRef = FirebaseStorage.instance.ref().child('profile_images').child(fileName);
 
       final UploadTask uploadTask = storageRef.putFile(File(image.path));
@@ -58,6 +60,14 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
 
       await FirebaseFirestore.instance.collection('users').doc(widget.userModel.uid).update({
         'profileImageUrl': downloadUrl,
+      });
+      
+      // Send in-app notification
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'title': 'Profile Updated',
+        'message': 'Looking good! Your new profile picture is live.',
+        'targetUserId': widget.userModel.uid,
+        'createdAt': FieldValue.serverTimestamp(),
       });
 
       setState(() {
@@ -86,24 +96,31 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Center(
-            child: GestureDetector(
-              onTap: _pickAndUploadImage,
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: _neonCyan,
-                    backgroundImage: _localProfileImageUrl != null ? NetworkImage(_localProfileImageUrl!) : null,
-                    child: _isUploading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : _localProfileImageUrl == null 
-                            ? const Icon(Icons.person, size: 50, color: Colors.black) 
-                            : null,
-                  ),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('users').doc(widget.userModel.uid).snapshots(),
+        builder: (context, snapshot) {
+          final liveImageUrl = snapshot.hasData && snapshot.data!.exists 
+              ? (snapshot.data!.data() as Map<String, dynamic>)['profileImageUrl'] 
+              : _localProfileImageUrl;
+              
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Center(
+                child: GestureDetector(
+                  onTap: _pickAndUploadImage,
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: _neonCyan,
+                        backgroundImage: liveImageUrl != null ? NetworkImage(liveImageUrl) : null,
+                        child: _isUploading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : liveImageUrl == null 
+                                ? const Icon(Icons.person, size: 50, color: Colors.black) 
+                                : null,
+                      ),
                   Positioned(
                     bottom: 0,
                     right: 0,
@@ -196,8 +213,9 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const DataConsentView(userId: 'current_user_id')));
             },
           ),
-          const SizedBox(height: 40),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

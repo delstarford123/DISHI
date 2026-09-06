@@ -102,7 +102,7 @@ class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProvider
                 ],
                 border: Border.all(color: MPesaTheme.neonCyan.withOpacity(0.5), width: 2),
               ),
-              child: const Icon(Icons.person, size: 40, color: MPesaTheme.neonCyan),
+              child: Image.asset('assets/img/dishi_logo.png', width: 40, height: 40, fit: BoxFit.contain),
             ),
             const SizedBox(height: 16),
             const Text(

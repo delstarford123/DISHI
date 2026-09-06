@@ -108,6 +108,7 @@ from routes.match_core_routes import match_core_bp
 from routes.match_interactive_routes import match_interactive_bp
 from routes.match_campus_routes import match_campus_bp
 from routes.match_premium_routes import match_premium_bp
+from routes.events_routes import events_bp
 
 
 
@@ -152,6 +153,7 @@ app.register_blueprint(match_core_bp,       url_prefix='/api/v1/match_core')
 app.register_blueprint(match_interactive_bp,url_prefix='/api/v1/match_interactive')
 app.register_blueprint(match_campus_bp,     url_prefix='/api/v1/match_campus')
 app.register_blueprint(match_premium_bp,    url_prefix='/api/v1/match_premium')
+app.register_blueprint(events_bp)
 
 
 

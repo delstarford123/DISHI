@@ -271,9 +271,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentProfileSettings(userModel: userModel))),
                 child: CircleAvatar(
                   radius: 20,
-                  backgroundImage: userModel.profileImageUrl != null ? NetworkImage(userModel.profileImageUrl!) : const AssetImage('assets/img/dishi_logo.png') as ImageProvider,
-                  backgroundColor: _surfaceLight,
-                  child: userModel.profileImageUrl == null ? const Icon(Icons.person, color: _textSecondary, size: 20) : null,
+                  backgroundColor: _neonCyan,
+                  backgroundImage: userModel.profileImageUrl != null ? NetworkImage(userModel.profileImageUrl!) : null,
+                  child: userModel.profileImageUrl == null ? const Icon(Icons.person, color: Colors.black, size: 24) : null,
                 ),
               ),
               Positioned(
@@ -1307,9 +1307,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                     children: [
                       CircleAvatar(
                         radius: 32,
-                        backgroundColor: _surfaceLight,
+                        backgroundColor: _neonCyan,
                         backgroundImage: widget.user['profileImageUrl'] != null ? NetworkImage(widget.user['profileImageUrl']) : null,
-                        child: widget.user['profileImageUrl'] == null ? const Icon(Icons.person, size: 32, color: _textSecondary) : null,
+                        child: widget.user['profileImageUrl'] == null ? const Icon(Icons.person, size: 36, color: Colors.black) : null,
                       ),
                       const SizedBox(width: 16),
                       Expanded(

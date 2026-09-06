@@ -377,6 +377,48 @@ def mpesa_callback():
                         'status': 'Paid (M-Pesa)',
                         'updated_at': firestore.SERVER_TIMESTAMP
                     })
+            elif action == 'buy_event_ticket':
+                event_id = metadata.get('event_id')
+                if event_id:
+                    import uuid
+                    reg_id = str(uuid.uuid4())
+                    db.collection('event_registrations').document(reg_id).set({
+                        'event_id': event_id,
+                        'user_id': user_id,
+                        'amount_paid': credit_amt,
+                        'created_at': firestore.SERVER_TIMESTAMP,
+                        'status': 'confirmed'
+                    })
+                    
+                    event_ref = db.collection('events').document(event_id)
+                    event_doc = event_ref.get()
+                    if event_doc.exists:
+                        event_data = event_doc.to_dict()
+                        event_ref.update({
+                            'ticketsSold': firestore.Increment(1),
+                            'revenue': firestore.Increment(credit_amt)
+                        })
+                        
+                        payout_amount = max(0, credit_amt - 5)
+                        creator_id = event_data.get('creatorId')
+                        
+                        db.collection('pending_payouts').add({
+                            'event_id': event_id,
+                            'creator_id': creator_id,
+                            'amount': payout_amount,
+                            'payoutType': event_data.get('payoutType'),
+                            'payoutDestination': event_data.get('payoutDestination'),
+                            'status': 'pending',
+                            'created_at': firestore.SERVER_TIMESTAMP
+                        })
+                        
+                        try:
+                            db.collection('admin_finances').document('dishi_events_pool').set({
+                                'commission_pool': firestore.Increment(5),
+                                'updated_at': firestore.SERVER_TIMESTAMP
+                            }, merge=True)
+                        except Exception:
+                            pass
             else:
                 if destination == 'has_housing_access':
                     user_ref.update({'has_housing_access': True})
