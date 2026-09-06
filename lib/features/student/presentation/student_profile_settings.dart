@@ -116,6 +116,7 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
                 ],
               ),
             ),
+          ),
           const SizedBox(height: 16),
           Text(widget.userModel.displayName, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
           Text(widget.userModel.email, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54)),
