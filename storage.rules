@@ -1,0 +1,187 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Helper Functions ──────────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    // Shared image validation (must be an image or octet-stream, max 10 MB)
+    function isValidImage() {
+      return (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('application/octet-stream') || request.resource.contentType == '')
+          && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Shared audio validation (must be audio, max 10 MB)
+    function isValidAudio() {
+      return request.resource.contentType.matches('audio/.*')
+          && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Shared file validation for documents/PDFs (max 20 MB)
+    function isValidDocument() {
+      return request.resource.size < 20 * 1024 * 1024;
+    }
+
+    // ── Default Deny ──────────────────────────────────────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. PROFILE IMAGES  (student/driver/vendor profile photos)
+    //    Paths: /profile_images/{uid}.jpg  or  /profile_images/deliv_vehicle_{uid}.jpg
+    // ─────────────────────────────────────────────────────────────────────────
+    match /profile_images/{imageId} {
+      allow read: if true; // public — shown in Match, DeLiv card, Vendor POS
+      allow write: if isAuth()
+                && isValidImage()
+                && (imageId.matches(request.auth.uid + '.*')
+                    || imageId.matches('deliv_vehicle_' + request.auth.uid + '.*'));
+      allow delete: if isAuth()
+                && (imageId.matches(request.auth.uid + '.*')
+                    || imageId.matches('deliv_vehicle_' + request.auth.uid + '.*'));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. GENERIC PROFILES BUCKET  (parent app uploads for linked children)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /profiles/{imageId} {
+      allow read: if true;
+      allow write: if isAuth() && isValidImage();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3. MARKETPLACE ITEM IMAGES
+    // ─────────────────────────────────────────────────────────────────────────
+    match /marketplace/{imageId} {
+      allow read: if true;
+      allow write: if isAuth() && isValidImage();
+      allow delete: if isAuth();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4. MAINTENANCE TICKET PHOTOS
+    // ─────────────────────────────────────────────────────────────────────────
+    match /maintenance/{imageId} {
+      allow read: if isAuth();
+      allow write: if isAuth() && isValidImage();
+      allow delete: if isAuth();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 5. KEJA YANGU ROOM / PROPERTY IMAGES
+    //    Flat bucket /rooms/{imageId}  and  /property_images/{imageId}
+    // ─────────────────────────────────────────────────────────────────────────
+    match /rooms/{imageId} {
+      allow read: if true;
+      allow write: if isAuth() && isValidImage();
+      allow delete: if isAuth();
+    }
+    match /property_images/{imageId} {
+      allow read: if true;
+      allow write: if isAuth() && isValidImage();
+      allow delete: if isAuth();
+    }
+    // Nested property images uploaded via per-property subfolder
+    match /property_images/{propertyId}/{imageId} {
+      allow read: if true;
+      allow write: if isAuth() && isValidImage();
+      allow delete: if isAuth();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 6. MERCHANT / HOUSE OWNER ID VERIFICATION  (sensitive — no public read)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /merchant_ids/{imageId} {
+      allow read: if false; // Admin SDK bypasses rules; no client access
+      allow write: if isAuth()
+                && isValidImage()
+                && imageId.matches(request.auth.uid + '_id.*');
+      allow delete: if false;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 7. MATCH VOICE INTROS
+    // ─────────────────────────────────────────────────────────────────────────
+    match /voice_intros/{audioId} {
+      allow read: if true; // Public — plays in match cards
+      allow write: if isAuth() && isValidAudio();
+      allow delete: if isAuth();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 8. DELIV DRIVER REGISTRATION DOCUMENTS
+    //    Strictly: only the driver uploads their own vehicle + license images
+    // ─────────────────────────────────────────────────────────────────────────
+    match /driver_docs/{imageId} {
+      allow read: if isAuth();
+      allow write: if isAuth()
+                && isValidImage()
+                && (imageId.matches(request.auth.uid + '_vehicle.*')
+                    || imageId.matches(request.auth.uid + '_license.*'));
+      allow delete: if isAuth()
+                && (imageId.matches(request.auth.uid + '_vehicle.*')
+                    || imageId.matches(request.auth.uid + '_license.*'));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 9. KEJA FLEX UPLOADS
+    // ─────────────────────────────────────────────────────────────────────────
+    match /keja_flex/{imageId} {
+      allow read: if true;
+      allow write: if isAuth() && isValidImage();
+      allow delete: if isAuth();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 10. ADMIN PDF / TAX REPORTS
+    //     Only the admin who generated the report can read/write it
+    // ─────────────────────────────────────────────────────────────────────────
+    match /tax_reports/{adminId}/{reportId} {
+      allow read, write: if isSelf(adminId);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 11. USER-PARTITIONED UPLOADS  /{uid}/...
+    //     Covers: /{uid}/profile_images/*, /{uid}/kyc_docs/*, /{uid}/rooms/*,
+    //             /{uid}/voice_intros/*, etc.
+    //     Each user can only upload into their own UID directory.
+    // ─────────────────────────────────────────────────────────────────────────
+    match /{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSelf(userId) && isValidDocument();
+      allow delete: if isSelf(userId);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 12. VENDOR MENU IMAGES
+    // ─────────────────────────────────────────────────────────────────────────
+    match /menu_images/{imageId} {
+      allow read: if true;
+      allow write: if isAuth() && isValidImage();
+      allow delete: if isAuth();
+    }
+    match /vendor_images/{imageId} {
+      allow read: if true;
+      allow write: if isAuth() && isValidImage();
+      allow delete: if isAuth();
+    }
+
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 13. CHAT / MESSAGE ATTACHMENTS
+    // ─────────────────────────────────────────────────────────────────────────
+    match /chat_attachments/{chatId}/{fileId} {
+      allow read: if isAuth();
+      allow write: if isAuth() && isValidDocument();
+      allow delete: if isAuth();
+    }
+  }
+}

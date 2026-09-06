@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DISHI - Professional Pitch</title>
+    <style>
+        :root {
+            --bg-color: #0C101B;
+            --card-color: #131A2A;
+            --neon-pink: #FF2A6D;
+            --neon-purple: #9C27B0;
+            --text-main: #FFFFFF;
+            --text-secondary: #8B9BB4;
+            --accent-blue: #05D5FA;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            background: linear-gradient(90deg, var(--neon-pink), var(--neon-purple), var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            color: var(--neon-pink);
+            font-size: 1.8rem;
+            margin-top: 0;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--card-color);
+            padding-bottom: 10px;
+        }
+
+        .section {
+            background-color: var(--card-color);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-left: 4px solid var(--neon-purple);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .section:hover {
+            transform: translateY(-5px);
+            border-left-color: var(--accent-blue);
+        }
+
+        .highlight {
+            color: var(--accent-blue);
+            font-weight: bold;
+        }
+
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        ul li {
+            position: relative;
+            padding-left: 25px;
+            margin-bottom: 10px;
+            color: var(--text-secondary);
+        }
+
+        ul li::before {
+            content: "▹";
+            position: absolute;
+            left: 0;
+            color: var(--neon-pink);
+            font-weight: bold;
+        }
+
+        .metric {
+            display: inline-block;
+            background: rgba(255, 42, 109, 0.1);
+            color: var(--neon-pink);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255, 42, 109, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>DISHI</h1>
+        <p style="color: var(--text-secondary); font-size: 1.2rem;">The Ultimate AI-Powered Campus Ecosystem</p>
+    </header>
+
+    <!-- 1. The Hook & Problem -->
+    <div class="section">
+        <h2>The Hook & Problem: Campus Life Is Broken</h2>
+        <p>We open by directly attacking the status quo: <strong>Student Finance and Social Connection are fundamentally broken.</strong></p>
+        <p>We isolate three critical pain points establishing an immediate need for intervention:</p>
+        <ul>
+            <li><strong>High Financial Friction:</strong> Students struggle with managing pocket money, unreliable network connections for payments, and predatory fees.</li>
+            <li><strong>Intense Social Isolation:</strong> Despite being on crowded campuses, students face severe social anxiety, ghosting, and unsafe late-night commutes.</li>
+            <li><strong>Poor Operational Efficiency:</strong> Campus vendors lose hours daily manually verifying transactions and managing crowds, leading to lost revenue.</li>
+        </ul>
+    </div>
+
+    <!-- 2. Global Alignment -->
+    <div class="section">
+        <h2>Global Alignment</h2>
+        <p>DISHI connects local campus problems to macroeconomic <strong>United Nations Sustainable Development Goals (SDGs)</strong>. This positions the platform as a movement for economic empowerment and safety rather than just a commercial app.</p>
+        <ul>
+            <li><strong>SDG 8 (Decent Work & Economic Growth):</strong> Empowering campus vendors (DISHI Agents) with seamless digital ledgers and offline transaction capabilities.</li>
+            <li><strong>SDG 9 (Industry, Innovation & Infrastructure):</strong> Building robust offline NFC payment bridges and low-latency WebRTC communications.</li>
+            <li><strong>SDG 11 (Sustainable Cities & Communities):</strong> Creating safer campus environments through our real-time Safe Walk GPS tracking.</li>
+        </ul>
+    </div>
+
+    <!-- 3. The Solution -->
+    <div class="section">
+        <h2>The Solution</h2>
+        <p>DISHI is a <strong>100% self-managing, AI-powered smart ecosystem</strong>. We break down the tech stack into digestible pillars:</p>
+        <ul>
+            <li><strong>The DISHI Wallet:</strong> Proprietary offline NFC capabilities allowing transactions without internet, automatically syncing to Firebase upon reconnection.</li>
+            <li><strong>DISHI Match Interactive:</strong> A real-time social hub featuring WebRTC live video/audio dating, Icebreaker mini-games, and Ghost-busting TTL Whisper Messages.</li>
+            <li><strong>Campus Integrations:</strong> A physical-world bridge offering Safe Walk live-tracking, Academic Study Buddy modes, and dynamic Partner Venue QR discounts.</li>
+        </ul>
+    </div>
+
+    <!-- 4. Value Proposition & Edge -->
+    <div class="section">
+        <h2>Value Proposition & Edge</h2>
+        <p>We use hard metrics to prove superiority:</p>
+        <div>
+            <span class="metric">0% Offline Transaction Failure</span>
+            <span class="metric">100% Secure Location Sharing</span>
+            <span class="metric">Scalable to 1M+ Students</span>
+        </div>
+        <p>Our competitive edge defends the moat by highlighting <strong>low-cost IoT integration</strong> (NFC cards), <strong>social innovation</strong> (Dishi Date 50/50 split bill proposals), and <strong>self-cleaning adaptability</strong> (automated Anti-Ghosting nudges via our backend cron engine).</p>
+    </div>
+
+    <!-- 5. Business Model -->
+    <div class="section">
+        <h2>Business Model</h2>
+        <p>DISHI outlines diversified revenue streams to guarantee financial viability:</p>
+        <ul>
+            <li><strong>Parent Funding Fees:</strong> A 2 KSH micro-commission on every STK push deposit into a student wallet.</li>
+            <li><strong>Crowdfunding/Harambee Fees:</strong> A 3 KSH commission charged to the contributor for every donation to a student's "Fund Me" or campaign link.</li>
+            <li><strong>Vendor/Driver Withdrawal Fees:</strong> A 4 KSH system commission whenever vendors or drivers cash out their earnings to M-PESA or Bank.</li>
+            <li><strong>Match Premium Gifting:</strong> A 10 KSH commission taken on any peer-to-peer "Find Your Match" gift exceeding 100 KSH.</li>
+            <li><strong>Vendor Transaction Fees:</strong> A micro 0.5% fee on high-volume, automated vendor transactions.</li>
+            <li><strong>DISHI Match Premium:</strong> Direct SaaS revenue via a KSh 200/month subscription unlocking voice notes and unlimited swipes.</li>
+            <li><strong>A la Carte Micro-Transactions:</strong> KSh 50 profile boosts billed directly to the DISHI Wallet via seamless M-PESA STK push integrations.</li>
+            <li><strong>Partner Venue Lead Gen:</strong> Commission generated when couples redeem exclusive DISHI QR codes at campus cafes.</li>
+        </ul>
+    </div>
+
+    <!-- 6. Investment Readiness -->
+    <div class="section">
+        <h2>Investment Readiness</h2>
+        <p>DISHI demonstrates a rapid return on investment. The ecosystem creates a self-sustaining micro-economy: parents fund the wallet (generating flat fees), students spend at campus vendors (generating B2B volume), and vendors cash out (generating withdrawal commissions). The initial setup pays for itself quickly through massive user retention and zero customer acquisition cost driven by the viral "Find Your Match" social features.</p>
+    </div>
+
+    <!-- 7. Team, IP & Risk -->
+    <div class="section">
+        <h2>Team, IP & Risk</h2>
+        <p>We build credibility by highlighting our concrete IP strategies: patenting the <strong>Offline-to-Online Transaction Syncing Algorithm</strong> and our proprietary <strong>WebRTC Video Matching Infrastructure</strong>. The risk is heavily mitigated by integrating natively with Safaricom Daraja M-PESA APIs and securing all user data within Google Cloud Firebase.</p>
+    </div>
+
+    <!-- 8. Vision & Impact -->
+    <div class="section">
+        <h2>Vision & Impact</h2>
+        <p>In closing, DISHI transforms the macro-level landscape of student life. We are driving digital adoption for the unbanked youth, completely removing the friction of campus dining, and supporting Kenya's <span class="highlight">Bottom-Up Economic Agenda</span> by turning local campus vendors into high-efficiency digital enterprises.</p>
+    </div>
+
+</div>
+
+</body>
+</html>

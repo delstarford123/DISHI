@@ -1,0 +1,104 @@
+DISHI & DeLiv Peer-to-Peer Campus
+Ecosystem Enhancements
+This document outlines the strategic enhancements for the DISHI and DeLiv platforms, focusing
+on creating a robust peer-to-peer gig economy within the university campus. It details
+role-switching capabilities, refined driver mechanics, service marketplace integrations, and
+system fixes to optimize the student experience and generate localized employment.
+1. DeLiv Platform Enhancements
+Seamless Role Switching (Student ↔ Driver)
+● In-App Toggle: Students can seamlessly switch between "Student Mode" and "Driver
+Mode" via a prominent toggle switch in their profile settings.
+● Unified Account, Segmented Permissions: To prevent data redundancy and enhance
+user experience, students do NOT need to create a separate account. Their existing
+DISHI student profile is granted "Driver Permissions" upon successful verification.
+● Student Driver Identification: In the UI, student drivers are distinctly labeled as "Student
+Driver" alongside their vehicle type.
+● Flexible Vehicle Types: Students are not restricted to cars. They can register as drivers
+using a Car, Van, TukTuk, Bicycle, or even as a "Walker" for hyper-local deliveries (e.g.,
+carrying items across campus).
+● Registration Safeguards: Once a student completes driver registration, the "Register as
+Driver" prompt is hidden or redirects to the Driver Dashboard, preventing duplicate
+applications.
+● Status Overhaul: The confusing "StandBay" status is removed. Drivers are simply
+"Online" (available for rides) or "Offline."
+Driver Dashboard Redesign
+● Earnings & Metrics: A clean, visual dashboard showing real-time earnings, completed
+trips, average ratings, and passenger reviews.
+● Ride Management: Clear "Accept" and "Reject" buttons for incoming ride requests, with
+route previews.
+● Maintenance Hub: A dedicated section where drivers upload receipts and photos for
+vehicle maintenance. The system calculates these expenses and deducts them from
+gross earnings for accurate net income reporting.
+Rider Experience & Visibility
+● Real-Time Visibility: Students seeking a ride can see nearby DeLiv vehicles (including
+student walkers/cyclists) on a live map, especially those heading in the same direction or
+towards campus.
+● Instant Booking & Payment: Rides can be booked in real-time, with seamless payment
+
+processing directly through the student's DISHI wallet or M-Pesa.
+2. The Campus "Fundi" & Services Marketplace
+Expanding the gig economy beyond transportation, the system integrates a micro-task
+marketplace where students can hire each other for specific skills and services.
+Core Architecture & User Flow
+[Student Client] ---> Posts Task / Searches Category ---> [Smart
+Match]
+
+|
+[Student Fundi] <--- Accepts Task & Completes Work <---------+
+|
+[Escrow Payment] ---> Released upon client approval ----------+
+
+Trust & Verification
+● EDU Verification: Registration requires a valid .ac.ke email address, ensuring a
+closed-loop, secure student environment.
+● Hostel Validation: Student workers provide their campus branch, year, and hostel block
+to build trust.
+Service Categories (Student-to-Student & Student-to-Faculty)
+Category Services Offered Target Audience
+Academic Support Tutoring (Calculus, Chemistry),
+Printing & Delivery, Formatting
+(LaTeX/APA).
+
+Students, Faculty
+
+Tech & Digital Software Installation (SPSS,
+MATLAB), Hardware Repair,
+Virtual Setup (Zoom).
+
+Students, Faculty
+
+Daily Errands Grocery Shopping, Laundry,
+Hostel Cleaning, Moving
+Assistance.
+
+Students
+
+Lifestyle & Grooming In-Hostel Barber, Braiding, Nail
+Tech, Sneaker Cleaning.
+
+Students
+
+Escrow & Payment Infrastructure
+● Budget-Friendly Escrow: Funds are locked in escrow before work begins, ensuring the
+Fundi gets paid while protecting the client if the job is incomplete.
+● Integrated Payments: All transactions are settled via the internal DISHI wallet or
+integrated M-Pesa APIs, minimizing cash handling.
+
+3. System Fixes & Administrative Updates
+Admin Visibility
+● Unified User View: The Admin Dashboard now explicitly displays registered drivers
+within the standard "Users" section, ensuring full oversight of the dual-role student
+populace.
+Bug Fixes
+● Keja Yangu Lease Error: The "attempt to write and read at the same time" error
+occurring during lease signing has been resolved by implementing proper database
+transaction locks and asynchronous read/write separation.
+● SmartI Data Sync: The daily focus metrics are optimized to process and display real-time
+data accurately without lag.
+Data Privacy
+● Account Deletion: A clear, accessible option is added for users to permanently delete
+their accounts and wipe their personal information from the system in compliance with
+data protection standards.
+
+
+The system takes a 1.5% for the fundis who recieve payments from the system.All payments are thrught the system.

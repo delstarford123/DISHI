@@ -1,0 +1,492 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper Functions ──────────────────────────────────────────────────────
+
+    // Check if the requester is a signed-in user
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Check if the requester is acting as themselves
+    function isSelf(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    // Helper for role checking supporting both single 'role' and 'roles' list
+    function hasRole(targetRole) {
+      return isAuth() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == targetRole ||
+        targetRole in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', [])
+      );
+    }
+
+    // Check if the requester has the 'admin' role (cached user doc read)
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    // Check if the requester has the 'vendor' role
+    function isVendor() {
+      return hasRole('vendor');
+    }
+
+    // ── Default Deny ──────────────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ── ADMIN BYPASS — admins can read/write ANY document in the entire DB ────
+    // This covers Security, Emergency, Management, Settings and all sub-features.
+    // isAdmin() checks the 'role' field on the requester's own /users/{uid} doc.
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // NOTE: Admins already have full access via the bypass above.
+    // The rules below grant per-role access to non-admin authenticated users.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. USERS  (core wallet, profile, roles, subcollections)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      // Any signed-in user can read any profile (needed for vendor POS, match, DeLiv)
+      allow read: if isAuth();
+      // Users manage their own profile; admins can write any user doc (freeze, role changes)
+      allow write: if isSelf(userId) || isAdmin();
+
+      // All subcollections under /users/{uid}/... (menu, staff, notifications, bounties, etc.)
+      match /{subcollection}/{docId} {
+        allow read, write: if isSelf(userId) || isAdmin();
+      }
+      // Deep wildcard for deeper nesting
+      match /{rest=**} {
+        allow read, write: if isSelf(userId) || isAdmin();
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. STUDENTS  (gamification subcollection path)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /students/{studentId} {
+      allow read: if isAuth();
+      allow write: if isSelf(studentId) || isAdmin();
+      match /{subcollection}/{docId} {
+        allow read, write: if isSelf(studentId) || isAdmin();
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3. M-PESA TRANSACTIONS  (backend-only writes, safe reads)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /mpesa_transactions/{txId} {
+      allow read: if isAuth();
+      // Only Python backend (Admin SDK) creates/updates
+      allow create, update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3.5. NOTIFICATIONS
+    // ─────────────────────────────────────────────────────────────────────────
+    match /notifications/{notificationId} {
+      allow read: if isAuth();
+      // Allow users to update readBy and dismissedBy arrays
+      allow write: if isAuth();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4. TRANSACTIONS  (peer-to-peer wallet, preorders, savings)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /transactions/{txId} {
+      allow read: if isAuth();
+      // Client creates legitimate transaction records; backend can update
+      allow create: if isAuth();
+      // Only the parties involved or admin may update (e.g. status changes)
+      allow update: if isAuth() &&
+        (request.auth.uid == resource.data.student_id ||
+         request.auth.uid == resource.data.vendor_id ||
+         isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 5. DELIV  (rides, drivers, requests, chats)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /deliv_rides/{rideId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (request.auth.uid == resource.data.driver_id ||
+         request.auth.uid == resource.data.student_id ||
+         isAdmin());
+    }
+    match /deliv_drivers/{driverId} {
+      allow read: if isAuth();
+      // Drivers manage their own doc; admin can manage all
+      allow write: if isSelf(driverId) || isAdmin();
+    }
+    match /deliv_requests/{reqId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.student_id ||
+         request.auth.uid == resource.data.driver_id ||
+         isAdmin());
+    }
+    match /deliv_chats/{chatId} {
+      allow read, write: if isAuth();
+      match /messages/{messageId} {
+        allow read, write: if isAuth();
+      }
+    }
+    // Generic chat collection (match feature & DeLiv share this)
+    match /chats/{chatId} {
+      allow read, write: if isAuth();
+      match /messages/{messageId} {
+        allow read, write: if isAuth();
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 6. FIND YOUR MATCH  (profiles, connections, campus feed, etc.)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /match_profiles/{userId} {
+      allow read: if isAuth();
+      allow create: if isSelf(userId);
+      // Prevent client from flipping is_premium — only backend (Admin SDK) may do that
+      allow update: if isSelf(userId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['is_premium']);
+      allow delete: if isSelf(userId) || isAdmin();
+    }
+    match /match_sos_alerts/{alertId} {
+      allow create: if isAuth() && request.resource.data.user_id == request.auth.uid;
+      // Admin can read/update/delete SOS alerts (Emergency page + SOS Geo-Tracker)
+      allow read, update, delete: if isAdmin();
+    }
+    match /match_connections/{connId} {
+      allow read: if isAuth() &&
+        (resource == null || request.auth.uid in resource.data.users);
+      allow create: if isAuth();
+      allow update: if isAuth() &&
+        (resource == null || request.auth.uid in resource.data.users);
+      allow delete: if isAdmin();
+      match /messages/{messageId} {
+        allow read, write: if isAuth();
+      }
+    }
+    match /night_club_members/{memberId}   { allow read, write: if isAuth(); }
+    match /speed_dating_queue/{docId}      { allow read, write: if isAuth(); }
+    match /speed_dating_sessions/{sessionId} { allow read, write: if isAuth(); }
+    match /double_date_teams/{teamId}      { allow read, write: if isAuth(); }
+    
+    // New Match Collections
+    match /active_calls/{callId} {
+      allow read, write: if isAuth();
+      match /{subcollection}/{docId} { allow read, write: if isAuth(); }
+    }
+    match /squads/{squadId}                { allow read, write: if isAuth(); }
+    match /squad_swipes/{swipeId}          { allow read, write: if isAuth(); }
+    match /blind_chat_queue/{queueId}      { allow read, write: if isAuth(); }
+    match /blind_chat_sessions/{sessionId} {
+      allow read, write: if isAuth();
+      match /messages/{messageId} { allow read, write: if isAuth(); }
+    }
+    match /speed_dating_reservations/{reservationId} { allow read, write: if isAuth(); }
+    match /secret_admirers/{admirerId}     { allow read, write: if isAuth(); }
+    match /safe_walk_sessions/{sessionId}  { allow read, write: if isAuth(); }
+    match /match_feedback/{feedbackId}     { allow read, write: if isAuth(); }
+    match /match_campus_feed/{postId}      { allow read, write: if isAuth(); }
+    match /dishi_vouchers/{voucherId}      { allow read, write: if isAuth(); }
+    match /dishi_date_splits/{splitId}     { allow read, write: if isAuth(); }
+    match /birthday_gifts/{giftId}         { allow read, write: if isAuth(); }
+    match /match_bookings/{bookingId}      { allow read, write: if isAuth(); }
+    match /campus_confessions/{confessionId} {
+      allow read, write: if isAuth();
+      match /votes/{voteId} { allow read, write: if isAuth(); }
+    }
+    match /music_match_queue/{queueId}     { allow read, write: if isAuth(); }
+    match /library_lockin_queue/{queueId}  { allow read, write: if isAuth(); }
+    match /day_in_the_life_posts/{postId}  { allow read, write: if isAuth(); }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 7. KEJA YANGU  (housing — properties, applications, leases, etc.)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /housing_properties/{propertyId} {
+      allow read: if isAuth();
+      // Merchant who owns it can create/update; admin can manage all
+      allow create: if isAuth();
+      allow update: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.merchant_id ||
+         isAdmin());
+      allow delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.merchant_id ||
+         isAdmin());
+    }
+    match /housing_applications/{appId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.student_id ||
+         request.auth.uid == resource.data.merchant_id ||
+         isAdmin());
+      allow delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.student_id ||
+         isAdmin());
+    }
+    match /leases/{leaseId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.student_id ||
+         request.auth.uid == resource.data.landlord_id ||
+         isAdmin());
+    }
+    match /rooms/{roomId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.owner_id ||
+         isAdmin());
+    }
+    match /merchant_properties/{propertyId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.merchant_id ||
+         isAdmin());
+    }
+    match /merchants/{merchantId} {
+      allow read: if isAuth();
+      allow write: if isSelf(merchantId) || isAdmin();
+    }
+    match /maintenance_tickets/{ticketId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.student_id ||
+         request.auth.uid == resource.data.landlord_id ||
+         isAdmin());
+    }
+    match /clearance_notices/{noticeId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.student_id ||
+         request.auth.uid == resource.data.landlord_id ||
+         isAdmin());
+    }
+    match /deposits/{depositId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.student_id ||
+         isAdmin());
+    }
+    match /rent_splits/{splitId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid in resource.data.users ||
+         isAdmin());
+    }
+    match /okoa_loans/{loanId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.student_id ||
+         isAdmin());
+    }
+    match /gate_passes/{passId}          { allow read, write: if isAuth(); }
+    match /utility_bills/{billId}        { allow read, write: if isAuth(); }
+    match /wifi_contributions/{id}       { allow read: if isAuth(); allow create: if isAuth(); allow update, delete: if isAdmin(); }
+    match /wifi_pools/{hostelId}         { allow read, write: if isAuth(); }
+    match /caretaker_ratings/{ratingId}  {
+      allow read: if true; // public — shown in listing
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.student_id ||
+         isAdmin());
+    }
+    match /room_alerts/{studentId}       { allow read, write: if isSelf(studentId) || isAdmin(); }
+    match /keja_streaks/{studentId}      { allow read, write: if isSelf(studentId) || isAdmin(); }
+    match /roommate_profiles/{studentId} { allow read, write: if isAuth(); }
+    match /safety_pins/{pinId}           { allow read, write: if isAuth(); }
+    match /virtual_tours/{tourId}        { allow read: if isAuth(); allow write: if isAdmin(); }
+    match /keja_cooking/{cookingId}      { allow read, write: if isAuth(); }
+    match /keja_flex/{flexId}            { allow read, write: if isAuth(); }
+    match /hostel_chats/{hostelId} {
+      allow read, write: if isAuth();
+      match /messages/{messageId} { allow read, write: if isAuth(); }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 8. VENDORS  (profiles, POS, staff, shifts, bookings, announcements)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /vendors/{vendorId} {
+      allow read: if isAuth();
+      allow write: if isSelf(vendorId) || isAdmin();
+    }
+    match /vendor_profiles/{vendorId} {
+      allow read: if isAuth();
+      allow write: if isSelf(vendorId) || isAdmin();
+    }
+    match /vendor_kds_orders/{orderId}      { allow read, write: if isAuth(); }
+    match /vendor_staff/{staffId}           { allow read, write: if isAuth(); }
+    match /vendor_shifts/{shiftId}          { allow read, write: if isAuth(); }
+    match /vendor_announcements/{annId}     { allow read, write: if isAuth(); }
+    match /vendor_time_logs/{logId}         { allow read, write: if isAuth(); }
+    match /vendor_bookings/{bookingId}      { allow read, write: if isAuth(); }
+    // Vendor bookings at feature level
+    match /match_bookings/{bookingId}       { allow read, write: if isAuth(); }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 9. MARKETPLACE
+    // ─────────────────────────────────────────────────────────────────────────
+    match /marketplace/{itemId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.seller_id ||
+         isAdmin());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 10. PREORDERS  (global + per-vendor KDS)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /preorders/{preId}               { allow read, write: if isAuth(); }
+    match /pending_okoa_requests/{okoaId}  { allow read, write: if isAuth(); }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 11. PARENT FEATURES  (approval requests, spending controls)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /approvalRequests/{reqId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.parent_id ||
+         request.auth.uid == resource.data.student_id ||
+         isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 12. ACADEMIC / SMARTIMER  (all owned by the student)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /users/{userId}/academic_profile/{docId}     { allow read, write: if isSelf(userId); }
+    match /users/{userId}/academic_results/{docId}     { allow read, write: if isSelf(userId); }
+    match /users/{userId}/academic_timetable/{docId}   { allow read, write: if isSelf(userId); }
+    match /users/{userId}/academic_tasks/{docId}       { allow read, write: if isSelf(userId); }
+    match /users/{userId}/academic_streaks/{docId}     { allow read, write: if isSelf(userId); }
+    match /users/{userId}/academic_focus_logs/{docId}  { allow read, write: if isSelf(userId); }
+    match /users/{userId}/academic_flashcards/{docId}  { allow read, write: if isSelf(userId); }
+    match /users/{userId}/academic_assignments/{docId} { allow read, write: if isSelf(userId); }
+    match /global_academic_stats/{userId} {
+      allow read: if isAuth();
+      allow write: if isSelf(userId);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 13. GLOBAL / SYSTEM COLLECTIONS
+    // ─────────────────────────────────────────────────────────────────────────
+    match /flash_sales/{saleId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    match /system_announcements/{annId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    // system_config covers global_settings, global_status, security, and
+    // all feature flag docs (FeatureFlagService uses this collection)
+    match /system_config/{configId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    // feature_flags is an alternate collection used by FeatureGateWidget
+    match /feature_flags/{flagId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    match /support_tickets/{ticketId} {
+      allow read: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.user_id ||
+         isAdmin());
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    match /sos_alerts/{alertId} {
+      allow create: if isAuth();
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 14. FRAUD & SECURITY  (admin-only)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /fraud_flags/{flagId} {
+      // Vendors/clients create fraud flags from POS; admin reads & resolves
+      allow create: if isAuth();
+      allow read, update, delete: if isAdmin();
+    }
+    match /banned_devices/{banId}        { allow read, write: if isAdmin(); }
+    match /audit_logs/{logId} {
+      // Admin Flutter app writes audit log entries directly (toggle flags, actions)
+      allow read, write: if isAdmin();
+    }
+    match /tax_reports_metadata/{repId}  { allow read, write: if isAdmin(); }
+
+    // Match incident reports (admin moderation dashboard)
+    match /match_incident_reports/{reportId} {
+      allow create: if isAuth();
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 15. INVESTMENTS  (student investment feature)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /investments/{investmentId} {
+      allow read: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.student_id ||
+         isAdmin());
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.student_id ||
+         isAdmin());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 16. FUNDI JUAJI  (student handyman jobs)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /fundi_jobs/{jobId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.poster_id ||
+         request.auth.uid == resource.data.fundi_id ||
+         isAdmin());
+    }
+  }
+}

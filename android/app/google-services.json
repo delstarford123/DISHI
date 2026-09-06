@@ -1,0 +1,99 @@
+{
+  "project_info": {
+    "project_number": "115680675766",
+    "firebase_url": "https://swapeat-39f5e-default-rtdb.firebaseio.com",
+    "project_id": "swapeat-39f5e",
+    "storage_bucket": "swapeat-39f5e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:115680675766:android:e70f55fa384b26baece317",
+        "android_client_info": {
+          "package_name": "co.ke.delstarfordworks.dishi"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "115680675766-heo9a25vfps5mn863kevfffkqah3l5fo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "co.ke.delstarfordworks.dishi",
+            "certificate_hash": "04e2f2f0cea3d86604ee3dc9fe93375d5f96ee4c"
+          }
+        },
+        {
+          "client_id": "115680675766-4hlfc8k9oaplqjol4q596kfmcc1hjb6r.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzjR8U8AyHYjcPOh0LEq9PmpAOYD0CPuA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "115680675766-4hlfc8k9oaplqjol4q596kfmcc1hjb6r.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "115680675766-8p22kqhuorfit7t0bon1ht9fmbph44p6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "co.ke.delstarfordworks.swapeat"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:115680675766:android:c310e89cf770f2c5ece317",
+        "android_client_info": {
+          "package_name": "co.ke.delstarfordworks.swapeat"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "115680675766-jcnrr0ufs8bb1q3pnifj56bq8jeovuem.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "co.ke.delstarfordworks.swapeat",
+            "certificate_hash": "04e2f2f0cea3d86604ee3dc9fe93375d5f96ee4c"
+          }
+        },
+        {
+          "client_id": "115680675766-4hlfc8k9oaplqjol4q596kfmcc1hjb6r.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzjR8U8AyHYjcPOh0LEq9PmpAOYD0CPuA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "115680675766-4hlfc8k9oaplqjol4q596kfmcc1hjb6r.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "115680675766-8p22kqhuorfit7t0bon1ht9fmbph44p6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "co.ke.delstarfordworks.swapeat"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

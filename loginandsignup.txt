@@ -1,0 +1,40 @@
+======================================================
+DISHI: OFFLINE-FIRST AUTHENTICATION WORKFLOW
+======================================================
+
+1. ACCOUNT CREATION (SIGN UP)
+------------------------------------------------------
+When a user attempts to create an account, the app will first attempt to connect to Firebase.
+If the device has NO internet connection (Firebase throws a network error):
+- The `LocalAuthService` intercepts the request.
+- A temporary "Offline UID" is generated (e.g., `offline_1700000000`).
+- The user's details (Name, Email, Password) are encrypted and saved securely on the device using `flutter_secure_storage`.
+- The user is immediately logged in with an "Offline Session" without waiting for internet.
+- A background task labeled `auth_sync` is secretly queued up in `SmartimerCacheService`.
+
+2. LOGGING IN
+------------------------------------------------------
+If a user is completely offline and opens the app, the `AuthWrapper` checks for an active Firebase token.
+If Firebase cannot authenticate them due to lack of internet:
+- The app checks `LocalAuthService` for a valid local session.
+- If they try to manually log in, the app checks the locally stored credentials.
+- If the credentials match, they are instantly let into the Dashboard.
+
+3. BACKGROUND SYNC (GOING ONLINE)
+------------------------------------------------------
+The moment the user's phone connects to Wi-Fi or Cellular data:
+- The `OfflineSyncService` wakes up automatically.
+- It finds the `auth_sync` task in the queue and silently attempts to create a real Firebase Account using the credentials saved earlier.
+- If successful, Firebase returns a permanent, real UID.
+- The app then uses Firestore's built-in offline cache to find any data the user created while offline (e.g., picking their Role) using the old offline UID.
+- It automatically migrates all that data to the new real UID, deletes the old offline profile, and clears the local session. The user is now fully synced!
+
+4. EMAIL COLLISION (CONFLICT RESOLUTION)
+------------------------------------------------------
+What happens if the user signed up offline with an email (e.g., student@gmail.com), but when the background sync runs, it discovers someone else already registered that email online?
+- The sync gracefully fails with an `email-already-in-use` error.
+- The sync queue pauses and flags an `auth_conflict` in the local cache.
+- The `ConflictResolutionWrapper` (which runs quietly behind your entire app) detects this flag.
+- It instantly pops up an inescapable alert dialog on the screen explaining the situation.
+- The user is forced to enter a new email address.
+- Once submitted, the app updates the sync queue with the new email and immediately retries the sync to Firebase, securing their account online without losing any data!

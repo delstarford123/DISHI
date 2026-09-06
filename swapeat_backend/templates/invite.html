@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join DISHI - Smart Campus Meals & Finance</title>
+    <meta name="description" content="You've been invited to join DISHI — the smart campus meals and finance app for students.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #43B02A;
+            --primary-glow: rgba(67, 176, 42, 0.4);
+            --dark: #0f172a;
+            --dark-card: #1e293b;
+            --dark-inset: #0f172a;
+            --text-light: #f8fafc;
+            --text-gray: #94a3b8;
+            --purple: #A855F7;
+            --purple-glow: rgba(168, 85, 247, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background-image:
+                radial-gradient(circle at 15% 30%, rgba(67, 176, 42, 0.06), transparent 30%),
+                radial-gradient(circle at 85% 70%, rgba(168, 85, 247, 0.06), transparent 30%);
+        }
+
+        .container {
+            background: var(--dark-card);
+            border-radius: 28px;
+            padding: 36px 28px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* Logo area */
+        .logo-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, var(--primary), #06B6D4);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            font-weight: 800;
+            color: white;
+            box-shadow: 0 8px 20px var(--primary-glow);
+            flex-shrink: 0;
+        }
+
+        .logo-text {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+        }
+
+        h1 {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        .subtitle {
+            color: var(--text-gray);
+            font-size: 14px;
+            margin-bottom: 28px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        /* Download Section */
+        .download-card {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.12), rgba(67, 176, 42, 0.08));
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .download-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: var(--purple);
+            text-transform: uppercase;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .download-label::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--purple);
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.3); }
+        }
+
+        .download-btn {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: linear-gradient(135deg, var(--primary), #059669);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 14px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px var(--primary-glow);
+            margin-bottom: 10px;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px var(--primary-glow);
+        }
+
+        .download-btn .btn-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .download-btn .btn-content {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .download-btn .btn-title {
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .download-btn .btn-sub {
+            font-size: 11px;
+            opacity: 0.8;
+            font-weight: 400;
+        }
+
+        .download-note {
+            font-size: 11px;
+            color: var(--text-gray);
+            text-align: center;
+        }
+
+        /* Divider */
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .divider span {
+            font-size: 12px;
+            color: var(--text-gray);
+            white-space: nowrap;
+        }
+
+        /* Features */
+        .features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .feature-item {
+            background: var(--dark-inset);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .feature-item .fi-icon {
+            font-size: 22px;
+        }
+
+        .feature-item .fi-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-light);
+        }
+
+        .feature-item .fi-desc {
+            font-size: 11px;
+            color: var(--text-gray);
+            line-height: 1.4;
+        }
+
+        /* Referral badge */
+        .ref-badge {
+            background: rgba(67, 176, 42, 0.08);
+            border: 1px solid rgba(67, 176, 42, 0.2);
+            border-radius: 14px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+
+        .ref-badge .ref-icon {
+            font-size: 24px;
+        }
+
+        .ref-badge .ref-text {
+            font-size: 12px;
+            color: var(--text-gray);
+            line-height: 1.5;
+        }
+
+        .ref-badge .ref-code {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: 1.5px;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 28px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-gray);
+            line-height: 1.8;
+        }
+
+        .footer a {
+            color: var(--primary);
+            text-decoration: underline;
+            font-weight: 700;
+        }
+
+        .footer a:hover {
+            color: #4cd430;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Logo -->
+        <div class="logo-wrap">
+            <div class="logo-icon">D</div>
+            <span class="logo-text">DISHI</span>
+        </div>
+
+        <h1>You've been invited! 🎉</h1>
+        <p class="subtitle">Join the smart campus meals & finance app used by students across Kenya. Download now and get started instantly.</p>
+
+        <!-- Download section -->
+        <div class="download-card">
+            <div class="download-label">Get the app</div>
+            <a class="download-btn" href="https://drive.google.com/file/d/1YbjePyQYrAxqfWLV8WPddXlZrLX-olgc/view?usp=sharing" target="_blank" rel="noopener" id="downloadBtn">
+                <div class="btn-icon">📱</div>
+                <div class="btn-content">
+                    <span class="btn-title">Download DISHI</span>
+                    <span class="btn-sub">Android APK — Free to install</span>
+                </div>
+            </a>
+            <p class="download-note">⚠️ Enable "Install from unknown sources" in your phone settings before installing.</p>
+        </div>
+
+        <!-- Features grid -->
+        <div class="divider"><span>What you get</span></div>
+        <div class="features">
+            <div class="feature-item">
+                <span class="fi-icon">🍽️</span>
+                <span class="fi-title">Campus Meals</span>
+                <span class="fi-desc">Order & pay for food across campus vendors</span>
+            </div>
+            <div class="feature-item">
+                <span class="fi-icon">💰</span>
+                <span class="fi-title">Smart Wallet</span>
+                <span class="fi-desc">Fund via M-PESA, track every shilling</span>
+            </div>
+            <div class="feature-item">
+                <span class="fi-icon">📦</span>
+                <span class="fi-title">Pre-orders</span>
+                <span class="fi-desc">Skip the queue, order ahead</span>
+            </div>
+            <div class="feature-item">
+                <span class="fi-icon">🏆</span>
+                <span class="fi-title">Earn Rewards</span>
+                <span class="fi-desc">Get DISHI tokens for every activity</span>
+            </div>
+        </div>
+
+        <!-- Referral badge -->
+        {% if referrer_id and referrer_id != '' %}
+        <div class="ref-badge">
+            <span class="ref-icon">🔗</span>
+            <div>
+                <div class="ref-text">Referred by a friend. Your referral code:</div>
+                <div class="ref-code">{{ referrer_id }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="footer">
+            Secure payments powered by Safaricom M-PESA.<br>
+            System Developed By <a href="https://www.delstarfordworks.co.ke" target="_blank" rel="noopener">DELSTARFORD WORKS</a>
+        </div>
+    </div>
+</body>
+</html>

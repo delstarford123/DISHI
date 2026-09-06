@@ -1,0 +1,2 @@
+﻿Status,Reference,Created,PaymentType,IntegrationID,MerchantRef,FinalAmount,SettlementAmount,Channel,PaymentMethodName,CustomerEmail,CustomerName,CustomerPhone,Completed,SettlementRef,SettlementDate,AdditionalInfo
+Paid,55051686,24/07/2026 1:02:30 PM,zimbo,25389,FAAMIC_509619_1784890948,3.0800,3.0000,EcoCash,EcoCash USD,farmersadverts2020@gmail.com,Nice Dee,0778606878,24/07/2026 1:03:58 PM,,,Basic+Package+Subscription%2C+

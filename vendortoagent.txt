@@ -1,0 +1,68 @@
+o make DISHI vendors act as agents—and to actually make the system better and more efficient than Safaricom's early model—you have to leverage your biggest structural advantage: The Closed-Loop.
+Safaricom's biggest headache in 2007 was liquidity. Agents constantly ran out of e-float and had to physically travel to a bank to buy more. Your DISHI vendors don't have this problem because they earn float natively by selling food. When a student buys a 150 KES lunch with their wallet, the vendor's e-float increases. When the next student walks up with a physical 100 KES note to top up their wallet, the vendor already has the e-float to facilitate it. The system sustains its own liquidity.
+Here is how you build that into the Vendor Dashboard.
+The Vendor-Agent Mechanics
+To make this work, the vendor needs an interface that handles both food and finance without causing accounting confusion.
+The Top-Up Action (Cash-In): Add a dedicated "Top-Up Wallet" module to the POS. The vendor scans the student's NFC card or QR code, types in the cash amount they were handed, and hits confirm. The system instantly deducts e-float from the vendor and credits the student's wallet.
+Split Balances: The dashboard must visually separate Food Sales Revenue (money earned from cooking) from Agent Float (money available to transfer to students). Even though it all lives in the vendor's overarching DISHI account, they need to know exactly how much of their balance is safe to withdraw to M-PESA versus how much must be kept to service student top-ups.
+Instant Commission Settlement: Do not make vendors wait until the end of the month. The moment a vendor completes a student top-up, instantly credit their e-float with the commission. Instant, visible rewards will drive aggressive vendor participation.
+The Commission Strategy
+You have to incentivize the vendor without charging the student, just like Safaricom made cash deposits free.
+Zero-Fee for Students: Depositing cash into the wallet must be completely free to remove all friction for the students.
+The Withdrawal Offset: Fund the vendor commissions using exit fees. When a vendor eventually wants to move their DISHI earnings out to their M-PESA Personal or Paybill, you charge a standard B2C/B2B withdrawal fee. That withdrawal revenue pools into a central DISHI fund, which pays the micro-commissions for the top-ups.
+Tiered Incentives: Pay a flat rate for small top-ups to make them worth the vendor's time (e.g., a flat 2 KES for any top-up under 100 KES) and a percentage for larger ones (e.g., 1.5% for top-ups over 100 KES).
+Here is a simulator to model how this closed-loop liquidity and commission structure plays out for a single vendor, allowing you to find the break-even point for your operations:
+
+
+Key insight: If a vendor processes more cash top-ups than food sales, their e-float will eventually drain to zero. You will need a backend "Buy Float" button linked to an M-PESA Paybill so vendors can inject external capital when their food sales don't cover the student top-up demand.  The fundamental vulnerability of any cash-in network is the "he-said, she-said" dispute. The vendor has the physical cash, the student wants the digital float, and if the numbers don't match, you—the platform—are stuck mediating without proof.
+To eliminate this, you must engineer a system where the transaction is undeniable, logged immediately, and verified by both parties before the student steps away from the counter.
+Here is how you design a dispute-proof cash-in architecture.
+1. The Double-Handshake Protocol
+In a high-throughput environment like a school cafeteria, you cannot force the student to open an app and tap "Approve" for every top-up—it creates a bottleneck. Instead, the physical hardware tap is the authorization, backed by instant notification.
+Vendor Entry: The student hands over physical cash (e.g., 500 KES). The vendor types "500" into the DISHI Vendor POS and hits "Request Tap."
+Visual Confirmation Screen: The vendor's screen displays a massive, highly visible "500 KES - Tap Card to Confirm" prompt. The vendor physically turns the screen or device toward the student to show the amount.
+Physical Authorization: The student taps their NFC card or scans their QR code. This action mathematically binds their specific hardware token to the exact amount entered by the vendor.
+Instant Ledger Finality: The system immediately debits the vendor's float, credits the student's wallet, and generates a unique, immutable Transaction ID (TxID).
+2. Real-Time Immutable Receipts
+The moment the ledger finalizes, the system must create an undeniable paper trail to stop disputes before the student walks away.
+Instant SMS/Push: Within 2 seconds of the tap, the student receives a notification: "DISHI: 500 KES credited to your wallet by Vendor [Name/ID]. New Balance: 1,250 KES. TxID: A9B8C7."
+The "Stand Your Ground" Rule: Educate users that they must check this message before leaving the counter. If they handed over 500 KES, but the message says 50 KES, they raise the issue immediately while the vendor still holds the physical cash in their hand.
+Digital Vendor Ledger: The vendor's dashboard must have a real-time running log. If a student claims the top-up didn't go through, the vendor taps "Recent Top-Ups" and shows the student the exact timestamp and amount, matched to the student's name and profile photo.
+This interactive sequence diagram shows how the system handles the authorization and generates the audit trail:
+
+
+3. Database Schema: The Immutable Audit Trail
+If a dispute escalates to you (the admin), you need a database schema that cannot be altered or falsified by either party. A standard SQL database is fine, but you must structure the transaction table meticulously.
+ColumnTypePurposetransaction_idUUID (Primary Key)The universal identifier for the dispute.timestampDATETIME (UTC)Exact millisecond the tap occurred.vendor_idForeign KeyWho initiated the top-up.student_idForeign KeyWhose card was tapped.amountDECIMALThe value entered by the vendor.vendor_float_beforeDECIMALSnapshot of vendor's balance before debit.student_wallet_beforeDECIMALSnapshot of student's balance before credit.auth_methodENUM ('NFC', 'QR_SCAN')Proves the student was physically present.
+Why the "Before" Snapshots Matter:
+If a student claims a vendor stole their money, or a vendor claims the system stole their float, you don't just look at their current balance. You look at the vendor_float_before and student_wallet_before snapshots in the transaction log, and mathematically rebuild their balances step-by-step. It provides absolute mathematical proof of where the money went.This is the most dangerous edge case in fintech. If the network drops the millisecond after the tap, you enter the "Danger Zone" where the POS device and the central server might disagree on what just happened.
+If the vendor assumes it failed and taps the card again, they might double-credit the student and drain their own float. If they assume it succeeded but the server never received it, the vendor keeps the cash, and the student gets nothing.
+To solve this, you must engineer the system around a concept called idempotency (ensuring that no matter how many times a specific request is sent, it only executes once).
+Here is the exact architecture to handle network drops gracefully.
+1. The Client-Generated Transaction ID (Idempotency Key)
+The fatal flaw in many basic apps is letting the central server generate the Transaction ID. You must reverse this.
+Before the POS device ever attempts to talk to the server, it must generate a unique, cryptographically random ID (the Idempotency Key) locally.
+When the student taps their card, the POS sends this payload:
+{amount: 500, student_token: "xyz", idempotency_key: "TXN-998877"}
+This key acts as a shield against double-processing.
+2. The Three Network Drop Scenarios
+Depending on exactly when the network fails, the system must react differently.
+Scenario A: The Drop Happens Before the Server Receives the Request
+The POS sends TXN-998877. The network drops instantly. The server never hears it. The POS times out after 10 seconds and shows "Network Error - Try Again." The vendor retries. A new key is generated, and the transaction completes normally. No harm done.
+Scenario B: The Drop Happens On the Way Back (The Danger Zone)
+The POS sends TXN-998877. The server receives it, processes it, credits the student, debits the vendor, and sends a "Success" message back. But the network drops, and the POS never receives the "Success" message. The POS times out and shows "Network Error."
+This is where idempotency saves you:
+If the vendor hits "Retry", the POS resends the exact same payload with TXN-998877. The server looks at its database, sees that TXN-998877 was already successfully processed 15 seconds ago. Instead of deducting the money again, the server simply replies: "Already done. Here is the success receipt."
+3. Auto-Reconciliation Flow
+To prevent the vendor from panicking while the network is unstable, build an asynchronous recovery queue into the POS application.
+1.Move to 'Pending' State:Immediate UI action.If the POS does not get a server response within 10 seconds, it must explicitly display: "Transaction Pending: Waiting for Network." Do not show a red "Failed" X.
+2.Queue the Status Check:The POS saves the idempotency_key to a local SQLite database or local storage under an "Unconfirmed Transactions" list.
+3.Background Polling:Executes when network returns.The moment the device detects internet again, a background worker pings the server with a StatusCheck(idempotency_key) request.
+4.Server Resolution:The server replies with the final state of that transaction (PROCESSED or NOT_FOUND).
+5.UI Sync:The POS updates the "Pending" status to either a green "Success" or a red "Failed - Please Retry," resolving the ambiguity for the vendor.
+4. The Human Tie-Breaker: SMS Reigns Supreme
+Even with the best auto-reconciliation, a vendor might lose power entirely, or the network might stay down for hours. You need an operational rule that both students and vendors trust completely.
+The Rule: The SMS gateway is independent of the vendor's Wi-Fi. If the server successfully processed the tap, it will instantly fire the SMS to the student, even if the vendor's device is completely dead.
+If the vendor's screen is frozen or blank, they must ask the student: "Did you get the DISHI SMS?"
+If Yes: The transaction was successful. The vendor keeps the cash, the student walks away. When the vendor's POS eventually reconnects, it will sync and show the deducted float.
+If No: After waiting ~30 seconds to account for SMS delays, the transaction failed. The vendor hands the cash back to the student or they try the tap again.

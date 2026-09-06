@@ -1,0 +1,33 @@
+1. The Password Retention Risk (Account Creation)
+The Challenge: Because Firebase’s createUserWithEmailAndPassword method requires a plaintext password, your offline system is forced to store the user's password on the device until the background sync can execute.
+The Threat (Credential Theft): While flutter_secure_storage is the industry standard, it is not completely impervious. If a hacker gains physical or malware access to a rooted Android or jailbroken iOS device, they can extract the plaintext password from the secure enclave.
+The Solution:
+- Aggressive Cleanup: The absolute millisecond the auth_sync task successfully creates the Firebase account, execute await secureStorage.delete(key: 'password'). Never allow the password to sit in local storage longer than strictly necessary.
+- Biometric Gating: If the app remains offline for an extended period, require biometric authentication (using the local_auth package) to authorize the background sync before it is allowed to read the password out of storage.
+
+2. The Firestore Offline Cache Trap (Data Migration)
+The Challenge: If a user writes data offline to a path like /users/offline_123, Firestore queues a network request. When the app goes online and logs in, the real UID is generated. Firestore will attempt to write to /users/offline_123 using the new real_UID auth token.
+The Threat (IDOR & Data Rejection): 
+- If Firebase Security Rules are strict, Firestore rejects the queued offline data.
+- If loosened, it creates an IDOR vulnerability allowing script kids to overwrite offline data.
+The Solution:
+- Isolate Local Data: Store all offline user data in a structured local database (like Isar, Hive, or SQLite) while waiting for the sync.
+- Sync After Auth: Once auth_sync successfully logs the user into Firebase, read data from the local DB, assign the real_UID, write cleanly to Firestore, and wipe the local database.
+
+3. Predictable Identifiers (Offline UIDs)
+The Challenge: Using timestamp-based UIDs like offline_1700000000.
+The Threat (Data Enumeration): Timestamps are predictable. Hackers can script guesses to hijack data.
+The Solution: 
+- Cryptographic Randomness: Always use a UUIDv4 generator for your offline identifiers (e.g., offline_f47ac10b...).
+
+4. The Email Collision "Lock-in" (Conflict Resolution)
+The Challenge: When an email-already-in-use conflict occurs, the user is forced to provide a new email.
+The Threat (Identity DoS & Data Loss): If the user already owned that email or an attacker registered it maliciously, forcing a new email separates their offline work from their actual identity.
+The Solution:
+- Offer a "Login to Merge" Route: Inform the user and give them two options: Log in (merge data) or Use a different email.
+
+5. Network Interception (The Sync Window)
+The Challenge: The background sync is triggered the moment the device connects to a network.
+The Threat (Man-in-the-Middle): An attacker intercepting public Wi-Fi could capture the createUser payload.
+The Solution:
+- SSL Certificate Pinning: Ensure the app only communicates with verified certificates. If intercepted, instantly abort sync.

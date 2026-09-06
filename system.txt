@@ -1,0 +1,229 @@
+========================================================================
+                      DISHI SYSTEM ARCHITECTURE & FEES
+========================================================================
+
+
+The DISHI system is a multi-tier fintech and lifestyle ecosystem built to securely facilitate meals, transport, and networking in a closed-loop school/campus environment. It connects Students, Parents, Vendors, and Drivers via a central flutter app and a secure Python backend.
+
+
+------------------------------------------------------------------------
+1. STUDENT DASHBOARD
+------------------------------------------------------------------------
+Role: The consumer who buys meals, orders transport, and networks using their digital wallet.
+Features:
+- View real-time wallet balance and transaction history.
+- Offline and Online Payments: Can generate offline QR codes or tap NFC cards at vendor terminals to pay.
+- Preorders: Can order food ahead of time directly from the app.
+- Okoa Food: A micro-credit facility allowing students to overdraw their wallet up to Ksh 500 if enabled.
+- Harambee "Fund Me": Can share a custom web link to invite friends and family to fund their campus meals directly via an external M-PESA STK push.
+
+Fees:
+- Top-Up Fee: Ksh 1 per M-Pesa top-up (deducted before hitting the wallet).
+- Purchase Fee: Ksh 0.0 (Students pay exact menu prices).
+
+------------------------------------------------------------------------
+2. PARENT DASHBOARD
+------------------------------------------------------------------------
+Role: The financier who funds and monitors the student's activities.
+Features:
+- Student Monitoring: View all linked students' balances, real-time POS spending, and preorders.
+- QR ID Cards: Parents can instantly download a ready-to-print, formatted PDF ID card for offline children.
+- Funding: Top-up student wallets via seamless M-PESA STK Push.
+- Savings Vault & Balances: Dedicated settings to manage the Vault, displaying real-time comparisons of the Active Wallet vs. Vault balance. Parents can securely fund the Vault directly via STK push.
+- Harambee "Fund Vault": Generate a web link for external relatives to directly fund the Shared Vault without needing the app.
+- Spending Controls & Security: Set strict daily spending limits, freeze accounts instantly (Kill Switch), manage dietary category blocks, and configure Medical/Allergy Safety Settings that alert vendors.
+- Support Tickets: Directly accessible from the "Do more with DISHI" hub.
+- Cash-Out: Parents can withdraw funds from their savings vault back to their M-PESA.
+
+Fees:
+- Wallet Top-Up Fee: Ksh 1 per M-Pesa transaction.
+- Withdrawal Fee: Ksh 1 to cash out from the parent vault.
+
+------------------------------------------------------------------------
+3. VENDOR DASHBOARD
+------------------------------------------------------------------------
+Role: The merchant who fulfills food orders and collects payments.
+Features:
+- Point of Sale (POS): Scan student QR codes or tap NFC cards to instantly charge student wallets.
+- Visual Verification: Displays the student's profile photo and name upon scanning to prevent card sharing/fraud.
+- Preorder Management (KDS): Accept and fulfill food preorders placed by students.
+- Analytics: Live metrics showing today's revenue, order counts, top-selling items, and historical trends.
+- Staff & Operations: Manage staff shifts, waste logs, maintenance tickets, and inventory.
+- Payout Hub: Withdraw earnings instantly to M-PESA Personal (B2C), Paybill (B2B), or Buy Goods Till (B2B).
+- DISHI Agent (Human ATM): Vendors act as top-up agents for students. Students give physical cash to the vendor, and the vendor scans their QR to instantly transfer digital E-Float to the student's wallet.
+- Float Mechanics: Vendors naturally earn E-Float by selling food. Brand new vendors can manually inject initial E-Float by depositing their own cash via M-PESA STK Push directly from the dashboard.
+- Offline PIN Authorization: When a vendor tops up an offline student's wallet, the parent's generated 4-digit Offline PIN is required to authorize the deposit, preventing unauthorized top-ups.
+
+Earnings / Commissions:
+- Vendor Top-Up Commission: Vendors earn instant commission for topping up students. 
+  * Under 100 KES: Flat 2 KES profit instantly.
+  * 100 KES and above: 0.5% profit instantly.
+  (Commission is instantly credited back to their E-Float balance).
+
+Security & Anti-Fraud Protocols:
+- 1:1 Wash Trading Ratio: A vendor cannot earn top-up commissions if their total top-up volume outpaces their legitimate food sales volume.
+- Wash Trading Cooldown: If a student tops up at a vendor and buys food from that exact same vendor within 30 minutes, the food sale processes but the vendor's top-up commission is instantly revoked.
+- Daily Commission Cap: Vendors are mathematically capped at earning a maximum of 500 KES in top-up commissions per day to prevent systemic draining.
+- Lost Token (NFC) Protections:
+  * Dynamic PIN Thresholds: Tap-and-go is allowed for small amounts. Transactions >= 200 KES force the student to enter their secure 4-digit PIN on the vendor's device.
+  * Visual Verification: Vendors are forced to verify the student's profile photo on the POS screen before processing any payment.
+  * Panic Button: Students can instantly freeze their NFC card via the app, blocking the backend from processing any further transactions for that token.
+
+Fees:
+- Transaction Processing Fee: Ksh 0.4 deducted automatically from the vendor's earnings on every successful sale (this is the core system revenue).
+- Cash-Out / Withdrawal Fee: A flat Ksh 1 fee to withdraw any amount to their M-PESA or Till.
+
+------------------------------------------------------------------------
+4. DELIV (DRIVER, LOGISTICS, & MAPS)
+------------------------------------------------------------------------
+Role: The driver network fulfilling food deliveries and student transport.
+Features:
+- Ride Sharing & Deliveries: Streamlined feed for Mtu wa Mkono (moving gigs) and Food delivery drops.
+- Live Map Tracking: Real Google Maps integration with Geolocator allows parents and students to securely track drivers via their device location (secured via ACCESS_FINE_LOCATION permissions).
+- Driver Registration & Docs: Secure driver onboarding with document uploads stored in user-partitioned Firebase Storage buckets.
+- Driver Withdrawals: Drivers can instantly withdraw earnings to M-PESA Number, Paybill, or Buy Goods Till via real Python backend endpoints.
+- Account Management: Drivers can toggle Online/Offline status and securely Logout.
+
+------------------------------------------------------------------------
+5. KEJA YANGU (STUDENT HOUSING & UTILITIES)
+------------------------------------------------------------------------
+Role: Real estate ecosystem for students, landlords, and caretakers.
+Features:
+- Smart Leases & Clearances: Digital management of housing agreements and clearance forms.
+- Maintenance Tickets: Students can file One-Tap Maintenance SOS tickets routed to caretakers.
+- Rent & Utility Splitting: Automated cost sharing between roommates.
+- Bulk WiFi: Hostels pool funds for bulk internet purchasing.
+- Keja Streaks & Ratings: Gamified on-time rent streaks and caretaker ratings for ecosystem trust.
+- Advanced Merchant Dashboard:
+    * Generate E-Leases instantly as PDFs.
+    * Move-in / Move-out photographic inspection checklists.
+    * Bulk Tenant Import via CSV parsing.
+    * Vacancy Marketing Blasts to nearby students.
+    * Live Tenant Trust Scoring (KYC) based on payment history.
+    * Dedicated WhatsApp Reminders (room-specific targeting) & In-App Broadcast messaging explicitly routing to active tenants via FCM.
+    * Premium UI: Horizontal swipe-to-scroll Quick Actions grid and modern room management property listings.
+
+------------------------------------------------------------------------
+6. FIND YOUR MATCH (NETWORKING & DATING HUB)
+------------------------------------------------------------------------
+Role: The social layer of DISHI for verified students.
+Features:
+- Student Match Network: A platform to connect with verified students.
+- AI Wingman: An NLP-powered chat assistant built with Groq API to help students break the ice.
+- DISHI Gold (Premium): 
+    * 50 KSH / month subscription via M-Pesa STK Push.
+    * Perks: See who liked you, unlimited swipes, priority placement.
+    * Curated Perfect Matches via Email (Mon, Wed, Fri at 8:00 AM).
+- Safe Walk & Partner Venues: 
+    * Safe Walk: Location sharing and emergency SOS alerts.
+    * SOS Alert Button: Triggers immediate logging in Firestore and dispatches a high-priority email to the admin.
+    * Partner Venues: Dynamic UI linked to actual verified DISHI Vendors showing venue images and categories for offline meetups.
+
+------------------------------------------------------------------------
+7. CORE INFRASTRUCTURE & SECURITY
+------------------------------------------------------------------------
+- Database (Firestore): 
+    * Securely stores user balances, transactions, and analytics.
+    * Hardened Security Rules: Write access is strictly partitioned so only document owners (e.g., student_id, landlord_id) can modify sensitive tables like `okoa_loans`, `rent_splits`, and `maintenance_tickets`.
+- Storage (Firebase): Partitioned via rules ensuring users can only upload files (Driver docs, receipts) to their own `/uid/` directory.
+- Authentication: Firebase Authentication handles secure login across all user roles.
+- Push Notifications (FCM): Instant cross-dashboard alerts for sales, preorders, and top-ups.
+- Payment Gateway (M-PESA Daraja): STK Push, B2C, and B2B integrated via Python.
+- Python Backend (Vercel): 
+    * Handles M-PESA callbacks asynchronously.
+    * Uses HMAC cryptographic signing.
+    * Houses the External Web Portal (Harambee).
+    * B2C/B2B payout endpoints for Vendors and Drivers (`/api/mpesa/driver_withdraw`).
+    * Handles Vercel Cron Jobs (`vercel.json`) for automated matching emails via `flask_mail`.
+    * Admin endpoint integrations for Global Management and SOS dispatch.
+
+------------------------------------------------------------------------
+8. UNIFIED RENT ECOSYSTEM (HOUSE OWNERS, PARENTS, STUDENTS)
+------------------------------------------------------------------------
+Role: An ecosystem to manage housing, rental payments, and risk management between landlords and student guardians.
+Features:
+- Predictive Default Analytics: Flags high-risk tenants using AI based on past rent delays.
+- Keja Protection (Insurance): Landlord-opted property protection.
+
+Fees & Commission Structure (Rent Payments):
+- DISHI charges a fixed commission (e.g. KES 50) per rent transaction.
+- If the Landlord opts into "Keja Protection", a fixed insurance premium (e.g. KES 500) is applied.
+- The Parent/Guardian bears the full cost of the Commission and Insurance Premium on top of the Base Rent. 
+- Example breakdown for a KES 5000 rent payment: 
+    * Rent = 5000
+    * DISHI Commission = 50
+    * Insurance = 500 (if enabled)
+    * Parent pays via STK Push: KES 5550 Total
+    * Landlord receives in wallet: KES 5000 (Base Rent)
+    * DISHI Admin Pool receives: KES 550 (Commission + Insurance)
+========================================================================
+
+------------------------------------------------------------------------
+9. SmartI (ACADEMIC STUDY COMPANION)
+------------------------------------------------------------------------
+Role: A comprehensive academic planner and AI-driven study companion for students.
+Features:
+- Academic Profile Setup: Students configure Academic Year, Semester, and Units (with CAT/Exam targets). Features a seamless navigation flow allowing students to easily jump to Daily Focus, Flashcards, or the Global Leaderboard directly from Setup.
+- Interactive 2D Visual Timetable Builder: A scrollable grid (Days vs Hours) that students can dynamically customize, color-code by task type, automatically generate via AI, and save persistently. Incorporates fixed commitments, subject difficulty matching, and break buffers.
+- PDF Printing: Allows students to generate and print a physical PDF of their weekly study plan.
+- Results Logging & Analytics: Students securely log actual achieved scores. The interactive dashboard features dynamic charts (Bar, Line, Area, Pie) allowing students to visually compare Targets vs Actuals for each unit.
+- AI Study Advice (Groq NLP): Analyzes the student's actual performance against their targets via the Groq LLM API. The Python backend generates real-time, actionable study advice.
+- Pomodoro Focus Timer: Customizable focus sessions (e.g. 15/25 mins) with Voice Reminders (TTS) announcing halfway/warning marks.
+- Gamification & Streaks: Tracks daily consecutive focus days. Breaking a streak resets it to zero.
+- Spaced Repetition Flashcards (SM-2): AI-powered interval scheduling to enforce memory retention over time.
+- Backward Planning (Assignments): Smart countdowns parsing due dates and splitting them into daily micro-chapters.
+- Productivity Heatmaps: GitHub-style contribution grid reflecting daily focus intensity.
+- Social Leaderboard: Global ranking system based on Total Focus Hours. Top 3 students receive Gold/Silver/Bronze highlights. Supports Alias / Anonymous modes.
+- Strict Mode (App Trap): Leverages `WidgetsBindingObserver` to track the app lifecycle. If the student leaves the app while studying, the timer fails, triggering a penalty and red failure screen.
+
+Architecture Details:
+- Frontend (Flutter): Integrated into the Student Dashboard's "Quick Actions" and "Do More with Dishi" hubs.
+- Offline-First Architecture (Zero-Dependency): Uses `SmartimerCacheService` (via `path_provider`) for instant, offline local cache loads. An `OfflineSyncService` (via `connectivity_plus`) manages a local `offline_queue.json` to silently intercept failed network requests and background-sync them to the backend the moment Wi-Fi is restored.
+- API Versioning (v3): Implemented under the `v3` namespace in the Python Flask backend.
+- Database: Targets, Results, Flashcards, and Global Stats are stored permanently in Firebase Firestore under the user's `academic_profile`, `academic_results`, and `global_academic_stats` collections.
+
+========================================================================
+
+------------------------------------------------------------------------
+10. REGULATORY COMPLIANCE, FRAUD SECURITY & OFFLINE RESILIENCE
+------------------------------------------------------------------------
+Role: Safeguards the ecosystem against financial fraud, ensures CBK compliance, and maintains operational continuity during network outages.
+
+Features & Architecture:
+- V4 Regulatory Compliance (CBK):
+    * Hard 3,000 KES Wallet Ceiling enforced on the backend to maintain "Closed-Loop / Gift Card" exemption status.
+    * Strict "No Cash-Out" policy for students.
+- V4 Fraud Protection (Wash Trading):
+    * 1:1 Commission-to-Top-Up velocity ratio limits on the vendor side.
+    * Client-side anomaly detection paired with a dedicated Admin Fraud Dashboard to monitor vendor exploitation of e-float.
+- Tiered Payment Security:
+    * POS transactions over 200 KES strictly require the student to enter their 4-digit PIN.
+- Offline POS Resilience (Drift SQLite):
+    * The Vendor POS implements an offline-first architecture using a Drift SQLite local database (`offline_database.dart`).
+    * A background `SyncService` listens to connectivity changes and pushes queued offline transactions to the backend automatically when Wi-Fi/data is restored.
+- Hybrid Authentication Split:
+    * Offline Students (No Phones): Parents generate a physical printed QR code PDF containing a secure 4-digit `offlinePin`. This PIN is strictly required for Vendor Top-Ups but bypassed for rapid lunch purchases.
+    * Online Students (With Phones): The app leverages a `SecurityEngine` to generate cryptographic Daily Auth Tokens (HMAC SHA-256 + Time-based modulo arithmetic). These tokens are mathematically validated directly on the Python backend for Top-Ups, and evaluated in the QR payload for POS transactions.
+========================================================================
+
+------------------------------------------------------------------------
+11. DATA PRIVACY & ACCOUNT DELETION
+------------------------------------------------------------------------
+Role: Ensure compliance with institutional data retention policies (e.g. .ac.ke domains).
+Features & Architecture:
+- Account Deletion API (`/security/<user_id>/delete_account`) safely disables user profiles.
+- Soft Deletion: Student accounts matching `.ac.ke` domains are soft-deleted. The account is frozen and flagged for permanent deletion after 30 days in the `deleted_users` audit collection. Firebase Auth accounts are disabled rather than deleted immediately to preserve data trails.
+- Hard Deletion: Non-student accounts are hard-deleted instantly.
+- Data Consent Dashboard: Allows users to view their privacy policy and initiate the deletion workflow directly from their profile menu in the DashiAppBar.
+
+------------------------------------------------------------------------
+12. FUNDI JUAJI & SERVICES MARKETPLACE
+------------------------------------------------------------------------
+Role: A peer-to-peer campus services marketplace connecting students with skilled peers (Fundis).
+Features & Architecture:
+- Unified Booking: Students, Drivers, and House Owners can instantly request services from verified Fundis through the "Fundi Juaji" ecosystem.
+- Atomic Escrow Payments: Powered by Firestore Transactions in the Python Backend (`/api/fundi/pay`). The system safely holds the payer's money in escrow until the job is completed.
+- Automated Ecosystem Tax: The platform automatically deducts a 1.5% fee from the Fundi's payout upon successful job completion.
+- Fundi Dashboard: Provides Fundis with job management, chat integrations, and real-time earnings tracking.
+
+========================================================================

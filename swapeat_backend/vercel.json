@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "app.py"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/v2/match/cron/match_emails",
+      "schedule": "0 8 * * 1,3,5"
+    },
+    {
+      "path": "/cron/cleanup-accounts",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/v1/cron/nutrition-reports",
+      "schedule": "0 0 1 * *"
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+ Smart Routine AI - Navigation Structure
+
+This document outlines how users move through the app and how screens are connected, primarily branching out from the central Home Page.
+
+=============================
+1. ENTRY & GLOBAL ROUTES
+=============================
+- App Launch -> Splash Screen (`splash_screen_page.dart`)
+- Splash Screen finishes -> Home Page (`home_page.dart`)
+- Global Event (Alarm rings in background or foreground) -> Alarm Page (`alarm_page.dart`) overrides all navigation and pushes to the front.
+
+=============================
+2. HOME PAGE (CENTRAL HUB)
+=============================
+The Home Page acts as the primary dashboard. From here, users can navigate to all other features of the app.
+
+A. App Bar Actions (Top Right)
+------------------------------
+- 🚀 Rocket Icon -> Vision Board Page (`vision_board_page.dart`) 
+  (For viewing and setting long-term goals)
+- 🎓 School Hat Icon -> Coaching Page (`coaching_page.dart`) 
+  (For AI-generated weekly strategy reviews and guidance)
+- 📊 Analytics Icon -> History Page (`history_page.dart`)
+
+====================
+1. SYSTEM OVERVIEW
+====================
+Smartimer is a robust Flutter application designed to manage tasks, alarms, calendars, and personal goals through the lens of an AI-driven, faith-based motivational engine. 
+
+- Language: Dart / Flutter
+- State Management: Provider (MultiProvider)
+- Local Database: Hive (NoSQL)
+
+
+====================
+2. CORE ARCHITECTURE
+====================
+- main.dart: The entry point. Handles global error catching (preventing the "Grey Screen of Death"), initializes dotenv, Hive, and Alarm services, requests necessary OS permissions, sets up the global alarm stream listener, and injects state via MultiProvider (`PlanProvider`, `InternetProvider`, `CalendarProvider`). It uses `WidgetsBindingObserver` to auto-refresh data when the app resumes from the background.
+- State Providers:
+  * PlanProvider: Manages daily tasks and schedules.
+  * InternetProvider: Monitors connectivity state.
+  * CalendarProvider: Syncs and loads calendar events.
+
+====================
+3. DATA LAYER (HIVE)
+====================
+The app uses Hive (`HiveService`) for lightning-fast, offline-first local storage.
+- Boxes:
+  * Tasks Box: Stores `Task` models (scheduled time, success status).
+  * Settings Box: Stores user preferences like AI voice, wake-up time, wake-up phrase (default: 'thank you smart'), strictness level (default: 7.5), and user name.
+  * Goals Box: Stores `Goal` models.
+  * Journal Box: Stores `JournalEntry` models.
+
+====================
+4. AI & LOGIC ENGINE
+====================
+The brain of the app resides in `AIEngine` (`lib/logic/ai_engine.dart`):
+- Local ML: Uses an offline TensorFlow Lite model to predict task success probability.
+- Inputs: Task category (Physical/Mental/Chores), Time of Day, Temperature, and Weather conditions (Raining/Clear) fetched via external API and geocoding.
+- Outputs: Actionable advice based on the calculated success probability.
+- Briefings & Reviews: Generates personalized morning briefings and weekly strategy reviews. These are highly humanized and feature faith-based quotes (e.g., Scriptures from Proverbs, Philippians, Isaiah).
+- Goal Alignment: Analyzes daily tasks against long-term goals to flag procrastination or distractions (e.g., Netflix, gaming) vs. aligned actions.
+
+====================
+5. STYLING & THEME
+====================
+The app leverages Material 3 with a highly professional, modern color palette defined in `lib/core/theme.dart`.
+
+- Color Palette:
+  * Primary (Navy Blue): #1A237E
+  * Secondary (Light Blue): #4FC3F7
+  * Tertiary (Deep Sky Blue): #0288D1
+  * Background (Grey): #F5F7FA
+  * Surface: White
+
+- Components:
+  * Cards: Flat design (0 elevation), rounded corners (20px border radius), and a subtle grey border (`Colors.grey.shade200`).
+  * AppBar: Navy blue background, white foreground, centered title with bold text (size 20) and letter spacing (1.2).
+  * TextTheme: Headlines use the Primary Navy Blue and bold weights. Body text uses a readable off-black (`Colors.black87`).
+  * Scaffold: Defaults to the soft Background Grey.
+
+====================
+6. KEY UI MODULES
+====================
+Found in `lib/ui/`:
+- Home Page: Central dashboard.
+- Alarm Page: Triggered globally when an alarm rings, overriding current navigation.
+- Splash Screen: Initial loading screen.
+- Coaching, Focus Mode, History, Journal, Planning, Settings, Vision Board: Dedicated modules for holistic personal development.
+
+
