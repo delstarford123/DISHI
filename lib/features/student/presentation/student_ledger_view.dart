@@ -85,6 +85,7 @@ class _StudentLedgerViewState extends State<StudentLedgerView> {
                 },
                 child: _buildTransactionCard(tx),
               );
+            },
           );
         },
       ),
