@@ -90,7 +90,6 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
         padding: const EdgeInsets.all(16),
         children: [
           Center(
-          Center(
             child: GestureDetector(
               onTap: _pickAndUploadImage,
               child: Stack(

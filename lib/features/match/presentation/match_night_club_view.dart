@@ -147,11 +147,15 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
         actions: [
           IconButton(
             icon: const Icon(Icons.library_music, color: Colors.pinkAccent),
-            onPressed: () {},
+            onPressed: _showTrackList,
           ),
           IconButton(
             icon: const Icon(Icons.notifications, color: Colors.amber),
-            onPressed: () {},
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No new club notifications.')),
+              );
+            },
           ),
         ],
       ),
@@ -249,13 +253,7 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
 
                           return GestureDetector(
                             onTap: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => MatchCallView(
-                                userName: name,
-                                userAvatar: avatarUrl ?? '',
-                                calleeId: profile['uid'] ?? profile['id'] ?? '',
-                                isVideoCall: true,
-                                isIncoming: false,
-                              )));
+                              _showCallOptions(name, '$fakeSchool • $subtext', profile['uid'] ?? profile['id'] ?? '', avatarUrl ?? '');
                             },
                             child: AnimatedBuilder(
                               animation: _danceController,
@@ -308,7 +306,7 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text('NOW PLAYING IN VIRTUAL CLUB:', style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
-                              Text(_currentTrack.replaceAll('.mp3', '').toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              Text(_trackNames[_currentTrack] ?? _currentTrack.replaceAll('.mp3', '').toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -371,7 +369,7 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
     );
   }
 
-  void _showCallOptions(String userName, String school, String calleeId) {
+  void _showCallOptions(String userName, String school, String calleeId, String userAvatar) {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF0F172A),
@@ -382,6 +380,13 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              CircleAvatar(
+                radius: 40,
+                backgroundColor: Colors.pinkAccent,
+                backgroundImage: userAvatar.isNotEmpty ? NetworkImage(userAvatar) : null,
+                child: userAvatar.isEmpty ? const Icon(Icons.person, size: 40, color: Colors.white) : null,
+              ),
+              const SizedBox(height: 16),
               Text('Connect with $userName', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
               Text(school, style: const TextStyle(color: Colors.pinkAccent, fontSize: 14)),
               const SizedBox(height: 24),
@@ -390,7 +395,7 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
                 title: const Text('Video Call', style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(context);
-                  _startCall(userName, calleeId, true);
+                  _startCall(userName, calleeId, userAvatar, true);
                 },
               ),
               ListTile(
@@ -398,7 +403,7 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
                 title: const Text('Audio Call', style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(context);
-                  _startCall(userName, calleeId, false);
+                  _startCall(userName, calleeId, userAvatar, false);
                 },
               ),
               ListTile(
@@ -416,13 +421,13 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
     );
   }
 
-  void _startCall(String userName, String calleeId, bool isVideo) {
+  void _startCall(String userName, String calleeId, String userAvatar, bool isVideo) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => MatchCallView(
           userName: userName,
-          userAvatar: '',
+          userAvatar: userAvatar,
           calleeId: calleeId,
           isVideoCall: isVideo,
         ),
