@@ -211,24 +211,29 @@ class _MatchProfileSetupState extends State<MatchProfileSetup> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _availableInterests.map((interest) {
-                  final isSelected = _selectedInterests.contains(interest);
-                  return ChoiceChip(
-                    label: Text(interest, style: TextStyle(color: isSelected ? Colors.white : _textSecondary)),
-                    selected: isSelected,
-                    selectedColor: _neonPurple,
-                    backgroundColor: _surfaceLight,
-                    onSelected: (bool selected) {
-                      setState(() {
-                        if (selected) {
-                          _selectedInterests.add(interest);
-                        } else {
+                children: [
+                  ..._selectedInterests.map((interest) {
+                    return InputChip(
+                      label: Text(interest, style: const TextStyle(color: Colors.white)),
+                      selected: true,
+                      selectedColor: _neonPurple,
+                      backgroundColor: _surfaceLight,
+                      deleteIconColor: Colors.white70,
+                      onDeleted: () {
+                        setState(() {
                           _selectedInterests.remove(interest);
-                        }
-                      });
+                        });
+                      },
+                    );
+                  }),
+                  ActionChip(
+                    label: const Text('+ Add Interest', style: TextStyle(color: _neonPink)),
+                    backgroundColor: _surfaceLight,
+                    onPressed: () {
+                      _showAddInterestDialog();
                     },
-                  );
-                }).toList(),
+                  ),
+                ],
               ),
               const SizedBox(height: 40),
               ElevatedButton(
@@ -242,6 +247,45 @@ class _MatchProfileSetupState extends State<MatchProfileSetup> {
               )
             ],
           ),
+    );
+  }
+
+  void _showAddInterestDialog() {
+    final TextEditingController interestController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: _cardColor,
+          title: const Text('Add Interest', style: TextStyle(color: Colors.white)),
+          content: TextField(
+            controller: interestController,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              hintText: 'e.g. Hiking, Photography...',
+              hintStyle: TextStyle(color: _textSecondary),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: _textSecondary)),
+            ),
+            TextButton(
+              onPressed: () {
+                final newInterest = interestController.text.trim();
+                if (newInterest.isNotEmpty) {
+                  setState(() {
+                    _selectedInterests.add(newInterest);
+                  });
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('Add', style: TextStyle(color: _neonPink)),
+            ),
+          ],
+        );
+      },
     );
   }
 }

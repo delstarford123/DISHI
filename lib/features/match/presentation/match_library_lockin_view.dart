@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'match_chat_view.dart'; // Ensure this exists to route to
@@ -33,6 +34,31 @@ class _MatchLibraryLockInViewState extends State<MatchLibraryLockInView> {
 
   Future<void> _startMatchmaking() async {
     setState(() => _isSearching = true);
+    
+    // Request location first
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location services disabled. Cannot verify you are at the library.')));
+      setState(() => _isSearching = false);
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        setState(() => _isSearching = false);
+        return;
+      }
+    }
+    
+    if (permission == LocationPermission.deniedForever) {
+      setState(() => _isSearching = false);
+      return;
+    }
+
+    // Got location
+    final position = await Geolocator.getCurrentPosition();
     final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
     
     try {
@@ -50,6 +76,8 @@ class _MatchLibraryLockInViewState extends State<MatchLibraryLockInView> {
       } else {
         final docRef = await FirebaseFirestore.instance.collection('library_lockin_queue').add({
           'uid': uid,
+          'latitude': position.latitude,
+          'longitude': position.longitude,
           'timestamp': FieldValue.serverTimestamp(),
         });
         _queueDocId = docRef.id;

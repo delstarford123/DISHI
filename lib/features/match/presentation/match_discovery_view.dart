@@ -1,5 +1,5 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'match_call_view.dart';
@@ -24,10 +24,45 @@ class _MatchDiscoveryViewState extends State<MatchDiscoveryView> {
   @override
   void initState() {
     super.initState();
-    _fetchProfiles();
+    _fetchLocationAndProfiles();
   }
 
-  Future<void> _fetchProfiles() async {
+  Future<void> _fetchLocationAndProfiles() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location services are disabled.')));
+      return _fetchProfiles(null); 
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return _fetchProfiles(null); 
+      }
+    }
+    
+    if (permission == LocationPermission.deniedForever) {
+      return _fetchProfiles(null); 
+    } 
+
+    final position = await Geolocator.getCurrentPosition();
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid != null) {
+      await FirebaseFirestore.instance.collection('users').doc(currentUid).update({
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+        'location_updated_at': FieldValue.serverTimestamp(),
+      });
+    }
+
+    _fetchProfiles(position);
+  }
+
+  Future<void> _fetchProfiles(Position? myPosition) async {
     try {
       final currentUid = FirebaseAuth.instance.currentUser?.uid;
       // Fetch users who are not the current user
@@ -86,7 +121,7 @@ class _MatchDiscoveryViewState extends State<MatchDiscoveryView> {
             icon: const Icon(Icons.refresh, color: _neonCyan),
             onPressed: () {
               setState(() => _isLoading = true);
-              _fetchProfiles();
+              _fetchLocationAndProfiles();
             },
           )
         ],
@@ -108,7 +143,7 @@ class _MatchDiscoveryViewState extends State<MatchDiscoveryView> {
                       style: ElevatedButton.styleFrom(backgroundColor: _neonPink),
                       onPressed: () {
                         setState(() => _isLoading = true);
-                        _fetchProfiles();
+                        _fetchLocationAndProfiles();
                       },
                       child: const Text('Refresh', style: TextStyle(color: Colors.white)),
                     )
