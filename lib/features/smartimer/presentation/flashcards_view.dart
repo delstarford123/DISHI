@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 
 // -- CUSTOM DESIGN COLORS --
 const Color _bgColor = Color(0xFF0C101B);
@@ -19,7 +20,7 @@ class FlashcardsView extends StatefulWidget {
 }
 
 class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProviderStateMixin {
-  final String _studentId = "demo_student"; // Dummy ID for Vercel backend
+  final String _studentId = FirebaseAuth.instance.currentUser?.uid ?? "demo_student";
   List<dynamic> _cards = [];
   int _currentIndex = 0;
   bool _isLoading = true;

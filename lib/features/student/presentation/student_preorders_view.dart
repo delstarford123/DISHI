@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/models/preorder_model.dart';
+import 'vendor_directory_view.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
@@ -91,7 +92,7 @@ class _StudentPreordersViewState extends State<StudentPreordersView> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () {
-              Navigator.pop(context); // Go back to dashboard
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorDirectoryView()));
             },
             child: const Text('Browse Vendors', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           )

@@ -655,23 +655,30 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              if (userModel.dailyLimit != null && userModel.dailyLimit! > 0)
-                Container(
-                  height: 8,
-                  width: MediaQuery.of(context).size.width * (userModel.walletBalance / userModel.dailyLimit!).clamp(0.0, 1.0),
-                  decoration: BoxDecoration(
-                    color: _neonCyan,
-                    borderRadius: BorderRadius.circular(4),
-                    boxShadow: [
-                      BoxShadow(color: _neonCyan.withOpacity(0.6), blurRadius: 6)
-                    ]
-                  ),
+              Container(
+                height: 8,
+                width: (userModel.dailyLimit != null && userModel.dailyLimit! > 0)
+                    ? MediaQuery.of(context).size.width * (userModel.walletBalance / userModel.dailyLimit!).clamp(0.0, 1.0)
+                    : MediaQuery.of(context).size.width, // Full width if no limit
+                decoration: BoxDecoration(
+                  color: _neonCyan,
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(color: _neonCyan.withOpacity(0.6), blurRadius: 6)
+                  ]
                 ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
-          if (userModel.dailyLimit != null && userModel.dailyLimit! > 0)
-            Text(_isBalanceVisible ? '${((userModel.walletBalance / userModel.dailyLimit!) * 100).toStringAsFixed(1)}% remaining of Ksh ${userModel.dailyLimit}' : '**** remaining of Ksh ****', style: const TextStyle(color: _neonCyan, fontSize: 12)),
+          Text(
+            _isBalanceVisible 
+              ? ((userModel.dailyLimit != null && userModel.dailyLimit! > 0) 
+                  ? '${((userModel.walletBalance / userModel.dailyLimit!) * 100).toStringAsFixed(1)}% remaining of Ksh ${userModel.dailyLimit}'
+                  : 'Ksh ${userModel.walletBalance.toStringAsFixed(2)} available (No limit set)')
+              : '**** available', 
+            style: const TextStyle(color: _neonCyan, fontSize: 12)
+          ),
         ],
       )),
     );

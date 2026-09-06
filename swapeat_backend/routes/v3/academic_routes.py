@@ -449,7 +449,7 @@ def manage_flashcards():
     try:
         if request.method == 'POST':
             data = request.json
-            student_id = data.get('studentId')
+            student_id = data.get('studentId') or data.get('student_id')
             unit_code = data.get('unitCode', 'General')
             front = data.get('front')
             back = data.get('back')
@@ -475,7 +475,7 @@ def manage_flashcards():
             return jsonify({"message": "Flashcard created successfully"}), 201
 
         elif request.method == 'GET':
-            student_id = request.args.get('studentId')
+            student_id = request.args.get('studentId') or request.args.get('student_id')
             if not student_id:
                 return jsonify({"error": "studentId required"}), 400
                 
@@ -487,7 +487,37 @@ def manage_flashcards():
             query = cards_ref.where('nextReviewDate', '<=', today_str).stream()
             
             cards = [{"id": c.id, **c.to_dict()} for c in query]
-            return jsonify({"cards": cards}), 200
+            
+            if not cards:
+                from datetime import timedelta
+                # Auto-generate 365 flashcards for the student
+                now = datetime.now(timezone.utc)
+                topics = ['Academic (Calculus)', 'History (Kenya)', 'Relationships', 'Tech (Programming)', 'Finance (Crypto)']
+                batch = db.batch()
+                
+                for i in range(365):
+                    topic = topics[i % len(topics)]
+                    card_data = {
+                        'unitCode': topic,
+                        'question': f"Daily Flashcard #{i+1} ({topic})",
+                        'answer': f"This is the answer for day {i+1}. Keep studying!",
+                        'repetition': 0,
+                        'interval': 0,
+                        'easeFactor': 2.5,
+                        'nextReviewDate': (now + timedelta(days=i)).strftime('%Y-%m-%d'),
+                        'createdAt': firestore.SERVER_TIMESTAMP
+                    }
+                    doc_ref = db.collection('users').document(student_id).collection('academic_flashcards').document()
+                    batch.set(doc_ref, card_data)
+                    
+                    if i == 0:
+                        c = card_data.copy()
+                        c['id'] = doc_ref.id
+                        cards.append(c)
+                    
+                batch.commit()
+                
+            return jsonify({"flashcards": cards}), 200
             
     except Exception as e:
         logger.error(f"Error managing flashcards: {e}")

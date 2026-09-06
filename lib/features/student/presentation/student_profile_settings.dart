@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+
 import '../../../core/theme/mpesa_theme.dart';
 import '../../deliv/presentation/deliv_driver_dashboard.dart';
 import '../../deliv/presentation/deliv_registration_view.dart';
 import '../../auth/presentation/data_consent_view.dart';
 import '../../match/presentation/match_profile_setup.dart';
+import '../../fundi/presentation/fundi_registration_view.dart';
 import '../../../core/models/user_model.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
@@ -25,6 +31,50 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
   bool _isDriverMode = false;
   bool _isFundiMode = false;
   bool _autoRoundUp = false;
+  
+  bool _isUploading = false;
+  String? _localProfileImageUrl;
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _localProfileImageUrl = widget.userModel.profileImageUrl;
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      if (image == null) return;
+
+      setState(() => _isUploading = true);
+
+      final String fileName = 'profile_${widget.userModel.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final Reference storageRef = FirebaseStorage.instance.ref().child('profile_images').child(fileName);
+
+      final UploadTask uploadTask = storageRef.putFile(File(image.path));
+      final TaskSnapshot snapshot = await uploadTask;
+      final String downloadUrl = await snapshot.ref.getDownloadURL();
+
+      await FirebaseFirestore.instance.collection('users').doc(widget.userModel.uid).update({
+        'profileImageUrl': downloadUrl,
+      });
+
+      setState(() {
+        _localProfileImageUrl = downloadUrl;
+        _isUploading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile picture updated!'), backgroundColor: _neonCyan));
+      }
+    } catch (e) {
+      setState(() => _isUploading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,12 +90,34 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
         padding: const EdgeInsets.all(16),
         children: [
           Center(
-            child: CircleAvatar(
-              radius: 50,
-              backgroundColor: _neonCyan,
-              backgroundImage: widget.userModel.profileImageUrl != null ? NetworkImage(widget.userModel.profileImageUrl!) : null,
-              child: widget.userModel.profileImageUrl == null ? const Icon(Icons.person, size: 50, color: Colors.black) : null,
+          Center(
+            child: GestureDetector(
+              onTap: _pickAndUploadImage,
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: _neonCyan,
+                    backgroundImage: _localProfileImageUrl != null ? NetworkImage(_localProfileImageUrl!) : null,
+                    child: _isUploading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : _localProfileImageUrl == null 
+                            ? const Icon(Icons.person, size: 50, color: Colors.black) 
+                            : null,
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(color: _neonPink, shape: BoxShape.circle),
+                      child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ),
           ),
           const SizedBox(height: 16),
           Text(widget.userModel.displayName, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
@@ -86,17 +158,18 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
           
           _buildToggleCard(
             'Comrade Fundi Profile',
-            'Offer your services (plumbing, IT, tutoring) to the campus.',
+            'Provide services to students and earn extra cash.',
             Icons.handyman,
-            _neonBlue,
+            Colors.orangeAccent,
             _isFundiMode,
             (val) {
               setState(() => _isFundiMode = val);
               if (val) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fundi Registration coming soon!')));
-                setState(() => _isFundiMode = false);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => FundiRegistrationView(userModel: widget.userModel))).then((_) {
+                  if (mounted) setState(() => _isFundiMode = false);
+                });
               }
-            }
+            },
           ),
           
           const SizedBox(height: 32),

@@ -66,8 +66,25 @@ class _StudentLedgerViewState extends State<StudentLedgerView> {
             itemCount: transactions.length,
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
-              return _buildTransactionCard(transactions[index]);
-            },
+              final tx = transactions[index];
+              return Dismissible(
+                key: Key(tx.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                onDismissed: (direction) {
+                  FirebaseFirestore.instance.collection('transactions').doc(tx.id).delete();
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaction deleted.')));
+                },
+                child: _buildTransactionCard(tx),
+              );
           );
         },
       ),

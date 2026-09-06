@@ -25,7 +25,7 @@ class _UniversalSupportWidgetState extends State<UniversalSupportWidget> {
     setState(() => _isSubmitting = true);
 
     try {
-      final url = Uri.parse('https://swapeatbackend.vercel.app/api/v2/support/create_ticket');
+      final url = Uri.parse('https://swapeatbackend.vercel.app/api/v2/match/support/create_ticket');
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},

@@ -2,8 +2,40 @@ from flask import Blueprint, jsonify, request
 from firebase_admin import firestore
 import datetime
 import random
+from utils.fcm_utils import send_fcm_notification
 
 vendor_operations_bp = Blueprint('vendor_operations', __name__)
+
+@vendor_operations_bp.route('/orders/update_status', methods=['POST'])
+def update_order_status():
+    data = request.json
+    order_id = data.get('order_id')
+    status = data.get('status')
+    
+    if not all([order_id, status]):
+        return jsonify({"error": "Missing parameters"}), 400
+
+    try:
+        db = firestore.client()
+        order_ref = db.collection('orders').document(order_id)
+        order_doc = order_ref.get()
+        
+        if not order_doc.exists:
+            return jsonify({"error": "Order not found"}), 404
+            
+        order_data = order_doc.to_dict()
+        order_ref.update({'status': status})
+        
+        # Send FCM notification to student
+        student_id = order_data.get('student_id')
+        if student_id:
+            title = "Order Update"
+            body = f"Your order from {order_data.get('vendor_name', 'a vendor')} has been {status}."
+            send_fcm_notification(student_id, title, body)
+            
+        return jsonify({"message": f"Order status updated to {status}"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @vendor_operations_bp.route('/predictive_prep', methods=['GET'])
 def predictive_prep():

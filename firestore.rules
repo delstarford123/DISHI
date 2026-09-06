@@ -373,6 +373,8 @@ service cloud.firestore {
     // 10. PREORDERS  (global + per-vendor KDS)
     // ─────────────────────────────────────────────────────────────────────────
     match /preorders/{preId}               { allow read, write: if isAuth(); }
+    match /orders/{orderId}                { allow read, write: if isAuth(); }
+
     match /pending_okoa_requests/{okoaId}  { allow read, write: if isAuth(); }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -479,6 +481,9 @@ service cloud.firestore {
     // ─────────────────────────────────────────────────────────────────────────
     // 16. FUNDI JUAJI  (student handyman jobs)
     // ─────────────────────────────────────────────────────────────────────────
+    match /fundi_profiles/{userId} {
+      allow read, write: if isAuth();
+    }
     match /fundi_jobs/{jobId} {
       allow read: if isAuth();
       allow create: if isAuth();
