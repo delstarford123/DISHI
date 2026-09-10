@@ -64,7 +64,7 @@ class _MatchSecretAdmirerDialogState extends State<MatchSecretAdmirerDialog> {
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: _neonPink, padding: const EdgeInsets.symmetric(vertical: 16)),
-                onPressed: _isSending ? null : _sendAnonymousVibe,
+                onPressed: _isSending ? null : _sendCrush,
                 child: _isSending 
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white)) 
                     : const Text('SEND ANONYMOUSLY', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

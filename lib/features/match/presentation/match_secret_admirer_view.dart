@@ -351,11 +351,12 @@ class _MatchSecretAdmirerViewState extends State<MatchSecretAdmirerView> with Si
             final doc = snapshot.data!.docs[index];
             final bool isRevealed = doc['status'] == 'revealed';
             
-            return GlassCard(
-              padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.only(bottom: 16),
-              borderRadius: 16,
-              child: Column(
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: GlassCard(
+                padding: const EdgeInsets.all(16),
+                borderRadius: 16,
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
@@ -380,6 +381,7 @@ class _MatchSecretAdmirerViewState extends State<MatchSecretAdmirerView> with Si
                     Text(doc['message'], style: const TextStyle(color: Colors.white70)),
                   ]
                 ],
+              ),
               ),
             );
           },

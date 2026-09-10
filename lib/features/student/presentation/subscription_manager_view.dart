@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/theme/mpesa_theme.dart';
 
+
+
 class SubscriptionManagerView extends StatefulWidget {
   final UserModel userModel;
 
@@ -11,6 +13,9 @@ class SubscriptionManagerView extends StatefulWidget {
   @override
   State<SubscriptionManagerView> createState() => _SubscriptionManagerViewState();
 }
+
+
+
 
 class _SubscriptionManagerViewState extends State<SubscriptionManagerView> {
   void _toggleSubscription(String subId, bool value, String merchant) async {
@@ -62,7 +67,34 @@ class _SubscriptionManagerViewState extends State<SubscriptionManagerView> {
                   }
                   
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(child: Text('No active subscriptions', style: TextStyle(color: Colors.white54)));
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: MPesaTheme.primaryGreen.withOpacity(0.1)),
+                            child: const Icon(Icons.subscriptions,
+                                size: 48, color: MPesaTheme.primaryGreen),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text('No Active Subscriptions',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Subscribe to a campus plan to\nmanage recurring payments here.',
+                            textAlign: TextAlign.center,
+                            style:
+                                TextStyle(color: Colors.white54, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    );
                   }
 
                   final docs = snapshot.data!.docs;

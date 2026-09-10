@@ -6,6 +6,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/models/match_profile_model.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/models/user_model.dart';
+import '../../student/presentation/student_profile_settings.dart';
 
 class MatchNightClubView extends StatefulWidget {
   const MatchNightClubView({super.key});
@@ -411,9 +414,19 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
               ListTile(
                 leading: const Icon(Icons.phone_iphone, color: Colors.white70),
                 title: const Text('Cellular Call', style: TextStyle(color: Colors.white)),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(context);
-                  _promptPhoneNumber(userName);
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user == null) return;
+                  
+                  final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+                  final hasPhone = doc.data()?['phone_number'] != null && doc.data()!['phone_number'].toString().trim().isNotEmpty;
+                  
+                  if (!hasPhone) {
+                    _promptPhoneNumber(userName, calleeId);
+                  } else {
+                    _makeCellularCall(calleeId);
+                  }
                 },
               ),
             ],
@@ -437,7 +450,33 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
     );
   }
 
-  void _promptPhoneNumber(String userName) {
+  Future<void> _makeCellularCall(String calleeId) async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(calleeId).get();
+      final calleePhone = doc.data()?['phone_number']?.toString();
+      
+      if (calleePhone != null && calleePhone.trim().isNotEmpty) {
+        final Uri launchUri = Uri(scheme: 'tel', path: calleePhone);
+        if (await canLaunchUrl(launchUri)) {
+          await launchUrl(launchUri);
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not launch dialer.')));
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This user has not added their phone number yet.')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error making call: $e')));
+      }
+    }
+  }
+
+  void _promptPhoneNumber(String userName, String calleeId) {
     showDialog(
       context: context,
       builder: (context) {
@@ -454,7 +493,31 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
               child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () async {
+                Navigator.pop(context); // Close dialog
+                final user = FirebaseAuth.instance.currentUser;
+                if (user != null) {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => StudentProfileSettings(
+                        userModel: UserModel(
+                          uid: user.uid,
+                          displayName: user.displayName ?? '',
+                          email: user.email ?? '',
+                          roles: ['student'],
+                        ),
+                      ),
+                    ),
+                  );
+                  // Check again if they added it
+                  final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+                  final hasPhone = doc.data()?['phone_number'] != null && doc.data()!['phone_number'].toString().trim().isNotEmpty;
+                  if (hasPhone && mounted) {
+                    _makeCellularCall(calleeId);
+                  }
+                }
+              },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.pinkAccent),
               child: const Text('Add Number', style: TextStyle(color: Colors.white)),
             ),

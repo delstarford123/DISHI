@@ -254,7 +254,7 @@ class _MatchEventDateViewState extends State<MatchEventDateView> with SingleTick
                 : Container(
                     height: 140,
                     decoration: const BoxDecoration(color: _surfaceLight, borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-                    child: const Center(child: Icon(Icons.event, size: 60, color: _textSecondary)),
+                    child: const Center(child: Icon(Icons.event, size: 60, color: Colors.white54)),
                   ),
               Positioned(
                 top: 12, right: 12,
@@ -283,7 +283,7 @@ class _MatchEventDateViewState extends State<MatchEventDateView> with SingleTick
                   children: [
                     const Icon(Icons.location_on, color: _neonPink, size: 16),
                     const SizedBox(width: 4),
-                    Text(event['location'] ?? 'TBA', style: const TextStyle(color: _textSecondary)),
+                    Text(event['location'] ?? 'TBA', style: const TextStyle(color: Colors.white54)),
                   ],
                 ),
                 

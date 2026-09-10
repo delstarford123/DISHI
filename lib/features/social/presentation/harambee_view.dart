@@ -212,6 +212,90 @@ class _HarambeeViewState extends State<HarambeeView> {
     );
   }
 
+  void _showWithdrawDialog(String campaignId, double raised) {
+    final phoneCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF131A2A),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Colors.amber, width: 1.5)),
+        title: Row(
+          children: [
+            const Icon(Icons.account_balance_wallet, color: Colors.amber),
+            const SizedBox(width: 8),
+            Text('Withdraw KES ${raised.toStringAsFixed(2)}',
+                style: const TextStyle(color: Colors.white, fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Funds will be sent to your M-PESA number via STK push.',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'M-PESA Phone (e.g. 254712345678)',
+                labelStyle: TextStyle(color: Colors.white54),
+                filled: true,
+                fillColor: Color(0xFF1A2235),
+                border: OutlineInputBorder(borderSide: BorderSide.none),
+                prefixIcon: Icon(Icons.phone, color: Colors.amber),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber.shade700),
+            onPressed: () async {
+              final phone = phoneCtrl.text.trim();
+              if (phone.isEmpty || phone.length < 10) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Enter a valid M-PESA number')));
+                return;
+              }
+              Navigator.pop(context);
+              // Write withdrawal request — backend processes via M-PESA STK
+              await FirebaseFirestore.instance
+                  .collection('harambee_withdrawals')
+                  .add({
+                'campaign_id': campaignId,
+                'uid': currentUid,
+                'amount': raised,
+                'phone': phone,
+                'status': 'pending',
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text(
+                          '✅ Withdrawal initiated! You will receive an M-PESA prompt shortly.'),
+                      backgroundColor: MPesaTheme.primaryGreen,
+                      duration: Duration(seconds: 4)),
+                );
+              }
+            },
+            child: const Text('Withdraw via M-PESA',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _shareCampaign(String campaignId) {
     final link = 'https://dishi.delstarfordworks.co.ke/fund?campaign=$campaignId';
     Clipboard.setData(ClipboardData(text: link));
@@ -436,8 +520,24 @@ class _HarambeeViewState extends State<HarambeeView> {
                             
                           if (isMyCampaign && deadlineText != 'Ended') ...[
                             const SizedBox(height: 8),
-                            SizedBox(width: double.infinity, child: TextButton(onPressed: () => _addUpdate(campaignDoc), child: const Text('Post Update', style: TextStyle(color: Colors.white54))))
-                          ]
+                            SizedBox(width: double.infinity, child: TextButton(onPressed: () => _addUpdate(campaignDoc), child: const Text('Post Update', style: TextStyle(color: Colors.white54)))),
+                          ],
+                          // Withdraw button — only for campaign owner when there is raised amount
+                          if (isMyCampaign && raised > 0) ...[
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.amber.shade700,
+                                    padding: const EdgeInsets.symmetric(vertical: 12)),
+                                onPressed: () => _showWithdrawDialog(campaignDoc.id, raised),
+                                icon: const Icon(Icons.account_balance_wallet, color: Colors.black),
+                                label: const Text('Withdraw Funds',
+                                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     );

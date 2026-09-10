@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/mpesa_theme.dart';
-import '../../../core/theme/glass_card.dart';
-import '../../../core/widgets/animated_food_background.dart';
 import '../../admin/presentation/admin_dashboard_view.dart';
 import '../../student/presentation/student_main_scaffold.dart';
 import '../../vendor/presentation/vendor_dashboard_view.dart';
@@ -11,7 +9,7 @@ import 'role_selection_view.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:ui';
+import 'widgets/photo_collage_widget.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -20,11 +18,33 @@ class LoginView extends StatefulWidget {
   State<LoginView> createState() => _LoginViewState();
 }
 
+
+
 class _LoginViewState extends State<LoginView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+  User? _currentUser;
+  String _greeting = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUser = FirebaseAuth.instance.currentUser;
+    _setGreeting();
+  }
+
+  void _setGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      _greeting = 'morning';
+    } else if (hour < 17) {
+      _greeting = 'afternoon';
+    } else {
+      _greeting = 'evening';
+    }
+  }
 
   Future<void> _login() async {
     if (_emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
@@ -114,167 +134,205 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          const AnimatedFoodBackground(),
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.9)],
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
-                        boxShadow: [BoxShadow(color: MPesaTheme.primaryGreen.withOpacity(0.2), blurRadius: 20)],
-                      ),
-                      child: Image.asset('assets/img/dishi_logo.png', height: 80, width: 80),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Welcome Back',
-                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('Sign in to continue to DISHI', style: TextStyle(fontSize: 16, color: Colors.white70)),
-                    const SizedBox(height: 40),
+    final bool isAlreadySignedIn = _currentUser != null;
+    final String displayName = _currentUser?.displayName?.split(' ').first ?? 'there';
 
-                    GlassCard(
-                      blur: 15,
-                      opacity: 0.1,
-                      padding: const EdgeInsets.all(24.0),
-                      borderRadius: 32,
-                      child: Column(
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const PhotoCollageWidget(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isAlreadySignedIn ? 'Welcome back,\n$displayName.' : 'Welcome\nBack.',
+                    style: const TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                      height: 1.15,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    isAlreadySignedIn 
+                      ? 'Wishing you a blessed $_greeting. Tap below to continue to your dashboard.'
+                      : 'Sign in to continue to DISHI and explore your community.',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey.shade600,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  if (_errorMessage != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 24),
+                      decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                      child: Text(_errorMessage!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+                    ),
+                    
+                  if (isAlreadySignedIn) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : () async {
+                          setState(() => _isLoading = true);
+                          try {
+                            final doc = await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).get();
+                            if (mounted) setState(() => _isLoading = false);
+                            if (doc.exists) {
+                              _routeToDashboard(doc.data() as Map<String, dynamic>);
+                            } else {
+                              _routeToDashboard({'roles': ['student']});
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                                _errorMessage = 'Failed to load profile. Please try again.';
+                              });
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3D6D50),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                          elevation: 0,
+                        ),
+                        child: _isLoading 
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Continue to Dashboard', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: TextButton(
+                        onPressed: () async {
+                           await FirebaseAuth.instance.signOut();
+                           setState(() { _currentUser = null; });
+                        },
+                        child: const Text('Sign in as another user', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ] else ...[
+                    TextField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      style: const TextStyle(color: Colors.black87),
+                      decoration: InputDecoration(
+                        labelText: 'Email Address',
+                        labelStyle: TextStyle(color: Colors.grey.shade600),
+                        filled: true,
+                        fillColor: Colors.grey.shade100,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                        prefixIcon: Icon(Icons.email, color: Colors.grey.shade600),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      style: const TextStyle(color: Colors.black87),
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        labelStyle: TextStyle(color: Colors.grey.shade600),
+                        filled: true,
+                        fillColor: Colors.grey.shade100,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                        prefixIcon: Icon(Icons.lock, color: Colors.grey.shade600),
+                      ),
+                    ),
+                    
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordView())),
+                        child: const Text('Forgot Password?', style: TextStyle(color: Color(0xFF3D6D50), fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _login,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3D6D50),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                          elevation: 0,
+                        ),
+                        child: _isLoading 
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Sign In', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                    
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Row(
                         children: [
-                          if (_errorMessage != null)
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              margin: const EdgeInsets.only(bottom: 24),
-                              decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                              child: Text(_errorMessage!, style: const TextStyle(color: Colors.white), textAlign: TextAlign.center),
-                            ),
-                            
-                          TextField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              labelText: 'Email Address',
-                              labelStyle: const TextStyle(color: Colors.white70),
-                              filled: true,
-                              fillColor: Colors.white.withOpacity(0.05),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                              prefixIcon: const Icon(Icons.email, color: Colors.white70),
-                            ),
+                          Expanded(child: Divider(color: Colors.black12)),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16),
+                            child: Text('OR', style: TextStyle(color: Colors.black38, fontWeight: FontWeight.bold)),
                           ),
-                          const SizedBox(height: 16),
-                          
-                          TextField(
-                            controller: _passwordController,
-                            obscureText: true,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              labelStyle: const TextStyle(color: Colors.white70),
-                              filled: true,
-                              fillColor: Colors.white.withOpacity(0.05),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                              prefixIcon: const Icon(Icons.lock, color: Colors.white70),
-                            ),
-                          ),
-                          
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordView())),
-                              child: const Text('Forgot Password?', style: TextStyle(color: MPesaTheme.primaryGreen, fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _login,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: MPesaTheme.primaryGreen,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                elevation: 8,
-                                shadowColor: MPesaTheme.primaryGreen.withOpacity(0.5),
-                              ),
-                              child: _isLoading 
-                                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Text('Sign In', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                            ),
-                          ),
-                          
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 24),
-                            child: Row(
-                              children: [
-                                Expanded(child: Divider(color: Colors.white24)),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 16),
-                                  child: Text('OR', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
-                                ),
-                                Expanded(child: Divider(color: Colors.white24)),
-                              ],
-                            ),
-                          ),
-                          
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: OutlinedButton.icon(
-                              onPressed: _isLoading ? null : _handleGoogleSignIn,
-                              icon: const Icon(Icons.login, color: Colors.white),
-                              label: const Text('Continue with Google', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.white24, width: 2),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                backgroundColor: Colors.white.withOpacity(0.05),
-                              ),
-                            ),
-                          ),
+                          Expanded(child: Divider(color: Colors.black12)),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
                     
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text("Don't have an account?", style: TextStyle(color: Colors.white70)),
-                        TextButton(
-                          onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const SignupView())),
-                          child: const Text('Sign Up', style: TextStyle(color: MPesaTheme.primaryGreen, fontWeight: FontWeight.bold, fontSize: 16)),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: OutlinedButton.icon(
+                        onPressed: _isLoading ? null : _handleGoogleSignIn,
+                        icon: const Icon(Icons.login, color: Colors.black87),
+                        label: const Text('Continue with Google', style: TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w600)),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.grey.shade300, width: 2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                          backgroundColor: Colors.white,
                         ),
-                      ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    
+                    Center(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const SignupView())),
+                        child: RichText(
+                          text: TextSpan(
+                            text: "Don't have an account? ",
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                            children: const [
+                              TextSpan(
+                                text: 'Sign Up',
+                                style: TextStyle(color: Color(0xFF3D6D50), fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ],
-                ),
+                  const SizedBox(height: 32),
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -719,7 +719,7 @@ class _MatchStudyBuddyViewState extends State<MatchStudyBuddyView> with SingleTi
                   if (status == 'accepted') ...[
                     const SizedBox(height: 16),
                     SizedBox(width: double.infinity, child: OutlinedButton.icon(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MatchLibraryLockinView())),
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MatchLibraryLockInView())),
                       icon: const Icon(Icons.timer, color: Colors.orangeAccent),
                       label: const Text('Start Shared Pomodoro', style: TextStyle(color: Colors.orangeAccent)),
                       style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.orangeAccent)),

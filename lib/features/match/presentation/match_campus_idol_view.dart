@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -12,7 +13,7 @@ class MatchCampusIdolView extends StatefulWidget {
   State<MatchCampusIdolView> createState() => _MatchCampusIdolViewState();
 }
 
-class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with SingleTickerProviderStateMixin {
+class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerProviderStateMixin {
   late TabController _tabController;
   late AnimationController _waveformController;
   
@@ -293,7 +294,7 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with SingleTi
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.multotrack_audio, color: Colors.white, size: 80),
+                      const Icon(Icons.audiotrack, color: Colors.white, size: 80),
                       const SizedBox(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -431,11 +432,12 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with SingleTi
             final data = doc.data() as Map<String, dynamic>;
             final isAnonymous = data['isAnonymous'] ?? true;
             
-            return GlassCard(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(12),
-              borderRadius: 12,
-              child: ListTile(
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: GlassCard(
+                padding: const EdgeInsets.all(12),
+                borderRadius: 12,
+                child: ListTile(
                 leading: CircleAvatar(
                   backgroundColor: isAnonymous ? Colors.black26 : Colors.blueAccent,
                   child: isAnonymous ? Text('#${index+1}', style: const TextStyle(color: Colors.white)) : const Icon(Icons.person, color: Colors.white),
@@ -449,6 +451,7 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with SingleTi
                     const Icon(Icons.favorite, color: Colors.redAccent, size: 16),
                   ],
                 ),
+              ),
               ),
             );
           },

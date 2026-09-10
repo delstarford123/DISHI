@@ -128,6 +128,16 @@ class _MatchCallViewState extends State<MatchCallView> with SingleTickerProvider
     _localRenderer.dispose();
     _remoteRenderer.dispose();
     _signaling.hangUp(_localRenderer);
+    
+    // Always mark call as ended when this screen is disposed —
+    // regardless of whether the call was answered or not.
+    // This prevents the callee's incoming-call screen from lingering.
+    if (_currentRoomId != null) {
+      FirebaseFirestore.instance.collection('active_calls').doc(_currentRoomId).update({
+        'status': 'ended',
+        'endedAt': FieldValue.serverTimestamp(),
+      }).catchError((_) {}); // Ignore if doc deleted
+    }
     super.dispose();
   }
 

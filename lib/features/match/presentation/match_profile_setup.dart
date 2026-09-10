@@ -23,6 +23,27 @@ class _MatchProfileSetupState extends State<MatchProfileSetup> {
   final _bioController = TextEditingController();
   final Set<String> _selectedInterests = {};
   
+  // New Match Profile Features
+  String? _genderPreference;
+  String? _lookingFor;
+  String? _starSign;
+  final _heightController = TextEditingController();
+  String? _drinkingHabit;
+  String? _smokingHabit;
+  String? _workoutHabit;
+  String? _loveLanguage;
+  final _spotifyController = TextEditingController();
+  String? _profilePrompt;
+  final _promptAnswerController = TextEditingController();
+  
+  final _genderPrefs = ['Male', 'Female', 'Everyone'];
+  final _lookingForOptions = ['Serious Relationship', 'Friends', 'Study Buddy', 'Food Swap'];
+  final _starSigns = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
+  final _habits = ['Frequently', 'Socially', 'Rarely', 'Never'];
+  final _workoutHabits = ['Active', 'Sometimes', 'Never'];
+  final _loveLanguages = ['Words of Affirmation', 'Physical Touch', 'Receiving Gifts', 'Quality Time', 'Acts of Service'];
+  final _prompts = ['The way to my heart is...', 'I geek out on...', 'A random fact I love is...', 'My simple pleasure is...'];
+  
   bool _isLoading = false;
   String? _localProfileImageUrl;
   final ImagePicker _picker = ImagePicker();
@@ -52,6 +73,17 @@ class _MatchProfileSetupState extends State<MatchProfileSetup> {
         final interests = List<String>.from(data['interests'] ?? []);
         setState(() {
           _selectedInterests.addAll(interests);
+          _genderPreference = data['genderPreference'];
+          _lookingFor = data['lookingFor'];
+          _starSign = data['starSign'];
+          _heightController.text = data['height'] ?? '';
+          _drinkingHabit = data['drinkingHabit'];
+          _smokingHabit = data['smokingHabit'];
+          _workoutHabit = data['workoutHabit'];
+          _loveLanguage = data['loveLanguage'];
+          _spotifyController.text = data['spotifyAnthem'] ?? '';
+          _profilePrompt = data['profilePrompt'];
+          _promptAnswerController.text = data['promptAnswer'] ?? '';
         });
       }
     } catch (e) {
@@ -62,6 +94,9 @@ class _MatchProfileSetupState extends State<MatchProfileSetup> {
   @override
   void dispose() {
     _bioController.dispose();
+    _heightController.dispose();
+    _spotifyController.dispose();
+    _promptAnswerController.dispose();
     super.dispose();
   }
 
@@ -123,13 +158,24 @@ class _MatchProfileSetupState extends State<MatchProfileSetup> {
         'uid': user.uid,
         'bio': _bioController.text.trim(),
         'interests': _selectedInterests.toList(),
-        'primaryLoveLanguage': '',
+        'primaryLoveLanguage': _loveLanguage ?? '',
+        'genderPreference': _genderPreference,
+        'lookingFor': _lookingFor,
+        'starSign': _starSign,
+        'height': _heightController.text.trim(),
+        'drinkingHabit': _drinkingHabit,
+        'smokingHabit': _smokingHabit,
+        'workoutHabit': _workoutHabit,
+        'loveLanguage': _loveLanguage,
+        'spotifyAnthem': _spotifyController.text.trim(),
+        'profilePrompt': _profilePrompt,
+        'promptAnswer': _promptAnswerController.text.trim(),
         'is_premium': false,
         'isVerified': false,
         'vibeTags': [],
         'swipeCount': 0,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Match Profile Activated!'), backgroundColor: _neonPink));
@@ -235,6 +281,34 @@ class _MatchProfileSetupState extends State<MatchProfileSetup> {
                   ),
                 ],
               ),
+              const SizedBox(height: 32),
+              const Text('Vibes & Compatibility', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              _buildDropdown('Gender Preference', _genderPrefs, _genderPreference, (val) => setState(() => _genderPreference = val)),
+              _buildDropdown('Looking For', _lookingForOptions, _lookingFor, (val) => setState(() => _lookingFor = val)),
+              _buildDropdown('Star Sign', _starSigns, _starSign, (val) => setState(() => _starSign = val)),
+              _buildTextField('Height (e.g. 5\'9")', _heightController, icon: Icons.height),
+              _buildDropdown('Love Language', _loveLanguages, _loveLanguage, (val) => setState(() => _loveLanguage = val)),
+              
+              const SizedBox(height: 32),
+              const Text('Habits', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              _buildDropdown('Drinking', _habits, _drinkingHabit, (val) => setState(() => _drinkingHabit = val)),
+              _buildDropdown('Smoking', _habits, _smokingHabit, (val) => setState(() => _smokingHabit = val)),
+              _buildDropdown('Workout', _workoutHabits, _workoutHabit, (val) => setState(() => _workoutHabit = val)),
+              
+              const SizedBox(height: 32),
+              const Text('Personality', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              _buildTextField('Spotify Anthem (Link or Title)', _spotifyController, icon: Icons.music_note),
+              const SizedBox(height: 16),
+              _buildDropdown('Choose a Prompt', _prompts, _profilePrompt, (val) => setState(() => _profilePrompt = val)),
+              if (_profilePrompt != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: _buildTextField('Your Answer...', _promptAnswerController, maxLines: 2),
+                ),
+                
               const SizedBox(height: 40),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -247,6 +321,48 @@ class _MatchProfileSetupState extends State<MatchProfileSetup> {
               )
             ],
           ),
+    );
+  }
+
+  Widget _buildDropdown(String label, List<String> items, String? currentValue, Function(String?) onChanged) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: _surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: currentValue,
+          hint: Text(label, style: const TextStyle(color: _textSecondary)),
+          isExpanded: true,
+          dropdownColor: _cardColor,
+          style: const TextStyle(color: Colors.white, fontSize: 16),
+          icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
+          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(String hint, TextEditingController controller, {IconData? icon, int maxLines = 1}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(color: _textSecondary),
+          prefixIcon: icon != null ? Icon(icon, color: _textSecondary) : null,
+          filled: true,
+          fillColor: _surfaceLight,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        ),
+      ),
     );
   }
 

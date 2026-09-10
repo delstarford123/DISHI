@@ -227,7 +227,7 @@ class _MatchDoubleDateViewState extends State<MatchDoubleDateView> {
         }, SetOptions(merge: true));
 
         showDialog(context: context, builder: (_) => AlertDialog(
-          backgroundColor: _cardColor,
+          backgroundColor: const Color(0xFF131A2A),
           title: const Text('ITS A MATCH! 🔥', style: TextStyle(color: Colors.white)),
           content: Text('Your Squad matched with ${targetSquad['squad_name']}! A mega group chat has been created with all members.', style: const TextStyle(color: Colors.white70)),
           actions: [
@@ -486,7 +486,7 @@ class _MatchDoubleDateViewState extends State<MatchDoubleDateView> {
                   Text('Invite Code: ${doc['invite_code']}', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 2)),
                   const SizedBox(height: 16),
                   
-                  const Text('Members (${members.length}/4)', style: TextStyle(color: Colors.white70)),
+                  Text('Members (${members.length}/4)', style: const TextStyle(color: Colors.white70)),
                   const SizedBox(height: 8),
                   // Live Members UI
                   SizedBox(

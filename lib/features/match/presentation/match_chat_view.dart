@@ -9,6 +9,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'match_dishi_date_dialog.dart';
 import 'match_call_view.dart' as match_call;
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/models/user_model.dart';
+import '../../student/presentation/student_profile_settings.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
@@ -59,6 +64,7 @@ class _MatchChatViewState extends State<MatchChatView> {
     
     // Typing listener
     _textController.addListener(() {
+      if (mounted) setState(() {}); // rebuild to show/hide send button
       if (_textController.text.isNotEmpty && !_isTyping) {
         _setTypingStatus(true);
       }
@@ -218,6 +224,83 @@ class _MatchChatViewState extends State<MatchChatView> {
     }, SetOptions(merge: true));
   }
 
+  Future<void> _makeCellularCall(String calleeId) async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(calleeId).get();
+      final calleePhone = doc.data()?['phone_number']?.toString();
+      
+      if (calleePhone != null && calleePhone.trim().isNotEmpty) {
+        final Uri launchUri = Uri(scheme: 'tel', path: calleePhone);
+        if (await canLaunchUrl(launchUri)) {
+          await launchUrl(launchUri);
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not launch dialer.')));
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This user has not added their phone number yet.')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error making call: $e')));
+      }
+    }
+  }
+
+  void _promptPhoneNumber(String calleeId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0F172A),
+          title: const Text('Phone Number Required', style: TextStyle(color: _neonPink)),
+          content: const Text(
+            'To make cellular calls, you need to add your phone number to your profile.',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context); // Close dialog
+                final user = FirebaseAuth.instance.currentUser;
+                if (user != null) {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => StudentProfileSettings(
+                        userModel: UserModel(
+                          uid: user.uid,
+                          displayName: user.displayName ?? '',
+                          email: user.email ?? '',
+                          roles: ['student'],
+                        ),
+                      ),
+                    ),
+                  );
+                  // Check again if they added it
+                  final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+                  final hasPhone = doc.data()?['phone_number'] != null && doc.data()!['phone_number'].toString().trim().isNotEmpty;
+                  if (hasPhone && mounted) {
+                    _makeCellularCall(calleeId);
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: _neonPink),
+              child: const Text('Add Number', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -248,6 +331,22 @@ class _MatchChatViewState extends State<MatchChatView> {
             icon: const Icon(Icons.videocam, color: Colors.greenAccent), 
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => match_call.MatchCallView(userName: widget.matchName, userAvatar: widget.matchAvatar ?? '', calleeId: widget.matchId ?? '', isVideoCall: true, isIncoming: false)));
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.phone_iphone, color: Colors.white70), 
+            onPressed: () async {
+              final user = FirebaseAuth.instance.currentUser;
+              if (user == null || widget.matchId == null) return;
+              
+              final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+              final hasPhone = doc.data()?['phone_number'] != null && doc.data()!['phone_number'].toString().trim().isNotEmpty;
+              
+              if (!hasPhone) {
+                _promptPhoneNumber(widget.matchId!);
+              } else {
+                _makeCellularCall(widget.matchId!);
+              }
             },
           ),
         ],
@@ -386,10 +485,12 @@ class _MatchChatViewState extends State<MatchChatView> {
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
+                // Always show send button; show mic only when text is empty
                 if (_textController.text.isNotEmpty)
                   IconButton(
-                    icon: const Icon(Icons.send, color: _neonPink), 
-                    onPressed: _sendMessage
+                    icon: const Icon(Icons.send, color: _neonPink),
+                    onPressed: _sendMessage,
+                    tooltip: 'Send',
                   )
                 else
                   GestureDetector(
@@ -397,7 +498,9 @@ class _MatchChatViewState extends State<MatchChatView> {
                     onLongPressEnd: (_) => _stopAndSendRecording(),
                     child: Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: Icon(_isRecording ? Icons.mic : Icons.mic_none, color: _isRecording ? Colors.redAccent : _neonPink),
+                      child: Icon(
+                          _isRecording ? Icons.mic : Icons.mic_none,
+                          color: _isRecording ? Colors.redAccent : _neonPink),
                     ),
                   )
               ],

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
@@ -71,6 +72,10 @@ class _CreateEventViewState extends State<CreateEventView> {
       await storageRef.putFile(_imageFile!);
       final imageUrl = await storageRef.getDownloadURL();
 
+      // Ensure we always use the authenticated user's UID as the creatorId
+      // so that Firestore rules (creatorId == request.auth.uid) can match.
+      final currentUid = FirebaseAuth.instance.currentUser!.uid;
+
       final eventData = {
         'id': eventId,
         'title': _titleController.text.trim(),
@@ -92,7 +97,10 @@ class _CreateEventViewState extends State<CreateEventView> {
         'payoutType': _payoutType,
         'payoutDestination': _payoutDestinationController.text.trim(),
         'imageUrl': imageUrl,
-        'creatorId': widget.user['dishiId'] ?? widget.user['uid'],
+        // uid and creatorId are both set to the Firebase Auth UID so
+        // Firestore security rules can match on both field names.
+        'uid': currentUid,
+        'creatorId': currentUid,
         'creatorName': widget.user['name'] ?? widget.user['displayName'] ?? 'DISHI User',
         'createdAt': FieldValue.serverTimestamp(),
         'ticketsSold': 0,

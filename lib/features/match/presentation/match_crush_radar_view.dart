@@ -20,7 +20,7 @@ class MatchCrushRadarView extends StatefulWidget {
   State<MatchCrushRadarView> createState() => _MatchCrushRadarViewState();
 }
 
-class _MatchCrushRadarViewState extends State<MatchCrushRadarView> with SingleTickerProviderStateMixin {
+class _MatchCrushRadarViewState extends State<MatchCrushRadarView> with TickerProviderStateMixin {
   late AnimationController _radarController;
   late AnimationController _blipController;
   bool _isLoading = true;
@@ -44,39 +44,49 @@ class _MatchCrushRadarViewState extends State<MatchCrushRadarView> with SingleTi
   Future<void> _fetchRadarData() async {
     setState(() => _isLoading = true);
     try {
-      // Mocking geospatial query since we don't have GeoFlutterFire setup
-      final snapshot = await FirebaseFirestore.instance.collection('users').limit(20).get();
-      
-      final List<dynamic> hits = [];
-      final random = math.Random();
-      
-      for (var doc in snapshot.docs) {
-        if (doc.id != currentUid) {
-          final data = doc.data();
-          final faculty = data['faculty'] ?? _faculties[random.nextInt(_faculties.length - 1) + 1];
-          
-          if (_selectedFaculty != 'All' && faculty != _selectedFaculty) continue;
-          
-          // Generate mock distance based on slider
-          final distance = (random.nextDouble() * _radarRange).toStringAsFixed(1);
-          final compatibility = 60 + random.nextInt(39); // 60-99%
-          final locations = ['Library', 'Student Center', 'Mess Hall', 'Dorms', 'Cafe'];
-          final location = locations[random.nextInt(locations.length)];
+      // Get current user's gender to filter for opposite gender
+      String myGender = 'male';
+      try {
+        final myDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUid)
+            .get();
+        myGender = (myDoc.data()?['gender'] ?? 'male').toString().toLowerCase();
+      } catch (_) {}
+      final oppositeGender = myGender == 'male' ? 'female' : 'male';
 
-          hits.add({
-            'uid': doc.id,
-            'name': data['firstName'] ?? data['username'] ?? 'Anonymous',
-            'isVerified': data['isVerified'] ?? false,
-            'distance': distance,
-            'location': location,
-            'compatibility': compatibility,
-            'faculty': faculty,
-            'isPremium': data['isPremium'] ?? false,
-            'lastActive': DateTime.now().subtract(Duration(minutes: random.nextInt(60))),
-          });
-        }
+      Query query = FirebaseFirestore.instance
+          .collection('users')
+          .where('gender', isEqualTo: oppositeGender)
+          .limit(20);
+
+      if (_selectedFaculty != 'All') {
+        query = query.where('faculty', isEqualTo: _selectedFaculty);
       }
-      
+
+      final snapshot = await query.get();
+      final random = math.Random();
+
+      final List<dynamic> hits = snapshot.docs
+          .where((doc) => doc.id != currentUid)
+          .map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final distance = (random.nextDouble() * _radarRange).toStringAsFixed(1);
+        final compatibility = 60 + random.nextInt(39);
+        final locations = ['Library', 'Student Center', 'Mess Hall', 'Dorms', 'Cafe'];
+        return {
+          'uid': doc.id,
+          'name': data['displayName'] ?? data['firstName'] ?? 'Anonymous',
+          'profileImageUrl': data['profileImageUrl'],
+          'isVerified': data['isVerified'] ?? false,
+          'distance': distance,
+          'location': locations[random.nextInt(locations.length)],
+          'compatibility': compatibility,
+          'faculty': data['faculty'] ?? 'Unknown',
+          'lastActive': DateTime.now().subtract(Duration(minutes: random.nextInt(60))),
+        };
+      }).toList();
+
       if (mounted) {
         setState(() {
           _radarHits = hits;
@@ -93,11 +103,9 @@ class _MatchCrushRadarViewState extends State<MatchCrushRadarView> with SingleTi
   }
 
   void _directDM(Map<String, dynamic> hit) {
-    if (widget.userModel?['isPremium'] != true) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Direct DM requires Dishi Premium! 💎')));
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Opened DM with ${hit['name']}!')));
+    // DM is free for all authenticated users
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Opened DM with ${hit['name']}! 💬')));
   }
 
   void _mutualCrushCheck(Map<String, dynamic> hit) {
@@ -239,36 +247,41 @@ class _MatchCrushRadarViewState extends State<MatchCrushRadarView> with SingleTi
         children: [
           _buildFilters(),
           Expanded(
-            child: Center(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Animated Radar Rings
-                  AnimatedBuilder(
-                    animation: _radarController,
-                    builder: (context, child) {
-                      return Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            width: 300 * _radarController.value, 
-                            height: 300 * _radarController.value, 
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle, 
-                              border: Border.all(color: _neonPink.withOpacity(1.0 - _radarController.value), width: 2)
-                            )
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  Container(width: 240, height: 240, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _neonPink.withOpacity(0.2), width: 1))),
-                  Container(width: 160, height: 160, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _neonPink.withOpacity(0.5), width: 1))),
-                  Container(width: 80, height: 80, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _neonPink, width: 2))),
-                  Icon(Icons.radar, color: _ghostMode ? Colors.grey : _neonPink, size: 40),
-                  
-                  if (!_isLoading) ..._buildDynamicBlips()
-                ],
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Center(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Animated Radar Rings
+                    AnimatedBuilder(
+                      animation: _radarController,
+                      builder: (context, child) {
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                                width: 300 * _radarController.value,
+                                height: 300 * _radarController.value,
+                                decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: _neonPink.withOpacity(
+                                            1.0 - _radarController.value),
+                                        width: 2))),
+                          ],
+                        );
+                      },
+                    ),
+                    Container(width: 240, height: 240, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _neonPink.withOpacity(0.2), width: 1))),
+                    Container(width: 160, height: 160, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _neonPink.withOpacity(0.5), width: 1))),
+                    Container(width: 80, height: 80, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _neonPink, width: 2))),
+                    Icon(Icons.radar, color: _ghostMode ? Colors.grey : _neonPink, size: 40),
+
+                    if (!_isLoading) ..._buildDynamicBlips()
+                  ],
+                ),
               ),
             ),
           ),

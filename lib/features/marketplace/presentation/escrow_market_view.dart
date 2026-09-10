@@ -19,6 +19,13 @@ class _EscrowMarketViewState extends State<EscrowMarketView> with SingleTickerPr
   List<dynamic> _myOrders = [];
   final List<dynamic> _cart = [];
   late TabController _tabController;
+  // ─── Search & Filter State ───────────────────────────────────────────────
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _selectedCategory = 'All';
+  final List<String> _marketCategories = [
+    'All', 'Books', 'Electronics', 'Clothes', 'Food', 'Furniture', 'Other'
+  ];
   
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
@@ -29,8 +36,10 @@ class _EscrowMarketViewState extends State<EscrowMarketView> with SingleTickerPr
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _fetchItems();
-    _fetchMyOrders();
+    _fetchMyOrders(); // only orders need one-time fetch; market uses stream
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.toLowerCase());
+    });
   }
   
   @override
@@ -40,6 +49,7 @@ class _EscrowMarketViewState extends State<EscrowMarketView> with SingleTickerPr
     _descController.dispose();
     _priceController.dispose();
     _contactController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -382,19 +392,144 @@ class _EscrowMarketViewState extends State<EscrowMarketView> with SingleTickerPr
   }
 
   Widget _buildMarketTab() {
-    return RefreshIndicator(
-      onRefresh: _fetchItems,
-      color: MPesaTheme.primaryGreen,
-      child: _items.isEmpty
-          ? const Center(child: Text('No items available', style: TextStyle(color: Colors.white54)))
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _items.length,
-              itemBuilder: (context, index) {
-                final item = _items[index];
-                return _buildItemCard(item, false);
-              },
+    return Column(
+      children: [
+        // ─── Search Bar ───────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: TextField(
+            controller: _searchController,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Search items...',
+              hintStyle: const TextStyle(color: Colors.white38),
+              prefixIcon: const Icon(Icons.search, color: Colors.white38),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.white38),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      })
+                  : null,
+              filled: true,
+              fillColor: const Color(0xFF1A2235),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
             ),
+          ),
+        ),
+        // ─── Category Chips ───────────────────────────────────────────────
+        SizedBox(
+          height: 42,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: _marketCategories.length,
+            itemBuilder: (_, i) {
+              final cat = _marketCategories[i];
+              final isSelected = _selectedCategory == cat;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(cat,
+                      style: TextStyle(
+                          color: isSelected ? Colors.black : Colors.white70,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12)),
+                  selected: isSelected,
+                  selectedColor: MPesaTheme.primaryGreen,
+                  backgroundColor: const Color(0xFF1A2235),
+                  onSelected: (_) =>
+                      setState(() => _selectedCategory = cat),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 4),
+        // ─── Live Stream ─────────────────────────────────────────────────
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('escrow_items')
+                .where('status', isEqualTo: 'Available')
+                .orderBy('createdAt', descending: true)
+                .snapshots(),
+            builder: (context, snap) {
+              if (snap.connectionState == ConnectionState.waiting) {
+                return const Center(
+                    child: CircularProgressIndicator(
+                        color: MPesaTheme.primaryGreen));
+              }
+              List<Map<String, dynamic>> items = (snap.data?.docs ?? [])
+                  .map((d) => {'id': d.id, ...d.data() as Map<String, dynamic>})
+                  .toList();
+
+              // Apply search filter
+              if (_searchQuery.isNotEmpty) {
+                items = items
+                    .where((it) =>
+                        (it['title'] ?? '')
+                            .toString()
+                            .toLowerCase()
+                            .contains(_searchQuery) ||
+                        (it['description'] ?? '')
+                            .toString()
+                            .toLowerCase()
+                            .contains(_searchQuery))
+                    .toList();
+              }
+              // Apply category filter
+              if (_selectedCategory != 'All') {
+                items = items
+                    .where((it) => it['category'] == _selectedCategory)
+                    .toList();
+              }
+
+              if (items.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.store_mall_directory,
+                          size: 64, color: Colors.white24),
+                      const SizedBox(height: 16),
+                      Text(
+                          _searchQuery.isNotEmpty
+                              ? 'No items match "$_searchQuery"'
+                              : 'No items in this category',
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 16)),
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                          onPressed: _showSellItemModal,
+                          icon: const Icon(Icons.add,
+                              color: MPesaTheme.primaryGreen),
+                          label: const Text('Sell something',
+                              style: TextStyle(
+                                  color: MPesaTheme.primaryGreen))),
+                    ],
+                  ),
+                );
+              }
+              return RefreshIndicator(
+                onRefresh: _fetchItems,
+                color: MPesaTheme.primaryGreen,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) =>
+                      _buildItemCard(items[index], false),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -416,17 +551,40 @@ class _EscrowMarketViewState extends State<EscrowMarketView> with SingleTickerPr
   }
 
   Widget _buildItemCard(Map<String, dynamic> item, bool isOrder) {
+    final String? imageUrl = item['imageUrl'] as String?;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF131A2A),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(0.1)),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Image header
+          if (imageUrl != null && imageUrl.isNotEmpty)
+            Image.network(
+              imageUrl,
+              height: 160,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox(),
+            )
+          else
+            Container(
+              height: 100,
+              color: const Color(0xFF1A2235),
+              child: const Center(
+                child: Icon(Icons.inventory_2, size: 40, color: Colors.white24),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -490,6 +648,9 @@ class _EscrowMarketViewState extends State<EscrowMarketView> with SingleTickerPr
                 )
             ],
           )
+              ],
+            ),
+          ),
         ],
       ),
     );

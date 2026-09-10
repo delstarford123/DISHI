@@ -23,6 +23,18 @@ class UserModel {
   final String? parentUid;
   final String? gender;
   
+  // New Profile Hub Features
+  final DateTime? dob;
+  final String? bio;
+  final String? campus;
+  final String? course;
+  final List<String> dietaryPreferences;
+  final String? foodVibe;
+  final String? instagram;
+  final List<String> interests;
+  final bool pushNotifications;
+  final bool ghostMode;
+  
   // Dashboard & Payment Controls
   final bool isFrozen;
   final double? dailyLimit;
@@ -66,6 +78,16 @@ class UserModel {
     this.isOffline = false,
     this.parentUid,
     this.gender,
+    this.dob,
+    this.bio,
+    this.campus,
+    this.course,
+    this.dietaryPreferences = const [],
+    this.foodVibe,
+    this.instagram,
+    this.interests = const [],
+    this.pushNotifications = true,
+    this.ghostMode = false,
     this.isFrozen = false,
     this.dailyLimit,
     this.useSharedWallet = false,
@@ -104,6 +126,16 @@ class UserModel {
       isOffline: json['isOffline'] ?? false,
       parentUid: json['parentUid'],
       gender: json['gender'],
+      dob: (json['dob'] as Timestamp?)?.toDate(),
+      bio: json['bio'],
+      campus: json['campus'],
+      course: json['course'],
+      dietaryPreferences: json['dietaryPreferences'] != null ? List<String>.from(json['dietaryPreferences']) : [],
+      foodVibe: json['foodVibe'],
+      instagram: json['instagram'],
+      interests: json['interests'] != null ? List<String>.from(json['interests']) : [],
+      pushNotifications: json['pushNotifications'] ?? true,
+      ghostMode: json['ghostMode'] ?? false,
       isFrozen: json['isFrozen'] ?? false,
       dailyLimit: json['dailyLimit'] != null ? (json['dailyLimit'] as num).toDouble() : null,
       useSharedWallet: json['useSharedWallet'] ?? false,
@@ -142,6 +174,16 @@ class UserModel {
       'isOffline': isOffline,
       'parentUid': parentUid,
       'gender': gender,
+      'dob': dob,
+      'bio': bio,
+      'campus': campus,
+      'course': course,
+      'dietaryPreferences': dietaryPreferences,
+      'foodVibe': foodVibe,
+      'instagram': instagram,
+      'interests': interests,
+      'pushNotifications': pushNotifications,
+      'ghostMode': ghostMode,
       'isFrozen': isFrozen,
       'dailyLimit': dailyLimit,
       'useSharedWallet': useSharedWallet,

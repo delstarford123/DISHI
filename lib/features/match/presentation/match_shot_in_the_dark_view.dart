@@ -476,7 +476,7 @@ class _MatchShotInTheDarkViewState extends State<MatchShotInTheDarkView> with Si
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     TextButton.icon(onPressed: _sendIcebreaker, icon: const Icon(Icons.ac_unit, color: Colors.white54, size: 16), label: const Text('Icebreaker', style: TextStyle(color: Colors.white54))),
-                    TextButton.icon(onPressed: _extendTime, icon: const Icon(Icons.timer_add, color: _neonCyan, size: 16), label: const Text('+1 Min', style: TextStyle(color: _neonCyan))),
+                    TextButton.icon(onPressed: _extendTime, icon: const Icon(Icons.more_time, color: _neonCyan, size: 16), label: const Text('+1 Min', style: TextStyle(color: _neonCyan))),
                     IconButton(icon: const Icon(Icons.mic, color: _neonPink), onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recording Distorted Voice Note... 👹')))),
                   ],
                 ),

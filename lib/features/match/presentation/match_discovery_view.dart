@@ -12,7 +12,9 @@ const Color _neonCyan = Color(0xFF05D5AA);
 const Color _neonYellow = Color(0xFFFFD700);
 
 class MatchDiscoveryView extends StatefulWidget {
-  const MatchDiscoveryView({super.key});
+  // Optional user map — used to read current user's gender for filtering.
+  final Map<String, dynamic>? currentUser;
+  const MatchDiscoveryView({super.key, this.currentUser});
 
   @override
   State<MatchDiscoveryView> createState() => _MatchDiscoveryViewState();
@@ -59,25 +61,64 @@ class _MatchDiscoveryViewState extends State<MatchDiscoveryView> with TickerProv
   Future<void> _fetchProfiles(Position? myPosition) async {
     try {
       final currentUid = FirebaseAuth.instance.currentUser?.uid;
-      final snapshot = await FirebaseFirestore.instance.collection('users').limit(10).get();
+
+      // --- Gender filtering ---
+      // Determine the current user's gender from Firestore or the passed widget map.
+      String myGender = widget.currentUser?['gender'] as String? ?? '';
+      if (myGender.isEmpty && currentUid != null) {
+        final myDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUid)
+            .get();
+        myGender = (myDoc.data()?['gender'] as String? ?? '').toLowerCase();
+      } else {
+        myGender = myGender.toLowerCase();
+      }
+      // Opposite gender to show: male sees female, female sees male, others see all
+      final oppositeGender = myGender == 'male'
+          ? 'female'
+          : myGender == 'female'
+              ? 'male'
+              : '';
+
+      Query query = FirebaseFirestore.instance
+          .collection('users')
+          .limit(50);
+
+      // Apply gender filter only when we know the opposite gender
+      if (oppositeGender.isNotEmpty) {
+        query = query.where('gender', isEqualTo: oppositeGender);
+      }
+
+      final snapshot = await query.get();
 
       final profiles = snapshot.docs
           .map((doc) {
-            final data = doc.data();
-            
-            // Mocking extra profile data for expanded view
-            data['photos'] = [
-              data['profileImageUrl'] ?? 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80',
-              'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80',
-              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'
-            ];
-            data['interests'] = ['Gym', 'Sushi', 'Anime', 'Photography'];
-            data['prompt1'] = {'q': 'A shower thought I recently had...', 'a': 'Water is just sky juice.'};
-            data['prompt2'] = {'q': 'I am looking for...', 'a': 'Someone to study at the library with and get coffee after.'};
-            data['spotify'] = 'The Weeknd - Blinding Lights';
-            data['distance'] = (math.Random().nextDouble() * 5).toStringAsFixed(1);
-            data['isOnline'] = math.Random().nextBool();
-            
+            final data = doc.data() as Map<String, dynamic>;
+            // Use real photos from profile; fall back to a placeholder
+            final avatar = data['profileImageUrl'] as String?;
+            data['photos'] = avatar != null
+                ? [avatar]
+                : ['https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80'];
+            // Use real interests if stored, else empty
+            data['interests'] =
+                (data['interests'] as List?)?.cast<String>() ?? [];
+            // Compute distance if location available
+            if (myPosition != null &&
+                data['latitude'] != null &&
+                data['longitude'] != null) {
+              final dist = Geolocator.distanceBetween(
+                    myPosition.latitude,
+                    myPosition.longitude,
+                    (data['latitude'] as num).toDouble(),
+                    (data['longitude'] as num).toDouble(),
+                  ) /
+                  1000;
+              data['distance'] = dist.toStringAsFixed(1);
+            } else {
+              data['distance'] = '?';
+            }
+            data['isOnline'] = data['isOnline'] ?? false;
             return {'id': doc.id, ...data};
           })
           .where((user) => user['id'] != currentUid && user['id'] != null)
@@ -156,7 +197,7 @@ class _MatchDiscoveryViewState extends State<MatchDiscoveryView> with TickerProv
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.search_off, color: _textSecondary, size: 64),
+                  const Icon(Icons.search_off, color: Colors.white54, size: 64),
                   const SizedBox(height: 16),
                   const Text('No more profiles nearby!', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 24),

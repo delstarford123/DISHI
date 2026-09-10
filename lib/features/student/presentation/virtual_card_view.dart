@@ -117,9 +117,11 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
     final newStatus = value ? 'frozen' : 'active';
     try {
       await _cardService.updateStatus(widget.userModel.uid, newStatus);
-      setState(() {
-        _cardData!['status'] = newStatus;
-      });
+      if (_cardData != null) {
+        setState(() {
+          _cardData!['status'] = newStatus;
+        });
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
     }
@@ -128,9 +130,11 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
   Future<void> _enableBurnerMode() async {
     try {
       await _cardService.updateStatus(widget.userModel.uid, 'burner');
-      setState(() {
-        _cardData!['status'] = 'burner';
-      });
+      if (_cardData != null) {
+        setState(() {
+          _cardData!['status'] = 'burner';
+        });
+      }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Burner mode active! Card will self-destruct after next use.')));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
@@ -223,10 +227,26 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
                   decoration: BoxDecoration(color: Colors.orangeAccent, borderRadius: BorderRadius.circular(20)),
                   child: const Text('BURNER MODE', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 10)),
                 ),
-              Text(
-                _isLoading ? '**** **** **** ****' : (_showDetails ? _cardData!['pan'] : '**** **** **** ${_cardData!['pan'].substring(15)}'),
-                style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 4, fontFamily: 'monospace', fontWeight: FontWeight.w600, shadows: [Shadow(color: Colors.black45, blurRadius: 4)]),
-              ),
+              // Null-safe access — avoids 'null check operator on null value' crash
+              Builder(builder: (_) {
+                final pan = _cardData?['pan'] as String?;
+                String displayPan = '**** **** **** ****';
+                if (!_isLoading && pan != null && pan.length >= 16) {
+                  displayPan = _showDetails
+                      ? pan
+                      : '**** **** **** ${pan.substring(12)}';
+                }
+                return Text(
+                  displayPan,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      letterSpacing: 4,
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.w600,
+                      shadows: [Shadow(color: Colors.black45, blurRadius: 4)]),
+                );
+              }),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -242,7 +262,7 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       const Text('EXPIRES', style: TextStyle(color: Colors.white70, fontSize: 10, letterSpacing: 1)),
-                      Text(_isLoading ? '**/**' : _cardData!['expiry'], style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                      Text(_isLoading ? '**/**' : (_cardData?['expiry'] ?? '**/**'), style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ],

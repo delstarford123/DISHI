@@ -22,11 +22,15 @@ class _MatchMatchesHubState extends State<MatchMatchesHub> {
   final String _currentUid = FirebaseAuth.instance.currentUser?.uid ?? 'my_uid';
   List<Map<String, dynamic>> _matches = [];
   bool _isLoading = true;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _fetchMatches();
+    _searchController.addListener(
+        () => setState(() => _searchQuery = _searchController.text.toLowerCase()));
   }
 
   Future<void> _fetchMatches() async {
@@ -88,28 +92,63 @@ class _MatchMatchesHubState extends State<MatchMatchesHub> {
       ),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator(color: _neonPink))
-        : _matches.isEmpty 
-          ? _buildEmptyState()
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildNewMatchesSection(),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: Text('Messages', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                ),
-                Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _matches.length,
-                    separatorBuilder: (context, index) => const Divider(color: Colors.white12, height: 24),
-                    itemBuilder: (context, index) {
-                      return _buildChatTile(_matches[index]);
-                    },
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: TextField(
+                  controller: _searchController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Search comrades...',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    prefixIcon: const Icon(Icons.search, color: Colors.white38),
+                    filled: true,
+                    fillColor: _cardColor,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
-              ],
-            ),
+              ),
+              Expanded(
+                child: Builder(builder: (context) {
+                  final filtered = _searchQuery.isEmpty
+                      ? _matches
+                      : _matches
+                          .where((u) => (u['displayName'] ?? '')
+                              .toString()
+                              .toLowerCase()
+                              .contains(_searchQuery))
+                          .toList();
+                  if (filtered.isEmpty) return _buildEmptyState();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildNewMatchesSection(filtered),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        child: Text('Messages', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
+                      Expanded(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: filtered.length,
+                          separatorBuilder: (context, index) =>
+                              const Divider(color: Colors.white12, height: 24),
+                          itemBuilder: (context, index) =>
+                              _buildChatTile(filtered[index]),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+            ],
+          ),
     );
   }
 
@@ -128,7 +167,7 @@ class _MatchMatchesHubState extends State<MatchMatchesHub> {
     );
   }
 
-  Widget _buildNewMatchesSection() {
+  Widget _buildNewMatchesSection(List<Map<String, dynamic>> matches) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -141,9 +180,9 @@ class _MatchMatchesHubState extends State<MatchMatchesHub> {
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: _matches.length > 5 ? 5 : _matches.length,
+            itemCount: matches.length > 5 ? 5 : matches.length,
             itemBuilder: (context, index) {
-              final user = _matches[index];
+              final user = matches[index];
               return InkWell(
                 onTap: () => _openChat(user),
                 child: Padding(

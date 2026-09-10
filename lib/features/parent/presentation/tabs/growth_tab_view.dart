@@ -96,7 +96,7 @@ class GrowthTabView extends StatelessWidget {
       ],
     );
   }
-
+  
   Widget _buildChoreCard(String title, double reward, bool pendingApproval) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

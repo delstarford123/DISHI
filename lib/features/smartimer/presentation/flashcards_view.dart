@@ -68,21 +68,42 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
     try {
       final response = await http.get(
         Uri.parse('https://swapeatbackend.vercel.app/api/v3/academic/flashcards?student_id=$_studentId'),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 15));
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        setState(() {
-          _allCards = data['flashcards'] ?? [];
-          _filterCards();
-        });
-      } else {
-        throw Exception('Failed to load flashcards');
+        final cards = data['flashcards'] as List? ?? [];
+        if (cards.isNotEmpty) {
+          setState(() {
+            _allCards = cards;
+            _filterCards();
+          });
+          return; // backend worked — done
+        }
       }
+    } catch (_) {
+      // Backend failed — fall through to Firestore
+    }
+
+    // Fallback: fetch from Firestore 'flashcards' collection
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('flashcards')
+          .orderBy('createdAt', descending: true)
+          .limit(100)
+          .get();
+      setState(() {
+        _allCards = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+        _filterCards();
+      });
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading cards: $e')));
+      // Firestore also failed — show empty state gracefully
+      setState(() {
+        _allCards = [];
+        _filteredCards = [];
+      });
     } finally {
-      setState(() { _isLoading = false; });
+      if (mounted) setState(() { _isLoading = false; });
     }
   }
 
@@ -312,7 +333,51 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
             const SizedBox(height: 32),
             Expanded(
               child: _filteredCards.isEmpty
-                  ? const Center(child: Text("You're all caught up for today!", style: TextStyle(color: Colors.white, fontSize: 18)))
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                                color: const Color(0xFF1A2235),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                      color: const Color(0xFF05D5AA)
+                                          .withOpacity(0.2),
+                                      blurRadius: 30)
+                                ]),
+                            child: const Icon(Icons.style,
+                                size: 56, color: Color(0xFF05D5AA)),
+                          ),
+                          const SizedBox(height: 20),
+                          const Text('No Flashcards for now',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          const Text(
+                              'Your flashcards will appear here.\nAsk your lecturer or create your own!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  color: Color(0xFF8B9BB4), fontSize: 14)),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: _fetchCards,
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF05D5AA)),
+                            icon: const Icon(Icons.refresh,
+                                color: Colors.black),
+                            label: const Text('Refresh',
+                                style: TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    )
                   : GestureDetector(
                       onTap: _flipCard,
                       child: AnimatedBuilder(

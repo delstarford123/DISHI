@@ -46,7 +46,10 @@ class _MatchLibraryLockInViewState extends State<MatchLibraryLockInView> {
 
   @override
   void dispose() {
-    _cancelSearch();
+    _queueSubscription?.cancel();
+    if (_queueDocId != null) {
+      FirebaseFirestore.instance.collection('library_lockin_queue').doc(_queueDocId).delete();
+    }
     _pomodoroTimer?.cancel();
     _locationController.dispose();
     super.dispose();

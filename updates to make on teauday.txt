@@ -1,0 +1,327 @@
+# DISHI App — Full Fix & Feature Implementation Plan
+
+## Overview
+This plan addresses all reported bugs, permission errors, UI overflows, mock data replacements, and new feature additions across the DISHI Flutter app. Work is broken into **7 phases** ordered by dependency (infrastructure first, then features).
+
+---
+
+## Phase 1 — Firebase Infrastructure & Security Rules
+**Goal:** Fix all Firestore/Storage permission-denied errors that block event creation, event dashboard, virtual card, and other features.
+
+### Root Cause
+The `events` collection is written to in `create_event_view.dart` but has **no rule** in `firestore.rules`. Similarly, `card_transactions`, `virtual_cards`, `transport_*`, `harambee_campaigns`, `subscriptions`, `safter_pins`, and `digital_ledger` collections are missing rules. Storage paths for `events` are already present but some paths used by app code differ.
+
+### Changes
+
+#### [MODIFY] [firestore.rules](file:///c:/Users/Delstaford/swapeat/firestore.rules)
+Add the following missing collection rules:
+- `events/{eventId}` — any authenticated user can create; creator or admin can update/delete
+- `event_tickets/{ticketId}` — any auth user can read/create; involved parties can update
+- `card_transactions/{txId}` — owner can read; backend creates
+- `virtual_cards/{uid}` — owner reads/writes own card
+- `transport_sessions/{sessionId}` — any auth user read/write
+- `transport_bookings/{bookingId}` — owner read/write
+- `harambee_campaigns/{campaignId}` — creator can CRUD; others read; auth users create donations subcollection
+- `harambee_donations/{donationId}` — any auth user create; creator reads
+- `subscriptions/{subId}` — owner read/write
+- `safter_pins/{pinId}` — already exists; verify `safety_pins` vs `safter_pins` naming clash and normalise
+- `digital_ledger/{entryId}` — owner read/write/delete (swipe-to-delete)
+- `flashcards/{cardId}` — any auth user read; admin write
+- `quizzes/{quizId}` and `quiz_submissions/{subId}` — read for all auth; write for admin
+- `campus_feed/{postId}` — any auth user read/write (reactions, replies)
+- `campus_feed/{postId}/comments/{commentId}` — any auth user read/write
+- `driver_transport/{driverId}` — driver reads/writes own; students read
+- `maintenance_reports/{reportId}` — any auth user read/create; involved parties update
+
+#### [MODIFY] [storage.rules](file:///c:/Users/Delstaford/swapeat/storage.rules)
+Add/fix:
+- `/harambee_images/{imageId}` — public read, auth write
+- `/campaign_images/{imageId}` — public read, auth write
+- `/flashcard_images/{imageId}` — public read, admin write
+- `/quiz_images/{imageId}` — public read, admin write
+
+### Verification
+Deploy rules via `firebase deploy --only firestore:rules,storage` and re-test event creation. Expect no permission-denied error.
+
+---
+
+## Phase 2 — Events System (Create, Dashboard, Social Share)
+**Goal:** Fix event creation permission error, make event dashboard load real data, add social-share-ready HTML pages with real images.
+
+### Changes
+
+#### [MODIFY] [create_event_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/social/presentation/create_event_view.dart)
+- Use `FirebaseAuth.instance.currentUser!.uid` for `creatorId` (current code uses `widget.user['dishiId']` which may be null)
+- Handle permission error gracefully with a user-friendly message
+- Add `uid` field to the event document so rules can match `request.auth.uid == resource.data.uid`
+
+#### [MODIFY] [event_dashboard_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/social/presentation/event_dashboard_view.dart)
+- Replace mock/empty state with live Firestore `StreamBuilder` on `events` collection filtered by `creatorId == currentUid`
+- Show real revenue, ticket sales, capacity
+- "Tap to view" cards open real event detail page
+
+#### [NEW] `functions/public/event.html` (or web landing page)
+- Professional HTML page that accepts `?id=<eventId>` query param
+- Fetches event image, title, date from Firestore REST API
+- Shows event image, Open Graph meta tags (`og:image`, `og:title`, `og:description`) for WhatsApp/social sharing
+- Replaces emoji icons with real images from storage
+
+#### [NEW] `functions/public/fundme.html`
+- Same approach for Harambee campaign links
+- Shows student profile photo, campaign image, campaign goal/raised
+
+#### [NEW] `functions/public/events.html`
+- General events listing page for social sharing
+
+### Verification
+- Create an event — should succeed and appear in "My Events" dashboard
+- Share event link — WhatsApp preview should show event image
+
+---
+
+## Phase 3 — Campus Feed, Transport Boarding, Driver Dashboard Fixes
+**Goal:** Fix UI overflow in driver maintenance card, remove wrong profile image, make campus feed reactions/replies real, make transport boarding QR scan real.
+
+### Changes
+
+#### [MODIFY] [deliv_driver_dashboard.dart](file:///c:/Users/Delstaford/swapeat/lib/features/deliv/presentation/deliv_driver_dashboard.dart)
+- **Remove** the profile image that appears at top of page (the `CircleAvatar` currently shown outside the app bar container)
+- **Fix** `RIGHT OVERFLOWED BY 8.0 PIXELS` in the maintenance card — wrap overflow-prone `Row` children with `Flexible`/`Expanded` widgets, reduce padding, or use `FittedBox`
+- **Replace mock `_gigs` list** with live `StreamBuilder` on `deliv_requests` where `status == 'open'`
+- Implement real accept/reject — update `deliv_requests/{reqId}` doc status field
+
+#### [MODIFY] [driver_scanner_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/deliv/presentation/driver_scanner_view.dart)
+- Replace stub with real `mobile_scanner` QR code scanning
+- On scan: validate QR token against `transport_bookings/{bookingId}` in Firestore
+- Update booking `status` to `'boarded'` with driver timestamp
+- Show success/failure confirmation
+
+#### [NEW] Transport live map & maintenance
+- Create `transport_live_map_view.dart` — uses `google_maps_flutter` with real driver location from `driver_transport/{uid}` Firestore document (updated via GPS stream)
+- Create `transport_maintenance_view.dart` — fetches `maintenance_reports` from Firestore for the current driver's vehicle
+
+#### [MODIFY] [match_campus_feed_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/match/presentation/match_campus_feed_view.dart)
+- Replace static list with `StreamBuilder` on `campus_feed` collection ordered by timestamp
+- Reaction tap: `arrayUnion` the current user's UID into `reactions.{emoji}` map
+- Reply: write to `campus_feed/{postId}/comments` subcollection
+- Show real user names and profile pictures from `users` collection
+
+### Verification
+- No more overflow error in driver dashboard
+- No profile image at top of driver page
+- Campus feed reactions persist and update live
+- QR scan validates and marks booking as boarded
+
+---
+
+## Phase 4 — Fundi Juaji Dashboard (All Categories, Database, Hire Flow)
+**Goal:** All fundi categories work with real Firestore data; 210+ features/gig types seeded; change-role page overflow fixed; hire button works.
+
+### Changes
+
+#### [MODIFY] [fundi_dashboard_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/fundi/presentation/fundi_dashboard_view.dart)
+- Replace mock `_fetchJobs()` with real Firestore queries on `fundi_jobs` collection
+- Add 5 category tabs: **Academic Support**, **Tech & Digital**, **Daily Errands**, **Lifestyle & Grooming**, **Trending Fundi**
+- Each tab streams `fundi_jobs` filtered by `category` field
+- Accept/Reject buttons update `fundi_jobs/{jobId}.status` to `'accepted'` / `'rejected'`
+- Hire button: creates a new `fundi_jobs` document with `poster_id`, `fundi_id`, `category`, `amount`, `status: 'open'`
+
+#### [MODIFY] [fundi_marketplace_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/fundi/presentation/fundi_marketplace_view.dart)
+- Trending Fundi: query `fundi_profiles` ordered by `completedJobs` descending
+- Each fundi card shows profile image from storage
+- Hire button visible on every fundi card
+
+#### [NEW] Fundi comrade profile view
+- `fundi_comrade_profile_view.dart` — shows fundi's name, photo, category, rating, completed jobs, and active gig listings
+- Linked from fundi marketplace cards
+
+#### [MODIFY] Role selection / change-role page
+- Fix `Bottom Overflowed by 241 pixels` — wrap content in `SingleChildScrollView` or use `ListView` instead of fixed `Column`
+- Hire button aligned properly within role card
+
+#### [NEW] Backend: seed 210 fundi job categories
+- Python script `swapeat_backend/scripts/seed_fundi_categories.py`
+- Seeds `fundi_service_categories` collection with 210 services across 5 categories
+- Academic Support: tutoring, exam prep, essay review, translation, etc.
+- Tech & Digital: laptop repair, phone unlock, graphic design, app dev, etc.
+- Daily Errands: shopping, laundry, printing, food delivery, etc.
+- Lifestyle & Grooming: haircut, braiding, nails, makeup, personal training, etc.
+- Trending Fundi: computed from `completedJobs` count, fetched dynamically
+
+### Verification
+- All 5 category tabs load real jobs from Firestore
+- Accept/reject updates database instantly
+- Hire button creates real job document
+- Change-role page scrolls without overflow
+
+---
+
+## Phase 5 — Housing (Keja Marketplace), Flashcards, Quiz, Marketplace
+**Goal:** House owner can post rooms with images; flashcards always load; marketplace search/filter works live with real data and images.
+
+### Changes
+
+#### [MODIFY] [housing_marketplace_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/housing/presentation/housing_marketplace_view.dart)
+- Stream `housing_properties` collection
+- Each card shows real image from `property_images/{id}.jpg`
+- House owner dashboard: "Post Room" form uploads image to `property_images/`, saves doc to `housing_properties` with: `price`, `location`, `amenities` (list), `security` (description), `description`, `images` (list of URLs), `owner_id`
+
+#### [MODIFY] [merchant_housing_dashboard.dart](file:///c:/Users/Delstaford/swapeat/lib/features/housing/presentation/merchant_housing_dashboard.dart)
+- Add real "Post a Room" flow with `ImagePicker` + Firebase Storage upload
+- Save to both `housing_properties` and `rooms` collections
+- List owner's own properties from Firestore
+
+#### [MODIFY] Flashcards (in student dashboard)
+- Locate flashcard section in `student_dashboard.dart`
+- Replace error state with Firestore stream on `flashcards` collection
+- If collection is empty: show "No Flashcards for now" professional empty state widget
+- Always show cards when data exists; never show "unable to load cards" error
+
+#### [MODIFY] Marketplace view (community/marketplace_view.dart)
+- Add real-time search: `TextField` filters `marketplace` collection by `title` and `category`
+- Category filter chips: query `where('category', isEqualTo: selectedCategory)`
+- Images load from Firebase Storage URLs stored in `imageUrl` field
+- Use `StreamBuilder` instead of one-time `get()`
+
+#### [MODIFY] Daily Quiz
+- Load `quizzes` collection from Firestore
+- Questions, options, and images fetched from Firestore documents
+- Images shown via `NetworkImage` from storage URL stored in question doc
+- Score saved to `quiz_submissions` after completion
+
+### Verification
+- Flashcards show real data or empty state message
+- Marketplace search and category filter work live
+- Room posting saves and appears in marketplace
+- Quiz loads real questions
+
+---
+
+## Phase 6 — Digital Ledger, Harambee, Subscriptions, Safter Pin
+**Goal:** All financial features work with real database; swipe-to-delete, donations, withdrawals, subscriptions, and PIN management all functional.
+
+### Changes
+
+#### [MODIFY] [student_ledger_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/student/presentation/student_ledger_view.dart)
+- Stream `digital_ledger` collection filtered by `uid == currentUser.uid`
+- Swipe-to-delete: `Dismissible` widget wrapping each entry; `onDismissed` calls `FirebaseFirestore.instance.collection('digital_ledger').doc(id).delete()`
+- Display real amounts, descriptions, timestamps, categories
+- Fetch instantly on load
+
+#### [MODIFY] [harambee_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/social/presentation/harambee_view.dart)
+- Publish Harambee: form saves to `harambee_campaigns` with image upload to `harambee_images/`
+- Donate: creates `harambee_donations/{id}` and updates `harambee_campaigns/{id}.raised` via transaction
+- Withdraw: calls backend endpoint `/harambee/withdraw` which initiates M-PESA STK to creator
+- If no campaigns: show professional "No campaigns yet" empty state
+- Stream campaigns ordered by `createdAt` descending
+
+#### [MODIFY] [subscription_manager_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/student/presentation/subscription_manager_view.dart)
+- Stream `subscriptions` collection filtered by `uid`
+- Pay subscription: calls M-PESA STK flow, saves to `subscriptions` on success
+- Fetch instantly; if none: "No active subscriptions — subscribe to a plan" professional empty state
+
+#### [MODIFY] Safter Pin view
+- Stream `safter_pins` (or `safety_pins`) collection filtered by `uid`
+- Create pin: form saves to Firestore with amount, PIN hash
+- Withdraw: verify PIN, call backend M-PESA withdrawal endpoint
+- Fix `safety_pins` vs `safter_pins` naming — standardize to `safter_pins` across app and rules
+
+### Verification
+- Swipe-to-delete removes entry from Firestore immediately
+- Harambee campaign publishes and shows in list
+- Donations update raised amount in real time
+- Subscription saves and shows
+
+---
+
+## Phase 7 — Crush Radar, Direct Message, Match/Swipe, Virtual Card, Calls, HTML Pages
+**Goal:** Crush radar supports pinch-to-zoom; swipe only shows opposite gender; DM is free (no premium gate); chat list shows all users with images; calls work correctly; virtual card null error fixed.
+
+### Changes
+
+#### [MODIFY] [match_crush_radar_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/match/presentation/match_crush_radar_view.dart)
+- Add `InteractiveViewer` wrapping the radar widget to support pinch-to-zoom (min 0.5x, max 4.0x)
+- Fetch real user data from `match_profiles` collection (not generic `users`)
+- Filter to only show opposite-gender profiles based on current user's `gender` field
+
+#### [MODIFY] [match_discovery_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/match/presentation/match_discovery_view.dart)
+- **Gender filter**: fetch current user's `gender` from Firestore; query `match_profiles` where `gender != currentUserGender`
+- Replace mock `photos`, `interests`, `prompt1` etc. with real fields from `match_profiles`
+- On right-swipe (like): create `match_connections` document; check for mutual like → show "IT'S A MATCH" overlay
+- On left-swipe: record swipe in `swipe_history` collection
+- Fix "dead end / empty screen on back" — use proper `Navigator.pop` instead of `Navigator.pushReplacement`; ensure parent route still exists in the stack
+
+#### [MODIFY] [match_chat_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/match/presentation/match_chat_view.dart)
+- Show match profile image in chat header
+- Add **Send button** (paper-plane icon) to the right of the microphone icon
+- `onPressed`: send text message to `match_connections/{chatId}/messages`
+- Add **Voice Call** icon to app bar (next to Video Call icon)
+- Video call: launch `match_call_view.dart` in video mode
+- Voice call: launch `match_call_view.dart` in audio-only mode
+
+#### [MODIFY] [match_call_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/match/presentation/match_call_view.dart)
+- Fetch callee name and profile image from `match_profiles/{calleeId}` and display to caller
+- Fetch caller name and profile image and write to `active_calls/{callId}` for callee to read
+- End call: delete `active_calls/{callId}` document — stops ringing on callee side
+- Fix: currently ending a call still shows ringing — ensure callee listens to `active_calls` stream and dismisses incoming call screen when document is deleted
+
+#### [MODIFY] [match_matches_hub.dart](file:///c:/Users/Delstaford/swapeat/lib/features/match/presentation/match_matches_hub.dart)
+- **Direct Message**: remove premium gate — all authenticated users can message matches
+- Chat list: stream all users from `users` collection with search bar and category filter
+- Each user tile: shows `profileImageUrl`, `name`; tapping opens `MatchChatView`
+- Tapping profile image navigates to user profile page
+
+#### [MODIFY] [virtual_card_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/student/presentation/virtual_card_view.dart)
+- Fix `null check operator used on a null value` — add null safety checks for `_cardData`
+- Fix Firestore permission: add `virtual_cards/{uid}` rule (Phase 1)
+- `card_transactions` collection: add Firestore rule allowing owner to read (Phase 1)
+- Handle missing card gracefully — show "Generating your card..." skeleton while backend processes
+
+#### [MODIFY] Fundi/Driver comrade profile pages
+- `fundi_comrade_profile_view.dart` — fetches fundi data from `fundi_profiles/{uid}` and `fundi_jobs` 
+- `driver_comrade_profile_view.dart` — fetches driver data from `deliv_drivers/{uid}`
+- `match_comrade_profile_view.dart` — fetches match profile from `match_profiles/{uid}`
+- All linked from their respective dashboards and marketplace cards
+
+#### [MODIFY] [all_features_view.dart](file:///c:/Users/Delstaford/swapeat/lib/features/student/presentation/all_features_view.dart)
+- Add search bar at top that filters feature cards by name in real time
+- Add feature categories for faster navigation
+- Optimize list rendering with `ListView.builder`
+- Professional grid layout with icons, feature names, and quick descriptions
+
+---
+
+## Verification Plan
+
+### Automated (Firebase Emulator)
+```bash
+firebase emulators:start
+# Run rule unit tests against all new rules
+```
+
+### Manual Per Phase
+| Phase | Test |
+|-------|------|
+| 1 | Create event → no permission error. Load virtual card → no error. |
+| 2 | Event dashboard shows my events. Share link shows WhatsApp preview with image. |
+| 3 | Driver dashboard — no overflow, no rogue profile image. Campus feed reaction persists. QR scan updates booking. |
+| 4 | All 5 fundi tabs load from DB. Hire creates job. Change-role page scrolls. |
+| 5 | Flashcards load or show empty state. Marketplace search filters. Room posted by owner appears. |
+| 6 | Swipe-to-delete removes ledger entry from DB. Harambee publishes. Donation updates raised total. |
+| 7 | Swipe only shows opposite gender. DM works without premium. Call ends on both sides. Virtual card loads. |
+
+---
+
+## Open Questions
+
+> [!IMPORTANT]
+> **Transport Boarding QR**: The current `driver_scanner_view.dart` has a stub. Does the app generate QR codes for bookings (e.g. a token stored in `transport_bookings`)? Or should a new QR generation flow be added for students? Please confirm so the correct collection and schema can be used.
+
+> [!IMPORTANT]
+> **Safter Pin naming**: The Firestore rules use `safety_pins` but the UI references "Safter Pin". Should all references be unified to `safter_pins`? Confirm preferred collection name.
+
+> [!IMPORTANT]
+> **Freelance (slow loading)**: Freelance is mentioned as spinning for a long time. Which file is the Freelance view? Is it `gig_board_view.dart` in social or student? Please confirm so loading optimization can be targeted.
+
+> [!NOTE]
+> **210 Fundi Features**: The plan will seed 210 service types across 5 categories into `fundi_service_categories`. These will be reference data; actual jobs are posted dynamically. Confirm if this should be editable from admin dashboard.

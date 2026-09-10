@@ -36,11 +36,76 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
   bool _isUploading = false;
   String? _localProfileImageUrl;
   final ImagePicker _picker = ImagePicker();
+  
+  final TextEditingController _phoneController = TextEditingController();
+  
+  // New Fields
+  String? _gender;
+  DateTime? _dob;
+  final _bioController = TextEditingController();
+  final _campusController = TextEditingController();
+  final _courseController = TextEditingController();
+  final _dietaryController = TextEditingController();
+  final _foodVibeController = TextEditingController();
+  final _instagramController = TextEditingController();
+  final _interestsController = TextEditingController();
+  bool _pushNotifications = true;
+  bool _ghostMode = false;
 
   @override
   void initState() {
     super.initState();
     _localProfileImageUrl = widget.userModel.profileImageUrl;
+    _gender = widget.userModel.gender;
+    _dob = widget.userModel.dob;
+    _bioController.text = widget.userModel.bio ?? '';
+    _campusController.text = widget.userModel.campus ?? '';
+    _courseController.text = widget.userModel.course ?? '';
+    _dietaryController.text = widget.userModel.dietaryPreferences.join(', ');
+    _foodVibeController.text = widget.userModel.foodVibe ?? '';
+    _instagramController.text = widget.userModel.instagram ?? '';
+    _interestsController.text = widget.userModel.interests.join(', ');
+    _pushNotifications = widget.userModel.pushNotifications;
+    _ghostMode = widget.userModel.ghostMode;
+    
+    _loadProfileData();
+  }
+
+  Future<void> _loadProfileData() async {
+    final actualUid = widget.userModel.uid.isNotEmpty ? widget.userModel.uid : FirebaseAuth.instance.currentUser?.uid;
+    if (actualUid != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(actualUid).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        setState(() {
+          if (data['phone_number'] != null) _phoneController.text = data['phone_number'].toString();
+          if (data['gender'] != null) _gender = data['gender'];
+          if (data['dob'] != null) _dob = (data['dob'] as Timestamp).toDate();
+          if (data['bio'] != null) _bioController.text = data['bio'];
+          if (data['campus'] != null) _campusController.text = data['campus'];
+          if (data['course'] != null) _courseController.text = data['course'];
+          if (data['dietaryPreferences'] != null) _dietaryController.text = List<String>.from(data['dietaryPreferences']).join(', ');
+          if (data['foodVibe'] != null) _foodVibeController.text = data['foodVibe'];
+          if (data['instagram'] != null) _instagramController.text = data['instagram'];
+          if (data['interests'] != null) _interestsController.text = List<String>.from(data['interests']).join(', ');
+          if (data['pushNotifications'] != null) _pushNotifications = data['pushNotifications'];
+          if (data['ghostMode'] != null) _ghostMode = data['ghostMode'];
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _bioController.dispose();
+    _campusController.dispose();
+    _courseController.dispose();
+    _dietaryController.dispose();
+    _foodVibeController.dispose();
+    _instagramController.dispose();
+    _interestsController.dispose();
+    super.dispose();
   }
 
   Future<void> _pickAndUploadImage() async {
@@ -145,6 +210,61 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
           Text(widget.userModel.email, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54)),
           const SizedBox(height: 32),
           
+          _buildSectionHeader('Personal Details', Icons.person_outline, _neonCyan),
+          const SizedBox(height: 16),
+          _buildGenderDropdown(),
+          _buildSettingTextField(label: 'Bio', hint: 'Tell us about yourself...', icon: Icons.description, controller: _bioController, firestoreKey: 'bio', maxLines: 3),
+          _buildSettingTextField(label: 'Instagram', hint: '@username', icon: Icons.camera_alt, controller: _instagramController, firestoreKey: 'instagram'),
+          _buildSectionSaveButton(() => {
+            'bio': _bioController.text.trim(),
+            'instagram': _instagramController.text.trim(),
+          }),
+          
+          const SizedBox(height: 32),
+          _buildSectionHeader('Campus Life', Icons.school, Colors.orangeAccent),
+          const SizedBox(height: 16),
+          _buildSettingTextField(label: 'Campus/University', hint: 'e.g. UoN', icon: Icons.location_city, controller: _campusController, firestoreKey: 'campus'),
+          _buildSettingTextField(label: 'Course/Major', hint: 'e.g. Computer Science', icon: Icons.menu_book, controller: _courseController, firestoreKey: 'course'),
+          _buildSectionSaveButton(() => {
+            'campus': _campusController.text.trim(),
+            'course': _courseController.text.trim(),
+          }),
+          
+          const SizedBox(height: 32),
+          _buildSectionHeader('Swapeat Vibe', Icons.restaurant, _neonPink),
+          const SizedBox(height: 16),
+          _buildSettingTextField(label: 'Dietary Preferences', hint: 'Vegan, Halal, Nut Allergy (comma separated)', icon: Icons.no_food, controller: _dietaryController, firestoreKey: 'dietaryPreferences'),
+          _buildSettingTextField(label: 'Food Vibe', hint: 'e.g. Foodie, Chef', icon: Icons.local_dining, controller: _foodVibeController, firestoreKey: 'foodVibe'),
+          _buildSettingTextField(label: 'Interests & Hobbies', hint: 'Gaming, Hiking, Coding (comma separated)', icon: Icons.star, controller: _interestsController, firestoreKey: 'interests'),
+          _buildSectionSaveButton(() => {
+            'dietaryPreferences': _dietaryController.text.trim(),
+            'foodVibe': _foodVibeController.text.trim(),
+            'interests': _interestsController.text.trim(),
+          }),
+          
+          const SizedBox(height: 32),
+          _buildSectionHeader('Contact Info', Icons.phone, _neonPink),
+          const SizedBox(height: 16),
+          _buildSettingTextField(label: 'Phone Number', hint: 'e.g. 0712345678', icon: Icons.phone, controller: _phoneController, firestoreKey: 'phone_number', keyboardType: TextInputType.phone),
+          _buildSectionSaveButton(() => {
+            'phone_number': _phoneController.text.trim(),
+          }),
+
+          const SizedBox(height: 32),
+          
+          _buildSectionHeader('App Preferences', Icons.settings, _neonCyan),
+          const SizedBox(height: 16),
+          _buildToggleCard('Push Notifications', 'Receive match alerts and ecosystem updates', Icons.notifications_active, _neonCyan, _pushNotifications, (val) {
+            setState(() => _pushNotifications = val);
+            _saveField('pushNotifications', val);
+          }),
+          _buildToggleCard('Ghost Mode', 'Hide your profile temporarily', Icons.visibility_off, Colors.grey, _ghostMode, (val) {
+            setState(() => _ghostMode = val);
+            _saveField('ghostMode', val);
+          }),
+          
+          const SizedBox(height: 32),
+          
           _buildSectionHeader('Ecosystem Profiles', Icons.account_circle, _neonCyan),
           const SizedBox(height: 16),
           
@@ -210,15 +330,19 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
           ),
 
           const SizedBox(height: 32),
-          ListTile(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            tileColor: Colors.redAccent.withOpacity(0.1),
-            leading: const Icon(Icons.delete_forever, color: Colors.redAccent),
-            title: const Text('Delete Account', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const DataConsentView(userId: 'current_user_id')));
-            },
+          const SizedBox(height: 32),
+          SafeArea(
+            child: ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              tileColor: Colors.redAccent.withOpacity(0.1),
+              leading: const Icon(Icons.delete_forever, color: Colors.redAccent),
+              title: const Text('Delete Account', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const DataConsentView(userId: 'current_user_id')));
+              },
+            ),
           ),
+          const SizedBox(height: 80),
             ],
           );
         },
@@ -271,16 +395,20 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: iconColor.withOpacity(0.15), shape: BoxShape.circle),
-                      child: Icon(icon, color: iconColor),
-                    ),
-                    const SizedBox(width: 16),
-                    Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                  ],
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: iconColor.withOpacity(0.15), shape: BoxShape.circle),
+                        child: Icon(icon, color: iconColor),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16), overflow: TextOverflow.ellipsis),
+                      ),
+                    ],
+                  ),
                 ),
                 Switch(
                   value: value,
@@ -295,5 +423,149 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
         ),
       ),
     );
+  }
+  
+  Widget _buildGenderDropdown() {
+    return Card(
+      color: _cardColor,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.1))),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: _neonPink.withOpacity(0.15), shape: BoxShape.circle),
+          child: const Icon(Icons.wc, color: _neonPink),
+        ),
+        title: const Text('Gender', style: TextStyle(color: Colors.white54, fontSize: 12)),
+        subtitle: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: _gender,
+            dropdownColor: _cardColor,
+            hint: const Text('Select Gender', style: TextStyle(color: Colors.white)),
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+            items: const [
+              DropdownMenuItem(value: 'male', child: Text('Male')),
+              DropdownMenuItem(value: 'female', child: Text('Female')),
+              DropdownMenuItem(value: 'other', child: Text('Other')),
+            ],
+            onChanged: (val) {
+              if (val != null) {
+                setState(() => _gender = val);
+                _saveField('gender', val);
+              }
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingTextField({
+    required String label,
+    required String hint,
+    required IconData icon,
+    required TextEditingController controller,
+    required String firestoreKey,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+  }) {
+    return Card(
+      color: _cardColor,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withOpacity(0.1))),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          crossAxisAlignment: maxLines > 1 ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+          children: [
+            Container(
+              margin: EdgeInsets.only(top: maxLines > 1 ? 8 : 0),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: _neonCyan.withOpacity(0.15), shape: BoxShape.circle),
+              child: Icon(icon, color: _neonCyan),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextField(
+                controller: controller,
+                style: const TextStyle(color: Colors.white),
+                keyboardType: keyboardType,
+                maxLines: maxLines,
+                decoration: InputDecoration(
+                  labelText: label,
+                  labelStyle: const TextStyle(color: Colors.white54),
+                  hintText: hint,
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  border: InputBorder.none,
+                ),
+                onSubmitted: (value) => _saveField(firestoreKey, value.trim()),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.save, color: _neonCyan),
+              onPressed: () => _saveField(firestoreKey, controller.text.trim()),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionSaveButton(Map<String, dynamic> Function() getData) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8.0),
+        child: ElevatedButton.icon(
+          onPressed: () {
+            _saveMultipleFields(getData());
+          },
+          icon: const Icon(Icons.save, size: 18),
+          label: const Text('Save Section'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _neonCyan,
+            foregroundColor: Colors.black,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveField(String key, dynamic value) async {
+    final actualUid = widget.userModel.uid.isNotEmpty ? widget.userModel.uid : FirebaseAuth.instance.currentUser?.uid;
+    if (actualUid != null) {
+      if (key == 'dietaryPreferences' || key == 'interests') {
+        value = (value as String).split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      }
+      await FirebaseFirestore.instance.collection('users').doc(actualUid).update({key: value});
+      if (key == 'gender') {
+        await FirebaseFirestore.instance.collection('match_profiles').doc(actualUid).set({'gender': value}, SetOptions(merge: true));
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Saved!'), backgroundColor: _neonCyan));
+      }
+    }
+  }
+
+  Future<void> _saveMultipleFields(Map<String, dynamic> data) async {
+    final actualUid = widget.userModel.uid.isNotEmpty ? widget.userModel.uid : FirebaseAuth.instance.currentUser?.uid;
+    if (actualUid != null) {
+      if (data.containsKey('dietaryPreferences')) {
+        data['dietaryPreferences'] = (data['dietaryPreferences'] as String).split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      }
+      if (data.containsKey('interests')) {
+        data['interests'] = (data['interests'] as String).split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      }
+      
+      await FirebaseFirestore.instance.collection('users').doc(actualUid).update(data);
+      if (data.containsKey('gender')) {
+        await FirebaseFirestore.instance.collection('match_profiles').doc(actualUid).set({'gender': data['gender']}, SetOptions(merge: true));
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Section Saved!'), backgroundColor: _neonCyan, duration: const Duration(seconds: 2)));
+      }
+    }
   }
 }

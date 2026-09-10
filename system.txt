@@ -227,3 +227,5 @@ Features & Architecture:
 - Fundi Dashboard: Provides Fundis with job management, chat integrations, and real-time earnings tracking.
 
 ========================================================================
+
+there was a page for pin setup and pin entry , that page was workign well , and professionally so that once user creates an accounts and completes the flow for the first time they will only need to have the pin for login also better this page some design,wire everything well and confrim 

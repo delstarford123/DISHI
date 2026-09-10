@@ -44,7 +44,10 @@ class _MatchMusicMatchViewState extends State<MatchMusicMatchView> with SingleTi
 
   @override
   void dispose() {
-    _cancelSearch();
+    _queueSubscription?.cancel();
+    if (_queueDocId != null) {
+      FirebaseFirestore.instance.collection('music_match_queue').doc(_queueDocId).delete();
+    }
     _eqController.dispose();
     _spotifyController.dispose();
     _artist1Controller.dispose();

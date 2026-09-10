@@ -1,0 +1,55 @@
+Make th e vidoe call sounds or audio call sound to play durign the call before the other user picks play end play again untill the call is answered when ended it should stop, also make it so that users can send short massages like am busy, will takl latter , in a meeting, i will message you if they arent at a point to talk this messages should appear professionally as the ay it appears when a call is made in safaricom 
+in a day in the life i cant upload an image an this happens also to the rest eg voice note use storage bucket also in Music match when i click nothing happens, also in library lick in and in all the other things in the find your match they dont work the ui is there whe,in swipe i see  n clicked ntohing happens in swipe i see right overflowed by 6.0 pixels overflowed by 42 pixels in the area with the user profile and image.system admin should be in the list of users or matches anywhere for security , give me the email and password used to login as admin.
+
+
+# Fixes for Find Your Match Features & Security
+
+This plan outlines the fixes and implementations required to make the dummy social features functional, fix UI issues, and enforce security around admin accounts.
+
+## Proposed Changes
+
+### 1. Firebase Storage Integration
+Currently, **Day in the Life** and **Voice Intro** do not have uploading logic hooked up.
+#### [MODIFY] `lib/features/match/presentation/match_day_in_the_life_view.dart`
+- Add `image_picker` logic to capture photos from camera or gallery.
+- Add Firebase Storage (`firebase_storage`) upload logic to store the captured photo in a bucket (e.g., `/day_in_the_life/{userId}_{timestamp}.jpg`).
+- Save the download URL to the backend.
+
+#### [MODIFY] `lib/features/match/presentation/match_voice_recorder_dialog.dart`
+- Once recording stops, get the local file path.
+- Upload the `.m4a` audio file to Firebase Storage (e.g., `/voice_notes/{userId}.m4a`).
+- Save the URL in Firestore for other users to listen to.
+
+### 2. UI Overflow Fixes in Swipe Area
+#### [MODIFY] `lib/features/match/presentation/match_discovery_view.dart`
+- The `Row` containing the 5 action buttons (Pass, Phone, Video Call, Chat, Like) is overflowing on smaller devices (like the itel A663L).
+- I will wrap these buttons in `Expanded` widgets or a `Wrap` widget with proper spacing so they dynamically scale down and fit without overflowing.
+
+### 3. Wiring up Dummy Views
+#### [MODIFY] `lib/features/match/presentation/match_music_match_view.dart`
+#### [MODIFY] `lib/features/match/presentation/match_library_lockin_view.dart`
+- Currently, these have buttons with empty `onPressed: () {}` functions. 
+- I will wire these up to show dialogs simulating the matchmaking process (e.g., "Connecting to Spotify...", "Searching for study partners in the Library..."), saving the user's intent to a Firestore collection, and showing a success SnackBar.
+
+### 4. Admin Security Filtering
+#### [MODIFY] `lib/features/match/presentation/match_discovery_view.dart`
+#### [MODIFY] `lib/features/match/presentation/match_matches_hub.dart`
+#### [MODIFY] `lib/features/match/presentation/match_night_club_view.dart`
+- I will add `.where('roles', whereNotIn: ['admin', 'system_admin'])` or filter out any user with the admin role on the client side so that they never appear in dating lists, chat roulettes, or the virtual club.
+
+## Open Questions
+> [!IMPORTANT]
+> **Admin Account Credentials:**
+> You requested the admin email and password. I can create a dedicated admin account script that provisions `admin@swapeat.com` with password `Admin123!` if it doesn't already exist. Does this work for you?
+
+> [!NOTE]
+> **Dummy Views functionality:**
+> For things like "Music Match" and "Library Lock-in", do you want me to build out the full backend logic (saving requests to the database) or just simulate the UI flow (loading spinners and success messages) for now to fix the unresponsive buttons?
+
+## Verification Plan
+### Automated Tests
+- N/A
+### Manual Verification
+- Attempt to upload an image in "Day in the Life" and verify it uploads to Firebase Storage.
+- Open the Swipe tab (MatchDeck) on your device to confirm the 6.0px / 42px overflow is gone.
+- Verify Admin users do not show up in the swiping feed.

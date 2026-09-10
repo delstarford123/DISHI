@@ -26,6 +26,23 @@ class _FundiRegistrationViewState extends State<FundiRegistrationView> {
   final _rateController = TextEditingController();
   final _bioController = TextEditingController();
   
+  // 10 New Service Features
+  final _experienceController = TextEditingController();
+  String? _radius;
+  bool _weekends = false;
+  bool _nightCalls = false;
+  bool _ownTools = true;
+  final _portfolioController = TextEditingController();
+  String? _paymentMethod;
+  final _guaranteeController = TextEditingController();
+  String? _responseTime;
+  final _languagesController = TextEditingController();
+
+  final _radiusOptions = ['Within Campus Only', 'Within 2km', 'Within 5km', 'Anywhere in City'];
+  final _paymentOptions = ['M-PESA Only', 'Cash Only', 'Both M-PESA & Cash'];
+  final _responseOptions = ['Under 30 mins', '1-2 Hours', 'Same Day', 'Next Day'];
+
+  
   bool _isLoading = false;
 
   @override
@@ -33,6 +50,10 @@ class _FundiRegistrationViewState extends State<FundiRegistrationView> {
     _skillsController.dispose();
     _rateController.dispose();
     _bioController.dispose();
+    _experienceController.dispose();
+    _portfolioController.dispose();
+    _guaranteeController.dispose();
+    _languagesController.dispose();
     super.dispose();
   }
 
@@ -52,6 +73,16 @@ class _FundiRegistrationViewState extends State<FundiRegistrationView> {
         'skills': _skillsController.text.trim(),
         'hourlyRate': double.tryParse(_rateController.text.trim()) ?? 0.0,
         'bio': _bioController.text.trim(),
+        'experienceYears': _experienceController.text.trim(),
+        'serviceRadius': _radius,
+        'availableWeekends': _weekends,
+        'nightCallouts': _nightCalls,
+        'bringsOwnTools': _ownTools,
+        'portfolioLink': _portfolioController.text.trim(),
+        'paymentMethods': _paymentMethod,
+        'serviceGuarantee': _guaranteeController.text.trim(),
+        'responseTime': _responseTime,
+        'languages': _languagesController.text.trim(),
         'isVerified': false,
         'rating': 0.0,
         'jobsCompleted': 0,
@@ -126,6 +157,31 @@ class _FundiRegistrationViewState extends State<FundiRegistrationView> {
                     maxLines: 3,
                     validator: (v) => v!.isEmpty ? 'Please enter a short bio' : null,
                   ),
+                  const SizedBox(height: 32),
+
+                  const Text('Service Details', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  _buildTextField(controller: _experienceController, label: 'Years of Experience', icon: Icons.timeline, keyboardType: TextInputType.number),
+                  const SizedBox(height: 16),
+                  _buildDropdown('Service Radius', _radiusOptions, _radius, (val) => setState(() => _radius = val)),
+                  const SizedBox(height: 16),
+                  _buildTextField(controller: _portfolioController, label: 'Portfolio / Social Link', icon: Icons.link),
+                  const SizedBox(height: 16),
+                  _buildDropdown('Payment Methods Accepted', _paymentOptions, _paymentMethod, (val) => setState(() => _paymentMethod = val)),
+                  const SizedBox(height: 16),
+                  _buildTextField(controller: _guaranteeController, label: 'Service Guarantee (e.g. 24h free fix)', icon: Icons.verified),
+                  const SizedBox(height: 16),
+                  _buildDropdown('Typical Response Time', _responseOptions, _responseTime, (val) => setState(() => _responseTime = val)),
+                  const SizedBox(height: 16),
+                  _buildTextField(controller: _languagesController, label: 'Languages Spoken', icon: Icons.language),
+
+                  const SizedBox(height: 32),
+                  const Text('Availability & Logistics', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  _buildSwitch('Available on Weekends', _weekends, (val) => setState(() => _weekends = val)),
+                  _buildSwitch('Available for Night Call-outs (24/7)', _nightCalls, (val) => setState(() => _nightCalls = val)),
+                  _buildSwitch('I bring my own tools/equipment', _ownTools, (val) => setState(() => _ownTools = val)),
+
                   const SizedBox(height: 40),
                   
                   SizedBox(
@@ -170,6 +226,47 @@ class _FundiRegistrationViewState extends State<FundiRegistrationView> {
         fillColor: _surfaceLight,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _neonOrange)),
+      ),
+    );
+  }
+
+  Widget _buildDropdown(String label, List<String> items, String? currentValue, Function(String?) onChanged) {
+    return DropdownButtonFormField<String>(
+      value: currentValue,
+      dropdownColor: _cardColor,
+      style: const TextStyle(color: Colors.white, fontSize: 16),
+      icon: const Icon(Icons.arrow_drop_down, color: _neonOrange),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: _textSecondary),
+        filled: true,
+        fillColor: _surfaceLight,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        prefixIcon: const Icon(Icons.list, color: _neonOrange),
+      ),
+      items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+      onChanged: onChanged,
+    );
+  }
+
+  Widget _buildSwitch(String label, bool value, Function(bool) onChanged) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: _surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 16))),
+          Switch(
+            value: value,
+            activeColor: _neonOrange,
+            onChanged: onChanged,
+          ),
+        ],
       ),
     );
   }

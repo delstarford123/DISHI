@@ -28,6 +28,7 @@ import '../../social/presentation/event_tickets_view.dart';
 import '../../marketplace/presentation/escrow_market_view.dart';
 import '../../marketplace/presentation/swipe_exchange_view.dart';
 import '../../community/presentation/ar_campus_map_view.dart';
+import 'safter_pin_view.dart';
 class AllFeaturesView extends StatelessWidget {
   final UserModel userModel;
 
@@ -60,6 +61,7 @@ class AllFeaturesView extends StatelessWidget {
             _FeatureItem(icon: Icons.monetization_on, label: 'Request Funds', color: Colors.greenAccent, onTap: () => _showFundMeDialog(context, userModel)),
             _FeatureItem(icon: Icons.call_split, label: 'Split Bill', color: Colors.purpleAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SplitBillView(userModel: userModel)))),
             _FeatureItem(icon: Icons.event_repeat, label: 'Subscriptions', color: Colors.orangeAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SubscriptionManagerView(userModel: userModel)))),
+            _FeatureItem(icon: Icons.savings, label: 'Safter Pin', color: Colors.amber, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SafterPinView()))),
           ], cardColor),
           
           _buildStickyHeader('Academic & Study (Smarti)'),

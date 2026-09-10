@@ -30,36 +30,32 @@ class DelivDriverDashboard extends StatefulWidget {
 
 class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
   bool _isOnline = false;
-  double _earnings = 3450.0;
+  double _earnings = 0.0;
 
-  final List<Map<String, dynamic>> _gigs = [
-    {
-      'id': 'GIG-101',
-      'type': 'Food Delivery',
-      'pickup': 'Mama Njeri Kiosk',
-      'dropoff': 'Hostel Block B',
-      'pay': 'KES 50',
-      'distance': '1.2 km',
-      'color': _neonOrange,
-    },
-    {
-      'id': 'GIG-102',
-      'type': 'Mtu wa Mkono (Moving)',
-      'pickup': 'Main Gate',
-      'dropoff': 'Room 404, Qwetu',
-      'pay': 'KES 250',
-      'distance': '3.4 km',
-      'color': _neonBlue,
-    },
-  ];
+  bool _isSearching = false;
+  String _searchQuery = '';
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning,';
+    if (hour < 17) return 'Good afternoon,';
+    return 'Good evening,';
+  }
 
   void _toggleStatus(bool value) {
-    setState(() {
-      _isOnline = value;
-    });
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    setState(() => _isOnline = value);
+    if (uid != null) {
+      FirebaseFirestore.instance.collection('deliv_drivers').doc(uid).set(
+        {'isOnline': value, 'lastSeen': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(value ? 'You are now Online and visible on the map.' : 'You are now Offline.'),
+        content: Text(value
+            ? 'You are now Online and visible on the map.'
+            : 'You are now Offline.'),
         backgroundColor: value ? _neonCyan : _neonOrange,
       ),
     );
@@ -72,19 +68,34 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
         backgroundColor: _neonCyan,
       ),
     );
-    setState(() {
-      _earnings = 0;
-    });
   }
 
-  bool _isSearching = false;
-  String _searchQuery = '';
+  Future<void> _acceptGig(String gigId) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    await FirebaseFirestore.instance
+        .collection('deliv_requests')
+        .doc(gigId)
+        .update({'status': 'accepted', 'driver_id': uid});
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Gig accepted!'), backgroundColor: _neonCyan),
+    );
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => DelivActiveRouteView(rideId: gigId)),
+      );
+    }
+  }
 
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning,';
-    if (hour < 17) return 'Good afternoon,';
-    return 'Good evening,';
+  Future<void> _rejectGig(String gigId) async {
+    await FirebaseFirestore.instance
+        .collection('deliv_requests')
+        .doc(gigId)
+        .update({'status': 'rejected'});
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Gig rejected.'), backgroundColor: _neonRed),
+    );
   }
 
   void _showProfileMenu(BuildContext context) {
@@ -92,18 +103,23 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: _cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: _neonCyan, width: 2)),
-        title: const Text('Profile Menu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: _neonCyan, width: 2)),
+        title: const Text('Profile Menu',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ListTile(
               leading: const Icon(Icons.person, color: _neonCyan),
-              title: const Text('My Profile', style: TextStyle(color: Colors.white)),
+              title: const Text('My Profile',
+                  style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile coming soon')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Profile coming soon')));
               },
             ),
             ListTile(
@@ -111,18 +127,24 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
               title: const Text('Logout', style: TextStyle(color: _neonRed)),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
+                Navigator.pushReplacement(context,
+                    MaterialPageRoute(builder: (context) => const LoginView()));
               },
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close', style: TextStyle(color: _neonCyan))),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close',
+                  style: TextStyle(color: _neonCyan))),
         ],
       ),
     );
   }
 
+  // App bar WITHOUT a CircleAvatar/profile image at the top —
+  // removed per user request to eliminate the rogue profile image.
   Widget _buildCustomAppBar() {
     if (_isSearching) {
       return Row(
@@ -139,7 +161,7 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
               autofocus: true,
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
-                hintText: 'Search...',
+                hintText: 'Search gigs...',
                 hintStyle: TextStyle(color: _textSecondary),
                 border: InputBorder.none,
               ),
@@ -150,15 +172,16 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
       );
     }
 
-    final driverName = widget.user['name'] ?? widget.user['displayName'] ?? 'Driver';
-    final profileImageUrl = widget.user['profileImageUrl'];
+    final driverName =
+        widget.user['name'] ?? widget.user['displayName'] ?? 'Driver';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF161B29).withOpacity(0.8),
+        color: const Color(0xFF161B29).withOpacity(0.9),
         borderRadius: BorderRadius.circular(40),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        border:
+            Border.all(color: Colors.white.withOpacity(0.1), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
@@ -169,42 +192,29 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
       ),
       child: Row(
         children: [
-          Stack(
-            children: [
-              GestureDetector(
-                onTap: () => _showProfileMenu(context),
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundImage: profileImageUrl != null ? NetworkImage(profileImageUrl) : const AssetImage('assets/img/dishi_logo.png') as ImageProvider,
-                  backgroundColor: _surfaceLight,
-                  child: profileImageUrl == null ? const Icon(Icons.two_wheeler, color: _textSecondary, size: 20) : null,
-                ),
-              ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: Colors.greenAccent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _bgColor, width: 2),
-                  ),
-                ),
-              )
-            ],
+          // Status indicator dot (no profile image)
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: _isOnline ? Colors.greenAccent : _textSecondary,
+              shape: BoxShape.circle,
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(_getGreeting(), style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                Text(_getGreeting(),
+                    style: const TextStyle(color: Colors.white70, fontSize: 11)),
                 Text(
-                  driverName, 
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                  driverName,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -225,6 +235,8 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+
     return Scaffold(
       backgroundColor: _bgColor,
       body: SafeArea(
@@ -249,12 +261,19 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
                   decoration: BoxDecoration(
                     color: _cardColor,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _isOnline ? _neonCyan : _textSecondary)
+                    border: Border.all(
+                        color: _isOnline ? _neonCyan : _textSecondary),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(_isOnline ? 'ONLINE' : 'OFFLINE', style: TextStyle(color: _isOnline ? _neonCyan : _textSecondary, fontWeight: FontWeight.bold, fontSize: 10)),
+                      Text(
+                        _isOnline ? 'ONLINE' : 'OFFLINE',
+                        style: TextStyle(
+                            color: _isOnline ? _neonCyan : _textSecondary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10),
+                      ),
                       Switch(
                         value: _isOnline,
                         activeColor: _neonCyan,
@@ -271,100 +290,173 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
               padding: const EdgeInsets.only(top: 16, bottom: 100),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // Earnings Banner
-                  Container(
-                    margin: const EdgeInsets.all(16),
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: _cardColor,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _neonCyan.withOpacity(0.3), width: 1.5),
-                      boxShadow: [BoxShadow(color: _neonCyan.withOpacity(0.1), blurRadius: 20, spreadRadius: 2)]
-                    ),
-                    child: Column(
-                      children: [
-                        const Text('Total Earnings', style: TextStyle(color: _textSecondary, fontSize: 14)),
-                        const SizedBox(height: 8),
-                        Text(
-                          'KES ${_earnings.toStringAsFixed(2)}',
-                          style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
+                  // Earnings Banner — fetches real earnings from Firestore
+                  StreamBuilder<DocumentSnapshot>(
+                    stream: uid.isEmpty
+                        ? const Stream.empty()
+                        : FirebaseFirestore.instance
+                            .collection('deliv_drivers')
+                            .doc(uid)
+                            .snapshots(),
+                    builder: (context, snap) {
+                      final data =
+                          snap.data?.data() as Map<String, dynamic>? ?? {};
+                      final earnings =
+                          (data['totalEarnings'] as num?)?.toDouble() ?? 0.0;
+                      return Container(
+                        margin: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: _cardColor,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: _neonCyan.withOpacity(0.3), width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                                color: _neonCyan.withOpacity(0.1),
+                                blurRadius: 20,
+                                spreadRadius: 2)
+                          ],
                         ),
-                        const SizedBox(height: 24),
-                        HighFrictionAction(
-                          label: 'Slide to Cash Out',
-                          baseColor: _neonCyan,
-                          onActionCompleted: _cashOut,
+                        child: Column(
+                          children: [
+                            const Text('Total Earnings',
+                                style: TextStyle(
+                                    color: _textSecondary, fontSize: 14)),
+                            const SizedBox(height: 8),
+                            Text(
+                              'KES ${earnings.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 24),
+                            HighFrictionAction(
+                              label: 'Slide to Cash Out',
+                              baseColor: _neonCyan,
+                              onActionCompleted: _cashOut,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-                  
+
+                  // Quick-action buttons row
+                  // FIX: wrapped in Padding + used Flexible inside Row to
+                  // prevent RIGHT OVERFLOWED BY 8 PIXELS on maintenance card.
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Row(
                       children: [
                         Expanded(
                           child: InkWell(
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DelivActiveRouteView())),
+                            onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const DelivActiveRouteView())),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16),
                               decoration: BoxDecoration(
                                 color: _surfaceLight,
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: _neonBlue.withOpacity(0.5)),
+                                border: Border.all(
+                                    color: _neonBlue.withOpacity(0.5)),
                               ),
                               child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.map, color: _neonBlue),
-                                  SizedBox(width: 8),
-                                  Text('Live Map', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  Icon(Icons.map, color: _neonBlue, size: 18),
+                                  SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text('Live Map',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13),
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
                                 ],
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: InkWell(
                             onTap: () {
-                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening Maintenance Hub...')));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content:
+                                          Text('Opening Maintenance Hub...')));
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16),
                               decoration: BoxDecoration(
                                 color: _surfaceLight,
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: _neonOrange.withOpacity(0.5)),
+                                border: Border.all(
+                                    color: _neonOrange.withOpacity(0.5)),
                               ),
                               child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.build, color: _neonOrange),
-                                  SizedBox(width: 8),
-                                  Text('Maintenance', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  Icon(Icons.build,
+                                      color: _neonOrange, size: 18),
+                                  SizedBox(width: 6),
+                                  // Flexible prevents the RIGHT OVERFLOW
+                                  Flexible(
+                                    child: Text('Maintain',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13),
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
                                 ],
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: InkWell(
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DriverScannerView())),
+                            onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const DriverScannerView())),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16),
                               decoration: BoxDecoration(
                                 color: _surfaceLight,
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.greenAccent.withOpacity(0.5)),
+                                border: Border.all(
+                                    color:
+                                        Colors.greenAccent.withOpacity(0.5)),
                               ),
                               child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.qr_code_scanner, color: Colors.greenAccent),
-                                  SizedBox(width: 8),
-                                  Text('Scanner', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  Icon(Icons.qr_code_scanner,
+                                      color: Colors.greenAccent, size: 18),
+                                  SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text('Scanner',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13),
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
                                 ],
                               ),
                             ),
@@ -374,124 +466,285 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
-                  // Available Gigs Feed
+
+                  // Available Gigs Feed — real Firestore stream
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 24),
                     decoration: const BoxDecoration(
                       color: _cardColor,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(32)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Available Gigs', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                        const Text('Available Gigs',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold)),
                         const SizedBox(height: 16),
                         if (!_isOnline)
                           Center(
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 32.0),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 32.0),
                               child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.location_off, size: 64, color: _textSecondary.withOpacity(0.5)),
+                                  Icon(Icons.location_off,
+                                      size: 64,
+                                      color: _textSecondary.withOpacity(0.5)),
                                   const SizedBox(height: 16),
-                                  const Text('Go online to receive gig requests.', style: TextStyle(color: _textSecondary, fontSize: 16)),
+                                  const Text(
+                                      'Go online to receive gig requests.',
+                                      style: TextStyle(
+                                          color: _textSecondary,
+                                          fontSize: 16)),
                                 ],
                               ),
                             ),
                           )
                         else
-                          Column(
-                            children: _gigs.map((gig) {
-                              final color = gig['color'] as Color;
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 16),
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: _surfaceLight,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: color.withOpacity(0.3)),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('deliv_requests')
+                                .where('status', isEqualTo: 'open')
+                                .orderBy('createdAt', descending: true)
+                                .limit(20)
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                    child: CircularProgressIndicator(
+                                        color: _neonCyan));
+                              }
+                              final docs = snapshot.data?.docs ?? [];
+                              if (docs.isEmpty) {
+                                return Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 32),
+                                    child: Column(
                                       children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                          decoration: BoxDecoration(
-                                            color: color.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Text(gig['type'], style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
-                                        ),
-                                        Text(gig['pay'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                                        Icon(Icons.inbox,
+                                            size: 56,
+                                            color: _textSecondary
+                                                .withOpacity(0.5)),
+                                        const SizedBox(height: 12),
+                                        const Text('No open gigs right now.',
+                                            style: TextStyle(
+                                                color: _textSecondary,
+                                                fontSize: 15)),
                                       ],
                                     ),
-                                    const SizedBox(height: 16),
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.storefront, size: 16, color: _textSecondary),
-                                        const SizedBox(width: 8),
-                                        Text('Pickup: ${gig['pickup']}', style: const TextStyle(color: Colors.white70)),
-                                      ],
+                                  ),
+                                );
+                              }
+                              return Column(
+                                children: docs.map((doc) {
+                                  final gig =
+                                      doc.data() as Map<String, dynamic>;
+                                  final gigId = doc.id;
+                                  final gigType =
+                                      gig['type'] ?? 'Delivery';
+                                  final color = gigType == 'Food Delivery'
+                                      ? _neonOrange
+                                      : _neonBlue;
+                                  final pay =
+                                      'KES ${(gig['pay'] ?? gig['amount'] ?? 0).toString()}';
+                                  final pickup =
+                                      gig['pickup'] ?? gig['pickupLocation'] ?? 'Unknown';
+                                  final dropoff =
+                                      gig['dropoff'] ?? gig['dropoffLocation'] ?? 'Unknown';
+
+                                  // Filter by search query
+                                  if (_searchQuery.isNotEmpty &&
+                                      !gigType.toLowerCase().contains(
+                                          _searchQuery.toLowerCase()) &&
+                                      !pickup.toLowerCase().contains(
+                                          _searchQuery.toLowerCase())) {
+                                    return const SizedBox.shrink();
+                                  }
+
+                                  return Container(
+                                    margin:
+                                        const EdgeInsets.only(bottom: 16),
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: _surfaceLight,
+                                      borderRadius:
+                                          BorderRadius.circular(16),
+                                      border: Border.all(
+                                          color:
+                                              color.withOpacity(0.3)),
                                     ),
-                                    const SizedBox(height: 8),
-                                    Row(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        const Icon(Icons.location_on, size: 16, color: _neonRed),
-                                        const SizedBox(width: 8),
-                                        Text('Dropoff: ${gig['dropoff']}', style: const TextStyle(color: Colors.white70)),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 20),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: InkWell(
-                                            onTap: () {},
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(vertical: 12),
-                                              decoration: BoxDecoration(
-                                                color: _cardColor,
-                                                borderRadius: BorderRadius.circular(12),
-                                                border: Border.all(color: _textSecondary),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment
+                                                  .spaceBetween,
+                                          children: [
+                                            Flexible(
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 6),
+                                                decoration: BoxDecoration(
+                                                  color: color
+                                                      .withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius
+                                                          .circular(8),
+                                                ),
+                                                child: Text(gigType,
+                                                    style: TextStyle(
+                                                        color: color,
+                                                        fontWeight:
+                                                            FontWeight
+                                                                .bold,
+                                                        fontSize: 12),
+                                                    overflow:
+                                                        TextOverflow
+                                                            .ellipsis),
                                               ),
-                                              alignment: Alignment.center,
-                                              child: const Text('Reject', style: TextStyle(color: _textSecondary, fontWeight: FontWeight.bold)),
                                             ),
-                                          ),
+                                            Text(pay,
+                                                style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight:
+                                                        FontWeight.bold,
+                                                    fontSize: 18)),
+                                          ],
                                         ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: InkWell(
-                                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DelivActiveRouteView())),
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(vertical: 12),
-                                              decoration: BoxDecoration(
-                                                color: color,
-                                                borderRadius: BorderRadius.circular(12),
+                                        const SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.storefront,
+                                                size: 16,
+                                                color: _textSecondary),
+                                            const SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text(
+                                                  'Pickup: $pickup',
+                                                  style: const TextStyle(
+                                                      color:
+                                                          Colors.white70),
+                                                  overflow: TextOverflow
+                                                      .ellipsis),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.location_on,
+                                                size: 16,
+                                                color: _neonRed),
+                                            const SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text(
+                                                  'Dropoff: $dropoff',
+                                                  style: const TextStyle(
+                                                      color:
+                                                          Colors.white70),
+                                                  overflow: TextOverflow
+                                                      .ellipsis),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 20),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: InkWell(
+                                                onTap: () =>
+                                                    _rejectGig(gigId),
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets
+                                                          .symmetric(
+                                                          vertical: 12),
+                                                  decoration:
+                                                      BoxDecoration(
+                                                    color: _cardColor,
+                                                    borderRadius:
+                                                        BorderRadius
+                                                            .circular(
+                                                                12),
+                                                    border: Border.all(
+                                                        color:
+                                                            _textSecondary),
+                                                  ),
+                                                  alignment:
+                                                      Alignment.center,
+                                                  child: const Text(
+                                                      'Reject',
+                                                      style: TextStyle(
+                                                          color:
+                                                              _textSecondary,
+                                                          fontWeight:
+                                                              FontWeight
+                                                                  .bold)),
+                                                ),
                                               ),
-                                              alignment: Alignment.center,
-                                              child: const Text('Accept', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                                             ),
-                                          ),
-                                        ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: InkWell(
+                                                onTap: () =>
+                                                    _acceptGig(gigId),
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets
+                                                          .symmetric(
+                                                          vertical: 12),
+                                                  decoration:
+                                                      BoxDecoration(
+                                                    color: color,
+                                                    borderRadius:
+                                                        BorderRadius
+                                                            .circular(
+                                                                12),
+                                                  ),
+                                                  alignment:
+                                                      Alignment.center,
+                                                  child: const Text(
+                                                      'Accept',
+                                                      style: TextStyle(
+                                                          color: Colors
+                                                              .white,
+                                                          fontWeight:
+                                                              FontWeight
+                                                                  .bold)),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        )
                                       ],
-                                    )
-                                  ],
-                                ),
+                                    ),
+                                  );
+                                }).toList(),
                               );
-                            }).toList(),
-                          )
+                            },
+                          ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 24),
-                  UniversalSupportWidget(userId: FirebaseAuth.instance.currentUser?.uid ?? 'unknown', userRole: 'driver'),
+                  UniversalSupportWidget(
+                      userId: uid.isEmpty ? 'unknown' : uid,
+                      userRole: 'driver'),
                   const SizedBox(height: 100),
                 ]),
               ),

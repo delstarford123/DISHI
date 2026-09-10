@@ -200,7 +200,11 @@ service cloud.firestore {
     match /secret_admirers/{admirerId}     { allow read, write: if isAuth(); }
     match /safe_walk_sessions/{sessionId}  { allow read, write: if isAuth(); }
     match /match_feedback/{feedbackId}     { allow read, write: if isAuth(); }
-    match /match_campus_feed/{postId}      { allow read, write: if isAuth(); }
+    match /match_campus_feed/{postId}      {
+      allow read, write: if isAuth();
+      match /comments/{commentId}          { allow read, write: if isAuth(); }
+      match /reactions/{reactionId}        { allow read, write: if isAuth(); }
+    }
     match /dishi_vouchers/{voucherId}      { allow read, write: if isAuth(); }
     match /dishi_date_splits/{splitId}     { allow read, write: if isAuth(); }
     match /birthday_gifts/{giftId}         { allow read, write: if isAuth(); }
@@ -212,6 +216,29 @@ service cloud.firestore {
     match /music_match_queue/{queueId}     { allow read, write: if isAuth(); }
     match /library_lockin_queue/{queueId}  { allow read, write: if isAuth(); }
     match /day_in_the_life_posts/{postId}  { allow read, write: if isAuth(); }
+    // Swipe history (match discovery)
+    match /swipe_history/{swipeId}         { allow read, write: if isAuth(); }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 6.5. CAMPUS FEED  (social posts, reactions, replies)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /campus_feed/{postId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.uid ||
+         request.auth.uid == resource.data.author_id ||
+         isAdmin());
+      allow delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.uid ||
+         request.auth.uid == resource.data.author_id ||
+         isAdmin());
+      match /comments/{commentId} { allow read, write: if isAuth(); }
+      match /reactions/{reactionId} { allow read, write: if isAuth(); }
+      match /replies/{replyId} { allow read, write: if isAuth(); }
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // 7. KEJA YANGU  (housing — properties, applications, leases, etc.)
@@ -223,10 +250,12 @@ service cloud.firestore {
       allow update: if isAuth() &&
         (resource == null ||
          request.auth.uid == resource.data.merchant_id ||
+         request.auth.uid == resource.data.owner_id ||
          isAdmin());
       allow delete: if isAuth() &&
         (resource == null ||
          request.auth.uid == resource.data.merchant_id ||
+         request.auth.uid == resource.data.owner_id ||
          isAdmin());
     }
     match /housing_applications/{appId} {
@@ -280,6 +309,16 @@ service cloud.firestore {
          request.auth.uid == resource.data.landlord_id ||
          isAdmin());
     }
+    // Maintenance reports (driver vehicle & general)
+    match /maintenance_reports/{reportId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.uid ||
+         request.auth.uid == resource.data.driver_id ||
+         isAdmin());
+    }
     match /clearance_notices/{noticeId} {
       allow read: if isAuth();
       allow create: if isAuth();
@@ -328,6 +367,8 @@ service cloud.firestore {
     match /room_alerts/{studentId}       { allow read, write: if isSelf(studentId) || isAdmin(); }
     match /keja_streaks/{studentId}      { allow read, write: if isSelf(studentId) || isAdmin(); }
     match /roommate_profiles/{studentId} { allow read, write: if isAuth(); }
+    // Safter Pin (also aliased as safety_pins for backwards compat)
+    match /safter_pins/{pinId}           { allow read, write: if isAuth(); }
     match /safety_pins/{pinId}           { allow read, write: if isAuth(); }
     match /virtual_tours/{tourId}        { allow read: if isAuth(); allow write: if isAdmin(); }
     match /keja_cooking/{cookingId}      { allow read, write: if isAuth(); }
@@ -492,6 +533,286 @@ service cloud.firestore {
          request.auth.uid == resource.data.poster_id ||
          request.auth.uid == resource.data.fundi_id ||
          isAdmin());
+    }
+    // Fundi service categories (reference data)
+    match /fundi_service_categories/{catId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 17. EVENTS  (social events — create, dashboard, ticketing)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /events/{eventId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.creatorId ||
+         request.auth.uid == resource.data.uid ||
+         isAdmin());
+      allow delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.creatorId ||
+         request.auth.uid == resource.data.uid ||
+         isAdmin());
+    }
+    match /event_tickets/{ticketId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.buyer_id ||
+         request.auth.uid == resource.data.student_id ||
+         isAdmin());
+      allow delete: if isAdmin();
+    }
+    match /event_check_ins/{checkInId}   { allow read, write: if isAuth(); }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 18. VIRTUAL CARD & CARD TRANSACTIONS
+    // ─────────────────────────────────────────────────────────────────────────
+    match /virtual_cards/{uid} {
+      // Only the card owner can read/write their own card
+      allow read: if isSelf(uid) || isAdmin();
+      allow create: if isSelf(uid);
+      allow update: if isSelf(uid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /card_transactions/{txId} {
+      // Owner reads their own card transactions; backend writes
+      allow read: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.uid ||
+         isAdmin());
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 19. TRANSPORT (campus bus/matatu boarding)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /transport_sessions/{sessionId} { allow read, write: if isAuth(); }
+    match /transport_bookings/{bookingId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.student_id ||
+         request.auth.uid == resource.data.driver_id ||
+         isAdmin());
+      allow delete: if isAdmin();
+    }
+    match /transport_routes/{routeId}    { allow read: if isAuth(); allow write: if isAdmin(); }
+    match /transport_drivers/{driverId}  {
+      allow read: if isAuth();
+      allow write: if isSelf(driverId) || isAdmin();
+    }
+    match /driver_transport/{driverId}   {
+      allow read: if isAuth();
+      allow write: if isSelf(driverId) || isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 20. HARAMBEE CROWDFUNDING
+    // ─────────────────────────────────────────────────────────────────────────
+    match /harambee_campaigns/{campaignId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.creator_id ||
+         request.auth.uid == resource.data.uid ||
+         isAdmin());
+      allow delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.creator_id ||
+         request.auth.uid == resource.data.uid ||
+         isAdmin());
+      // Donations subcollection
+      match /donations/{donationId}      { allow read, write: if isAuth(); }
+    }
+    match /harambee_donations/{donationId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    match /harambee_withdrawals/{withdrawalId} {
+      allow read: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.uid ||
+         isAdmin());
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 21. SUBSCRIPTIONS
+    // ─────────────────────────────────────────────────────────────────────────
+    match /subscriptions/{subId} {
+      allow read: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.uid ||
+         request.auth.uid == resource.data.student_id ||
+         isAdmin());
+      allow create: if isAuth();
+      allow update: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.uid ||
+         request.auth.uid == resource.data.student_id ||
+         isAdmin());
+      allow delete: if isAdmin();
+    }
+    // Subscription plans (reference data — admin manages)
+    match /subscription_plans/{planId}   { allow read: if isAuth(); allow write: if isAdmin(); }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 22. DIGITAL LEDGER
+    // ─────────────────────────────────────────────────────────────────────────
+    match /digital_ledger/{entryId} {
+      allow read: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.uid ||
+         request.auth.uid == resource.data.student_id ||
+         isAdmin());
+      allow create: if isAuth();
+      // Owner can update and delete their own entries (swipe-to-delete)
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.uid ||
+         request.auth.uid == resource.data.student_id ||
+         isAdmin());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 23. FLASHCARDS & QUIZ
+    // ─────────────────────────────────────────────────────────────────────────
+    // Global flashcards (admin-managed content shown to all students)
+    match /flashcards/{cardId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    // Daily flashcard sets
+    match /daily_flashcards/{setId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+      match /cards/{cardId} { allow read: if isAuth(); allow write: if isAdmin(); }
+    }
+    // Quizzes
+    match /quizzes/{quizId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+      match /questions/{questionId} { allow read: if isAuth(); allow write: if isAdmin(); }
+    }
+    match /quiz_submissions/{subId} {
+      allow read: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.uid ||
+         isAdmin());
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    // Daily quiz
+    match /daily_quiz/{quizId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+      match /questions/{questionId} { allow read: if isAuth(); allow write: if isAdmin(); }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 24. FREELANCE / GIG BOARD
+    // ─────────────────────────────────────────────────────────────────────────
+    match /gig_posts/{gigId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.poster_id ||
+         request.auth.uid == resource.data.uid ||
+         isAdmin());
+    }
+    match /gig_applications/{appId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.applicant_id ||
+         request.auth.uid == resource.data.poster_id ||
+         isAdmin());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 25. LOST & FOUND
+    // ─────────────────────────────────────────────────────────────────────────
+    match /lost_and_found/{itemId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.reporter_id ||
+         request.auth.uid == resource.data.uid ||
+         isAdmin());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 26. ESCROW MARKETPLACE
+    // ─────────────────────────────────────────────────────────────────────────
+    match /escrow_items/{itemId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.sellerId ||
+         request.auth.uid == resource.data.buyerId ||
+         isAdmin());
+      allow delete: if isAuth() &&
+        (resource == null || request.auth.uid == resource.data.sellerId || isAdmin());
+    }
+    match /escrow_orders/{orderId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.buyerId ||
+         request.auth.uid == resource.data.sellerId ||
+         isAdmin());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 27. USER PRESENCE  (Firestore-based online/offline status)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /user_presence/{uid} {
+      allow read: if isAuth();
+      allow write: if isSelf(uid) || isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 28. SAFTER PIN WITHDRAWALS
+    // ─────────────────────────────────────────────────────────────────────────
+    match /safter_pin_withdrawals/{withdrawalId} {
+      allow read: if isAuth() &&
+        (resource == null || request.auth.uid == resource.data.uid || isAdmin());
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 29. FLASHCARDS — user-created custom cards
+    // ─────────────────────────────────────────────────────────────────────────
+    match /flashcards/{cardId} {
+      allow read: if isAuth();
+      // Students can create their own cards; admin manages global ones
+      allow create: if isAuth();
+      allow update, delete: if isAuth() &&
+        (resource == null || request.auth.uid == resource.data.uid || isAdmin());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 30. MY EVENTS DASHBOARD  (user's own events list)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /user_events/{uid} {
+      allow read, write: if isSelf(uid) || isAdmin();
+      match /{docId} { allow read, write: if isSelf(uid) || isAdmin(); }
     }
   }
 }

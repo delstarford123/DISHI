@@ -17,6 +17,32 @@ class _DelivRegistrationViewState extends State<DelivRegistrationView> {
   bool _documentUploaded = false;
 
   final List<String> _vehicleTypes = ['Walking', 'Bicycle', 'Motorbike', 'Car'];
+  
+  // 10 New Driver Features
+  String? _operatingHours;
+  final _zonesController = TextEditingController();
+  String? _maxWeight;
+  final _altContactController = TextEditingController();
+  bool _cashChange = false;
+  bool _expressDelivery = false;
+  final _licensePlateController = TextEditingController();
+  final _bioController = TextEditingController();
+  final _emergencyNameController = TextEditingController();
+  final _emergencyPhoneController = TextEditingController();
+  
+  final _hoursOptions = ['Mornings', 'Evenings', 'Late Night', 'Flexible'];
+  final _weightOptions = ['Light Food Only', 'Medium Parcels', 'Heavy/Bulky'];
+
+  @override
+  void dispose() {
+    _zonesController.dispose();
+    _altContactController.dispose();
+    _licensePlateController.dispose();
+    _bioController.dispose();
+    _emergencyNameController.dispose();
+    _emergencyPhoneController.dispose();
+    super.dispose();
+  }
 
   Future<void> _submitRegistration() async {
     if (!_documentUploaded) {
@@ -35,6 +61,18 @@ class _DelivRegistrationViewState extends State<DelivRegistrationView> {
           'roles': FieldValue.arrayUnion(['driver']),
           'isDriverVerified': true, // Auto-verifying for immediate access
           'driverVehicleType': _selectedVehicle,
+          'driverProfile': {
+            'operatingHours': _operatingHours,
+            'preferredZones': _zonesController.text.trim(),
+            'maxWeight': _maxWeight,
+            'altContact': _altContactController.text.trim(),
+            'cashChangeAvailable': _cashChange,
+            'expressDelivery': _expressDelivery,
+            'licensePlate': _licensePlateController.text.trim(),
+            'bio': _bioController.text.trim(),
+            'emergencyContactName': _emergencyNameController.text.trim(),
+            'emergencyContactPhone': _emergencyPhoneController.text.trim(),
+          }
         });
 
         if (mounted) {
@@ -169,6 +207,29 @@ class _DelivRegistrationViewState extends State<DelivRegistrationView> {
                 ),
               ),
             ),
+            const SizedBox(height: 32),
+            
+            const Text('Logistics & Delivery Prefs', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            _buildDropdown('Operating Hours', _hoursOptions, _operatingHours, (val) => setState(() => _operatingHours = val)),
+            _buildDropdown('Max Delivery Weight', _weightOptions, _maxWeight, (val) => setState(() => _maxWeight = val)),
+            _buildTextField('Preferred Delivery Zones', _zonesController, hint: 'e.g., Hostels, Library'),
+            _buildSwitch('I carry cash change', _cashChange, (val) => setState(() => _cashChange = val)),
+            _buildSwitch('Available for Express Delivery', _expressDelivery, (val) => setState(() => _expressDelivery = val)),
+            
+            const SizedBox(height: 32),
+            const Text('Driver Details', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            _buildTextField('License Plate (if applicable)', _licensePlateController, hint: 'e.g. KCA 123A'),
+            _buildTextField('Short Bio/Intro', _bioController, hint: 'Fastest runner on campus', maxLines: 2),
+            _buildTextField('Alternative Contact Number', _altContactController, hint: 'e.g. 0700000000', keyboardType: TextInputType.phone),
+            
+            const SizedBox(height: 32),
+            const Text('Emergency Contact (Safety First)', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            _buildTextField('Emergency Contact Name', _emergencyNameController, hint: 'e.g. John Doe'),
+            _buildTextField('Emergency Contact Phone', _emergencyPhoneController, hint: 'e.g. 0722000000', keyboardType: TextInputType.phone),
+            
             const SizedBox(height: 48),
 
             // Submit Button
@@ -185,6 +246,75 @@ class _DelivRegistrationViewState extends State<DelivRegistrationView> {
                   ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDropdown(String label, List<String> items, String? currentValue, Function(String?) onChanged) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF131A2A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: currentValue,
+          hint: Text(label, style: const TextStyle(color: Colors.white54)),
+          isExpanded: true,
+          dropdownColor: const Color(0xFF131A2A),
+          style: const TextStyle(color: Colors.white, fontSize: 16),
+          icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
+          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller, {String? hint, int maxLines = 1, TextInputType? keyboardType}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: Colors.white54),
+          hintText: hint,
+          hintStyle: const TextStyle(color: Colors.white24),
+          filled: true,
+          fillColor: const Color(0xFF131A2A),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white24)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white24)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSwitch(String label, bool value, Function(bool) onChanged) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF131A2A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.white, fontSize: 16)),
+          Switch(
+            value: value,
+            activeColor: MPesaTheme.primaryGreen,
+            onChanged: onChanged,
+          ),
+        ],
       ),
     );
   }

@@ -1,70 +1,99 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
-const Color _bgColor = Color(0xFF0C101B);
-const Color _cardColor = Color(0xFF131A2A);
-const Color _surfaceLight = Color(0xFF1A2235);
-const Color _neonPink = Color(0xFFFF2A6D);
-const Color _neonCyan = Color(0xFF05D5AA);
-const Color _textSecondary = Color(0xFF8B9BB4);
+import 'firebase_options.dart';
+import 'core/theme/mpesa_theme.dart';
+import 'features/auth/presentation/signup_view.dart';
+import 'features/auth/presentation/pin_unlock_view.dart';
+import 'core/services/secure_storage_service.dart';
+import 'features/smartimer/data/hive_service.dart';
+import 'features/smartimer/providers/plan_provider.dart';
+import 'features/match/presentation/widgets/incoming_call_listener.dart';
 
-class AdvancedControlsView extends StatelessWidget {
-  const AdvancedControlsView({super.key});
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  await SmartiHiveService.init(); 
+  
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => SmartiPlanProvider()),
+      ],
+      child: const DISHIApp(),
+    ),
+  );
+}
+
+class DISHIApp extends StatelessWidget {
+  const DISHIApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bgColor,
-      appBar: AppBar(
-        title: const Text('Advanced Controls', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text('Daily Spending Limits', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          _buildInputTile('Max Daily Spend (KES)'),
-          _buildInputTile('Max Per-Transaction Spend'),
-          const SizedBox(height: 24),
-          const Text('Time Restrictions', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          _buildTimeTile('Curfew Start Time', '10:00 PM'),
-          _buildTimeTile('Curfew End Time', '06:00 AM'),
-        ],
-      ),
+    return MaterialApp(
+      title: 'DISHI',
+      navigatorKey: appNavigatorKey,
+      debugShowCheckedModeBanner: false,
+      theme: MPesaTheme.lightTheme,
+      darkTheme: MPesaTheme.darkTheme,
+      themeMode: ThemeMode.system,
+      builder: (context, child) {
+        return IncomingCallListener(
+          navigatorKey: appNavigatorKey,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      // Set the FutureBuilder widget as the direct home
+      home: const InitialRouter(),
     );
   }
+}
 
-  Widget _buildInputTile(String label) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(color: _textSecondary),
-          filled: true,
-          fillColor: _surfaceLight,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        ),
-      ),
-    );
+class InitialRouter extends StatelessWidget {
+  const InitialRouter({super.key});
+
+  /// Evaluates auth and offline pin state asynchronously
+  Future<Widget> _resolveInitialScreen() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final pin = await SecureStorageService.getOfflinePin();
+      if (pin != null && pin.isNotEmpty) {
+        return const PinUnlockView();
+      }
+    }
+    return const SignupView();
   }
 
-  Widget _buildTimeTile(String title, String time) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(12)),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          Text(time, style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 16)),
-        ],
-      ),
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Widget>(
+      future: _resolveInitialScreen(),
+      builder: (context, snapshot) {
+        // Show splash screen while resolving auth state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: MPesaTheme.primaryGreen,
+            body: Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+          );
+        }
+        
+        // Return the resolved screen directly, avoiding Navigator pushes
+        if (snapshot.hasData) {
+          return snapshot.data!;
+        }
+        
+        // Fallback
+        return const SignupView();
+      },
     );
   }
 }
