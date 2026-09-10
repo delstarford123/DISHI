@@ -121,62 +121,70 @@ class _PhotoCollageWidgetState extends State<PhotoCollageWidget>
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final collageHeight = widget.isTablet ? screenHeight : screenHeight * 0.62;
-
-    return SizedBox(
-      height: collageHeight,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: List.generate(_cards.length, (i) {
-          final card = _cards[i];
-          return Positioned(
-            top: card.top,
-            left: card.left,
-            child: AnimatedBuilder(
-              animation: _cardAnimations[i],
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _cardAnimations[i].value,
-                  child: Opacity(
-                    opacity: _cardAnimations[i].value,
-                    child: child,
-                  ),
-                );
-              },
-              child: Transform.rotate(
-                angle: card.rotation,
-                child: Container(
-                  width: card.width,
-                  height: card.height,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The original design was made for a ~400x500 area.
+        // We will scale it using a FittedBox to fit whatever the parent constraints are.
+        return FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            width: 400,
+            height: 500,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: List.generate(_cards.length, (i) {
+                final card = _cards[i];
+                return Positioned(
+                  top: card.top,
+                  left: card.left + 80, // Offset to center in 400 width
+                  child: AnimatedBuilder(
+                    animation: _cardAnimations[i],
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _cardAnimations[i].value,
+                        child: Opacity(
+                          opacity: _cardAnimations[i].value,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Transform.rotate(
+                      angle: card.rotation,
+                      child: Container(
+                        width: card.width,
+                        height: card.height,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: Image.asset(
+                            card.imagePath,
+                            width: card.width,
+                            height: card.height,
+                            fit: BoxFit.cover,
+                            semanticLabel: card.semanticLabel,
+                            errorBuilder: (context, error, stackTrace) => 
+                              Container(color: Colors.grey.shade300, child: const Icon(Icons.image)),
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: Image.asset(
-                      card.imagePath,
-                      width: card.width,
-                      height: card.height,
-                      fit: BoxFit.cover,
-                      semanticLabel: card.semanticLabel,
-                      errorBuilder: (context, error, stackTrace) => 
-                        Container(color: Colors.grey.shade300, child: const Icon(Icons.image)),
                     ),
                   ),
-                ),
-              ),
+                );
+              }),
             ),
-          );
-        }),
-      ),
+          ),
+        );
+      },
     );
   }
 }

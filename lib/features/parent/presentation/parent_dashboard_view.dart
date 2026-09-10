@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/widgets/shared_savings_view.dart';
+import '../../../core/theme/mpesa_theme.dart';
 import '../../auth/presentation/login_view.dart';
 import 'offline_child_qr_view.dart';
 
@@ -16,11 +17,29 @@ import 'auto_funding_settings.dart';
 import 'nutrition_settings.dart';
 import 'lunchbox_planner.dart';
 import 'security_settings.dart';
+import 'scheduled_allowances_view.dart';
+import 'dispute_resolution_view.dart';
+import 'spending_analytics_view.dart';
+import 'bounties_view.dart';
+import 'vendor_restrictions_view.dart';
+import 'academic_rewards_view.dart';
+import 'co_parenting_view.dart';
+import 'emergency_alerts_view.dart';
+import 'geofence_alerts_view.dart';
+import 'medical_lock_view.dart';
+import 'transport_allowance_view.dart';
+import 'health_stats_view.dart';
+import 'housing_payments_view.dart';
+import 'tuition_payments_view.dart';
+import 'savings_target_view.dart';
+import 'graduation_fund_view.dart';
+import 'subscription_manager_view.dart';
 
 import 'tabs/growth_tab_view.dart';
 import '../presentation/tabs/community_tab_view.dart';
 import '../presentation/tabs/settings_tab_view.dart';
 import '../../../shared/presentation/universal_support_widget.dart';
+import 'parent_profile_settings.dart';
 
 // -- CUSTOM DESIGN COLORS --
 const Color _bgColor = Color(0xFF0C101B);
@@ -116,37 +135,10 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
   }
 
   void _showProfileMenu(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: _neonBlue, width: 2)),
-        title: const Text('Profile Menu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.person, color: _neonBlue),
-              title: const Text('My Profile', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile coming soon')));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout, color: _neonPink),
-              title: const Text('Logout', style: TextStyle(color: _neonPink)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close', style: TextStyle(color: _neonBlue))),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ParentProfileSettings(userMap: widget.user),
       ),
     );
   }
@@ -338,11 +330,26 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                     const SizedBox(height: 16),
                     Text('Linked to: ${widget.user['phone'] ?? '254700000000'}', style: const TextStyle(color: _textSecondary)),
                     const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () => _showBulkFundModal(context),
-                      icon: const Icon(Icons.account_balance_wallet),
-                      label: const Text('Fund Students'),
-                      style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showVaultTopUpModal(context),
+                            icon: const Icon(Icons.add_circle_outline),
+                            label: const Text('Top Up Vault'),
+                            style: ElevatedButton.styleFrom(backgroundColor: _neonBlue, foregroundColor: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showBulkFundModal(context),
+                            icon: const Icon(Icons.account_balance_wallet),
+                            label: const Text('Fund Students'),
+                            style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -394,6 +401,23 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                   _buildActionGridButton(Icons.bento, 'Lunchbox Pre-order', Colors.greenAccent, _showLunchboxSelector),
                   _buildActionGridButton(Icons.account_balance_wallet, 'Auto Top-Up', _neonCyan, _showAutoTopUpSelector),
                   _buildActionGridButton(Icons.family_restroom, 'Shared Wallet', _neonBlue, _showSharedWalletDialog),
+                  _buildActionGridButton(Icons.schedule, 'Allowances', _neonOrange, _showScheduledAllowances),
+                  _buildActionGridButton(Icons.gavel, 'Disputes', _neonPink, _showDisputes),
+                  _buildActionGridButton(Icons.pie_chart, 'Analytics', _neonCyan, _showSpendingAnalytics),
+                  _buildActionGridButton(Icons.assignment_turned_in, 'Bounties', Colors.yellow, _showBounties),
+                  _buildActionGridButton(Icons.block, 'Vendors', _neonPink, _showVendorRestrictions),
+                  _buildActionGridButton(Icons.school, 'SmartI', Colors.blueAccent, _showAcademicRewards),
+                  _buildActionGridButton(Icons.group_add, 'Co-Parent', _neonBlue, _showCoParenting),
+                  _buildActionGridButton(Icons.warning_amber_rounded, 'SOS Alerts', MPesaTheme.primaryRed, _showEmergencyAlerts),
+                  _buildActionGridButton(Icons.location_on, 'Geofence', MPesaTheme.neonOrange, _showGeofenceAlerts),
+                  _buildActionGridButton(Icons.local_hospital, 'Medical Lock', MPesaTheme.neonCyan, _showMedicalLock),
+                  _buildActionGridButton(Icons.directions_bus, 'Transport', Colors.amber, _showTransportAllowance),
+                  _buildActionGridButton(Icons.favorite, 'Health Stats', MPesaTheme.neonPink, _showHealthStats),
+                  _buildActionGridButton(Icons.home, 'Housing', Colors.tealAccent, _showHousingPayments),
+                  _buildActionGridButton(Icons.account_balance, 'Tuition', Colors.blueAccent, _showTuitionPayments),
+                  _buildActionGridButton(Icons.savings, 'Savings', MPesaTheme.primaryGreen, _showSavingsTarget),
+                  _buildActionGridButton(Icons.school, 'Grad Fund', Colors.purpleAccent, _showGraduationFund),
+                  _buildActionGridButton(Icons.autorenew, 'Bills', Colors.cyanAccent, _showSubscriptionManager),
                 ],
               ),
               const SizedBox(height: 24),
@@ -837,6 +861,209 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
             child: const Text('Close', style: TextStyle(color: _textSecondary)),
           )
         ],
+      ),
+    );
+  }
+
+  void _showScheduledAllowances() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ScheduledAllowancesView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showDisputes() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DisputeResolutionCenterView(
+          parentUser: widget.user,
+        ),
+      ),
+    );
+  }
+
+  void _showSpendingAnalytics() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SpendingAnalyticsView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showBounties() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BountiesView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showVendorRestrictions() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VendorRestrictionsView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showAcademicRewards() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AcademicRewardsView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showCoParenting() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CoParentingInviteView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showEmergencyAlerts() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EmergencyAlertsView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showGeofenceAlerts() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GeofenceAlertsView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showMedicalLock() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MedicalLockView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showTransportAllowance() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TransportAllowanceView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showHealthStats() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HealthStatsView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showHousingPayments() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HousingPaymentsView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showTuitionPayments() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TuitionPaymentsView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showSavingsTarget() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SavingsTargetView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showGraduationFund() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GraduationFundView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
+      ),
+    );
+  }
+
+  void _showSubscriptionManager() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SubscriptionManagerView(
+          parentUser: widget.user,
+          linkedStudents: _linkedStudents,
+        ),
       ),
     );
   }
@@ -1367,5 +1594,110 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
      } catch (e) {
        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Vault funding failed: $e')));
      }
+  }
+
+  void _showVaultTopUpModal(BuildContext context) {
+    final phoneController = TextEditingController(text: widget.user['phone'] ?? '');
+    final amountController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+        decoration: const BoxDecoration(
+          color: _bgColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border(top: BorderSide(color: _neonBlue, width: 2)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Top Up Family Vault', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text('Securely fund your shared vault via M-PESA.', style: TextStyle(color: _textSecondary, fontSize: 14)),
+            const SizedBox(height: 24),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'M-PESA Number (e.g. 2547XXXXXXXX)',
+                labelStyle: const TextStyle(color: _textSecondary),
+                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonBlue.withOpacity(0.5)), borderRadius: BorderRadius.circular(12)),
+                focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: _neonBlue), borderRadius: BorderRadius.circular(12)),
+                prefixIcon: const Icon(Icons.phone_android, color: _neonBlue),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Amount (Ksh)',
+                labelStyle: const TextStyle(color: _textSecondary),
+                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonBlue.withOpacity(0.5)), borderRadius: BorderRadius.circular(12)),
+                focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: _neonBlue), borderRadius: BorderRadius.circular(12)),
+                prefixIcon: const Icon(Icons.attach_money, color: _neonBlue),
+              ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final phone = phoneController.text.trim();
+                  final amount = amountController.text.trim();
+                  if (phone.isEmpty || amount.isEmpty) return;
+                  
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Initiating STK Push...'), backgroundColor: _neonBlue));
+                  
+                  try {
+                    final response = await http.post(
+                      Uri.parse(ApiConfig.mpesaStkPush),
+                      headers: {'Content-Type': 'application/json'},
+                      body: jsonEncode({
+                        'phone_number': phone,
+                        'amount': int.parse(amount),
+                        'user_id': FirebaseAuth.instance.currentUser!.uid,
+                        'metadata': {
+                          'action': 'fund_vault',
+                          'funder_phone': phone
+                        }
+                      }),
+                    ).timeout(const Duration(seconds: 30));
+                    
+                    if (response.statusCode == 200) {
+                      if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Check your phone for the M-PESA prompt!'), backgroundColor: Colors.green));
+                    } else {
+                      if (mounted) {
+                        String errMsg = 'Failed to initiate STK Push';
+                        try {
+                          final parsed = jsonDecode(response.body);
+                          errMsg = parsed['error'] ?? errMsg;
+                        } catch (_) {}
+                        ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Failed: $errMsg'), backgroundColor: _neonPink));
+                      }
+                    }
+                  } on TimeoutException catch (_) {
+                    if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Request timed out. Please try again.'), backgroundColor: _neonPink));
+                  } catch (e) {
+                    if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: _neonPink));
+                  }
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: _neonBlue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                child: const Text('Top Up Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
   }
 }

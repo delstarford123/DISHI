@@ -10,4 +10,8 @@ class SecureStorageService {
   static Future<String?> getOfflinePin() async {
     return await _storage.read(key: 'offline_pin');
   }
+
+  static Future<void> clearAll() async {
+    await _storage.deleteAll();
+  }
 }

@@ -351,13 +351,14 @@ class _EventTicketsViewState extends State<EventTicketsView> with SingleTickerPr
                 Row(
                   children: [
                     if (event['earlyBirdPrice'] != null)
-                      _buildTicketTier(event, 'Early Bird', event['earlyBirdPrice'], (event['earlyBirdSold'] ?? 0) >= (event['earlyBirdCapacity'] ?? 9999)),
-                    const SizedBox(width: 8),
+                      _buildTicketTier(event, 'Early Bird', event['earlyBirdPrice'] ?? 0, (event['earlyBirdSold'] ?? 0) >= (event['earlyBirdCapacity'] ?? 9999)),
+                    if (event['earlyBirdPrice'] != null)
+                      const SizedBox(width: 8),
                     _buildTicketTier(event, 'Regular', event['price'] ?? 0, (event['regularSold'] ?? 0) >= (event['regularCapacity'] ?? (event['capacity'] ?? 9999))),
                     if (event['vipPrice'] != null)
                       const SizedBox(width: 8),
                     if (event['vipPrice'] != null)
-                      _buildTicketTier(event, 'VIP', event['vipPrice'], (event['vipSold'] ?? 0) >= (event['vipCapacity'] ?? 9999)),
+                      _buildTicketTier(event, 'VIP', event['vipPrice'] ?? 0, (event['vipSold'] ?? 0) >= (event['vipCapacity'] ?? 9999)),
                   ],
                 ),
                 
@@ -390,10 +391,17 @@ class _EventTicketsViewState extends State<EventTicketsView> with SingleTickerPr
     );
   }
   
-  Widget _buildTicketTier(Map<String, dynamic> event, String tier, int price, bool isSoldOut) {
+  Widget _buildTicketTier(Map<String, dynamic> event, String tier, dynamic priceValue, bool isSoldOut) {
+    int price = 0;
+    if (priceValue is num) {
+      price = priceValue.toInt();
+    } else if (priceValue is String) {
+      price = int.tryParse(priceValue) ?? 0;
+    }
+    
     return Expanded(
       child: GestureDetector(
-        onTap: isSoldOut ? null : () => _buyTicket(event, tier, (price is int) ? price : (price as num).toInt()),
+        onTap: isSoldOut ? null : () => _buyTicket(event, tier, price),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           decoration: BoxDecoration(

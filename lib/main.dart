@@ -1,103 +1,98 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_options.dart';
+import 'core/theme/mpesa_theme.dart';
+import 'features/auth/presentation/signup_view.dart';
+import 'features/auth/presentation/pin_unlock_view.dart';
+import 'core/services/secure_storage_service.dart';
 
-void main() {
+import 'package:provider/provider.dart';
+import 'features/smartimer/data/hive_service.dart';
+import 'features/smartimer/providers/plan_provider.dart';
+import 'features/match/presentation/widgets/incoming_call_listener.dart';
+
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Initialize Firebase or other services here
-  runApp(const SwapEatApp());
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  await SmartiHiveService.init(); // Initialize Hive for Smartimer
+  
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => SmartiPlanProvider()),
+      ],
+      child: const DISHIApp(),
+    ),
+  );
 }
 
-class SwapEatApp extends StatelessWidget {
-  const SwapEatApp({Key? key}) : super(key: key);
+class DISHIApp extends StatelessWidget {
+  const DISHIApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SwapEat',
-      theme: ThemeData(
-        primarySwatch: Colors.red,
-      ),
-      // Wrap your entire app route or specific screens with the listener
+      title: 'DISHI',
+      navigatorKey: appNavigatorKey,
+      debugShowCheckedModeBanner: false,
+      theme: MPesaTheme.lightTheme,
+      darkTheme: MPesaTheme.darkTheme,
+      themeMode: ThemeMode.system,
       builder: (context, child) {
         return IncomingCallListener(
+          navigatorKey: appNavigatorKey,
           child: child ?? const SizedBox.shrink(),
         );
       },
-      home: const HomeScreen(),
-      routes: {
-        '/incoming_call': (context) => const CallScreen(),
-      },
+      home: const InitialRouter(),
     );
   }
 }
 
-/// A global listener that safely handles incoming events without interrupting the build phase.
-class IncomingCallListener extends StatefulWidget {
-  final Widget child;
-
-  const IncomingCallListener({Key? key, required this.child}) : super(key: key);
-
+class InitialRouter extends StatefulWidget {
+  const InitialRouter({super.key});
   @override
-  State<IncomingCallListener> createState() => _IncomingCallListenerState();
+  State<InitialRouter> createState() => _InitialRouterState();
 }
 
-class _IncomingCallListenerState extends State<IncomingCallListener> {
+class _InitialRouterState extends State<InitialRouter> {
   @override
   void initState() {
     super.initState();
-    _initializeCallListener();
-  }
-
-  void _initializeCallListener() {
-    // Replace this with your actual Twilio, WebRTC, or socket stream listener
-    // callStream.listen((callData) {
-    //   _handleIncomingCall(callData);
-    // });
-  }
-
-  void _handleIncomingCall(dynamic callData) {
-    // SAFELY defer navigation until after the widget tree is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        Navigator.of(context).pushNamed(
-          '/incoming_call',
-          arguments: callData,
-        );
-      }
+      _checkInitialRoute();
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Simply return the child; DO NOT execute navigation logic here.
-    return widget.child;
+  Future<void> _checkInitialRoute() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final pin = await SecureStorageService.getOfflinePin();
+      if (mounted) {
+        if (pin != null && pin.isNotEmpty) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const PinUnlockView()));
+        } else {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const SignupView()));
+        }
+      }
+    } else {
+      if (mounted) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const SignupView()));
+      }
+    }
   }
-}
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('SwapEat Home')),
-      body: const Center(child: Text('Waiting for calls...')),
+    return const Scaffold(
+      backgroundColor: MPesaTheme.primaryGreen,
+      body: Center(child: CircularProgressIndicator(color: Colors.white)),
     );
   }
 }
 
-class CallScreen extends StatelessWidget {
-  const CallScreen({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.red.shade900,
-      body: const Center(
-        child: Text(
-          'Incoming Call...',
-          style: TextStyle(color: Colors.white, fontSize: 24),
-        ),
-      ),
-    );
-  }
-}

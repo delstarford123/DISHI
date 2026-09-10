@@ -178,7 +178,7 @@
         
         <div class="form-group">
             <label for="phone">M-PESA Phone Number</label>
-            <input type="tel" id="phone" placeholder="2547..." pattern="^254[0-9]{9}$" required>
+            <input type="tel" id="phone" placeholder="07XX XXX XXX" required>
         </div>
         
         <button class="btn" id="payBtn" onclick="initiatePayment()">Pay KES <span id="btnPrice">{{ event.price }}</span></button>
@@ -198,8 +198,17 @@
         document.getElementById('btnPrice').innerText = currentAmount;
     }
 
+    function normalizePhone(raw) {
+        let p = raw.replace(/[\s\-\(\)\+]/g, '');
+        if (p.startsWith('0') && p.length === 10) return '254' + p.substring(1);
+        if (p.length === 9) return '254' + p;
+        if (p.startsWith('254') && p.length === 12) return p;
+        return p;
+    }
+
     async function initiatePayment() {
-        const phone = document.getElementById('phone').value;
+        let phoneRaw = document.getElementById('phone').value;
+        const phone = normalizePhone(phoneRaw);
         const email = document.getElementById('email').value;
         const btn = document.getElementById('payBtn');
         const statusMsg = document.getElementById('status-msg');
@@ -207,7 +216,7 @@
         if (!phone || !phone.startsWith('254') || phone.length !== 12) {
             statusMsg.style.display = 'block';
             statusMsg.style.color = 'var(--error-red)';
-            statusMsg.innerText = 'Please enter a valid M-PESA number starting with 254';
+            statusMsg.innerText = 'Please enter a valid M-PESA number (e.g. 0712345678)';
             return;
         }
         if (!email || !email.includes('@')) {
@@ -230,6 +239,7 @@
                 body: JSON.stringify({
                     phone_number: phone,
                     amount: currentAmount,
+                    user_id: 'web_event_ticket',
                     reason: 'Event Ticket',
                     metadata: {
                         type: 'event_ticket',

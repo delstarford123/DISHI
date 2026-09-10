@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/models/user_model.dart';
+import 'fundi_dashboard_view.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
@@ -89,12 +90,25 @@ class _FundiRegistrationViewState extends State<FundiRegistrationView> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'roles': FieldValue.arrayUnion(['fundi']),
+      });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Comrade Fundi Profile Created!'),
           backgroundColor: _neonCyan,
         ));
-        Navigator.pop(context);
+        
+        var updatedUserJson = widget.userModel.toJson();
+        List<dynamic> roles = List.from(updatedUserJson['roles'] ?? []);
+        if (!roles.contains('fundi')) roles.add('fundi');
+        updatedUserJson['roles'] = roles;
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => FundiDashboardView(user: updatedUserJson)),
+        );
       }
     } catch (e) {
       if (mounted) {

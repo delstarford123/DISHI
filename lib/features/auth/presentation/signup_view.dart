@@ -129,93 +129,101 @@ class _SignupViewState extends State<SignupView> {
   Widget _buildLandingPage() {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
+      body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const PhotoCollageWidget(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Connect with\npeople easily\nand instantly.',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.black87,
-                      height: 1.15,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Share moments, discover stories, and grow your\ncommunity.',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey.shade600,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _showForm = true;
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF3D6D50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(28),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Get Started',
+            const Expanded(
+              flex: 4,
+              child: PhotoCollageWidget(),
+            ),
+            Expanded(
+              flex: 6,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Connect with\npeople easily\nand instantly.',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 36,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black87,
+                          height: 1.15,
+                          letterSpacing: -0.5,
                         ),
                       ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  Center(
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginView()));
-                      },
-                      child: RichText(
-                        text: TextSpan(
-                          text: 'Already have an account? ',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 14,
-                          ),
-                          children: const [
-                            TextSpan(
-                              text: 'Sign In',
-                              style: TextStyle(
-                                color: Color(0xFF3D6D50),
-                                fontWeight: FontWeight.bold,
-                              ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Share moments, discover stories, and grow your\ncommunity.',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.grey.shade600,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _showForm = true;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3D6D50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(28),
                             ),
-                          ],
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'Get Started',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      
+                      const SizedBox(height: 24),
+                      
+                      Center(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginView()));
+                          },
+                          child: RichText(
+                            text: TextSpan(
+                              text: 'Already have an account? ',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 14,
+                              ),
+                              children: const [
+                                TextSpan(
+                                  text: 'Sign In',
+                                  style: TextStyle(
+                                    color: Color(0xFF3D6D50),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                    ],
                   ),
-                  const SizedBox(height: 32),
-                ],
+                ),
               ),
             ),
           ],
@@ -227,171 +235,179 @@ class _SignupViewState extends State<SignupView> {
   Widget _buildSignupForm() {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
+      body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Stack(
-              children: [
-                const PhotoCollageWidget(),
-                Positioned(
-                  top: 40,
-                  left: 16,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => setState(() => _showForm = false),
-                  ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            Expanded(
+              flex: 3,
+              child: Stack(
                 children: [
-                  const Text(
-                    'Create\nAccount.',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.black87,
-                      height: 1.15,
-                      letterSpacing: -0.5,
+                  const PhotoCollageWidget(),
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                      onPressed: () => setState(() => _showForm = false),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Join the DISHI community today and connect with people instantly.',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey.shade600,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  if (_errorMessage != null)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.only(bottom: 24),
-                      decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                      child: Text(_errorMessage!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
-                    ),
-                    
-                  TextField(
-                    controller: _nameController,
-                    style: const TextStyle(color: Colors.black87),
-                    decoration: InputDecoration(
-                      labelText: 'Full Name',
-                      labelStyle: TextStyle(color: Colors.grey.shade600),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                      prefixIcon: Icon(Icons.person, color: Colors.grey.shade600),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  TextField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(color: Colors.black87),
-                    decoration: InputDecoration(
-                      labelText: 'Email Address',
-                      labelStyle: TextStyle(color: Colors.grey.shade600),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                      prefixIcon: Icon(Icons.email, color: Colors.grey.shade600),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    style: const TextStyle(color: Colors.black87),
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      labelStyle: TextStyle(color: Colors.grey.shade600),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                      prefixIcon: Icon(Icons.lock, color: Colors.grey.shade600),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off, color: Colors.grey.shade600),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _signup,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF3D6D50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                        elevation: 0,
-                      ),
-                      child: _isLoading 
-                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('Sign Up', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                  
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Row(
-                      children: [
-                        Expanded(child: Divider(color: Colors.black12)),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Text('OR', style: TextStyle(color: Colors.black38, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            Expanded(
+              flex: 7,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Create\nAccount.',
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black87,
+                          height: 1.15,
+                          letterSpacing: -0.5,
                         ),
-                        Expanded(child: Divider(color: Colors.black12)),
-                      ],
-                    ),
-                  ),
-                  
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoading ? null : _handleGoogleSignUp,
-                      icon: const Icon(Icons.login, color: Colors.black87),
-                      label: const Text('Sign Up with Google', style: TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w600)),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey.shade300, width: 2),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                        backgroundColor: Colors.white,
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  
-                  Center(
-                    child: GestureDetector(
-                      onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginView())),
-                      child: RichText(
-                        text: TextSpan(
-                          text: "Already have an account? ",
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                          children: const [
-                            TextSpan(
-                              text: 'Sign In',
-                              style: TextStyle(color: Color(0xFF3D6D50), fontWeight: FontWeight.bold),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Join the DISHI community today and connect with people instantly.',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.grey.shade600,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
+                      if (_errorMessage != null)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 24),
+                          decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                          child: Text(_errorMessage!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+                        ),
+                        
+                      TextField(
+                        controller: _nameController,
+                        style: const TextStyle(color: Colors.black87),
+                        decoration: InputDecoration(
+                          labelText: 'Full Name',
+                          labelStyle: TextStyle(color: Colors.grey.shade600),
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                          prefixIcon: Icon(Icons.person, color: Colors.grey.shade600),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        style: const TextStyle(color: Colors.black87),
+                        decoration: InputDecoration(
+                          labelText: 'Email Address',
+                          labelStyle: TextStyle(color: Colors.grey.shade600),
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                          prefixIcon: Icon(Icons.email, color: Colors.grey.shade600),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        style: const TextStyle(color: Colors.black87),
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          labelStyle: TextStyle(color: Colors.grey.shade600),
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                          prefixIcon: Icon(Icons.lock, color: Colors.grey.shade600),
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off, color: Colors.grey.shade600),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 32),
+                      
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _signup,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3D6D50),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                            elevation: 0,
+                          ),
+                          child: _isLoading 
+                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('Sign Up', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                      
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.black12)),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              child: Text('OR', style: TextStyle(color: Colors.black38, fontWeight: FontWeight.bold)),
                             ),
+                            Expanded(child: Divider(color: Colors.black12)),
                           ],
                         ),
                       ),
-                    ),
+                      
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _handleGoogleSignUp,
+                          icon: const Icon(Icons.login, color: Colors.black87),
+                          label: const Text('Sign Up with Google', style: TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w600)),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.grey.shade300, width: 2),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                            backgroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      
+                      Center(
+                        child: GestureDetector(
+                          onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginView())),
+                          child: RichText(
+                            text: TextSpan(
+                              text: "Already have an account? ",
+                              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                              children: const [
+                                TextSpan(
+                                  text: 'Sign In',
+                                  style: TextStyle(color: Color(0xFF3D6D50), fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                    ],
                   ),
-                  const SizedBox(height: 32),
-                ],
+                ),
               ),
             ),
           ],

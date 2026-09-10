@@ -127,15 +127,21 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
     }
   }
 
-  Future<void> _enableBurnerMode() async {
+  Future<void> _toggleBurnerMode() async {
+    final isBurner = _cardData?['status'] == 'burner';
+    final newStatus = isBurner ? 'active' : 'burner';
     try {
-      await _cardService.updateStatus(widget.userModel.uid, 'burner');
+      await _cardService.updateStatus(widget.userModel.uid, newStatus);
       if (_cardData != null) {
         setState(() {
-          _cardData!['status'] = 'burner';
+          _cardData!['status'] = newStatus;
         });
       }
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Burner mode active! Card will self-destruct after next use.')));
+      if (isBurner) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Burner mode deactivated. Card is back to normal.')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Burner mode active! Card will self-destruct after next use.')));
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
     }
@@ -539,10 +545,10 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
                         onTap: _showLimitDialog
                       ),
                       _buildControlTile(
-                        icon: Icons.local_fire_department, 
-                        label: 'Burner Mode', 
-                        color: Colors.orangeAccent,
-                        onTap: _enableBurnerMode
+                        icon: _cardData?['status'] == 'burner' ? Icons.local_fire_department : Icons.fireplace_outlined, 
+                        label: _cardData?['status'] == 'burner' ? 'Turn off Burner' : 'Burner Mode', 
+                        color: _cardData?['status'] == 'burner' ? Colors.redAccent : Colors.orangeAccent,
+                        onTap: _toggleBurnerMode
                       ),
                     ],
                   ),

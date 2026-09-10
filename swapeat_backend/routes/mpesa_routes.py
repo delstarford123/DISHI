@@ -575,6 +575,7 @@ def mpesa_callback():
             funder_phone  = metadata.get('funder_phone', '')
             fund_action   = metadata.get('action', '')
             is_fund_student = fund_action == 'fund_student'
+            is_fund_vault = fund_action == 'fund_vault'
 
             # Fetch fresh balance for notification
             new_balance = 0.0
@@ -611,6 +612,20 @@ def mpesa_callback():
                             ))
                 except Exception as e:
                     print(f"FCM parent fund_student error (non-fatal): {e}")
+            elif is_fund_vault:
+                # ── Fund Parent Vault ─────────────────────────────────────
+                try:
+                    # Update savingsBalance directly for Vault
+                    user_ref.update({'savingsBalance': firestore.Increment(credit_amt)})
+                    print(f"Vault funded with KSH {credit_amt} for parent {user_id}")
+                    
+                    _send_notification(
+                        db, user_id,
+                        "🏦 Vault Funded Successfully!",
+                        f"Your Shared Family Vault has been credited with KSH {credit_amt:.0f}. You can now allocate funds to your students."
+                    )
+                except Exception as e:
+                    print(f"Error funding vault for {user_id}: {e}")
             elif sender_id:
                 if sender_id == user_id:
                     _send_notification(

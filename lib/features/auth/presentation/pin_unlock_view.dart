@@ -3,6 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/services/secure_storage_service.dart';
 import '../../student/presentation/student_main_scaffold.dart';
+import '../../admin/presentation/admin_dashboard_view.dart';
+import '../../vendor/presentation/vendor_dashboard_view.dart';
+import '../../parent/presentation/parent_dashboard_view.dart';
+import '../../deliv/presentation/deliv_driver_dashboard.dart';
+import '../../housing/presentation/housing_dashboard_view.dart';
+import '../../fundi/presentation/fundi_dashboard_view.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_view.dart';
 import 'forgot_pin_view.dart';
 
@@ -69,11 +77,46 @@ class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProvider
     }
   }
 
-  void _routeToDashboard() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const StudentMainScaffold(user: {})),
-    );
+  Future<void> _routeToDashboard() async {
+    final user = FirebaseAuth.instance.currentUser;
+    Map<String, dynamic> userData = {'roles': ['student']};
+    
+    if (user != null) {
+      try {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists && doc.data() != null) {
+          userData = doc.data() as Map<String, dynamic>;
+        }
+      } catch (e) {
+        debugPrint('Failed to load user roles: $e');
+      }
+    }
+
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) {
+          final roles = List<String>.from(userData['roles'] ?? []);
+          final email = (userData['email'] as String? ?? '').toLowerCase();
+          
+          if (email.contains('admin') || roles.contains('admin')) {
+            return AdminDashboardView(user: userData);
+          } else if (email.contains('vendor') || roles.contains('vendor')) {
+            return VendorDashboardView(user: userData);
+          } else if (roles.contains('parent')) {
+            return ParentDashboardView(user: userData);
+          } else if (roles.contains('driver')) {
+            return DelivDriverDashboard(user: userData);
+          } else if (roles.contains('house_owner')) {
+            return HousingDashboardView(user: userData);
+          } else if (roles.contains('fundi')) {
+            return FundiDashboardView(user: userData);
+          } else {
+            return StudentMainScaffold(user: userData);
+          }
+        }),
+      );
+    }
   }
 
   @override
@@ -82,9 +125,8 @@ class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProvider
       backgroundColor: MPesaTheme.darkBg,
       resizeToAvoidBottomInset: false,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
+        child: Column(
+          children: [
             const SizedBox(height: 16),
             
             // Header Profile / Icon
@@ -122,7 +164,7 @@ class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProvider
                 color: Colors.white54,
               ),
             ),
-            const SizedBox(height: 24),
+            const Spacer(),
             
             // Animated Rectangular PIN Display Area
             AnimatedBuilder(
@@ -177,7 +219,8 @@ class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProvider
             
             const SizedBox(height: 16),
             if (_isLoading) const CircularProgressIndicator(color: MPesaTheme.neonCyan),
-            const SizedBox(height: 32),
+            
+            const Spacer(),
             
             // Modern Dark Number Pad
             _buildNumberPad(),
@@ -200,8 +243,12 @@ class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProvider
             
             // Logout
             TextButton(
-              onPressed: () {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
+              onPressed: () async {
+                await SecureStorageService.clearAll();
+                await FirebaseAuth.instance.signOut();
+                if (mounted) {
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
+                }
               },
               child: const Text(
                 'Sign out / Switch Account', 
@@ -214,7 +261,6 @@ class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProvider
             ),
             const SizedBox(height: 16),
           ],
-        ),
         ),
       ),
     );

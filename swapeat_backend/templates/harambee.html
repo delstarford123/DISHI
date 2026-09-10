@@ -653,11 +653,10 @@
 
     // ── Format phone display ──────────────────────────────────────
     function normalisePhone(raw) {
-        let p = raw.replace(/[\s\-\(\)]/g, '');
+        let p = raw.replace(/[\s\-\(\)\+]/g, '');
         if (p.startsWith('0') && p.length === 10) return '254' + p.slice(1);
-        if (p.startsWith('+254')) return p.slice(1);
-        if (p.startsWith('254') && p.length === 12) return p;
         if (p.length === 9) return '254' + p;
+        if (p.startsWith('254') && p.length === 12) return p;
         return p;
     }
 

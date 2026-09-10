@@ -45,11 +45,13 @@ class AllFeaturesView extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: bgColor,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text('All Features', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        leading: Navigator.canPop(context) 
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
+        title: const Text('All Features & Apps', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: CustomScrollView(
         slivers: [

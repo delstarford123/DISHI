@@ -1354,7 +1354,16 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
             ListTile(
               leading: const Icon(Icons.logout, color: _neonPink),
               title: const Text('Sign Out', style: TextStyle(color: _neonPink)),
-              onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView())),
+              onTap: () async {
+                  await SecureStorageService.clearAll();
+                  try {
+                    await GoogleSignIn().disconnect();
+                  } catch (_) {}
+                  await FirebaseAuth.instance.signOut();
+                  if (context.mounted) {
+                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
+                  }
+              },
             ),
           ],
         ),
@@ -1420,6 +1429,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                 title: const Text('Log Out', style: TextStyle(color: Colors.white)),
                 onTap: () async {
                   Navigator.pop(context);
+                  await SecureStorageService.clearAll();
                   try {
                     await GoogleSignIn().disconnect();
                   } catch (_) {} // Ignore if already disconnected
@@ -1463,8 +1473,19 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
               try {
                 final user = FirebaseAuth.instance.currentUser;
                 if (user != null) {
-                  await http.delete(Uri.parse('${ApiConfig.baseUrl}/api/v1/security/${user.uid}/delete_account'));
-                  await user.delete();
+                  final idToken = await user.getIdToken();
+                  await http.delete(
+                    Uri.parse('${ApiConfig.baseUrl}/api/v1/security/${user.uid}/delete_account'),
+                    headers: {'Authorization': 'Bearer $idToken'},
+                    // 30 seconds timeout
+                  ).timeout(const Duration(seconds: 30));
+                  
+                  // Clear offline storage
+                  await SecureStorageService.clearAll();
+                  try {
+                    await GoogleSignIn().disconnect();
+                  } catch (_) {}
+                  await FirebaseAuth.instance.signOut();
                 }
               } catch (e) {
                 debugPrint("Delete failed: $e");

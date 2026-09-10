@@ -143,84 +143,95 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
           ),
           
           SafeArea(
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                Text(
-                  widget.isEditing ? 'Change Role' : 'Choose Your Path',
-                  style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.2),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Swipe to explore available roles',
-                  style: TextStyle(color: Colors.white70, fontSize: 16),
-                ),
-                const SizedBox(height: 40),
-                
-                // Carousel
-                SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.45,
-                  child: PageView.builder(
-                    controller: _pageController,
-                    onPageChanged: (index) {
-                      setState(() {
-                        _currentIndex = index;
-                      });
-                    },
-                    itemCount: _roles.length,
-                    itemBuilder: (context, index) {
-                      return _buildRoleCard(index);
-                    },
-                  ),
-                ),
-                
-                const Spacer(),
-                
-                // Phone Number and Submit
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                  child: Column(
-                    children: [
-                      GlassCard(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        child: TextField(
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: const InputDecoration(
-                            labelText: 'Phone Number',
-                            labelStyle: TextStyle(color: Colors.white70),
-                            hintText: 'e.g. 0712345678',
-                            hintStyle: TextStyle(color: Colors.white38),
-                            border: InputBorder.none,
-                            prefixIcon: Icon(Icons.phone, color: Colors.white70),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: IntrinsicHeight(
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 20),
+                          Text(
+                            widget.isEditing ? 'Change Role' : 'Choose Your Path',
+                            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.2),
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Swipe to explore available roles',
+                            style: TextStyle(color: Colors.white70, fontSize: 16),
+                          ),
+                          const SizedBox(height: 40),
+                          
+                          // Carousel
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.45,
+                            child: PageView.builder(
+                              controller: _pageController,
+                              onPageChanged: (index) {
+                                setState(() {
+                                  _currentIndex = index;
+                                });
+                              },
+                              itemCount: _roles.length,
+                              itemBuilder: (context, index) {
+                                return _buildRoleCard(index);
+                              },
+                            ),
+                          ),
+                          
+                          const Expanded(child: SizedBox(height: 24)),
+                          
+                          // Phone Number and Submit
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                            child: Column(
+                              children: [
+                                GlassCard(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                  child: TextField(
+                                    controller: _phoneController,
+                                    keyboardType: TextInputType.phone,
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Phone Number',
+                                      labelStyle: TextStyle(color: Colors.white70),
+                                      hintText: 'e.g. 0712345678',
+                                      hintStyle: TextStyle(color: Colors.white38),
+                                      border: InputBorder.none,
+                                      prefixIcon: Icon(Icons.phone, color: Colors.white70),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 56,
+                                  child: ElevatedButton(
+                                    onPressed: _submitRoles,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: MPesaTheme.primaryGreen,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      elevation: 8,
+                                      shadowColor: MPesaTheme.primaryGreen.withOpacity(0.5),
+                                    ),
+                                    child: Text(
+                                      widget.isEditing ? 'Save Role' : 'Continue as ${_roles[_currentIndex]['title']}', 
+                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1)
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 32),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: _submitRoles,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: MPesaTheme.primaryGreen,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            elevation: 8,
-                            shadowColor: MPesaTheme.primaryGreen.withOpacity(0.5),
-                          ),
-                          child: Text(
-                            widget.isEditing ? 'Save Role' : 'Continue as ${_roles[_currentIndex]['title']}', 
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1)
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ],

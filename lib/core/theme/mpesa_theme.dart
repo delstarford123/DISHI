@@ -16,7 +16,16 @@ class MPesaTheme {
   static const Color neonCyan = Color(0xFF18FFFF);
   static const Color neonPink = Color(0xFFFF4081);
   static const Color neonPurple = Color(0xFFD500F9);
+  static const Color neonOrange = Color(0xFFFF6F00);
+  static const Color neonBlue = Color(0xFF2979FF);
   
+  static const Color mpesaRed = Color(0xFFE53935);
+  static const Color mpesaGreen = Color(0xFF1EA152);
+  static const Color surfaceColor = Color(0xFF131A26);
+  static const Color surfaceLightColor = Color(0xFF1A2235);
+  static const Color textSecondaryColor = Color(0xFF8B9BB4);
+  static const Color backgroundColor = Color(0xFF0B101A);
+
   static const Color white = Colors.white;
   static const Color black = Colors.black;
   static const Color grey = Color(0xFF9E9E9E);

@@ -13,13 +13,50 @@ class SharedSavingsView extends StatelessWidget {
   });
 
   void _triggerVaultFunding(BuildContext context) {
-    DepositHelper.initiateStkPush(
-      phoneNumber: parentPhoneNumber,
-      amount: 1000.0, // Example preset amount
-      accountReference: 'VAULT_FUND',
-    );
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('STK Push sent to your M-PESA to fund the Vault')),
+    final TextEditingController amountController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: MPesaTheme.surfaceColor,
+          title: const Text('Fund Vault', style: TextStyle(color: Colors.white)),
+          content: TextField(
+            controller: amountController,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              labelText: 'Amount (KSH)',
+              labelStyle: TextStyle(color: MPesaTheme.textSecondaryColor),
+              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: MPesaTheme.surfaceLightColor)),
+              focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: MPesaTheme.mpesaGreen)),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: MPesaTheme.textSecondaryColor)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.mpesaGreen),
+              onPressed: () {
+                final double? amount = double.tryParse(amountController.text);
+                if (amount != null && amount > 0) {
+                  Navigator.pop(context);
+                  DepositHelper.initiateStkPush(
+                    phoneNumber: parentPhoneNumber,
+                    amount: amount,
+                    accountReference: 'VAULT_FUND',
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('STK Push sent for KSH $amount to your M-PESA'), backgroundColor: MPesaTheme.mpesaGreen),
+                  );
+                }
+              },
+              child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      }
     );
   }
 

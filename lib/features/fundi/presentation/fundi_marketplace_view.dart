@@ -4,6 +4,7 @@ import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/models/user_model.dart';
 import '../../auth/presentation/role_selection_view.dart';
 import 'fundi_dashboard_view.dart';
+import 'fundi_registration_view.dart';
 
 class FundiMarketplaceView extends StatefulWidget {
   final UserModel userModel;
@@ -89,9 +90,8 @@ class _FundiMarketplaceViewState extends State<FundiMarketplaceView> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => RoleSelectionView(
-                initialRoles: widget.userModel.roles,
-                isEditing: true,
+              builder: (context) => FundiRegistrationView(
+                userModel: widget.userModel,
               )
             )
           );

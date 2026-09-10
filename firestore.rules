@@ -32,6 +32,11 @@ service cloud.firestore {
       return hasRole('vendor');
     }
 
+    // Check if the requester is a parent of the given studentId
+    function isParentOf(studentId) {
+      return isAuth() && (request.auth.uid in get(/databases/$(database)/documents/users/$(studentId)).data.get('linkedParents', []));
+    }
+
     // ── Default Deny ──────────────────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
@@ -55,16 +60,18 @@ service cloud.firestore {
     match /users/{userId} {
       // Any signed-in user can read any profile (needed for vendor POS, match, DeLiv)
       allow read: if isAuth();
-      // Users manage their own profile; admins can write any user doc (freeze, role changes)
-      allow write: if isSelf(userId) || isAdmin();
+      // Users manage their own profile; admins can write any user doc
+      // Parents can update their child's doc, or link themselves (add to linkedParents)
+      allow write: if isSelf(userId) || isAdmin() || isParentOf(userId) || 
+                   (isAuth() && hasRole('parent') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedParents']));
 
       // All subcollections under /users/{uid}/... (menu, staff, notifications, bounties, etc.)
       match /{subcollection}/{docId} {
-        allow read, write: if isSelf(userId) || isAdmin();
+        allow read, write: if isSelf(userId) || isAdmin() || isParentOf(userId);
       }
       // Deep wildcard for deeper nesting
       match /{rest=**} {
-        allow read, write: if isSelf(userId) || isAdmin();
+        allow read, write: if isSelf(userId) || isAdmin() || isParentOf(userId);
       }
     }
 
@@ -90,12 +97,64 @@ service cloud.firestore {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 3.5. NOTIFICATIONS
+    // 3.5. NOTIFICATIONS, PREORDERS, SCHEDULED ALLOWANCES, DISPUTES
     // ─────────────────────────────────────────────────────────────────────────
     match /notifications/{notificationId} {
       allow read: if isAuth();
       // Allow users to update readBy and dismissedBy arrays
       allow write: if isAuth();
+    }
+    
+    match /preorders/{docId} {
+      allow read, write: if isAuth();
+    }
+    
+    match /scheduled_allowances/{docId} {
+      allow read, write: if isAuth();
+    }
+    
+    match /disputes/{docId} {
+      allow read, write: if isAuth();
+    }
+    
+    match /bounties/{docId} {
+      allow read, write: if isAuth();
+    }
+    
+    match /academic_rewards/{docId} {
+      allow read, write: if isAuth();
+    }
+    
+    match /safety_alerts/{docId} {
+      allow read, write: if isAuth();
+    }
+    
+    match /medical_locks/{docId} {
+      allow read, write: if isAuth();
+    }
+    
+    match /transport_allowances/{docId} {
+      allow read, write: if isAuth();
+    }
+    
+    match /housing_payments/{docId} {
+      allow read, write: if isAuth();
+    }
+    
+    match /tuition_escrow/{docId} {
+      allow read, write: if isAuth();
+    }
+    
+    match /savings_targets/{docId} {
+      allow read, write: if isAuth();
+    }
+    
+    match /graduation_funds/{docId} {
+      allow read, write: if isAuth();
+    }
+    
+    match /subscriptions/{docId} {
+      allow read, write: if isAuth();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
