@@ -167,7 +167,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                       ),
                     ),
                     SliverPadding(
-                      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 100),
+                      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
                           const SizedBox(height: 16),
@@ -184,7 +184,6 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                           _buildDishiIdCard(userModel),
                           const SizedBox(height: 16),
                           UniversalSupportWidget(userId: userModel.uid, userRole: 'student'),
-                          const SizedBox(height: 100),
                         ]),
                       ),
                     ),

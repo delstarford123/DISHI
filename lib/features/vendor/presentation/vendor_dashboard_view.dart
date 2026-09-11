@@ -378,7 +378,7 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                   ),
                 ),
                 SliverPadding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 80.0),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
                       // Balances
@@ -518,7 +518,6 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                       ),
                       const SizedBox(height: 24),
                       UniversalSupportWidget(userId: userModel.uid, userRole: 'vendor'),
-                      const SizedBox(height: 100),
                     ]),
                   ),
                 ),

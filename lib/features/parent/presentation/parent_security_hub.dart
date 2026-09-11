@@ -114,7 +114,7 @@ class ParentSecurityHub extends StatelessWidget {
             backgroundColor: _surfaceLight,
           ));
           await Future.delayed(const Duration(seconds: 2));
-          if (mounted) {
+          if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text('All systems secure. No new anomalies detected.'),
               backgroundColor: _neonCyan,

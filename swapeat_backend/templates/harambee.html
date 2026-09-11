@@ -3,30 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fund {{ student_name }}'s Education | DISHI</title>
-    <meta name="description" content="Support {{ student_name }}'s education by funding their DISHI campus wallet securely via Safaricom M-PESA.">
+    <title>{{ campaign.title if campaign else 'Harambee Crowdfunding' }} | DISHI</title>
+    <meta name="description" content="Support this crowdfunding campaign securely via Safaricom M-PESA.">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* Light Professional Theme (Smoke White) */
-            --bg:           #F5F5F5; /* Smoke White */
-            --bg-card:      #FFFFFF;
-            --bg-elevated:  #FAFAFA;
-            --green:        #43B02A;
-            --green-glow:   rgba(67, 176, 42, 0.2);
-            --green-light:  #5CD642;
-            --green-dim:    rgba(67, 176, 42, 0.1);
-            --blue:         #2563EB;
+        :root {
+            /* Distinct Professional Crowdfunding Theme (Dark Purple/Neon) */
+            --bg:           #0B0F19; /* Very dark blue/black */
+            --bg-card:      #131A2A;
+            --bg-elevated:  #1A2235;
+            --green:        #A855F7; /* Using Purple for primary action */
+            --green-glow:   rgba(168, 85, 247, 0.4);
+            --green-light:  #C084FC;
+            --green-dim:    rgba(168, 85, 247, 0.15);
+            --blue:         #3B82F6;
             --amber:        #F59E0B;
             --red:          #EF4444;
             
-            /* Text Colors inverted for light mode */
-            --text:         #111827; 
-            --text-sub:     #4B5563; 
-            --text-muted:   #6B7280; 
+            /* Text Colors */
+            --text:         #F8FAFC; 
+            --text-sub:     #94A3B8; 
+            --text-muted:   #64748B; 
             
-            --border:       rgba(0,0,0,0.1);
-            --border-green: rgba(67, 176, 42, 0.3);
+            --border:       rgba(255, 255, 255, 0.08);
+            --border-green: rgba(168, 85, 247, 0.3);
             --radius:       16px;
             --radius-sm:    10px;
             
@@ -45,8 +46,35 @@
             align-items: center;
             padding: 24px 16px 48px;
             background-image:
-                radial-gradient(ellipse 60% 50% at 20% 10%, rgba(67,176,42,0.05), transparent),
-                radial-gradient(ellipse 50% 40% at 80% 80%, rgba(37,99,235,0.03), transparent);
+                radial-gradient(ellipse 60% 50% at 20% 10%, rgba(168, 85, 247, 0.08), transparent),
+                radial-gradient(ellipse 50% 40% at 80% 80%, rgba(59, 130, 246, 0.05), transparent);
+        }
+
+        /* Background Watermark */
+        .bg-watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90vw;
+            height: 90vh;
+            max-width: 800px;
+            background-image: url("{{ url_for('static', filename='img/dishi_logo.png') }}");
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+            opacity: 0.05;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1; /* Keep content above watermark */
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         /* ─── HEADER ─────────────────────────────────────────────── */
@@ -161,7 +189,7 @@
             gap: 8px; margin-bottom: 20px;
         }
         .quick-btn {
-            background: #fff;
+            background: transparent;
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
             padding: 10px 4px;
@@ -184,7 +212,7 @@
         }
         .input-wrap {
             display: flex; align-items: center;
-            background: #fff;
+            background: transparent;
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
             overflow: hidden;
@@ -395,13 +423,21 @@
         .btn-fund.loading .btn-label { display: none; }
         .btn-fund.loading .mpesa-logo { display: none; }
     </style>
+    <meta property="og:title" content="Fund {{ student_name }}'s Education | DISHI" />
+    <meta property="og:description" content="Support a student's education on DISHI." />
+    <meta property="og:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
 </head>
 <body>
+    <div class="bg-watermark"></div>
 
+<div class="container">
 <!-- TOP BAR -->
 <div class="top-bar">
     <div class="logo-wrap">
-        <div class="logo-mark">D</div>
+        <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="D" class="logo-mark" style="object-fit: cover; background: transparent;">
         <span class="logo-text">DISHI</span>
     </div>
     <div class="ssl-badge">
@@ -420,8 +456,8 @@
 <!-- ── PAGE-LEVEL ERROR ─────────────────────────────────────────── -->
 <div class="page-error">
     <div class="page-error-icon">😕</div>
-    <div class="page-error-title">Link Not Found</div>
-    <div class="page-error-sub">{{ error }}<br><br>Please check the link and try again, or contact the student to resend their funding link.</div>
+    <div class="page-error-title">Campaign Not Found</div>
+    <div class="page-error-sub">{{ error }}<br><br>Please check the link and try again, or contact the organizer to resend their campaign link.</div>
 </div>
 
 {% else %}
@@ -429,37 +465,37 @@
 <div id="state-form">
     <!-- Student Hero -->
     <div class="student-hero">
-        <div class="avatar-ring" id="avatarInitials">{{ student_name[0]|upper }}</div>
+        <div class="avatar-ring" id="avatarInitials">🚀</div>
         
         {% if campaign %}
         <div class="student-name-big">{{ campaign.title }}</div>
         <div class="verified-chip">
-            <span>✅</span> Created by {{ student_name }}
+            <span>✅</span> Verified Campaign
         </div>
-        <div class="fund-purpose" style="text-align:center; margin-bottom: 12px; background: #fff;">
-            <p style="font-size: 13px; color: var(--text-sub); line-height: 1.5;">{{ campaign.description }}</p>
+        <div class="fund-purpose" style="text-align:center; margin-bottom: 12px; background: rgba(0,0,0,0.2);">
+            <p style="font-size: 13px; color: var(--text); line-height: 1.5;">{{ campaign.description }}</p>
         </div>
         
-        <div style="background: rgba(0,0,0,0.05); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
             <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
                 <span style="color:var(--text-sub);">Raised: <strong style="color:var(--green);">KES {{ "{:,.0f}".format(campaign.raised) }}</strong></span>
                 <span style="color:var(--text-sub);">Goal: KES {{ "{:,.0f}".format(campaign.goal) }}</span>
             </div>
-            <div style="background: rgba(0,0,0,0.1); height: 6px; border-radius: 3px; overflow:hidden;">
+            <div style="background: rgba(0,0,0,0.5); height: 6px; border-radius: 3px; overflow:hidden;">
                 <div style="background: var(--green); height: 100%; width: {{ [ (campaign.raised / campaign.goal * 100), 100 ] | min }}%;"></div>
             </div>
         </div>
         {% else %}
-        <div class="student-name-big">Fund {{ student_name }}</div>
+        <div class="student-name-big">Support Campaign</div>
         <div class="verified-chip">
-            <span>✅</span> Verified DISHI Student
+            <span>✅</span> Verified DISHI Campaign
         </div>
-        <div class="fund-purpose">
+        <div class="fund-purpose" style="background: rgba(0,0,0,0.2);">
             <div class="fund-purpose-title">How your contribution helps</div>
-            <div class="fund-purpose-row"><span class="fund-purpose-dot"></span>Campus meals &amp; daily nutrition</div>
-            <div class="fund-purpose-row"><span class="fund-purpose-dot"></span>Academic supplies &amp; textbooks</div>
-            <div class="fund-purpose-row"><span class="fund-purpose-dot"></span>Emergency student expenses</div>
-            <div class="fund-purpose-row"><span class="fund-purpose-dot"></span>Goes directly to student's verified wallet</div>
+            <div class="fund-purpose-row"><span class="fund-purpose-dot"></span>Directly funds the campaign goal</div>
+            <div class="fund-purpose-row"><span class="fund-purpose-dot"></span>Supports the organizers mission</div>
+            <div class="fund-purpose-row"><span class="fund-purpose-dot"></span>Transparent tracking on DISHI</div>
+            <div class="fund-purpose-row"><span class="fund-purpose-dot"></span>Secure and instant M-PESA transfers</div>
         </div>
         {% endif %}
     </div>
@@ -520,8 +556,8 @@
 
         <button class="btn-fund" id="fundBtn" type="button">
             <div class="spinner"></div>
-            <span class="mpesa-logo">💚</span>
-            <span class="btn-label">Fund {{ student_name }} via M-PESA</span>
+            <span class="mpesa-logo">⚡</span>
+            <span class="btn-label">Support Campaign via M-PESA</span>
         </button>
     </div>
 </div>
@@ -547,7 +583,7 @@
         </div>
         <div class="step-item">
             <div class="step-num">4</div>
-            <div class="step-text"><strong>{{ student_name }}'s wallet</strong> will be credited <strong>instantly</strong> after authorization.</div>
+            <div class="step-text"><strong>The Campaign</strong> will be credited <strong>instantly</strong> after authorization.</div>
         </div>
     </div>
 
@@ -565,8 +601,8 @@
     <div class="success-amount" id="successAmount"></div>
     <div class="success-title">Payment Confirmed!</div>
     <div class="success-sub">
-        <strong id="successStudentName">{{ student_name }}</strong>'s DISHI wallet has been funded successfully.<br><br>
-        They will receive an instant notification on the DISHI app. Thank you for supporting their education! 🙏
+        The campaign has been funded successfully.<br><br>
+        The organizer will receive an instant notification on the DISHI app. Thank you for your support! 🙏
     </div>
 </div>
 
@@ -596,6 +632,7 @@
 </div>
 
 </div><!-- .card -->
+</div><!-- .container -->
 
 {% if not error %}
 <script>

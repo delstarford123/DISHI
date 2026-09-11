@@ -394,14 +394,39 @@
         .btn-fund.loading .spinner { display: block; }
         .btn-fund.loading .btn-label { display: none; }
         .btn-fund.loading .mpesa-logo { display: none; }
+
+        /* Background Watermark */
+        .bg-watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90vw;
+            height: 90vh;
+            max-width: 800px;
+            background-image: url("{{ url_for('static', filename='img/dishi_logo.png') }}");
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+            opacity: 0.05;
+            pointer-events: none;
+            z-index: -1;
+        }
     </style>
+    <meta property="og:title" content="Fund {{ student_name }}'s Education | DISHI" />
+    <meta property="og:description" content="Support a student's education on DISHI." />
+    <meta property="og:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
 </head>
 <body>
+    <div class="bg-watermark"></div>
 
-<!-- TOP BAR -->
+<!-- Top Navigation -->
 <div class="top-bar">
     <div class="logo-wrap">
-        <div class="logo-mark">D</div>
+        <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="D" class="logo-mark" style="object-fit: cover;">
         <span class="logo-text">DISHI</span>
     </div>
     <div class="ssl-badge">

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'match_vibe_check_dialog.dart';
+import 'match_chat_view.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _neonPink = Color(0xFFFF2A6D);
@@ -103,40 +104,24 @@ class _MatchCrushRadarViewState extends State<MatchCrushRadarView> with TickerPr
   }
 
   void _directDM(Map<String, dynamic> hit) {
-    // DM is free for all authenticated users
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Opened DM with ${hit['name']}! 💬')));
+    final sortedUids = [currentUid, hit['uid']]..sort();
+    final realChatId = sortedUids.join('_');
+    
+    Navigator.push(context, MaterialPageRoute(builder: (_) => MatchChatView(
+      chatId: realChatId,
+      myUid: currentUid,
+      matchName: hit['name'],
+      matchAvatar: hit['profileImageUrl'],
+      matchId: hit['uid'],
+    )));
   }
 
   void _mutualCrushCheck(Map<String, dynamic> hit) {
-    // Simulate a 10% chance of a mutual crush when tapped
-    if (math.Random().nextDouble() > 0.9) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          backgroundColor: const Color(0xFF131A2A),
-          title: const Text('MUTUAL CRUSH! 💖', style: TextStyle(color: _neonPink, fontWeight: FontWeight.bold)),
-          content: Text('${hit['name']} is also looking at you on the radar right now!'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: _neonPink),
-              onPressed: () {
-                Navigator.pop(context);
-                _directDM(hit); // Open chat
-              },
-              child: const Text('Say Hi', style: TextStyle(color: Colors.white)),
-            )
-          ],
-        )
-      );
-    } else {
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        builder: (context) => _buildTargetSheet(hit),
-      );
-    }
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildTargetSheet(hit),
+    );
   }
 
   Widget _buildTargetSheet(Map<String, dynamic> hit) {

@@ -287,7 +287,7 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
               ],
             ),
             SliverPadding(
-              padding: const EdgeInsets.only(top: 16, bottom: 100),
+              padding: const EdgeInsets.only(top: 16, bottom: 80),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   // Earnings Banner — fetches real earnings from Firestore
@@ -745,7 +745,6 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
                   UniversalSupportWidget(
                       userId: uid.isEmpty ? 'unknown' : uid,
                       userRole: 'driver'),
-                  const SizedBox(height: 100),
                 ]),
               ),
             ),
