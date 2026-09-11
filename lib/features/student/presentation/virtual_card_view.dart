@@ -655,8 +655,23 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Physical card request received. We will notify you when it ships!')));
+                      onPressed: () async {
+                        try {
+                          await FirebaseFirestore.instance.collection('physical_card_requests').add({
+                            'uid': widget.userModel.uid,
+                            'studentName': widget.userModel.displayName,
+                            'parentUid': widget.userModel.parentUid ?? 'unknown',
+                            'status': 'pending',
+                            'timestamp': FieldValue.serverTimestamp(),
+                          });
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Physical card request received. We will notify you when it ships!')));
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to request card: $e')));
+                          }
+                        }
                       },
                       icon: const Icon(Icons.credit_card, color: Colors.white),
                       label: const Text('Request Physical Card', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

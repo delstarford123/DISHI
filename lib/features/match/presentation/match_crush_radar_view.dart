@@ -66,6 +66,18 @@ class _MatchCrushRadarViewState extends State<MatchCrushRadarView> with TickerPr
       }
 
       final snapshot = await query.get();
+      
+      // Fetch Mutual Crushes (Matches)
+      final matchesSnapshot = await FirebaseFirestore.instance
+          .collection('matches')
+          .where('users', arrayContains: currentUid)
+          .get();
+      final myMatches = matchesSnapshot.docs.map((d) {
+        final users = List<String>.from(d.data()['users'] ?? []);
+        users.remove(currentUid);
+        return users.isNotEmpty ? users.first : '';
+      }).toSet();
+
       final random = math.Random();
 
       final List<dynamic> hits = snapshot.docs
@@ -84,6 +96,7 @@ class _MatchCrushRadarViewState extends State<MatchCrushRadarView> with TickerPr
           'location': locations[random.nextInt(locations.length)],
           'compatibility': compatibility,
           'faculty': data['faculty'] ?? 'Unknown',
+          'isMutualCrush': myMatches.contains(doc.id),
           'lastActive': DateTime.now().subtract(Duration(minutes: random.nextInt(60))),
         };
       }).toList();
@@ -144,11 +157,18 @@ class _MatchCrushRadarViewState extends State<MatchCrushRadarView> with TickerPr
                   if (hit['isVerified']) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.verified, color: Colors.blueAccent, size: 20)),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: _neonPink.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                child: Text('${hit['compatibility']}% Match', style: const TextStyle(color: _neonPink, fontWeight: FontWeight.bold)),
-              )
+              if (hit['isMutualCrush'] == true)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: _neonPink, borderRadius: BorderRadius.circular(12)),
+                  child: const Text('Mutual Crush! 💖', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: _neonPink.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                  child: Text('${hit['compatibility']}% Match', style: const TextStyle(color: _neonPink, fontWeight: FontWeight.bold)),
+                )
             ],
           ),
           const SizedBox(height: 12),

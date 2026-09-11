@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, redirect
 from dotenv import load_dotenv
 import os
 import json
@@ -180,10 +180,13 @@ def debug_firebase():
 
 # ─── Pitch Page / About ─────────────────────────────────────────────────────────
 @app.route('/about')
-def about_page():
+def about():
     return render_template('about.html')
 
-# ─── Harambee Co-Funding Web Interface ──────────────────────────────────────────
+@app.route('/harambee/<string:code>')
+def harambee_shortlink(code):
+    return redirect(f"/fund?campaign={code}&dishi_id={code}")
+
 @app.route('/fund')
 def harambee_fund():
     dishi_id = request.args.get('dishi_id')
@@ -211,7 +214,8 @@ def harambee_fund():
                     user_doc = db.collection('users').document(student_id).get()
                     if not user_doc.exists:
                         user_doc = None
-        else:
+                        
+        if not user_doc and dishi_id:
             # First check by document ID directly
             doc = db.collection('users').document(dishi_id).get()
             if doc.exists:

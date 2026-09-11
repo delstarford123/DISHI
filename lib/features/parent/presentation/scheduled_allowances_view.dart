@@ -4,12 +4,12 @@ import '../../../core/theme/mpesa_theme.dart';
 
 class ScheduledAllowancesView extends StatefulWidget {
   final Map<String, dynamic> parentUser;
-  final List<Map<String, dynamic>> linkedStudents;
+  final String? selectedStudentUid;
 
   const ScheduledAllowancesView({
     super.key,
     required this.parentUser,
-    required this.linkedStudents,
+    this.selectedStudentUid,
   });
 
   @override
@@ -18,14 +18,13 @@ class ScheduledAllowancesView extends StatefulWidget {
 
 class _ScheduledAllowancesViewState extends State<ScheduledAllowancesView> {
   final _amountController = TextEditingController();
-  String? _selectedStudentUid;
   String _frequency = 'Weekly'; // Daily, Weekly, Monthly
 
   bool _isSaving = false;
 
   Future<void> _saveAllowance() async {
     final amount = double.tryParse(_amountController.text.trim());
-    if (amount == null || amount <= 0 || _selectedStudentUid == null) {
+    if (amount == null || amount <= 0 || widget.selectedStudentUid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid amount and select a student.')),
       );
@@ -36,7 +35,7 @@ class _ScheduledAllowancesViewState extends State<ScheduledAllowancesView> {
     try {
       await FirebaseFirestore.instance.collection('scheduled_allowances').add({
         'parentUid': widget.parentUser['uid'],
-        'studentUid': _selectedStudentUid,
+        'studentUid': widget.selectedStudentUid,
         'amount': amount,
         'frequency': _frequency,
         'status': 'active',
@@ -105,25 +104,11 @@ class _ScheduledAllowancesViewState extends State<ScheduledAllowancesView> {
               style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 24),
-            DropdownButtonFormField<String>(
-              value: _selectedStudentUid,
-              dropdownColor: const Color(0xFF131A2A),
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Select Student',
-                labelStyle: const TextStyle(color: Colors.white54),
-                filled: true,
-                fillColor: const Color(0xFF131A2A),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            if (widget.selectedStudentUid == null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text('No student selected in Dependents tab.', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
               ),
-              items: widget.linkedStudents.map((s) {
-                return DropdownMenuItem<String>(
-                  value: s['uid'],
-                  child: Text(s['name'] ?? 'Unknown Student'),
-                );
-              }).toList(),
-              onChanged: (val) => setState(() => _selectedStudentUid = val),
-            ),
             const SizedBox(height: 16),
             TextField(
               controller: _amountController,
@@ -182,7 +167,7 @@ class _ScheduledAllowancesViewState extends State<ScheduledAllowancesView> {
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('scheduled_allowances')
-                    .where('parentUid', isEqualTo: widget.parentUser['uid'])
+                    .where('studentUid', isEqualTo: widget.selectedStudentUid)
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
@@ -190,7 +175,7 @@ class _ScheduledAllowancesViewState extends State<ScheduledAllowancesView> {
                   }
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return const Center(
-                      child: Text('No active schedules.', style: TextStyle(color: Colors.white54)),
+                      child: Text('No active schedules for this student.', style: TextStyle(color: Colors.white54)),
                     );
                   }
 
@@ -199,17 +184,14 @@ class _ScheduledAllowancesViewState extends State<ScheduledAllowancesView> {
                     itemBuilder: (context, index) {
                       final doc = snapshot.data!.docs[index];
                       final data = doc.data() as Map<String, dynamic>;
-                      final student = widget.linkedStudents.firstWhere(
-                        (s) => s['uid'] == data['studentUid'],
-                        orElse: () => {'name': 'Unknown'},
-                      );
+                      final studentName = 'Selected Student';
 
                       return Card(
                         color: const Color(0xFF131A2A),
                         margin: const EdgeInsets.only(bottom: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         child: ListTile(
-                          title: Text(student['name'], style: const TextStyle(color: Colors.white)),
+                          title: Text(studentName, style: const TextStyle(color: Colors.white)),
                           subtitle: Text(
                             'Ksh ${data['amount']} • ${data['frequency']}',
                             style: const TextStyle(color: MPesaTheme.neonCyan),

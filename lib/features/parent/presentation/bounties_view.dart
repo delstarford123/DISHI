@@ -4,12 +4,12 @@ import '../../../core/theme/mpesa_theme.dart';
 
 class BountiesView extends StatefulWidget {
   final Map<String, dynamic> parentUser;
-  final List<Map<String, dynamic>> linkedStudents;
+  final String? selectedStudentUid;
 
   const BountiesView({
     super.key,
     required this.parentUser,
-    required this.linkedStudents,
+    this.selectedStudentUid,
   });
 
   @override
@@ -17,8 +17,7 @@ class BountiesView extends StatefulWidget {
 }
 
 class _BountiesViewState extends State<BountiesView> {
-  String? _selectedStudentUid;
-  final _taskController = TextEditingController();
+    final _taskController = TextEditingController();
   final _rewardController = TextEditingController();
 
   bool _isSaving = false;
@@ -27,7 +26,7 @@ class _BountiesViewState extends State<BountiesView> {
     final task = _taskController.text.trim();
     final reward = double.tryParse(_rewardController.text.trim());
 
-    if (task.isEmpty || reward == null || reward <= 0 || _selectedStudentUid == null) {
+    if (task.isEmpty || reward == null || reward <= 0 || widget.selectedStudentUid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a task, valid reward, and select a student.')),
       );
@@ -38,7 +37,7 @@ class _BountiesViewState extends State<BountiesView> {
     try {
       await FirebaseFirestore.instance.collection('bounties').add({
         'parentUid': widget.parentUser['uid'],
-        'studentUid': _selectedStudentUid,
+        'studentUid': widget.selectedStudentUid,
         'task': task,
         'reward': reward,
         'status': 'Open', // Open, PendingApproval, Completed
@@ -112,25 +111,10 @@ class _BountiesViewState extends State<BountiesView> {
               style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 24),
-            if (widget.linkedStudents.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _selectedStudentUid,
-                dropdownColor: const Color(0xFF131A2A),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Assign To',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF131A2A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-                items: widget.linkedStudents.map((s) {
-                  return DropdownMenuItem<String>(
-                    value: s['uid'],
-                    child: Text(s['name'] ?? 'Unknown Student'),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedStudentUid = val),
+            if (widget.selectedStudentUid == null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text('No student selected in Dependents tab.', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
               ),
             const SizedBox(height: 16),
             TextField(
@@ -204,10 +188,7 @@ class _BountiesViewState extends State<BountiesView> {
                       final data = doc.data() as Map<String, dynamic>;
                       final status = data['status'] ?? 'Open';
                       
-                      final student = widget.linkedStudents.firstWhere(
-                        (s) => s['uid'] == data['studentUid'],
-                        orElse: () => {'name': 'Unknown'},
-                      );
+                      final studentName = 'Selected Student';
 
                       return Card(
                         color: const Color(0xFF131A2A),
@@ -216,7 +197,7 @@ class _BountiesViewState extends State<BountiesView> {
                         child: ListTile(
                           title: Text(data['task'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           subtitle: Text(
-                            'Assignee: ${student['name']}\nStatus: $status',
+                            'Assignee: ${studentName}\nStatus: $status',
                             style: TextStyle(
                               color: status == 'PendingApproval' ? Colors.orange : (status == 'Completed' ? Colors.green : Colors.white54),
                             ),
@@ -245,3 +226,4 @@ class _BountiesViewState extends State<BountiesView> {
     );
   }
 }
+

@@ -4,12 +4,12 @@ import '../../../core/theme/mpesa_theme.dart';
 
 class HousingPaymentsView extends StatefulWidget {
   final Map<String, dynamic> parentUser;
-  final List<Map<String, dynamic>> linkedStudents;
+  final String? selectedStudentUid;
 
   const HousingPaymentsView({
     super.key,
     required this.parentUser,
-    required this.linkedStudents,
+    this.selectedStudentUid,
   });
 
   @override
@@ -17,7 +17,6 @@ class HousingPaymentsView extends StatefulWidget {
 }
 
 class _HousingPaymentsViewState extends State<HousingPaymentsView> {
-  String? _selectedStudentUid;
   final _amountController = TextEditingController();
   final _landlordIdController = TextEditingController();
 
@@ -27,7 +26,7 @@ class _HousingPaymentsViewState extends State<HousingPaymentsView> {
     final amount = double.tryParse(_amountController.text.trim());
     final landlordId = _landlordIdController.text.trim();
 
-    if (amount == null || amount <= 0 || landlordId.isEmpty || _selectedStudentUid == null) {
+    if (amount == null || amount <= 0 || landlordId.isEmpty || widget.selectedStudentUid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid amount, landlord ID, and select a student.')),
       );
@@ -38,7 +37,7 @@ class _HousingPaymentsViewState extends State<HousingPaymentsView> {
     try {
       await FirebaseFirestore.instance.collection('housing_payments').add({
         'parentUid': widget.parentUser['uid'],
-        'studentUid': _selectedStudentUid,
+        'studentUid': widget.selectedStudentUid,
         'landlordId': landlordId,
         'amount': amount,
         'status': 'Pending Escrow',
@@ -90,25 +89,11 @@ class _HousingPaymentsViewState extends State<HousingPaymentsView> {
               style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 24),
-            if (widget.linkedStudents.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _selectedStudentUid,
-                dropdownColor: const Color(0xFF131A2A),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Select Student',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF131A2A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-                items: widget.linkedStudents.map((s) {
-                  return DropdownMenuItem<String>(
-                    value: s['uid'],
-                    child: Text(s['name'] ?? 'Unknown Student'),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedStudentUid = val),
+            const SizedBox(height: 24),
+            if (widget.selectedStudentUid == null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text('No student selected in Dependents tab.', style: TextStyle(color: MPesaTheme.primaryRed, fontWeight: FontWeight.bold)),
               ),
             const SizedBox(height: 16),
             TextField(
@@ -183,10 +168,7 @@ class _HousingPaymentsViewState extends State<HousingPaymentsView> {
                       final data = doc.data() as Map<String, dynamic>;
                       final status = data['status'] ?? 'Pending Escrow';
 
-                      final student = widget.linkedStudents.firstWhere(
-                        (s) => s['uid'] == data['studentUid'],
-                        orElse: () => {'name': 'Unknown'},
-                      );
+                      final studentName = 'Selected Student';
 
                       return Card(
                         color: const Color(0xFF131A2A),
@@ -195,7 +177,7 @@ class _HousingPaymentsViewState extends State<HousingPaymentsView> {
                         child: ListTile(
                           title: Text('Landlord: ${data['landlordId']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           subtitle: Text(
-                            'Student: ${student['name']}\nStatus: $status',
+                            'Student: ${studentName}\nStatus: $status',
                             style: TextStyle(color: status == 'Completed' ? Colors.green : Colors.white54),
                           ),
                           trailing: Text('Ksh ${data['amount']}', style: const TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold, fontSize: 16)),

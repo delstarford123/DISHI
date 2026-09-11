@@ -4,12 +4,12 @@ import '../../../core/theme/mpesa_theme.dart';
 
 class SubscriptionManagerView extends StatefulWidget {
   final Map<String, dynamic> parentUser;
-  final List<Map<String, dynamic>> linkedStudents;
+  final String? selectedStudentUid;
 
   const SubscriptionManagerView({
     super.key,
     required this.parentUser,
-    required this.linkedStudents,
+    this.selectedStudentUid,
   });
 
   @override
@@ -17,9 +17,7 @@ class SubscriptionManagerView extends StatefulWidget {
 }
 
 class _SubscriptionManagerViewState extends State<SubscriptionManagerView> {
-  String? _selectedStudentUid;
-
-  Future<void> _updateSubscriptionStatus(String docId, String newStatus) async {
+    Future<void> _updateSubscriptionStatus(String docId, String newStatus) async {
     try {
       await FirebaseFirestore.instance.collection('subscriptions').doc(docId).update({
         'status': newStatus,
@@ -69,25 +67,10 @@ class _SubscriptionManagerViewState extends State<SubscriptionManagerView> {
               style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 24),
-            if (widget.linkedStudents.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _selectedStudentUid,
-                dropdownColor: const Color(0xFF131A2A),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Select Student',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF131A2A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-                items: widget.linkedStudents.map((s) {
-                  return DropdownMenuItem<String>(
-                    value: s['uid'],
-                    child: Text(s['name'] ?? 'Unknown Student'),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedStudentUid = val),
+            if (widget.selectedStudentUid == null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text('No student selected in Dependents tab.', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
               ),
             const SizedBox(height: 32),
             const Text(
@@ -96,12 +79,12 @@ class _SubscriptionManagerViewState extends State<SubscriptionManagerView> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: _selectedStudentUid == null
+              child: widget.selectedStudentUid == null
                   ? const Center(child: Text('Please select a student above.', style: TextStyle(color: Colors.white54)))
                   : StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('subscriptions')
-                          .where('studentUid', isEqualTo: _selectedStudentUid)
+                          .where('studentUid', isEqualTo: widget.selectedStudentUid)
                           .snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -190,3 +173,4 @@ class _SubscriptionManagerViewState extends State<SubscriptionManagerView> {
     );
   }
 }
+

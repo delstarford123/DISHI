@@ -22,7 +22,8 @@ def create_harambee():
         'title': title,
         'goalAmount': goal_amount,
         'description': description,
-        'raisedAmount': 0.0,
+        'raised': 0.0,
+        'donors': [],
         'status': 'active',
         'createdAt': firestore.SERVER_TIMESTAMP
     })
@@ -38,6 +39,7 @@ def donate_harambee():
     donor_id = data.get('donorId')
     campaign_id = data.get('campaignId')
     amount = float(data.get('amount', 0))
+    donor_name = data.get('donorName', 'Anonymous')
     
     if not all([donor_id, campaign_id, amount > 0]):
         return jsonify({"error": "Missing parameters"}), 400
@@ -46,49 +48,70 @@ def donate_harambee():
     donor_ref = db.collection('users').document(donor_id)
     campaign_ref = db.collection('harambee_campaigns').document(campaign_id)
     
-    donor_doc = donor_ref.get()
-    campaign_doc = campaign_ref.get()
-    
-    if not donor_doc.exists or not campaign_doc.exists:
-        return jsonify({"error": "Donor or Campaign not found"}), 404
-        
     commission = 3.0
     total_deduct = amount + commission
 
-    if float(donor_doc.to_dict().get('walletBalance', 0)) < total_deduct:
-        return jsonify({"error": f"Insufficient funds. You need {total_deduct} KSH (including 3 KSH commission)."}), 400
+    @firestore.transactional
+    def process_donation(transaction, d_ref, c_ref):
+        donor_doc = d_ref.get(transaction=transaction)
+        campaign_doc = c_ref.get(transaction=transaction)
         
-    recipient_id = campaign_doc.to_dict().get('studentId')
-    recipient_ref = db.collection('users').document(recipient_id)
+        if not donor_doc.exists or not campaign_doc.exists:
+            return False, "Donor or Campaign not found"
+            
+        current_balance = float(donor_doc.to_dict().get('walletBalance', 0))
+        if current_balance < total_deduct:
+            # Must exactly match the frontend string "Insufficient wallet balance"
+            return False, "Insufficient wallet balance"
+            
+        recipient_id = campaign_doc.to_dict().get('studentId')
+        recipient_ref = db.collection('users').document(recipient_id)
+        
+        # Deduct from donor
+        transaction.update(d_ref, {'walletBalance': firestore.Increment(-total_deduct)})
+        
+        # Credit recipient
+        transaction.update(recipient_ref, {'walletBalance': firestore.Increment(amount)})
+        
+        # System Commission
+        admin_ref = db.collection('admin_finances').document('dishi_system_pool')
+        transaction.set(admin_ref, {'system_commissions': firestore.Increment(commission)}, merge=True)
+        
+        # Update Campaign Donors
+        donors = list(campaign_doc.to_dict().get('donors', []))
+        donors.append({
+            'name': donor_name,
+            'amount': amount,
+            'timestamp': datetime.datetime.utcnow()
+        })
+        donors.sort(key=lambda x: x['amount'], reverse=True)
+        
+        transaction.update(c_ref, {
+            'raised': firestore.Increment(amount),
+            'donors': donors
+        })
+        
+        # Log Ledger
+        ledger_ref = db.collection('wallet_ledger').document()
+        transaction.set(ledger_ref, {
+            'type': 'harambee_donation',
+            'from_user': donor_id,
+            'to_user': recipient_id,
+            'campaign_id': campaign_id,
+            'amount': amount,
+            'commission': commission,
+            'total_deducted': total_deduct,
+            'timestamp': firestore.SERVER_TIMESTAMP
+        })
+        return True, "Donation successful!"
+
+    tx = db.transaction()
+    success, msg = process_donation(tx, donor_ref, campaign_ref)
     
-    batch = db.batch()
-    
-    # Deduct from donor
-    batch.update(donor_ref, {'walletBalance': firestore.Increment(-total_deduct)})
-    
-    # Credit recipient
-    batch.update(recipient_ref, {'walletBalance': firestore.Increment(amount)})
-    
-    # Add to system pool
-    admin_ref = db.collection('admin_finances').document('dishi_system_pool')
-    batch.set(admin_ref, {'system_commissions': firestore.Increment(commission)}, merge=True)
-    
-    # Update Campaign
-    batch.update(campaign_ref, {'raisedAmount': firestore.Increment(amount)})
-    
-    # Log tx
-    tx_ref = db.collection('transactions').document()
-    batch.set(tx_ref, {
-        'donorId': donor_id,
-        'campaignId': campaign_id,
-        'recipientId': recipient_id,
-        'amount': amount,
-        'type': 'harambee_donation',
-        'timestamp': firestore.SERVER_TIMESTAMP
-    })
-    
-    batch.commit()
-    return jsonify({"success": True, "message": "Donation successful!"})
+    if not success:
+        return jsonify({"error": msg}), 400
+        
+    return jsonify({"success": True, "message": msg})
 
 @social_bp.route('/bounty/create', methods=['POST'])
 def create_bounty():

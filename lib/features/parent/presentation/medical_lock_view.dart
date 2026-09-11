@@ -4,12 +4,12 @@ import '../../../core/theme/mpesa_theme.dart';
 
 class MedicalLockView extends StatefulWidget {
   final Map<String, dynamic> parentUser;
-  final List<Map<String, dynamic>> linkedStudents;
+  final String? selectedStudentUid;
 
   const MedicalLockView({
     super.key,
     required this.parentUser,
-    required this.linkedStudents,
+    this.selectedStudentUid,
   });
 
   @override
@@ -17,13 +17,12 @@ class MedicalLockView extends StatefulWidget {
 }
 
 class _MedicalLockViewState extends State<MedicalLockView> {
-  String? _selectedStudentUid;
   final _amountController = TextEditingController();
   bool _isSaving = false;
 
   Future<void> _setMedicalLock() async {
     final amount = double.tryParse(_amountController.text.trim());
-    if (amount == null || amount < 0 || _selectedStudentUid == null) {
+    if (amount == null || amount < 0 || widget.selectedStudentUid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid amount and select a student.')),
       );
@@ -33,9 +32,9 @@ class _MedicalLockViewState extends State<MedicalLockView> {
     setState(() => _isSaving = true);
     try {
       // Create a medical lock configuration document
-      await FirebaseFirestore.instance.collection('medical_locks').doc(_selectedStudentUid).set({
+      await FirebaseFirestore.instance.collection('medical_locks').doc(widget.selectedStudentUid).set({
         'parentUid': widget.parentUser['uid'],
-        'studentUid': _selectedStudentUid,
+        'studentUid': widget.selectedStudentUid,
         'lockedAmount': amount,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -84,27 +83,11 @@ class _MedicalLockViewState extends State<MedicalLockView> {
               style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 24),
-            if (widget.linkedStudents.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _selectedStudentUid,
-                dropdownColor: const Color(0xFF131A2A),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Select Student',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF131A2A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-                items: widget.linkedStudents.map((s) {
-                  return DropdownMenuItem<String>(
-                    value: s['uid'],
-                    child: Text(s['name'] ?? 'Unknown Student'),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedStudentUid = val),
+            if (widget.selectedStudentUid == null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text('No student selected in Dependents tab.', style: TextStyle(color: MPesaTheme.primaryRed, fontWeight: FontWeight.bold)),
               ),
-            const SizedBox(height: 16),
             TextField(
               controller: _amountController,
               keyboardType: TextInputType.number,
@@ -162,10 +145,7 @@ class _MedicalLockViewState extends State<MedicalLockView> {
                       final doc = snapshot.data!.docs[index];
                       final data = doc.data() as Map<String, dynamic>;
                       
-                      final student = widget.linkedStudents.firstWhere(
-                        (s) => s['uid'] == data['studentUid'],
-                        orElse: () => {'name': 'Unknown'},
-                      );
+                      final studentName = 'Selected Student';
 
                       return Card(
                         color: const Color(0xFF131A2A),
@@ -173,7 +153,7 @@ class _MedicalLockViewState extends State<MedicalLockView> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         child: ListTile(
                           leading: const Icon(Icons.shield, color: MPesaTheme.neonCyan),
-                          title: Text(student['name'], style: const TextStyle(color: Colors.white)),
+                          title: Text(studentName, style: const TextStyle(color: Colors.white)),
                           subtitle: const Text('Locked for Pharmacy / Clinic use only', style: TextStyle(color: Colors.white54)),
                           trailing: Text('Ksh ${data['lockedAmount']}', style: const TextStyle(color: MPesaTheme.neonCyan, fontWeight: FontWeight.bold, fontSize: 16)),
                         ),

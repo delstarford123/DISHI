@@ -4,12 +4,12 @@ import '../../../core/theme/mpesa_theme.dart';
 
 class EmergencyAlertsView extends StatefulWidget {
   final Map<String, dynamic> parentUser;
-  final List<Map<String, dynamic>> linkedStudents;
+  final String? selectedStudentUid;
 
   const EmergencyAlertsView({
     super.key,
     required this.parentUser,
-    required this.linkedStudents,
+    this.selectedStudentUid,
   });
 
   @override
@@ -96,10 +96,7 @@ class _EmergencyAlertsViewState extends State<EmergencyAlertsView> {
                       final status = data['status'] ?? 'Unresolved';
                       final isCritical = status == 'Unresolved';
 
-                      final student = widget.linkedStudents.firstWhere(
-                        (s) => s['uid'] == data['studentUid'],
-                        orElse: () => {'name': 'Unknown'},
-                      );
+                      final studentName = 'Selected Student';
 
                       return Card(
                         color: isCritical ? MPesaTheme.primaryRed.withOpacity(0.15) : const Color(0xFF131A2A),
@@ -118,7 +115,7 @@ class _EmergencyAlertsViewState extends State<EmergencyAlertsView> {
                                   Icon(Icons.location_on, color: isCritical ? MPesaTheme.primaryRed : Colors.white54),
                                   const SizedBox(width: 8),
                                   Text(
-                                    student['name'],
+                                    studentName,
                                     style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                                   ),
                                   const Spacer(),
@@ -169,3 +166,4 @@ class _EmergencyAlertsViewState extends State<EmergencyAlertsView> {
     );
   }
 }
+

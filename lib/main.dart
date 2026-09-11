@@ -16,11 +16,16 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  await SmartiHiveService.init(); // Initialize Hive for Smartimer
   
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await SmartiHiveService.init();
+  } catch (e) {
+    debugPrint('Initialization error: $e');
+  }
+
   runApp(
     MultiProvider(
       providers: [
@@ -70,6 +75,7 @@ class _InitialRouterState extends State<InitialRouter> {
   }
 
   Future<void> _checkInitialRoute() async {
+
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final pin = await SecureStorageService.getOfflinePin();
@@ -90,8 +96,8 @@ class _InitialRouterState extends State<InitialRouter> {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: MPesaTheme.primaryGreen,
-      body: Center(child: CircularProgressIndicator(color: Colors.white)),
+      backgroundColor: Color(0xFF0F172A),
+      body: Center(child: CircularProgressIndicator(color: MPesaTheme.primaryGreen)),
     );
   }
 }

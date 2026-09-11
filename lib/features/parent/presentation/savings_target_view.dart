@@ -4,12 +4,12 @@ import '../../../core/theme/mpesa_theme.dart';
 
 class SavingsTargetView extends StatefulWidget {
   final Map<String, dynamic> parentUser;
-  final List<Map<String, dynamic>> linkedStudents;
+  final String? selectedStudentUid;
 
   const SavingsTargetView({
     super.key,
     required this.parentUser,
-    required this.linkedStudents,
+    this.selectedStudentUid,
   });
 
   @override
@@ -17,8 +17,7 @@ class SavingsTargetView extends StatefulWidget {
 }
 
 class _SavingsTargetViewState extends State<SavingsTargetView> {
-  String? _selectedStudentUid;
-  final _goalNameController = TextEditingController();
+    final _goalNameController = TextEditingController();
   final _targetAmountController = TextEditingController();
   final _matchPercentageController = TextEditingController();
 
@@ -29,7 +28,7 @@ class _SavingsTargetViewState extends State<SavingsTargetView> {
     final targetAmount = double.tryParse(_targetAmountController.text.trim());
     final matchPercentage = double.tryParse(_matchPercentageController.text.trim());
 
-    if (goalName.isEmpty || targetAmount == null || targetAmount <= 0 || matchPercentage == null || matchPercentage <= 0 || matchPercentage > 100 || _selectedStudentUid == null) {
+    if (goalName.isEmpty || targetAmount == null || targetAmount <= 0 || matchPercentage == null || matchPercentage <= 0 || matchPercentage > 100 || widget.selectedStudentUid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter valid details and select a student. Match % must be between 1 and 100.')),
       );
@@ -40,7 +39,7 @@ class _SavingsTargetViewState extends State<SavingsTargetView> {
     try {
       await FirebaseFirestore.instance.collection('savings_targets').add({
         'parentUid': widget.parentUser['uid'],
-        'studentUid': _selectedStudentUid,
+        'studentUid': widget.selectedStudentUid,
         'goalName': goalName,
         'targetAmount': targetAmount,
         'matchPercentage': matchPercentage,
@@ -95,25 +94,10 @@ class _SavingsTargetViewState extends State<SavingsTargetView> {
               style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 24),
-            if (widget.linkedStudents.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _selectedStudentUid,
-                dropdownColor: const Color(0xFF131A2A),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Select Student',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF131A2A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-                items: widget.linkedStudents.map((s) {
-                  return DropdownMenuItem<String>(
-                    value: s['uid'],
-                    child: Text(s['name'] ?? 'Unknown Student'),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedStudentUid = val),
+            if (widget.selectedStudentUid == null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text('No student selected in Dependents tab.', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
               ),
             const SizedBox(height: 16),
             TextField(
@@ -211,10 +195,7 @@ class _SavingsTargetViewState extends State<SavingsTargetView> {
                       final data = doc.data() as Map<String, dynamic>;
                       final status = data['status'] ?? 'Active';
 
-                      final student = widget.linkedStudents.firstWhere(
-                        (s) => s['uid'] == data['studentUid'],
-                        orElse: () => {'name': 'Unknown'},
-                      );
+                      final studentName = 'Selected Student';
 
                       final progress = data['currentSaved'] / data['targetAmount'];
 
@@ -235,7 +216,7 @@ class _SavingsTargetViewState extends State<SavingsTargetView> {
                                 ],
                               ),
                               const SizedBox(height: 4),
-                              Text('Student: ${student['name']} | Match: ${data['matchPercentage']}%', style: const TextStyle(color: Colors.white54)),
+                              Text('Student: ${studentName} | Match: ${data['matchPercentage']}%', style: const TextStyle(color: Colors.white54)),
                               const SizedBox(height: 16),
                               LinearProgressIndicator(
                                 value: progress.clamp(0.0, 1.0),
@@ -265,3 +246,4 @@ class _SavingsTargetViewState extends State<SavingsTargetView> {
     );
   }
 }
+

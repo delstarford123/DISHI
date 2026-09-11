@@ -151,6 +151,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
             return Stack(
               children: [
                 CustomScrollView(
+                  physics: const ClampingScrollPhysics(),
                   slivers: [
                     SliverAppBar(
                       expandedHeight: 80,

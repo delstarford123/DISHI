@@ -4,12 +4,12 @@ import '../../../core/theme/mpesa_theme.dart';
 
 class AcademicRewardsView extends StatefulWidget {
   final Map<String, dynamic> parentUser;
-  final List<Map<String, dynamic>> linkedStudents;
+  final String? selectedStudentUid;
 
   const AcademicRewardsView({
     super.key,
     required this.parentUser,
-    required this.linkedStudents,
+    this.selectedStudentUid,
   });
 
   @override
@@ -17,8 +17,7 @@ class AcademicRewardsView extends StatefulWidget {
 }
 
 class _AcademicRewardsViewState extends State<AcademicRewardsView> {
-  String? _selectedStudentUid;
-  final _targetScoreController = TextEditingController();
+    final _targetScoreController = TextEditingController();
   final _rewardController = TextEditingController();
   String _unitName = '';
 
@@ -28,7 +27,7 @@ class _AcademicRewardsViewState extends State<AcademicRewardsView> {
     final reward = double.tryParse(_rewardController.text.trim());
     final targetScore = int.tryParse(_targetScoreController.text.trim());
 
-    if (reward == null || reward <= 0 || targetScore == null || targetScore <= 0 || _selectedStudentUid == null || _unitName.isEmpty) {
+    if (reward == null || reward <= 0 || targetScore == null || targetScore <= 0 || widget.selectedStudentUid == null || _unitName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill out all fields correctly.')),
       );
@@ -39,7 +38,7 @@ class _AcademicRewardsViewState extends State<AcademicRewardsView> {
     try {
       await FirebaseFirestore.instance.collection('academic_rewards').add({
         'parentUid': widget.parentUser['uid'],
-        'studentUid': _selectedStudentUid,
+        'studentUid': widget.selectedStudentUid,
         'unitName': _unitName,
         'targetScore': targetScore,
         'rewardAmount': reward,
@@ -87,25 +86,10 @@ class _AcademicRewardsViewState extends State<AcademicRewardsView> {
               style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 24),
-            if (widget.linkedStudents.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _selectedStudentUid,
-                dropdownColor: const Color(0xFF131A2A),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Select Student',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF131A2A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-                items: widget.linkedStudents.map((s) {
-                  return DropdownMenuItem<String>(
-                    value: s['uid'],
-                    child: Text(s['name'] ?? 'Unknown Student'),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedStudentUid = val),
+            if (widget.selectedStudentUid == null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text('No student selected in Dependents tab.', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
               ),
             const SizedBox(height: 16),
             TextField(
@@ -201,10 +185,7 @@ class _AcademicRewardsViewState extends State<AcademicRewardsView> {
                       final data = doc.data() as Map<String, dynamic>;
                       final status = data['status'] ?? 'Active';
 
-                      final student = widget.linkedStudents.firstWhere(
-                        (s) => s['uid'] == data['studentUid'],
-                        orElse: () => {'name': 'Unknown'},
-                      );
+                      final studentName = 'Selected Student';
 
                       return Card(
                         color: const Color(0xFF131A2A),
@@ -216,7 +197,7 @@ class _AcademicRewardsViewState extends State<AcademicRewardsView> {
                         child: ListTile(
                           title: Text('${data['unitName']} - Target: ${data['targetScore']}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           subtitle: Text(
-                            'Student: ${student['name']}\nStatus: $status',
+                            'Student: ${studentName}\nStatus: $status',
                             style: TextStyle(color: status == 'Achieved' ? Colors.green : Colors.white54),
                           ),
                           trailing: Text('Ksh ${data['rewardAmount']}', style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold, fontSize: 16)),
@@ -233,3 +214,4 @@ class _AcademicRewardsViewState extends State<AcademicRewardsView> {
     );
   }
 }
+

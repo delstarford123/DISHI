@@ -4,12 +4,12 @@ import '../../../core/theme/mpesa_theme.dart';
 
 class GraduationFundView extends StatefulWidget {
   final Map<String, dynamic> parentUser;
-  final List<Map<String, dynamic>> linkedStudents;
+  final String? selectedStudentUid;
 
   const GraduationFundView({
     super.key,
     required this.parentUser,
-    required this.linkedStudents,
+    this.selectedStudentUid,
   });
 
   @override
@@ -17,15 +17,14 @@ class GraduationFundView extends StatefulWidget {
 }
 
 class _GraduationFundViewState extends State<GraduationFundView> {
-  String? _selectedStudentUid;
-  final _amountController = TextEditingController();
+    final _amountController = TextEditingController();
   DateTime? _releaseDate;
 
   bool _isSaving = false;
 
   Future<void> _lockGraduationFund() async {
     final amount = double.tryParse(_amountController.text.trim());
-    if (amount == null || amount <= 0 || _releaseDate == null || _selectedStudentUid == null) {
+    if (amount == null || amount <= 0 || _releaseDate == null || widget.selectedStudentUid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid amount, select a release date, and select a student.')),
       );
@@ -36,7 +35,7 @@ class _GraduationFundViewState extends State<GraduationFundView> {
     try {
       await FirebaseFirestore.instance.collection('graduation_funds').add({
         'parentUid': widget.parentUser['uid'],
-        'studentUid': _selectedStudentUid,
+        'studentUid': widget.selectedStudentUid,
         'lockedAmount': amount,
         'releaseDate': Timestamp.fromDate(_releaseDate!),
         'status': 'Locked',
@@ -113,25 +112,10 @@ class _GraduationFundViewState extends State<GraduationFundView> {
               style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 24),
-            if (widget.linkedStudents.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _selectedStudentUid,
-                dropdownColor: const Color(0xFF131A2A),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Select Student',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF131A2A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-                items: widget.linkedStudents.map((s) {
-                  return DropdownMenuItem<String>(
-                    value: s['uid'],
-                    child: Text(s['name'] ?? 'Unknown Student'),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedStudentUid = val),
+            if (widget.selectedStudentUid == null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text('No student selected in Dependents tab.', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
               ),
             const SizedBox(height: 16),
             TextField(
@@ -214,10 +198,7 @@ class _GraduationFundViewState extends State<GraduationFundView> {
                       final doc = snapshot.data!.docs[index];
                       final data = doc.data() as Map<String, dynamic>;
                       
-                      final student = widget.linkedStudents.firstWhere(
-                        (s) => s['uid'] == data['studentUid'],
-                        orElse: () => {'name': 'Unknown'},
-                      );
+                      final studentName = 'Selected Student';
 
                       final releaseDate = (data['releaseDate'] as Timestamp).toDate();
                       final isReleased = releaseDate.isBefore(DateTime.now());
@@ -231,7 +212,7 @@ class _GraduationFundViewState extends State<GraduationFundView> {
                         ),
                         child: ListTile(
                           leading: Icon(isReleased ? Icons.lock_open : Icons.lock, color: isReleased ? Colors.green : Colors.purpleAccent),
-                          title: Text(student['name'], style: const TextStyle(color: Colors.white)),
+                          title: Text(studentName, style: const TextStyle(color: Colors.white)),
                           subtitle: Text(
                             isReleased ? 'Funds have been released!' : 'Unlocks on: ${releaseDate.toString().split(' ')[0]}',
                             style: TextStyle(color: isReleased ? Colors.green : Colors.white54),
@@ -250,3 +231,4 @@ class _GraduationFundViewState extends State<GraduationFundView> {
     );
   }
 }
+

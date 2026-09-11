@@ -62,8 +62,11 @@ service cloud.firestore {
       allow read: if isAuth();
       // Users manage their own profile; admins can write any user doc
       // Parents can update their child's doc, or link themselves (add to linkedParents)
-      allow write: if isSelf(userId) || isAdmin() || isParentOf(userId) || 
-                   (isAuth() && hasRole('parent') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedParents']));
+      // Parents can create offline child profiles
+      allow write: if isSelf(userId) || isAdmin() || 
+                   (resource != null && isParentOf(userId)) || 
+                   (resource != null && isAuth() && hasRole('parent') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedParents'])) ||
+                   (resource == null && isAuth() && hasRole('parent') && request.resource.data.isOffline == true);
 
       // All subcollections under /users/{uid}/... (menu, staff, notifications, bounties, etc.)
       match /{subcollection}/{docId} {

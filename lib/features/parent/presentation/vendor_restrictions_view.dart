@@ -4,12 +4,12 @@ import '../../../core/theme/mpesa_theme.dart';
 
 class VendorRestrictionsView extends StatefulWidget {
   final Map<String, dynamic> parentUser;
-  final List<Map<String, dynamic>> linkedStudents;
+  final String? selectedStudentUid;
 
   const VendorRestrictionsView({
     super.key,
     required this.parentUser,
-    required this.linkedStudents,
+    this.selectedStudentUid,
   });
 
   @override
@@ -17,8 +17,7 @@ class VendorRestrictionsView extends StatefulWidget {
 }
 
 class _VendorRestrictionsViewState extends State<VendorRestrictionsView> {
-  String? _selectedStudentUid;
-  List<dynamic> _blockedVendors = [];
+    List<dynamic> _blockedVendors = [];
   bool _isLoading = false;
 
   final _vendorIdController = TextEditingController();
@@ -40,9 +39,9 @@ class _VendorRestrictionsViewState extends State<VendorRestrictionsView> {
   }
 
   Future<void> _updateRestrictions() async {
-    if (_selectedStudentUid == null) return;
+    if (widget.selectedStudentUid == null) return;
     try {
-      await FirebaseFirestore.instance.collection('users').doc(_selectedStudentUid).update({
+      await FirebaseFirestore.instance.collection('users').doc(widget.selectedStudentUid).update({
         'blockedVendors': _blockedVendors,
       });
       if (mounted) {
@@ -98,31 +97,13 @@ class _VendorRestrictionsViewState extends State<VendorRestrictionsView> {
               style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 24),
-            if (widget.linkedStudents.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _selectedStudentUid,
-                dropdownColor: const Color(0xFF131A2A),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Select Student',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF131A2A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-                items: widget.linkedStudents.map((s) {
-                  return DropdownMenuItem<String>(
-                    value: s['uid'],
-                    child: Text(s['name'] ?? 'Unknown Student'),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  setState(() => _selectedStudentUid = val);
-                  if (val != null) _fetchRestrictions(val);
-                },
+            if (widget.selectedStudentUid == null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text('No student selected in Dependents tab.', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
               ),
             const SizedBox(height: 24),
-            if (_selectedStudentUid != null) ...[
+            if (widget.selectedStudentUid != null) ...[
               Row(
                 children: [
                   Expanded(
@@ -189,3 +170,4 @@ class _VendorRestrictionsViewState extends State<VendorRestrictionsView> {
     );
   }
 }
+

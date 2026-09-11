@@ -4,12 +4,12 @@ import '../../../core/theme/mpesa_theme.dart';
 
 class TuitionPaymentsView extends StatefulWidget {
   final Map<String, dynamic> parentUser;
-  final List<Map<String, dynamic>> linkedStudents;
+  final String? selectedStudentUid;
 
   const TuitionPaymentsView({
     super.key,
     required this.parentUser,
-    required this.linkedStudents,
+    this.selectedStudentUid,
   });
 
   @override
@@ -17,7 +17,6 @@ class TuitionPaymentsView extends StatefulWidget {
 }
 
 class _TuitionPaymentsViewState extends State<TuitionPaymentsView> {
-  String? _selectedStudentUid;
   final _amountController = TextEditingController();
   final _paybillController = TextEditingController();
   final _accountController = TextEditingController();
@@ -29,7 +28,7 @@ class _TuitionPaymentsViewState extends State<TuitionPaymentsView> {
     final paybill = _paybillController.text.trim();
     final account = _accountController.text.trim();
 
-    if (amount == null || amount <= 0 || paybill.isEmpty || account.isEmpty || _selectedStudentUid == null) {
+    if (amount == null || amount <= 0 || paybill.isEmpty || account.isEmpty || widget.selectedStudentUid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter valid payment details and select a student.')),
       );
@@ -40,7 +39,7 @@ class _TuitionPaymentsViewState extends State<TuitionPaymentsView> {
     try {
       await FirebaseFirestore.instance.collection('tuition_escrow').add({
         'parentUid': widget.parentUser['uid'],
-        'studentUid': _selectedStudentUid,
+        'studentUid': widget.selectedStudentUid,
         'paybillNumber': paybill,
         'accountNumber': account,
         'amount': amount,
@@ -94,25 +93,11 @@ class _TuitionPaymentsViewState extends State<TuitionPaymentsView> {
               style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 24),
-            if (widget.linkedStudents.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _selectedStudentUid,
-                dropdownColor: const Color(0xFF131A2A),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Select Student',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF131A2A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-                items: widget.linkedStudents.map((s) {
-                  return DropdownMenuItem<String>(
-                    value: s['uid'],
-                    child: Text(s['name'] ?? 'Unknown Student'),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedStudentUid = val),
+            const SizedBox(height: 24),
+            if (widget.selectedStudentUid == null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text('No student selected in Dependents tab.', style: TextStyle(color: MPesaTheme.primaryRed, fontWeight: FontWeight.bold)),
               ),
             const SizedBox(height: 16),
             Row(
@@ -208,10 +193,7 @@ class _TuitionPaymentsViewState extends State<TuitionPaymentsView> {
                       final data = doc.data() as Map<String, dynamic>;
                       final status = data['status'] ?? 'Scheduled';
 
-                      final student = widget.linkedStudents.firstWhere(
-                        (s) => s['uid'] == data['studentUid'],
-                        orElse: () => {'name': 'Unknown'},
-                      );
+                      final studentName = 'Selected Student';
 
                       return Card(
                         color: const Color(0xFF131A2A),
@@ -220,7 +202,7 @@ class _TuitionPaymentsViewState extends State<TuitionPaymentsView> {
                         child: ListTile(
                           title: Text('Account: ${data['accountNumber']} (Paybill: ${data['paybillNumber']})', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           subtitle: Text(
-                            'Student: ${student['name']}\nStatus: $status',
+                            'Student: ${studentName}\nStatus: $status',
                             style: TextStyle(color: status == 'Completed' ? Colors.green : Colors.white54),
                           ),
                           trailing: Text('Ksh ${data['amount']}', style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 16)),

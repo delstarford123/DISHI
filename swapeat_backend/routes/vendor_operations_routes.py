@@ -98,6 +98,108 @@ def manage_stock():
             return jsonify({"status": "success", "message": msg}), 200
         else:
             return jsonify({"error": msg}), 400
+
+@vendor_operations_bp.route('/vendor_offline_scan_deduction', methods=['POST'])
+def vendor_offline_scan_deduction():
+    """ 
+    Deducts cash from a parent's wallet when a vendor scans an offline student's QR code.
+    Verifies vendor whitelisting, nutritional locks, and balance before deducting.
+    """
+    data = request.json
+    vendor_id = data.get('vendor_id')
+    student_id = data.get('student_id')
+    amount = float(data.get('amount', 0))
+    items = data.get('items', []) # e.g. [{"name": "Soda", "price": 50, "flags": ["High Sugar"]}]
+
+    if not all([vendor_id, student_id, amount > 0]):
+        return jsonify({"error": "Missing vendor_id, student_id, or valid amount"}), 400
+
+    try:
+        db = firestore.client()
+        student_ref = db.collection('users').document(student_id)
+        vendor_ref = db.collection('users').document(vendor_id)
+        
+        student_doc = student_ref.get()
+        if not student_doc.exists:
+            return jsonify({"error": "Student QR invalid or not found."}), 404
+            
+        student_data = student_doc.to_dict()
+        if not student_data.get('isOffline', False):
+            # Only offline students are supported by this specific POS endpoint
+            return jsonify({"error": "This QR is for an online user. They must pay via their own app."}), 400
+            
+        # 1. Vendor Restrictions Check
+        blocked_vendors = student_data.get('blockedVendors', [])
+        if vendor_id in blocked_vendors:
+            return jsonify({"error": "Parent has blocked purchases from this vendor."}), 403
+            
+        # 2. Nutritional Locks Check
+        restricted_flags = student_data.get('nutritionalLocks', [])
+        for item in items:
+            item_flags = item.get('flags', [])
+            for flag in item_flags:
+                if flag in restricted_flags:
+                    return jsonify({"error": f"Purchase blocked by parent: Item '{item.get('name')}' contains restricted '{flag}'"}), 403
+
+        # Identify Parent
+        linked_parents = student_data.get('linkedParents', [])
+        if not linked_parents:
+            return jsonify({"error": "Offline student has no linked parent to bill."}), 400
+        parent_id = linked_parents[0]
+        parent_ref = db.collection('users').document(parent_id)
+        
+        @firestore.transactional
+        def process_offline_deduction(transaction):
+            parent_doc = parent_ref.get(transaction=transaction)
+            if not parent_doc.exists:
+                return False, "Parent account not found."
+                
+            parent_wallet = float(parent_doc.to_dict().get('wallet_balance', 0.0))
+            if parent_wallet < amount:
+                return False, "Parent vault has insufficient funds."
+                
+            vendor_doc = vendor_ref.get(transaction=transaction)
+            vendor_wallet = float(vendor_doc.to_dict().get('wallet_balance', 0.0)) if vendor_doc.exists else 0.0
+            
+            # Deduct from Parent, Add to Vendor
+            transaction.update(parent_ref, {'wallet_balance': parent_wallet - amount})
+            transaction.update(vendor_ref, {'wallet_balance': vendor_wallet + amount})
+            
+            # Create transaction record
+            tx_ref = db.collection('transactions').document()
+            transaction.set(tx_ref, {
+                'id': tx_ref.id,
+                'student_id': student_id, # Link to offline profile
+                'parent_id': parent_id,
+                'vendor_id': vendor_id,
+                'amount': amount,
+                'type': 'offline_qr_payment',
+                'status': 'completed',
+                'items': items,
+                'timestamp': firestore.SERVER_TIMESTAMP,
+            })
+            
+            return True, tx_ref.id
+            
+        transaction = db.transaction()
+        success, result = process_offline_deduction(transaction)
+        
+        if success:
+            # Send notification to parent
+            send_fcm_notification(
+                parent_id, 
+                "Offline Child Purchase", 
+                f"{student_data.get('name', 'Your child')} spent Ksh {amount} via QR scan."
+            )
+            return jsonify({"status": "success", "transaction_id": result, "message": "Deduction successful"}), 200
+        else:
+            return jsonify({"error": result}), 400
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
             
     except Exception as e:
         return jsonify({"error": str(e)}), 500

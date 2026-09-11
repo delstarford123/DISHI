@@ -4,12 +4,12 @@ import '../../../core/theme/mpesa_theme.dart';
 
 class CoParentingInviteView extends StatefulWidget {
   final Map<String, dynamic> parentUser;
-  final List<Map<String, dynamic>> linkedStudents;
+  final String? selectedStudentUid;
 
   const CoParentingInviteView({
     super.key,
     required this.parentUser,
-    required this.linkedStudents,
+    this.selectedStudentUid,
   });
 
   @override
@@ -17,14 +17,13 @@ class CoParentingInviteView extends StatefulWidget {
 }
 
 class _CoParentingInviteViewState extends State<CoParentingInviteView> {
-  String? _selectedStudentUid;
-  final _emailController = TextEditingController();
+    final _emailController = TextEditingController();
 
   bool _isInviting = false;
 
   Future<void> _sendInvite() async {
     final email = _emailController.text.trim();
-    if (email.isEmpty || _selectedStudentUid == null) {
+    if (email.isEmpty || widget.selectedStudentUid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a student and enter an email address.')),
       );
@@ -53,13 +52,13 @@ class _CoParentingInviteViewState extends State<CoParentingInviteView> {
       final targetParentUid = targetParent.id;
 
       // 2. Add targetParentUid to the student's linkedParents array
-      await FirebaseFirestore.instance.collection('users').doc(_selectedStudentUid).update({
+      await FirebaseFirestore.instance.collection('users').doc(widget.selectedStudentUid).update({
         'linkedParents': FieldValue.arrayUnion([targetParentUid])
       });
 
       // 3. Add studentUid to the target parent's linkedStudents array
       await FirebaseFirestore.instance.collection('users').doc(targetParentUid).update({
-        'linkedStudents': FieldValue.arrayUnion([_selectedStudentUid])
+        'linkedStudents': FieldValue.arrayUnion([widget.selectedStudentUid])
       });
 
       if (mounted) {
@@ -100,25 +99,10 @@ class _CoParentingInviteViewState extends State<CoParentingInviteView> {
               style: TextStyle(color: Colors.white54),
             ),
             const SizedBox(height: 24),
-            if (widget.linkedStudents.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _selectedStudentUid,
-                dropdownColor: const Color(0xFF131A2A),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Select Student',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF131A2A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-                items: widget.linkedStudents.map((s) {
-                  return DropdownMenuItem<String>(
-                    value: s['uid'],
-                    child: Text(s['name'] ?? 'Unknown Student'),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedStudentUid = val),
+            if (widget.selectedStudentUid == null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text('No student selected in Dependents tab.', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
               ),
             const SizedBox(height: 16),
             TextField(
@@ -156,3 +140,4 @@ class _CoParentingInviteViewState extends State<CoParentingInviteView> {
     );
   }
 }
+

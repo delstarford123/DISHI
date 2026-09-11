@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../../core/theme/mpesa_theme.dart';
 
 class HarambeeView extends StatefulWidget {
@@ -63,40 +65,162 @@ class _HarambeeViewState extends State<HarambeeView> {
               style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryGreen),
               onPressed: () async {
                 final amount = double.tryParse(amountController.text) ?? 0;
-                if (amount > 0) {
-                  try {
-                    final docRef = FirebaseFirestore.instance.collection('harambee_campaigns').doc(campaignDoc.id);
-                    await FirebaseFirestore.instance.runTransaction((tx) async {
-                      final doc = await tx.get(docRef);
-                      final currentRaised = (doc.data()?['raised'] ?? 0.0) as num;
-                      List donors = List.from(doc.data()?['donors'] ?? []);
-                      
-                      donors.add({
-                        'name': isAnonymous ? 'Anonymous' : (widget.user['displayName'] ?? 'Student'),
-                        'amount': amount,
-                        'timestamp': Timestamp.now()
-                      });
-                      
-                      // Sort donors by amount descending to keep leaderboard
-                      donors.sort((a, b) => (b['amount'] as num).compareTo(a['amount'] as num));
-                      
-                      tx.update(docRef, {'raised': currentRaised + amount, 'donors': donors});
-                    });
-                    if (mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Donation successful!')));
-                    }
-                  } catch (e) {
-                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                  }
+                if (amount >= 10) {
+                  Navigator.pop(context);
+                  _processDonation(campaignDoc, amount, isAnonymous);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum amount is 10 KES')));
                 }
               },
-              child: const Text('Donate via DISHI', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              child: const Text('Next', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
             )
           ],
         )
       )
     );
+  }
+
+  void _processDonation(DocumentSnapshot campaignDoc, double amount, bool isAnonymous) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF131A2A),
+        title: const Text('Select Payment Method', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.wallet, color: MPesaTheme.primaryGreen),
+              title: const Text('DISHI Wallet', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                _payWithWallet(campaignDoc, amount, isAnonymous);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.phone_android, color: MPesaTheme.primaryGreen),
+              title: const Text('M-PESA', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                _promptMpesaNumber(campaignDoc, amount, isAnonymous);
+              },
+            )
+          ],
+        ),
+      )
+    );
+  }
+
+  Future<void> _payWithWallet(DocumentSnapshot campaignDoc, double amount, bool isAnonymous) async {
+    showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator(color: MPesaTheme.primaryGreen)));
+    try {
+      final response = await http.post(
+        Uri.parse('https://swapeatbackend.vercel.app/api/v2/social/harambee/donate'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'donorId': currentUid,
+          'campaignId': campaignDoc.id,
+          'amount': amount,
+          'donorName': isAnonymous ? 'Anonymous' : (widget.user['displayName'] ?? 'Student')
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      if (mounted) Navigator.pop(context); // pop loading
+      if (response.statusCode == 200) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Donation successful!')));
+      } else {
+        final err = jsonDecode(response.body)['error'] ?? 'Donation failed';
+        if (err == 'Insufficient wallet balance' && mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: const Color(0xFF131A2A),
+              title: const Text('Insufficient Balance', style: TextStyle(color: Colors.white)),
+              content: const Text('Your DISHI wallet balance is too low to complete this donation. Would you like to use M-PESA directly?', style: TextStyle(color: Colors.white70)),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryGreen),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _promptMpesaNumber(campaignDoc, amount, isAnonymous);
+                  },
+                  child: const Text('Pay with M-PESA', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                )
+              ],
+            )
+          );
+        } else {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+        }
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // pop loading
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  void _promptMpesaNumber(DocumentSnapshot campaignDoc, double amount, bool isAnonymous) {
+    final phoneController = TextEditingController(text: widget.user['phoneNumber'] ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF131A2A),
+        title: const Text('M-PESA Number', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: phoneController,
+          decoration: const InputDecoration(labelText: 'Phone (e.g. 2547XXXXXXXX)', labelStyle: TextStyle(color: Colors.white54), enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: MPesaTheme.primaryGreen))),
+          keyboardType: TextInputType.phone,
+          style: const TextStyle(color: Colors.white),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryGreen),
+            onPressed: () {
+              Navigator.pop(context);
+              _payWithMpesa(campaignDoc, amount, isAnonymous, phoneController.text.trim());
+            },
+            child: const Text('Pay', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          )
+        ],
+      )
+    );
+  }
+
+  Future<void> _payWithMpesa(DocumentSnapshot campaignDoc, double amount, bool isAnonymous, String phone) async {
+    showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator(color: MPesaTheme.primaryGreen)));
+    try {
+      final campaign = campaignDoc.data() as Map<String, dynamic>;
+      final response = await http.post(
+        Uri.parse('https://swapeatbackend.vercel.app/api/v1/mpesa/stkpush'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'phone_number': phone,
+          'amount': amount,
+          'credit_amount': amount,
+          'user_id': currentUid,
+          'destination': 'walletBalance',
+          'metadata': {
+            'action': 'harambee_donate',
+            'campaign_id': campaignDoc.id,
+            'campaign_title': campaign['title'],
+            'donor_name': isAnonymous ? 'Anonymous' : (widget.user['displayName'] ?? 'Student')
+          }
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      if (mounted) Navigator.pop(context); // pop loading
+      if (response.statusCode == 200) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('M-PESA prompt sent to your phone!')));
+      } else {
+        final err = jsonDecode(response.body)['error'] ?? 'Failed to send prompt';
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // pop loading
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   void _showCreateCampaignDialog() {

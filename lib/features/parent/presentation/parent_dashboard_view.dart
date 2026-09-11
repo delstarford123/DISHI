@@ -3,6 +3,8 @@ import '../../../core/widgets/shared_savings_view.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import '../../auth/presentation/login_view.dart';
 import 'offline_child_qr_view.dart';
+import '../student/presentation/virtual_card_view.dart';
+import '../../../core/models/user_model.dart';
 
 import 'dart:convert';
 import 'dart:async';
@@ -65,6 +67,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
   double _vaultBalance = 15400.0;
   List<Map<String, dynamic>> _linkedStudents = [];
   int _selectedIndex = 0;
+  String? _globalSelectedStudentUid;
 
   @override
   void initState() {
@@ -81,9 +84,13 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       if (!parentDoc.exists) return;
       
       final parentData = parentDoc.data()!;
-      double vaultBalance = 0.0;
+      double totalFamilyCash = 0.0;
+      
+      if (parentData['walletBalance'] != null) {
+        totalFamilyCash += (parentData['walletBalance'] as num).toDouble();
+      }
       if (parentData['savingsBalance'] != null) {
-        vaultBalance = (parentData['savingsBalance'] as num).toDouble();
+        totalFamilyCash += (parentData['savingsBalance'] as num).toDouble();
       }
       
       List<dynamic> linkedUids = parentData['linkedStudents'] ?? [];
@@ -97,6 +104,9 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
           if (sData['walletBalance'] != null) {
             bal = (sData['walletBalance'] as num).toDouble();
           }
+          
+          totalFamilyCash += bal;
+          
           students.add({
             'name': sData['name'] ?? sData['displayName'] ?? 'Student',
             'balance': bal,
@@ -112,9 +122,12 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       
       if (mounted) {
         setState(() {
-          _vaultBalance = vaultBalance;
+          _vaultBalance = totalFamilyCash;
           _linkedStudents = students;
           _isLoading = false;
+          if (_globalSelectedStudentUid == null && students.isNotEmpty) {
+            _globalSelectedStudentUid = students.first['uid'];
+          }
         });
       }
     } catch (e) {
@@ -172,6 +185,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
 
     final parentName = widget.user['name'] ?? widget.user['displayName'] ?? 'Parent';
     final profileImageUrl = widget.user['profileImageUrl'];
+    final parentPhone = widget.user['phoneNumber'] ?? widget.user['phone'] ?? '';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -228,6 +242,11 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (parentPhone.isNotEmpty)
+                  Text(
+                    parentPhone,
+                    style: const TextStyle(color: _neonBlue, fontSize: 10, fontWeight: FontWeight.w600),
+                  ),
               ],
             ),
           ),
@@ -247,7 +266,8 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
   Widget build(BuildContext context) {
     final List<Widget> tabs = [
       _buildHomeTab(),
-      GrowthTabView(user: widget.user),
+      _buildDependentsTab(),
+      _buildVaultTab(),
       CommunityTabView(user: widget.user),
       SettingsTabView(user: widget.user),
     ];
@@ -275,8 +295,9 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.trending_up), label: 'Growth'),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Community'),
+          BottomNavigationBarItem(icon: Icon(Icons.people_outline), label: 'Dependents'),
+          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'Vault'),
+          BottomNavigationBarItem(icon: Icon(Icons.public), label: 'Community'),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),
@@ -303,7 +324,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
           padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 80.0),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              // The Shared Vault
+              // High Level Overview
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -328,15 +349,13 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                       style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 16),
-                    Text('Linked to: ${widget.user['phone'] ?? '254700000000'}', style: const TextStyle(color: _textSecondary)),
-                    const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () => _showVaultTopUpModal(context),
                             icon: const Icon(Icons.add_circle_outline),
-                            label: const Text('Top Up Vault'),
+                            label: const Text('Top Up'),
                             style: ElevatedButton.styleFrom(backgroundColor: _neonBlue, foregroundColor: Colors.white),
                           ),
                         ),
@@ -355,40 +374,8 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                 ),
               ),
               const SizedBox(height: 32),
-              
-              const Text('Linked Students', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text('Quick Access', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
-              
-              ..._linkedStudents.map((student) => _buildStudentCard(student)).toList(),
-              
-              const SizedBox(height: 32),
-              const Text('Manage Children', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showLinkChildDialog(),
-                      icon: const Icon(Icons.link),
-                      label: const Text('Link Student'),
-                      style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showAddOfflineChildDialog(),
-                      icon: const Icon(Icons.person_add),
-                      label: const Text('Add Offline'),
-                      style: ElevatedButton.styleFrom(backgroundColor: _neonBlue, foregroundColor: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-              const Text('Quick Actions', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -397,27 +384,9 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                 mainAxisSpacing: 16,
                 children: [
                   _buildActionGridButton(Icons.security, 'Kill Switch', _neonPink, _showKillSwitchDialog),
-                  _buildActionGridButton(Icons.restaurant, 'Nutrition Limits', _neonOrange, _showNutritionSelector),
-                  _buildActionGridButton(Icons.bento, 'Lunchbox Pre-order', Colors.greenAccent, _showLunchboxSelector),
-                  _buildActionGridButton(Icons.account_balance_wallet, 'Auto Top-Up', _neonCyan, _showAutoTopUpSelector),
-                  _buildActionGridButton(Icons.family_restroom, 'Shared Wallet', _neonBlue, _showSharedWalletDialog),
-                  _buildActionGridButton(Icons.schedule, 'Allowances', _neonOrange, _showScheduledAllowances),
-                  _buildActionGridButton(Icons.gavel, 'Disputes', _neonPink, _showDisputes),
-                  _buildActionGridButton(Icons.pie_chart, 'Analytics', _neonCyan, _showSpendingAnalytics),
-                  _buildActionGridButton(Icons.assignment_turned_in, 'Bounties', Colors.yellow, _showBounties),
-                  _buildActionGridButton(Icons.block, 'Vendors', _neonPink, _showVendorRestrictions),
-                  _buildActionGridButton(Icons.school, 'SmartI', Colors.blueAccent, _showAcademicRewards),
-                  _buildActionGridButton(Icons.group_add, 'Co-Parent', _neonBlue, _showCoParenting),
                   _buildActionGridButton(Icons.warning_amber_rounded, 'SOS Alerts', MPesaTheme.primaryRed, _showEmergencyAlerts),
-                  _buildActionGridButton(Icons.location_on, 'Geofence', MPesaTheme.neonOrange, _showGeofenceAlerts),
-                  _buildActionGridButton(Icons.local_hospital, 'Medical Lock', MPesaTheme.neonCyan, _showMedicalLock),
-                  _buildActionGridButton(Icons.directions_bus, 'Transport', Colors.amber, _showTransportAllowance),
-                  _buildActionGridButton(Icons.favorite, 'Health Stats', MPesaTheme.neonPink, _showHealthStats),
-                  _buildActionGridButton(Icons.home, 'Housing', Colors.tealAccent, _showHousingPayments),
-                  _buildActionGridButton(Icons.account_balance, 'Tuition', Colors.blueAccent, _showTuitionPayments),
-                  _buildActionGridButton(Icons.savings, 'Savings', MPesaTheme.primaryGreen, _showSavingsTarget),
-                  _buildActionGridButton(Icons.school, 'Grad Fund', Colors.purpleAccent, _showGraduationFund),
-                  _buildActionGridButton(Icons.autorenew, 'Bills', Colors.cyanAccent, _showSubscriptionManager),
+                  _buildActionGridButton(Icons.gavel, 'Disputes', _neonPink, _showDisputes),
+                  _buildActionGridButton(Icons.group_add, 'Co-Parent', _neonBlue, _showCoParenting),
                 ],
               ),
               const SizedBox(height: 24),
@@ -426,6 +395,185 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDependentsTab() {
+    return Scaffold(
+      backgroundColor: _bgColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Dependents & Growth', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_linkedStudents.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _neonBlue.withOpacity(0.3)),
+                ),
+                child: DropdownButtonFormField<String>(
+                  value: _globalSelectedStudentUid,
+                  dropdownColor: _cardColor,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  decoration: const InputDecoration(
+                    labelText: 'Active Student Context',
+                    labelStyle: TextStyle(color: _neonCyan),
+                    border: InputBorder.none,
+                    icon: Icon(Icons.person, color: _neonCyan),
+                  ),
+                  items: _linkedStudents.map((s) {
+                    return DropdownMenuItem<String>(
+                      value: s['uid'],
+                      child: Text("${s['name']} ${s['isOffline'] == true ? '(Offline)' : ''}"),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    setState(() => _globalSelectedStudentUid = val);
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+            
+            const Text('Linked Students', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            ..._linkedStudents.map((student) => _buildStudentCard(student)).toList(),
+            
+            const SizedBox(height: 24),
+            const Text('Manage Children', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showLinkChildDialog(),
+                    icon: const Icon(Icons.link),
+                    label: const Text('Link Student'),
+                    style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showAddOfflineChildDialog(),
+                    icon: const Icon(Icons.person_add),
+                    label: const Text('Add Offline'),
+                    style: ElevatedButton.styleFrom(backgroundColor: _neonBlue, foregroundColor: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 32),
+            const Text('Rules & Management', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              children: [
+                _buildActionGridButton(Icons.restaurant, 'Nutrition Limits', _neonOrange, _showNutritionSelector),
+                _buildActionGridButton(Icons.block, 'Vendors Lock', _neonPink, _showVendorRestrictions),
+                _buildActionGridButton(Icons.local_hospital, 'Medical Lock', MPesaTheme.neonCyan, _showMedicalLock),
+                _buildActionGridButton(Icons.directions_bus, 'Transport', Colors.amber, _showTransportAllowance),
+                _buildActionGridButton(Icons.home, 'Housing', Colors.tealAccent, _showHousingPayments),
+                _buildActionGridButton(Icons.account_balance, 'Tuition', Colors.blueAccent, _showTuitionPayments),
+                _buildActionGridButton(Icons.school, 'SmartI Rewards', Colors.blueAccent, _showAcademicRewards),
+                _buildActionGridButton(Icons.assignment_turned_in, 'Chores & Bounties', Colors.yellow, _showBounties),
+              ],
+            ),
+            
+            const SizedBox(height: 32),
+            SizedBox(
+              height: 400,
+              child: GrowthTabView(user: widget.user, linkedStudents: _linkedStudents),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVaultTab() {
+    return Scaffold(
+      backgroundColor: _bgColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Family Vault & Finance', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_linkedStudents.isNotEmpty) ...[
+              const Text('Vault Allocations', style: TextStyle(color: _textSecondary, fontSize: 16)),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 90,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _linkedStudents.length,
+                  itemBuilder: (context, index) {
+                    final s = _linkedStudents[index];
+                    return Container(
+                      width: 140,
+                      margin: const EdgeInsets.only(right: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _bgColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: _neonBlue.withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(s['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 4),
+                          Text('KSH ${s['balance'].toStringAsFixed(0)}', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 16)),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 32),
+            ],
+            
+            const Text('Financial Tools', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              children: [
+                _buildActionGridButton(Icons.account_balance_wallet, 'Auto Top-Up', _neonCyan, _showAutoTopUpSelector),
+                _buildActionGridButton(Icons.schedule, 'Allowances', _neonOrange, _showScheduledAllowances),
+                _buildActionGridButton(Icons.pie_chart, 'Analytics', _neonCyan, _showSpendingAnalytics),
+                _buildActionGridButton(Icons.bento, 'Pre-order Food', Colors.greenAccent, _showLunchboxSelector),
+                _buildActionGridButton(Icons.savings, 'Savings Targets', MPesaTheme.primaryGreen, _showSavingsTarget),
+                _buildActionGridButton(Icons.school, 'Grad Fund', Colors.purpleAccent, _showGraduationFund),
+                _buildActionGridButton(Icons.autorenew, 'Bills & Subs', Colors.cyanAccent, _showSubscriptionManager),
+                _buildActionGridButton(Icons.family_restroom, 'Wallet Rules', _neonBlue, _showSharedWalletDialog),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -514,11 +662,35 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                       border: Border.all(color: _neonBlue),
                     ),
                     alignment: Alignment.center,
-                    child: const Text('Top Up', style: TextStyle(color: _neonBlue, fontWeight: FontWeight.bold)),
+                    child: const Text('Top Up', style: TextStyle(color: _neonBlue, fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
+              Expanded(
+                child: InkWell(
+                  onTap: () {
+                    final tempUser = UserModel(
+                      uid: student['uid'],
+                      displayName: student['name'],
+                      email: '',
+                      roles: ['student'],
+                      walletBalance: student['balance'],
+                    );
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => VirtualCardView(userModel: tempUser)));
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: _neonCyan,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text('VCC Card', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: InkWell(
                   onTap: () {
@@ -531,7 +703,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
-                    child: const Text('Get ID Card', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text('ID Card', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ),
               ),
@@ -555,7 +727,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Ask your child for their DISHI ID (found on their student dashboard) and enter it below.', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const Text('Ask your child for their Name, EMAIL, or DISHI ID (found on their student dashboard or ID card) and enter the DISHI ID below.', style: TextStyle(color: _textSecondary, fontSize: 13)),
               const SizedBox(height: 16),
               TextField(
                 controller: controller,
@@ -638,8 +810,11 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
 
   void _showAddOfflineChildDialog() {
     final nameController = TextEditingController();
+    final schoolController = TextEditingController();
+    final regNumberController = TextEditingController();
     final pinController = TextEditingController();
     bool isCreating = false;
+    bool obscurePin = true;
 
     showDialog(
       context: context,
@@ -647,36 +822,68 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
         builder: (context, setState) => AlertDialog(
           backgroundColor: _cardColor,
           title: const Text('Add Offline Child', style: TextStyle(color: Colors.white)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Create a DISHI profile for a child in primary or secondary school without a phone. They will get a QR code and PIN to use at school.', style: TextStyle(color: _textSecondary, fontSize: 13)),
-              const SizedBox(height: 16),
-              TextField(
-                controller: nameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Child\'s Full Name',
-                  labelStyle: const TextStyle(color: _neonBlue),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonBlue.withOpacity(0.5))),
-                  focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _neonBlue)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Create a DISHI profile for a child in primary or secondary school without a phone. They will get a QR code and PIN to use at school.', style: TextStyle(color: _textSecondary, fontSize: 13)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Child\'s Full Name',
+                    labelStyle: const TextStyle(color: _neonBlue),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonBlue.withOpacity(0.5))),
+                    focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _neonBlue)),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: pinController,
-                style: const TextStyle(color: Colors.white),
-                keyboardType: TextInputType.number,
-                maxLength: 4,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'Set 4-Digit PIN',
-                  labelStyle: const TextStyle(color: _neonBlue),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonBlue.withOpacity(0.5))),
-                  focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _neonBlue)),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: schoolController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'School Name',
+                    labelStyle: const TextStyle(color: _neonBlue),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonBlue.withOpacity(0.5))),
+                    focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _neonBlue)),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: regNumberController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Student Reg Number / KUCCPS',
+                    labelStyle: const TextStyle(color: _neonBlue),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonBlue.withOpacity(0.5))),
+                    focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _neonBlue)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: pinController,
+                  style: const TextStyle(color: Colors.white),
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  obscureText: obscurePin,
+                  decoration: InputDecoration(
+                    labelText: 'Set 4-Digit PIN',
+                    labelStyle: const TextStyle(color: _neonBlue),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonBlue.withOpacity(0.5))),
+                    focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _neonBlue)),
+                    suffixIcon: IconButton(
+                      icon: Icon(obscurePin ? Icons.visibility_off : Icons.visibility, color: _neonBlue),
+                      onPressed: () {
+                        setState(() {
+                          obscurePin = !obscurePin;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -686,8 +893,14 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
             ElevatedButton(
               onPressed: isCreating ? null : () async {
                 final name = nameController.text.trim();
+                final school = schoolController.text.trim();
+                final regNumber = regNumberController.text.trim();
                 final pin = pinController.text.trim();
-                if (name.isEmpty || pin.length != 4) return;
+                
+                if (name.isEmpty || pin.length != 4 || school.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all required fields and set a 4-digit PIN.')));
+                  return;
+                }
 
                 setState(() => isCreating = true);
 
@@ -701,7 +914,10 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                     'roles': ['student'],
                     'isOffline': true,
                     'pin': pin,
+                    'schoolName': school,
+                    'regNumber': regNumber,
                     'parentUid': parentUid,
+                    'linkedParents': [parentUid],
                     'dishiId': shortId,
                     'walletBalance': 0.0,
                     'createdAt': FieldValue.serverTimestamp(),
@@ -870,7 +1086,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => ScheduledAllowancesView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -893,7 +1109,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => SpendingAnalyticsView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -905,7 +1121,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => BountiesView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -917,7 +1133,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => VendorRestrictionsView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -929,7 +1145,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => AcademicRewardsView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -941,7 +1157,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => CoParentingInviteView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -953,7 +1169,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => EmergencyAlertsView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -965,7 +1181,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => GeofenceAlertsView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -977,7 +1193,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => MedicalLockView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -989,7 +1205,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => TransportAllowanceView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -1001,7 +1217,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => HealthStatsView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -1013,7 +1229,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => HousingPaymentsView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -1025,7 +1241,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => TuitionPaymentsView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -1037,7 +1253,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => SavingsTargetView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -1049,7 +1265,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => GraduationFundView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -1061,7 +1277,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       MaterialPageRoute(
         builder: (context) => SubscriptionManagerView(
           parentUser: widget.user,
-          linkedStudents: _linkedStudents,
+          selectedStudentUid: _globalSelectedStudentUid,
         ),
       ),
     );
@@ -1325,103 +1541,151 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
     final phoneController = TextEditingController();
     final amountController = TextEditingController();
     phoneController.text = widget.user['phone'] ?? '';
+    bool isProcessing = false;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
-        decoration: const BoxDecoration(
-          color: _bgColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border(top: BorderSide(color: _neonBlue, width: 2)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Top Up $childName via M-PESA', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            const Text('Enter M-Pesa number and amount. A Ksh 1 fee applies.', style: TextStyle(color: _textSecondary, fontSize: 14)),
-            const SizedBox(height: 24),
-            TextField(
-              controller: phoneController,
-              keyboardType: TextInputType.phone,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'M-PESA Number (e.g. 2547XXXXXXXX)',
-                labelStyle: const TextStyle(color: _textSecondary),
-                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonBlue.withOpacity(0.5)), borderRadius: BorderRadius.circular(12)),
-                focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: _neonBlue), borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.phone_android, color: _neonBlue),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Container(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+          decoration: const BoxDecoration(
+            color: _bgColor,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border(top: BorderSide(color: _neonBlue, width: 2)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Fund $childName', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text('Transfer from your Family Vault instantly, or top up via M-PESA.', style: TextStyle(color: _textSecondary, fontSize: 14)),
+              const SizedBox(height: 24),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Amount (Ksh)',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonBlue.withOpacity(0.5)), borderRadius: BorderRadius.circular(12)),
+                  focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: _neonBlue), borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.attach_money, color: _neonBlue),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Amount (Ksh)',
-                labelStyle: const TextStyle(color: _textSecondary),
-                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonBlue.withOpacity(0.5)), borderRadius: BorderRadius.circular(12)),
-                focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: _neonBlue), borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.attach_money, color: _neonBlue),
+              const SizedBox(height: 16),
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'M-PESA Number (for M-PESA only)',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonBlue.withOpacity(0.5)), borderRadius: BorderRadius.circular(12)),
+                  focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: _neonBlue), borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.phone_android, color: _neonBlue),
+                ),
               ),
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final phone = phoneController.text.trim();
-                  final amount = amountController.text.trim();
-                  if (phone.isEmpty || amount.isEmpty) return;
-                  
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Initiating STK Push...'), backgroundColor: _neonBlue));
-                  
-                  try {
-                    final response = await http.post(
-                      Uri.parse(ApiConfig.mpesaStkPush),
-                      headers: {'Content-Type': 'application/json'},
-                      body: jsonEncode({
-                        'phone_number': phone,
-                        'amount': int.parse(amount),
-                        'user_id': childUid,
-                        'metadata': {
-                          'action': 'fund_student',
-                          'funder_phone': phone
-                        }
-                      }),
-                    ).timeout(const Duration(seconds: 30));
-                    
-                    if (response.statusCode == 200) {
-                      if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Check your phone for the M-PESA prompt!'), backgroundColor: Colors.green));
-                    } else {
-                      if (mounted) {
-                        String errMsg = 'Failed to initiate STK Push';
+              const SizedBox(height: 32),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: isProcessing ? null : () async {
+                        final amount = amountController.text.trim();
+                        if (amount.isEmpty) return;
+                        
+                        setState(() => isProcessing = true);
+                        
                         try {
-                          final parsed = jsonDecode(response.body);
-                          errMsg = parsed['error'] ?? errMsg;
-                        } catch (_) {}
-                        ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Failed: $errMsg'), backgroundColor: _neonPink));
-                      }
-                    }
-                  } on TimeoutException catch (_) {
-                    if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Request timed out. Please try again.'), backgroundColor: _neonPink));
-                  } catch (e) {
-                    if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: _neonPink));
-                  }
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: _neonBlue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                child: const Text('Top Up Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                          final parentUid = FirebaseAuth.instance.currentUser!.uid;
+                          final response = await http.post(
+                            Uri.parse('https://dishi.delstarfordworks.co.ke/api/transactions/parent_transfer'),
+                            headers: {'Content-Type': 'application/json'},
+                            body: json.encode({
+                              'parentUid': parentUid,
+                              'studentUid': childUid,
+                              'amount': double.parse(amount)
+                            })
+                          ).timeout(const Duration(seconds: 30));
+                          
+                          if (response.statusCode == 200) {
+                            if (mounted) {
+                              Navigator.pop(context);
+                              _fetchParentData();
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transferred from Family Vault successfully!')));
+                            }
+                          } else {
+                            final resData = json.decode(response.body);
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${resData['error']}')));
+                          }
+                        } catch (e) {
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
+                        
+                        setState(() => isProcessing = false);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _neonBlue,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: isProcessing 
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white))
+                          : const Text('Fund from Vault', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: isProcessing ? null : () async {
+                        final phone = phoneController.text.trim();
+                        final amount = amountController.text.trim();
+                        if (phone.isEmpty || amount.isEmpty) return;
+                        
+                        setState(() => isProcessing = true);
+                        try {
+                          final url = Uri.parse('https://dishi.delstarfordworks.co.ke/api/stk_push');
+                          final response = await http.post(
+                            url,
+                            headers: {'Content-Type': 'application/json'},
+                            body: json.encode({
+                              'phone': phone,
+                              'amount': int.parse(amount),
+                              'uid': childUid,
+                            }),
+                          ).timeout(const Duration(seconds: 30));
+
+                          if (response.statusCode == 200) {
+                            if (mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Check your phone for the M-Pesa prompt.')));
+                            }
+                          } else {
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to initiate M-Pesa. Code: ${response.statusCode}')));
+                          }
+                        } catch (e) {
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
+                        setState(() => isProcessing = false);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: MPesaTheme.primaryGreen,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: isProcessing 
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white))
+                          : const Text('Fund via M-PESA', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 24),
-          ],
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );

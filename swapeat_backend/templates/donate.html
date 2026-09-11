@@ -182,17 +182,18 @@
             display: block; font-size: 12px; font-weight: 600;
             color: var(--text-sub); margin-bottom: 8px;
         }
-        .input-wrap {
+                .input-wrap {
             display: flex; align-items: center;
-            background: #fff;
-            border: 1px solid var(--border);
+            background: #ffffff; /* Bright white background for visibility */
+            border: 2px solid #3B82F6; /* Distinct blue border */
             border-radius: var(--radius-sm);
             overflow: hidden;
-            transition: border-color 0.25s, box-shadow 0.25s;
+            transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
         }
-        .input-wrap:focus-within {
-            border-color: var(--green);
-            box-shadow: 0 0 0 3px rgba(67,176,42,0.15);
+                .input-wrap:focus-within {
+            border-color: #1D4ED8; /* Darker blue on focus */
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+            background: #ffffff;
         }
         .input-prefix {
             padding: 14px 14px;
@@ -201,29 +202,32 @@
             border-right: 1px solid var(--border);
             white-space: nowrap; flex-shrink: 0;
         }
-        .input-field {
+                .input-field {
             flex: 1; background: transparent; border: none; outline: none;
             padding: 14px 14px;
-            color: var(--text); font-size: 16px; font-weight: 500;
+            color: #0F172A; /* Dark text for visibility on white background */
+            font-size: 16px; font-weight: 600;
             font-family: 'Inter', sans-serif;
         }
-        .input-field::placeholder { color: var(--text-muted); }
+        .input-field::placeholder { color: #94A3B8; font-weight: 400; }
+        
 
         /* CTA Button */
-        .btn-fund {
+                .btn-fund, .btn-submit, .btn-primary, .btn {
             width: 100%; margin-top: 8px;
-            background: linear-gradient(135deg, var(--green) 0%, #2E8A1A 100%);
+            background: #1D4ED8; /* Solid dark blue color */
             color: #fff; border: none;
             padding: 16px; border-radius: var(--radius-sm);
-            font-size: 15px; font-weight: 700;
+            font-size: 16px; font-weight: 700;
             cursor: pointer; position: relative; overflow: hidden;
-            box-shadow: 0 8px 24px var(--green-glow);
+            box-shadow: 0 8px 24px rgba(29, 78, 216, 0.4);
             transition: all 0.25s ease;
             display: flex; align-items: center; justify-content: center; gap: 8px;
         }
-        .btn-fund:hover:not(:disabled) {
+                .btn-fund:hover:not(:disabled), .btn-submit:hover:not(:disabled), .btn-primary:hover:not(:disabled), .btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 12px 32px rgba(67,176,42,0.4);
+            background: #1E3A8A; /* Even darker blue on hover */
+            box-shadow: 0 12px 32px rgba(29, 78, 216, 0.6);
         }
         .btn-fund:active:not(:disabled) { transform: translateY(0); }
         .btn-fund:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }

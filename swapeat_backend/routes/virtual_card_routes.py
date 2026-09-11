@@ -49,7 +49,10 @@ def generate_card():
         if user_doc.exists and 'virtualCard' in user_doc.to_dict():
             user_ref.update({'virtualCard': firestore.DELETE_FIELD})
 
-        return jsonify({'message': 'Card generated successfully', 'card': card_data}), 200
+        card_response = card_data.copy()
+        card_response['createdAt'] = datetime.now().isoformat()
+
+        return jsonify({'message': 'Card generated successfully', 'card': card_response}), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

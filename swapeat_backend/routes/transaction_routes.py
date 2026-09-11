@@ -10,6 +10,77 @@ transaction_bp = Blueprint('transaction', __name__)
 
 VENDOR_SECRET = b"super-secret-vendor-key"
 
+@transaction_bp.route('/api/transactions/parent_transfer', methods=['POST'])
+def parent_to_student_transfer():
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'Missing request body'}), 400
+            
+        parent_uid = data.get('parentUid')
+        student_uid = data.get('studentUid')
+        amount = data.get('amount')
+        
+        if not all([parent_uid, student_uid, amount]):
+            return jsonify({'error': 'Missing required fields (parentUid, studentUid, amount)'}), 400
+            
+        amount = float(amount)
+        if amount <= 0:
+            return jsonify({'error': 'Amount must be greater than 0'}), 400
+            
+        db = firestore.client()
+        parent_ref = db.collection('users').document(parent_uid)
+        student_ref = db.collection('users').document(student_uid)
+        
+        @firestore.transactional
+        def run_transfer(transaction):
+            parent_snap = parent_ref.get(transaction=transaction)
+            student_snap = student_ref.get(transaction=transaction)
+            
+            if not parent_snap.exists:
+                return {'error': 'Parent not found'}, 404
+            if not student_snap.exists:
+                return {'error': 'Student not found'}, 404
+                
+            parent_data = parent_snap.to_dict()
+            parent_wallet = float(parent_data.get('walletBalance', 0.0))
+            
+            if parent_wallet < amount:
+                return {'error': 'Insufficient funds in Parent Vault'}, 400
+                
+            student_data = student_snap.to_dict()
+            student_wallet = float(student_data.get('walletBalance', 0.0))
+            
+            transaction.update(parent_ref, {
+                'walletBalance': parent_wallet - amount
+            })
+            
+            transaction.update(student_ref, {
+                'walletBalance': student_wallet + amount
+            })
+            
+            tx_ref = db.collection('transactions').document()
+            transaction.set(tx_ref, {
+                'type': 'parent_transfer',
+                'senderUid': parent_uid,
+                'receiverUid': student_uid,
+                'amount': amount,
+                'timestamp': firestore.SERVER_TIMESTAMP,
+                'status': 'completed'
+            })
+            
+            return {'success': True, 'txId': tx_ref.id}
+            
+        result = run_transfer(db.transaction())
+        
+        if isinstance(result, tuple) and 'error' in result[0]:
+            return jsonify(result[0]), result[1]
+            
+        return jsonify(result), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # In-memory stores for mock logic
 PROCESSED_TX = set()
 STUDENT_TX_HISTORY = {} # {uid: [timestamp1, timestamp2]}

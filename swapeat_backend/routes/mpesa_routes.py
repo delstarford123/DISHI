@@ -109,6 +109,9 @@ def trigger_stk_push():
     if missing:
         return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
 
+    idempotency_key = data.get('idempotency_key')
+    formatted_phone = _fmt_phone(phone_number)
+
     try:
         action = metadata.get('action')
         commission = 3 if action in ['harambee_donate', 'fund_student'] else 2
@@ -123,6 +126,33 @@ def trigger_stk_push():
     # ── Verify the student/child document exists before charging ──
     try:
         db = firestore.client()
+        
+        # 1. Idempotency Check
+        if idempotency_key:
+            idem_ref = db.collection('idempotency_keys').document(idempotency_key)
+            idem_doc = idem_ref.get()
+            if idem_doc.exists:
+                return jsonify(idem_doc.to_dict().get('response', {})), 200
+
+        # 2. Rate Limiting (Spam Protection)
+        # Check if this phone number initiated an STK push in the last 30 seconds
+        cutoff_time = datetime.utcnow().timestamp() - 30
+        recent_txs = db.collection('mpesa_transactions') \
+                       .where('phone', '==', formatted_phone) \
+                       .order_by('timestamp', direction=firestore.Query.DESCENDING) \
+                       .limit(1).get()
+        if recent_txs:
+            last_tx = recent_txs[0].to_dict()
+            last_ts = last_tx.get('timestamp')
+            if last_ts:
+                # Firestore timestamp to python seconds
+                if hasattr(last_ts, 'timestamp'):
+                    last_ts_sec = last_ts.timestamp()
+                else:
+                    last_ts_sec = last_ts
+                if last_ts_sec > cutoff_time:
+                    return jsonify({"error": "Please wait 30 seconds before trying again."}), 429
+                    
         user_doc = db.collection('users').document(user_id).get()
         if not user_doc.exists:
             return jsonify({"error": f"No user found with ID '{user_id}'. Please check the student ID."}), 404
@@ -149,7 +179,6 @@ def trigger_stk_push():
     base_url = "https://api.safaricom.co.ke" if env == 'production' else "https://sandbox.safaricom.co.ke"
     api_url  = f"{base_url}/mpesa/stkpush/v1/processrequest"
 
-    formatted_phone = _fmt_phone(phone_number)
     user_name = user_doc.to_dict().get('displayName') or user_doc.to_dict().get('name') or 'Child'
 
     acc_ref = account_reference if account_reference else "DISHI"
@@ -183,9 +212,21 @@ def trigger_stk_push():
         response = requests.post(api_url, json=payload, headers=headers, timeout=15)
         response_data = response.json()
     except requests.Timeout:
-        return jsonify({"error": "M-PESA API timed out. Please try again."}), 504
+        # ── Feature 9: Dynamic C2B Paybill Fallback ──────────────────
+        return jsonify({
+            "error": "M-PESA STK Push timed out.",
+            "fallback": True,
+            "paybill": business_short_code,
+            "account_reference": clean_acc_ref[:12]
+        }), 504
     except Exception as e:
-        return jsonify({"error": "Failed to reach M-PESA API.", "details": str(e)}), 502
+        return jsonify({
+            "error": "Failed to reach M-PESA API.",
+            "fallback": True,
+            "paybill": business_short_code,
+            "account_reference": clean_acc_ref[:12],
+            "details": str(e)
+        }), 502
 
     print(f"STK Push [{response.status_code}]: {response_data}")
 
@@ -204,6 +245,13 @@ def trigger_stk_push():
                 'timestamp':     firestore.SERVER_TIMESTAMP,
             })
             print(f"Pending TX stored: checkout_id={checkout_id}, user_id={user_id}, credit={credit_int}")
+            
+            # Save idempotency key if provided
+            if idempotency_key:
+                db.collection('idempotency_keys').document(idempotency_key).set({
+                    'response': response_data,
+                    'created_at': firestore.SERVER_TIMESTAMP
+                })
         except Exception as e:
             # Non-fatal — STK was sent; log the failure
             print(f"WARNING: Failed to store pending TX in Firestore: {e}")
@@ -219,6 +267,24 @@ def trigger_stk_push():
 def mpesa_callback():
     data = request.json or {}
     print("M-PESA Callback received:", data)
+    
+    # ── Feature 5: Callback Source IP Whitelisting ────────────────
+    client_ip = request.headers.get('x-forwarded-for', request.remote_addr)
+    if client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+
+    env = os.getenv('MPESA_ENV', 'sandbox').lower()
+    if env == 'production':
+        SAFARICOM_IPS = [
+            '196.201.214.200', '196.201.214.206', '196.201.213.114', 
+            '196.201.214.207', '196.201.214.208', '196.201.213.44', 
+            '196.201.212.127', '196.201.212.128', '196.201.212.129',
+            '196.201.212.132', '196.201.212.136', '196.201.212.138',
+            '196.201.212.69', '196.201.212.74'
+        ]
+        if client_ip not in SAFARICOM_IPS:
+            print(f"SECURITY ALERT: Blocked spoofed callback from IP {client_ip}")
+            return jsonify({"ResultCode": 1, "ResultDesc": "Rejected"}), 403
 
     try:
         db           = firestore.client()
@@ -593,14 +659,45 @@ def mpesa_callback():
             is_fund_student = fund_action == 'fund_student'
             is_fund_vault = fund_action == 'fund_vault'
 
+            # ── Feature 4: Write to Immutable Wallet Ledger ──────────
+            db.collection('wallet_ledger').add({
+                'type': 'mpesa_deposit',
+                'user_id': user_id,
+                'checkout_id': checkout_id,
+                'amount': credit_amt,
+                'destination': destination,
+                'timestamp': firestore.SERVER_TIMESTAMP
+            })
+
             # Fetch fresh balance for notification
             new_balance = 0.0
+            user_email = ""
             try:
                 fresh_doc = user_ref.get()
                 if fresh_doc.exists:
-                    new_balance = float(fresh_doc.to_dict().get('walletBalance', 0.0))
+                    fresh_data = fresh_doc.to_dict()
+                    new_balance = float(fresh_data.get('walletBalance', 0.0))
+                    user_email = fresh_data.get('email', '')
             except Exception:
                 pass
+
+            # ── Feature 10: Instant Transaction Receipts ──────────────
+            if user_email and destination == 'walletBalance':
+                try:
+                    from flask import current_app
+                    from flask_mail import Message
+                    from app import mail
+                    if mail is not None:
+                        msg = Message(
+                            subject="DISHI Deposit Receipt",
+                            sender=current_app.config.get('MAIL_USERNAME', 'info@delstarfordworks.co.ke'),
+                            recipients=[user_email],
+                            html=f"<h3>Deposit Successful</h3><p>You have deposited <b>KES {credit_amt}</b> into your DISHI wallet.</p><p>New Balance: <b>KES {new_balance}</b></p><p>Transaction ID: {checkout_id}</p>",
+                            body=f"Deposit of KES {credit_amt} successful. New Balance: KES {new_balance}. ID: {checkout_id}"
+                        )
+                        mail.send(msg)
+                except Exception as e:
+                    print(f"Receipt email failed: {e}")
 
             # ── Student notification ──────────────────────────────────
             if is_fund_student:
@@ -783,9 +880,14 @@ def trigger_b2c_withdrawal():
     amount     = data.get('amount')
     user_id    = data.get('user_id', data.get('vendor_id', '')).strip()
     role       = data.get('role', 'vendor').strip().lower()
+    pin        = data.get('pin', '').strip()
 
     if not phone or not amount or not user_id:
         return jsonify({"error": "Missing phone_number, amount, or user_id"}), 400
+
+    # ── Feature 8: B2C API Security (Withdrawal PINs) ─────────────
+    if not pin:
+        return jsonify({"error": "Transaction PIN is required to withdraw."}), 400
 
     try:
         amount_float = float(amount)
@@ -800,6 +902,17 @@ def trigger_b2c_withdrawal():
         return jsonify({"error": "User not found"}), 404
 
     user_data = user_doc.to_dict()
+    
+    # Validate PIN
+    stored_pin = user_data.get('transaction_pin')
+    if not stored_pin:
+        return jsonify({"error": "No Transaction PIN set up on your account. Please set it first."}), 400
+        
+    # Assume plain PIN for now, or you can use werkzeug.security.check_password_hash if hashed
+    # If the user stored it as a string, check exact match. 
+    # (If using werkzeug hashes in future, update this logic to check_password_hash)
+    if str(stored_pin) != str(pin):
+        return jsonify({"error": "Invalid Transaction PIN."}), 403
     
     source     = data.get('source')
     
@@ -817,6 +930,37 @@ def trigger_b2c_withdrawal():
 
     if balance < amount_float:
         return jsonify({"error": f"Insufficient balance. Available: Ksh {balance:.2f}"}), 400
+
+    # ── Feature 6: Maker-Checker (Approval) for Large Withdrawals ──
+    # If withdrawal is > 10,000 KES, require admin approval
+    if amount_float > 10000:
+        # Deduct balance immediately
+        user_ref.update({balance_field: firestore.Increment(-amount_float)})
+        
+        # Log to ledger
+        db.collection('wallet_ledger').add({
+            'type': 'b2c_withdrawal_pending',
+            'user_id': user_id,
+            'amount': -amount_float,
+            'destination': 'mpesa',
+            'timestamp': firestore.SERVER_TIMESTAMP
+        })
+        
+        # Save pending transaction for admin
+        tx_id = f"B2C_PENDING_{datetime.now().strftime('%Y%m%d%H%M%S')}_{user_id[-4:]}"
+        db.collection('b2c_transactions').document(tx_id).set({
+            'user_id':   user_id,
+            'role':      role,
+            'amount':    amount_float,
+            'phone':     _fmt_phone(phone),
+            'status':    'pending_approval',
+            'timestamp': firestore.SERVER_TIMESTAMP,
+        })
+        
+        return jsonify({
+            "status": "pending_approval", 
+            "message": "Withdrawal amount exceeds instant limit. It has been queued for admin approval."
+        }), 200
 
     access_token = generate_access_token()
     if not access_token:
@@ -868,6 +1012,16 @@ def trigger_b2c_withdrawal():
     if response.status_code == 200 and 'ConversationID' in response_data:
         # Deduct from user balance immediately
         user_ref.update({balance_field: firestore.Increment(-amount_float)})
+        
+        # Log to ledger
+        db.collection('wallet_ledger').add({
+            'type': 'b2c_withdrawal',
+            'user_id': user_id,
+            'amount': -amount_float,
+            'destination': 'mpesa',
+            'timestamp': firestore.SERVER_TIMESTAMP
+        })
+        
         conversation_id = response_data['ConversationID']
         db.collection('b2c_transactions').document(conversation_id).set({
             'user_id':   user_id,
@@ -1358,7 +1512,44 @@ def driver_withdraw():
         'message': f'Withdrawal of KES {amount_float} via {method} initiated successfully.'
     }), 200
 
-# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Feature 7: Automated STK Timeout Reconciliations (Cron) ────────
+@mpesa_bp.route('/cron/stk_cleanup', methods=['GET', 'POST'])
+def stk_cleanup_cron():
+    """
+    Sweeps the mpesa_transactions collection for 'pending' records
+    that are older than 10 minutes and marks them as 'failed_timeout'.
+    This should be hit by a Vercel Cron Job every 5-10 minutes.
+    """
+    try:
+        db = firestore.client()
+        
+        # 10 minutes ago
+        cutoff_time = datetime.utcnow() - timedelta(minutes=10)
+        
+        pending_txs = db.collection('mpesa_transactions') \
+                        .where('status', '==', 'pending') \
+                        .where('timestamp', '<', cutoff_time) \
+                        .limit(50).stream()
+                        
+        count = 0
+        batch = db.batch()
+        
+        for tx in pending_txs:
+            batch.update(tx.reference, {
+                'status': 'failed_timeout',
+                'result_desc': 'The request timed out or was ignored by the user.'
+            })
+            count += 1
+            
+        if count > 0:
+            batch.commit()
+            
+        return jsonify({"success": True, "reconciled_count": count}), 200
+        
+    except Exception as e:
+        print(f"STK Cleanup Cron Error: {e}")
+        return jsonify({"error": str(e)}), 500# ─────────────────────────────────────────────────────────────────────────────
 #  Fundi Withdrawal (B2C / B2B)
 # ─────────────────────────────────────────────────────────────────────────────
 

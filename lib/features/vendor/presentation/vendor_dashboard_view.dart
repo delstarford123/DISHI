@@ -445,6 +445,27 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      InkWell(
+                        onTap: () => _showVccEntryDialog(context),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            color: _cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: _neonPink.withOpacity(0.5)),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.credit_card, color: _neonPink),
+                              SizedBox(width: 12),
+                              Text('VCC Card Checkout', style: TextStyle(color: _neonPink, fontWeight: FontWeight.bold, fontSize: 16)),
+                            ],
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 24),
                       Row(
                         children: [
@@ -713,6 +734,112 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
               child: isProcessing 
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black))
                 : const Text('Verify & Proceed', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showVccEntryDialog(BuildContext context) {
+    final panController = TextEditingController();
+    final pinController = TextEditingController();
+    bool isProcessing = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: _cardColor,
+          title: const Text('VCC Card Checkout', style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: panController,
+                style: const TextStyle(color: Colors.white),
+                keyboardType: TextInputType.number,
+                maxLength: 16,
+                decoration: InputDecoration(
+                  labelText: '16-Digit Card Number (PAN)',
+                  labelStyle: const TextStyle(color: _neonPink),
+                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonPink.withOpacity(0.5))),
+                  focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _neonPink)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: pinController,
+                style: const TextStyle(color: Colors.white),
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 4,
+                decoration: InputDecoration(
+                  labelText: 'Student PIN',
+                  labelStyle: const TextStyle(color: _neonPink),
+                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonPink.withOpacity(0.5))),
+                  focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _neonPink)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isProcessing ? null : () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: _textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: isProcessing ? null : () async {
+                final pan = panController.text.trim();
+                final pin = pinController.text.trim();
+                if (pan.length != 16 || pin.length != 4) {
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid PAN (16 digits) and PIN (4 digits).')));
+                   return;
+                }
+
+                setState(() => isProcessing = true);
+
+                try {
+                  // Find virtual card by PAN
+                  final cardQuery = await FirebaseFirestore.instance.collection('virtual_cards').where('pan', isEqualTo: pan).get();
+                  if (cardQuery.docs.isEmpty) {
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid Card Number.')));
+                    setState(() => isProcessing = false);
+                    return;
+                  }
+
+                  final cardData = cardQuery.docs.first.data();
+                  if (cardData['status'] == 'frozen') {
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This card is frozen.')));
+                    setState(() => isProcessing = false);
+                    return;
+                  }
+
+                  final uid = cardData['uid'];
+
+                  // Verify PIN
+                  final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+                  final userPin = doc.data()?['pin'];
+
+                  if (userPin != pin) {
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid PIN.')));
+                    setState(() => isProcessing = false);
+                    return;
+                  }
+
+                  if (mounted) {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => VendorTopupView(studentUid: uid)));
+                  }
+                } catch (e) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  setState(() => isProcessing = false);
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: _neonPink),
+              child: isProcessing 
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white))
+                : const Text('Verify & Proceed', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),

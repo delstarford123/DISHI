@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
 const Color _neonCyan = Color(0xFF05D5AA);
@@ -9,8 +9,9 @@ const Color _textSecondary = Color(0xFF8B9BB4);
 
 class GrowthTabView extends StatelessWidget {
   final Map<String, dynamic> user;
+  final List<dynamic> linkedStudents;
   
-  const GrowthTabView({super.key, required this.user});
+  const GrowthTabView({super.key, required this.user, required this.linkedStudents});
 
   @override
   Widget build(BuildContext context) {
@@ -67,15 +68,46 @@ class GrowthTabView extends StatelessWidget {
             TextButton(onPressed: () {}, child: const Text('+ Assign', style: TextStyle(color: _neonOrange))),
           ],
         ),
-        _buildChoreCard('Clean Room', 150.0, true),
-        _buildChoreCard('Walk the Dog', 50.0, false),
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('bounties')
+                  .where('parentUid', isEqualTo: user['uid'])
+                  .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _neonOrange));
+            final docs = snapshot.data?.docs ?? [];
+            if (docs.isEmpty) return const Text('No chores assigned.', style: TextStyle(color: _textSecondary));
+            
+            return Column(
+              children: docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return _buildChoreCard(data['title'] ?? 'Chore', (data['reward'] ?? 0.0).toDouble(), data['status'] == 'completed');
+              }).toList(),
+            );
+          },
+        ),
         
         const SizedBox(height: 24),
         
         // Savings Goals
         const Text('Savings Goals', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
-        _buildSavingsCard('New Sneakers', 2500, 5000),
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('savings_goals')
+                  .where('parentUid', isEqualTo: user['uid'])
+                  .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _neonCyan));
+            final docs = snapshot.data?.docs ?? [];
+            if (docs.isEmpty) return const Text('No savings goals set.', style: TextStyle(color: _textSecondary));
+            
+            return Column(
+              children: docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return _buildSavingsCard(data['title'] ?? 'Goal', (data['current'] ?? 0.0).toDouble(), (data['target'] ?? 1000.0).toDouble());
+              }).toList(),
+            );
+          },
+        ),
         
         const SizedBox(height: 24),
         
