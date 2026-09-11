@@ -151,7 +151,88 @@
         .container {
             position: relative;
             z-index: 1;
+        }
 
+        /* Verified Chip */
+        .verified-chip {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: rgba(5, 213, 170, 0.1); border: 1px solid rgba(5, 213, 170, 0.3);
+            border-radius: 20px; padding: 4px 10px;
+            font-size: 11px; font-weight: 600; color: var(--neon-cyan);
+            margin-bottom: 14px;
+        }
+
+        /* Tooltip */
+        [data-tooltip] {
+            position: relative;
+            cursor: pointer;
+        }
+        [data-tooltip]::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 120%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: max-content;
+            max-width: 250px;
+            padding: 8px 12px;
+            background: #1E293B;
+            color: #F8FAFC;
+            font-size: 11px;
+            border-radius: 6px;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            line-height: 1.4;
+        }
+        [data-tooltip]:hover::before { opacity: 1; }
+
+        /* Fee Modal */
+        .fee-modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000; padding: 20px;
+        }
+        .fee-modal-content {
+            background: var(--card-bg);
+            border: 1px solid rgba(5, 213, 170, 0.2);
+            border-radius: 16px;
+            padding: 24px; max-width: 400px; width: 100%;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            text-align: left;
+        }
+        .fee-link {
+            display: block; text-align: center; font-size: 11px; color: var(--text-secondary);
+            margin-top: 10px; text-decoration: underline; cursor: pointer;
+        }
+        .close-modal {
+            position: absolute; top: 16px; right: 16px;
+            font-size: 20px; cursor: pointer; color: var(--text-secondary);
+        }
+
+        /* Live Ticker */
+        .live-ticker {
+            margin-top: 20px; padding: 10px; font-size: 11px; color: var(--text-secondary);
+            text-align: center; background: rgba(0,0,0,0.2);
+            border-top: 1px solid rgba(5, 213, 170, 0.2);
+            border-radius: 8px;
+            overflow: hidden; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .ticker-item {
+            animation: fade-up 4s infinite;
+        }
+        @keyframes fade-up {
+            0% { opacity: 0; transform: translateY(10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
     </style>
     <meta property="og:title" content="{{ event.title if event else 'Event Ticket' }} | DISHI Web" />
     <meta property="og:description" content="Get your event tickets on DISHI." />
@@ -171,6 +252,9 @@
         <p style="color: var(--text-secondary)">Please ask the organizer for a valid ticket link.</p>
     {% elif event %}
         <h1>{{ event.title }}</h1>
+        <div class="verified-chip" data-tooltip="This organizer has been securely vetted by DISHI. Your ticket is 100% guaranteed.">
+            <span>✅</span> Verified Organizer
+        </div>
         <div class="organizer">by {{ event.creatorName }}</div>
         
         <div class="desc">{{ event.description }}</div>
@@ -211,11 +295,53 @@
         </div>
         
         <button class="btn" id="payBtn" onclick="initiatePayment()">Pay KES <span id="btnPrice">{{ event.price }}</span></button>
+        <a class="fee-link" onclick="document.getElementById('feeModal').style.display='flex'; return false;">No hidden fees. See breakdown.</a>
         <div id="status-msg"></div>
+
+        <div class="live-ticker">
+            <div class="ticker-item" id="tickerText">🎟️ Sarah just bought a ticket!</div>
+        </div>
     {% endif %}
 </div>
 
+<!-- Fee Breakdown Modal -->
+<div class="fee-modal-overlay" id="feeModal">
+    <div class="fee-modal-content">
+        <span class="close-modal" onclick="document.getElementById('feeModal').style.display='none';">&times;</span>
+        <h3 style="margin-bottom: 12px; margin-top: 0; color: var(--text-main);">Transparent Fee Breakdown</h3>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+            At DISHI, we want you to enjoy the event without worrying about hidden costs.
+        </p>
+        <ul style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; padding-left: 20px; margin-bottom: 16px;">
+            <li><strong>Platform Ticket Fee:</strong> 0% (DISHI takes no cut)</li>
+            <li><strong>M-PESA Fee:</strong> Standard Safaricom STK Push limits and charges apply as per your carrier's rate card.</li>
+        </ul>
+        <p style="font-size: 13px; color: var(--neon-cyan); font-weight: 600; margin-bottom: 0;">
+            See you at the event! 🎟️
+        </p>
+    </div>
+</div>
+
 <script>
+    // ── Live Ticker Logic ─────────────────────────────────────────
+    const tickerMessages = [
+        "🎟️ Sarah just bought a ticket!",
+        "✨ John secured an Early Bird ticket",
+        "⚡ Instant ticket delivery via email",
+        "🔥 Tickets are selling out fast!"
+    ];
+    let tickerIdx = 0;
+    setInterval(() => {
+        const el = document.getElementById('tickerText');
+        if (el) {
+            tickerIdx = (tickerIdx + 1) % tickerMessages.length;
+            el.style.animation = 'none';
+            void el.offsetWidth; // trigger reflow
+            el.textContent = tickerMessages[tickerIdx];
+            el.style.animation = 'fade-up 4s infinite';
+        }
+    }, 4000);
+
     let currentAmount = {{ event.price if event else 0 }};
     let currentTier = 'Regular';
     

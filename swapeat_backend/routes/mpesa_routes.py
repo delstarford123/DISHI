@@ -364,6 +364,22 @@ def mpesa_callback():
                             # Credit organizer wallet (assuming user_id is the organizer for STK payload logic, but typically event.creatorId should get the money. We will credit user_id as per current STK structure)
                             user_ref.update({'walletBalance': firestore.Increment(credit_amt)})
                             
+                            # Notify Organizer via FCM
+                            try:
+                                organizer_doc = user_ref.get()
+                                organizer_token = organizer_doc.to_dict().get('fcmToken') if organizer_doc.exists else None
+                                if organizer_token:
+                                    from firebase_admin import messaging
+                                    messaging.send(messaging.Message(
+                                        notification=messaging.Notification(
+                                            title="New Ticket Sold! 🎟️",
+                                            body=f"A {tier} ticket for {e_data.get('title', 'Event')} was just purchased. Revenue: KES {credit_amt:,.0f}"
+                                        ),
+                                        token=organizer_token
+                                    ))
+                            except Exception as e:
+                                print(f"Failed to send FCM to event organizer: {e}")
+                            
                             # Send Ticket Email
                             if buyer_email:
                                 try:

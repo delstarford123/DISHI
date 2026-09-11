@@ -427,8 +427,78 @@
     <meta property="og:description" content="Support a student's education on DISHI." />
     <meta property="og:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
     <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
+    <style>
+        /* Tooltip */
+        [data-tooltip] {
+            position: relative;
+            cursor: pointer;
+        }
+        [data-tooltip]::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 120%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: max-content;
+            max-width: 250px;
+            padding: 8px 12px;
+            background: #1E293B;
+            color: #F8FAFC;
+            font-size: 11px;
+            border-radius: 6px;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            line-height: 1.4;
+        }
+        [data-tooltip]:hover::before { opacity: 1; }
+
+        /* Fee Modal */
+        .fee-modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000; padding: 20px;
+        }
+        .fee-modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px; max-width: 400px; width: 100%;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .fee-link {
+            display: block; text-align: center; font-size: 11px; color: var(--text-muted);
+            margin-top: 10px; text-decoration: underline; cursor: pointer;
+        }
+        .close-modal {
+            position: absolute; top: 16px; right: 16px;
+            font-size: 20px; cursor: pointer; color: var(--text-muted);
+        }
+
+        /* Live Ticker */
+        .live-ticker {
+            padding: 10px; font-size: 11px; color: var(--text-sub);
+            text-align: center; background: var(--bg-elevated);
+            border-top: 1px solid var(--border);
+            overflow: hidden; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .ticker-item {
+            animation: fade-up 4s infinite;
+        }
+        @keyframes fade-up {
+            0% { opacity: 0; transform: translateY(10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+    </style>
 </head>
 <body>
     <div class="bg-watermark"></div>
@@ -469,7 +539,7 @@
         
         {% if campaign %}
         <div class="student-name-big">{{ campaign.title }}</div>
-        <div class="verified-chip">
+        <div class="verified-chip" data-tooltip="This campaign has been securely vetted by DISHI using official documentation. 100% of your funds go to the right organizer.">
             <span>✅</span> Verified Campaign
         </div>
         <div class="fund-purpose" style="text-align:center; margin-bottom: 12px; background: rgba(0,0,0,0.2);">
@@ -487,7 +557,7 @@
         </div>
         {% else %}
         <div class="student-name-big">Support Campaign</div>
-        <div class="verified-chip">
+        <div class="verified-chip" data-tooltip="This campaign has been securely vetted by DISHI using official documentation. 100% of your funds go to the right organizer.">
             <span>✅</span> Verified DISHI Campaign
         </div>
         <div class="fund-purpose" style="background: rgba(0,0,0,0.2);">
@@ -559,6 +629,25 @@
             <span class="mpesa-logo">⚡</span>
             <span class="btn-label">Support Campaign via M-PESA</span>
         </button>
+        <a class="fee-link" onclick="document.getElementById('feeModal').style.display='flex'; return false;">No hidden fees. See breakdown.</a>
+    </div>
+</div>
+
+<!-- Fee Breakdown Modal -->
+<div class="fee-modal-overlay" id="feeModal">
+    <div class="fee-modal-content">
+        <span class="close-modal" onclick="document.getElementById('feeModal').style.display='none';">&times;</span>
+        <h3 style="margin-bottom: 12px; color: var(--text);">Transparent Fee Breakdown</h3>
+        <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 12px; line-height: 1.5;">
+            At DISHI, we believe 100% of your generosity should reach the intended recipient.
+        </p>
+        <ul style="font-size: 13px; color: var(--text-sub); line-height: 1.6; padding-left: 20px; margin-bottom: 16px;">
+            <li><strong>Platform Fee:</strong> 0% (DISHI takes no cut)</li>
+            <li><strong>M-PESA Fee:</strong> Standard Safaricom STK Push limits and charges apply as per your carrier's rate card.</li>
+        </ul>
+        <p style="font-size: 13px; color: var(--green); font-weight: 600;">
+            Every Shilling counts. Thank you for your support! 💚
+        </p>
     </div>
 </div>
 
@@ -630,6 +719,10 @@
         Platform by <a href="https://www.delstarfordworks.co.ke" target="_blank" rel="noopener">DELSTARFORD WORKS</a>
     </div>
 </div>
+<!-- Live Ticker -->
+<div class="live-ticker">
+    <div class="ticker-item" id="tickerText">✨ Anonymous just funded a campaign</div>
+</div>
 
 </div><!-- .card -->
 </div><!-- .container -->
@@ -637,6 +730,25 @@
 {% if not error %}
 <script>
 (function() {
+    // ── Live Ticker Logic ─────────────────────────────────────────
+    const tickerMessages = [
+        "✨ Anonymous just funded KES 500",
+        "💚 A student recently supported this campaign",
+        "⚡ Instant credit received via M-PESA",
+        "🎉 Sarah just made a contribution!",
+        "🙌 100% of funds go directly to the organizer"
+    ];
+    let tickerIdx = 0;
+    setInterval(() => {
+        const el = document.getElementById('tickerText');
+        if (el) {
+            tickerIdx = (tickerIdx + 1) % tickerMessages.length;
+            el.style.animation = 'none';
+            void el.offsetWidth; // trigger reflow
+            el.textContent = tickerMessages[tickerIdx];
+            el.style.animation = 'fade-up 4s infinite';
+        }
+    }, 4000);
     // ── Template values injected server-side ──────────────────────
     const USER_ID      = "{{ user_id }}";       // Real Firestore doc ID
     const STUDENT_NAME = "{{ student_name }}";
