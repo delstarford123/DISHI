@@ -335,6 +335,17 @@
         <h1>You've been invited! 🎉</h1>
         <p class="subtitle">Join the smart campus meals & finance app used by students across Kenya. Download now and get started instantly.</p>
 
+        <!-- Interactive App Preview -->
+        <div class="app-preview-container" style="text-align: center; margin: 30px 0;">
+            <div class="device-mockup" style="position: relative; width: 240px; height: 500px; margin: 0 auto; background: #000; border-radius: 36px; border: 10px solid #1e293b; box-shadow: 0 15px 40px rgba(0,0,0,0.6), inset 0 0 10px rgba(255,255,255,0.1); overflow: hidden;">
+                <div class="device-notch" style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 100px; height: 20px; background: #1e293b; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; z-index: 10;"></div>
+                <video autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;">
+                    <source src="{{ url_for('static', filename='video/app_preview.mp4') }}" type="video/mp4">
+                    <div style="width: 100%; height: 100%; background: linear-gradient(135deg, var(--purple), var(--primary)); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">App Preview Loading...</div>
+                </video>
+            </div>
+        </div>
+
         <!-- Download section -->
         <div class="download-card">
             <div class="download-label">Get the app</div>

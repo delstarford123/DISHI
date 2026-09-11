@@ -201,7 +201,7 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
         child: NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) => [
             SliverAppBar(
-              expandedHeight: 80,
+              expandedHeight: 140,
               floating: true,
               pinned: true,
               backgroundColor: _bgColor,

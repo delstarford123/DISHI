@@ -1,24 +1,12 @@
-import firebase_admin
-from firebase_admin import credentials, firestore
 import os
+from dotenv import load_dotenv
 
-try:
-    firebase_admin.get_app()
-except ValueError:
-    # Look for the credentials file
-    cred_path = 'swapeat-39f5e-firebase-adminsdk-hbg7q-29215cb86b.json'
-    if not os.path.exists(cred_path):
-        # try the old one or just search
-        cred_path = 'firebase_credentials.json'
-    if not os.path.exists(cred_path):
-        # find json file in current dir that starts with swapeat
-        for f in os.listdir('.'):
-            if f.endswith('.json') and 'firebase-adminsdk' in f:
-                cred_path = f
-                break
+# load .env first
+load_dotenv()
 
-    cred = credentials.Certificate(cred_path)
-    firebase_admin.initialize_app(cred)
+# importing app automatically initializes firebase from app.py
+import app
+from firebase_admin import firestore
 
 db = firestore.client()
 
