@@ -67,7 +67,7 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
     setState(() { _isLoading = true; });
     try {
       final response = await http.get(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v3/academic/flashcards?student_id=$_studentId'),
+        Uri.parse('https://swapeatbackend.vercel.app/v3/academic/flashcards?student_id=$_studentId'),
       ).timeout(const Duration(seconds: 15));
       
       if (response.statusCode == 200) {
@@ -85,10 +85,12 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
       // Backend failed — fall through to Firestore
     }
 
-    // Fallback: fetch from Firestore 'flashcards' collection
+    // Fallback: fetch from Firestore 'academic_flashcards' collection
     try {
       final snap = await FirebaseFirestore.instance
-          .collection('flashcards')
+          .collection('users')
+          .doc(_studentId)
+          .collection('academic_flashcards')
           .orderBy('createdAt', descending: true)
           .limit(100)
           .get();
@@ -146,7 +148,7 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
 
     try {
       final response = await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v3/academic/flashcards/review'),
+        Uri.parse('https://swapeatbackend.vercel.app/v3/academic/flashcards/review'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'studentId': _studentId,
@@ -238,7 +240,7 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
             onPressed: () async {
               if (qController.text.isNotEmpty && aController.text.isNotEmpty) {
                 await http.post(
-                  Uri.parse('https://swapeatbackend.vercel.app/api/v3/academic/flashcards'),
+                  Uri.parse('https://swapeatbackend.vercel.app/v3/academic/flashcards'),
                   headers: {'Content-Type': 'application/json'},
                   body: jsonEncode({
                     'studentId': _studentId,

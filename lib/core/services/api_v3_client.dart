@@ -5,7 +5,7 @@ import '../security/secure_storage_service.dart';
 /// Dedicated client for the v3 namespace in the Python Flask backend.
 /// Primarily used for the SmartI (Academic Study Companion) features.
 class ApiV3Client {
-  static const String _baseUrl = 'https://dishi.delstarfordworks.co.ke/api/v3';
+  static const String _baseUrl = 'https://dishi.delstarfordworks.co.ke/v3';
   static const Duration _timeout = Duration(seconds: 15);
 
   static Future<Map<String, String>> _getHeaders() async {
