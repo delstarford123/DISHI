@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DocumentVaultView extends StatefulWidget {
   const DocumentVaultView({super.key});
@@ -71,9 +75,7 @@ class _DocumentVaultViewState extends State<DocumentVaultView> {
                 Text(studentName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                 IconButton(
                   icon: const Icon(Icons.add_circle, color: MPesaTheme.mpesaGreen),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload feature coming soon in next update')));
-                  },
+                  onPressed: () => _uploadDocument(studentUid, studentName),
                 )
               ],
             ),
@@ -103,8 +105,16 @@ class _DocumentVaultViewState extends State<DocumentVaultView> {
                       title: Text(d['name'] ?? 'Document', style: const TextStyle(color: Colors.white)),
                       subtitle: Text(d['type'] ?? 'Unknown Type', style: const TextStyle(color: Colors.white70)),
                       trailing: const Icon(Icons.remove_red_eye, color: Colors.white54),
-                      onTap: () {
-                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Document viewer opening...')));
+                      onTap: () async {
+                         final url = d['url'];
+                         if (url != null) {
+                           final uri = Uri.parse(url);
+                           if (await canLaunchUrl(uri)) {
+                             await launchUrl(uri);
+                           } else {
+                             if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open document.')));
+                           }
+                         }
                       },
                     );
                   }).toList(),
@@ -115,5 +125,35 @@ class _DocumentVaultViewState extends State<DocumentVaultView> {
         ),
       ),
     );
+  }
+
+  Future<void> _uploadDocument(String studentUid, String studentName) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    
+    if (pickedFile == null) return;
+    
+    final file = File(pickedFile.path);
+    final fileName = pickedFile.name;
+    
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Uploading document...')));
+    
+    try {
+      final storageRef = FirebaseStorage.instance.ref().child('$studentUid/vault/${DateTime.now().millisecondsSinceEpoch}_$fileName');
+      final uploadTask = await storageRef.putFile(file);
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      
+      await FirebaseFirestore.instance.collection('users').doc(studentUid).collection('documents').add({
+        'name': 'Document - ${DateTime.now().toIso8601String().substring(0, 10)}',
+        'type': 'Image',
+        'url': downloadUrl,
+        'uploadedAt': FieldValue.serverTimestamp(),
+      });
+      
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload successful!')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+    }
   }
 }
