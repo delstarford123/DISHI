@@ -34,7 +34,7 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
   
   @override
@@ -71,7 +71,7 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
                 Expanded(
                   child: Text(
                     'Register as ${role['title']}',
-                    style: MPesaTheme.headingStyle.copyWith(fontSize: 20),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
               ],
@@ -79,7 +79,7 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
             const SizedBox(height: 8),
             Text(
               role['desc'],
-              style: MPesaTheme.bodyStyle.copyWith(color: Colors.grey),
+              style: const TextStyle(color: Colors.grey, fontSize: 14),
             ),
             const SizedBox(height: 24),
             TextField(
@@ -109,7 +109,11 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                style: MPesaTheme.primaryButtonStyle,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: MPesaTheme.neonGreen,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
                 onPressed: () async {
                   Navigator.pop(context);
                   await _registerAsWorker(role['title'], descController.text);
@@ -191,7 +195,7 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
                 Expanded(
                   child: Text(
                     'Request ${role['title']}',
-                    style: MPesaTheme.headingStyle.copyWith(fontSize: 20),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
               ],
@@ -378,8 +382,9 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
           labelColor: MPesaTheme.neonGreen,
           unselectedLabelColor: Colors.grey,
           tabs: const [
-            Tab(text: 'Request Service'),
-            Tab(text: 'Offer Service'),
+            Tab(text: 'Request'),
+            Tab(text: 'Offer'),
+            Tab(text: 'Active Gigs'),
           ],
         ),
       ),
@@ -413,6 +418,9 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
                 itemCount: _gigRoles.length,
                 itemBuilder: (context, index) => _buildRoleCard(_gigRoles[index], true),
               ),
+
+              // Active Gigs Tab
+              _buildActiveGigsTab(),
             ],
           ),
           
@@ -426,5 +434,112 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
         ],
       ),
     );
+  }
+
+  Widget _buildActiveGigsTab() {
+    final user = _auth.currentUser;
+    if (user == null) return const Center(child: Text("Not authenticated", style: TextStyle(color: Colors.white)));
+    
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore.collection('campus_gig_requests')
+          .where('requester_id', '==', user.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) return const Center(child: Text("No active gigs requested.", style: TextStyle(color: Colors.grey)));
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final data = docs[index].data() as Map<String, dynamic>;
+            final status = data['status'] ?? '';
+            final escrowStatus = data['escrow_status'] ?? '';
+            final price = data['price_offer'] ?? 0;
+            final category = data['category'] ?? '';
+            
+            return Card(
+              color: MPesaTheme.surfaceColor,
+              margin: const EdgeInsets.only(bottom: 16),
+              child: ListTile(
+                title: Text('$category Gig', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: Text('Status: $status | Escrow: $escrowStatus\nPrice: KSH $price', style: const TextStyle(color: Colors.grey)),
+                trailing: escrowStatus == 'HELD' 
+                  ? ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.neonGreen),
+                      onPressed: () => _showPinDialog(docs[index].id),
+                      child: const Text('Complete', style: TextStyle(color: Colors.black)),
+                    )
+                  : null,
+              ),
+            );
+          },
+        );
+      }
+    );
+  }
+
+  void _showPinDialog(String requestId) {
+    final pinController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: MPesaTheme.surfaceColor,
+        title: const Text('Complete Gig', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: pinController,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Enter 4-digit Worker PIN',
+            hintStyle: TextStyle(color: Colors.grey),
+            filled: true,
+            fillColor: Colors.black26,
+          ),
+          keyboardType: TextInputType.number,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _releaseEscrow(requestId, pinController.text);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.neonGreen),
+            child: const Text('Release Funds', style: TextStyle(color: Colors.black)),
+          )
+        ],
+      ),
+    );
+  }
+
+  Future<void> _releaseEscrow(String requestId, String pin) async {
+    setState(() => _isLoading = true);
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+      
+      final response = await http.post(
+        Uri.parse('https://swapeatbackend.vercel.app/api/v6/campus_gigs/release_escrow'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'requester_id': user.uid,
+          'request_id': requestId,
+          'pin': pin
+        }),
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Funds released!'), backgroundColor: MPesaTheme.neonGreen));
+      } else {
+        throw Exception(json.decode(response.body)['error'] ?? 'Unknown error');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 }

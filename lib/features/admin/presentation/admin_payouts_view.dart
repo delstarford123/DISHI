@@ -68,6 +68,7 @@ class _AdminPayoutsViewState extends State<AdminPayoutsView> {
               final totalEscrow = (escrowData['total_escrow'] as num?)?.toDouble() ?? 0.0;
               final tuitionEscrow = (escrowData['tuition_escrow'] as num?)?.toDouble() ?? 0.0;
               final housingEscrow = (escrowData['housing_escrow'] as num?)?.toDouble() ?? 0.0;
+              final gigEscrow = (escrowData['gig_escrow'] as num?)?.toDouble() ?? 0.0;
 
               return ListView(
                 padding: const EdgeInsets.all(16.0),
@@ -81,6 +82,8 @@ class _AdminPayoutsViewState extends State<AdminPayoutsView> {
                       Expanded(child: _buildEscrowCard('Housing', housingEscrow, Colors.blueAccent, small: true)),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  _buildEscrowCard('Campus Gigs', gigEscrow, Colors.purpleAccent, small: true),
                   const SizedBox(height: 32),
                   const Text('Failed Payouts', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),

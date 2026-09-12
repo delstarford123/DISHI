@@ -252,6 +252,8 @@ class AdminService {
     
     final data = jsonDecode(response.body);
     return data['transactions'] as List<dynamic>;
+  }
+
   // ==========================================
   // PHASE 5: COMMAND CENTER APIs
   // ==========================================
@@ -288,6 +290,18 @@ class AdminService {
   Future<void> closeTicket(String ticketId, String resolution) async {
     final headers = await _getHeaders();
     final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/tickets/$ticketId/close'), headers: headers, body: jsonEncode({'resolution': resolution}));
+    if (response.statusCode != 200) throw Exception(response.body);
+  }
+
+  Future<void> refundGigTicket(String requestId) async {
+    final headers = await _getHeaders();
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/tickets/gig/refund'), headers: headers, body: jsonEncode({'request_id': requestId}));
+    if (response.statusCode != 200) throw Exception(response.body);
+  }
+
+  Future<void> suspendGigWorker(String workerId) async {
+    final headers = await _getHeaders();
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/tickets/gig/suspend_worker'), headers: headers, body: jsonEncode({'worker_id': workerId}));
     if (response.statusCode != 200) throw Exception(response.body);
   }
 

@@ -21,14 +21,27 @@ def send_fcm_notification(user_id: str, title: str, body: str, data: dict = None
             print(f"[FCM] User {user_id} does not have an fcmToken registered.")
             return False
 
-        # Build the message
+        # Prepare data payload (must be strings)
+        stringified_data = {k: str(v) for k, v in data.items()} if data else {}
+
+        # Build the message with high-priority Android & APNS config for offline wake-up
         message = messaging.Message(
             notification=messaging.Notification(
                 title=title,
                 body=body,
             ),
-            data=data if data else {},
+            data=stringified_data,
             token=fcm_token,
+            android=messaging.AndroidConfig(
+                priority='high',
+                ttl=86400, # 24 hours offline TTL
+                notification=messaging.AndroidNotification(sound='default')
+            ),
+            apns=messaging.APNSConfig(
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(content_available=True, sound='default')
+                )
+            )
         )
 
         # Send the message
@@ -37,5 +50,7 @@ def send_fcm_notification(user_id: str, title: str, body: str, data: dict = None
         return True
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"[FCM] Error sending notification to {user_id}: {e}")
         return False

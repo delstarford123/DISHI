@@ -11,6 +11,15 @@ import 'package:provider/provider.dart';
 import 'features/smartimer/data/hive_service.dart';
 import 'features/smartimer/providers/plan_provider.dart';
 import 'features/match/presentation/widgets/incoming_call_listener.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'core/services/fcm_service.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint("Handling a background message: ${message.messageId}");
+  // Here we can save data to Hive or SQLite for offline use
+}
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -22,6 +31,9 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     await SmartiHiveService.init();
+    
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    await FCMService.initialize();
   } catch (e) {
     debugPrint('Initialization error: $e');
   }

@@ -281,3 +281,67 @@ def harambee_payouts():
         import traceback
         print(f"Error in harambee payouts cron: {traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500
+
+@cron_bp.route('/system-bots', methods=['POST', 'GET'])
+def run_system_bots():
+    auth_header = request.headers.get('Authorization')
+    expected_secret = os.getenv('CRON_SECRET', 'swapeat-cron-secret-2024')
+    
+    if auth_header != f"Bearer {expected_secret}" and request.args.get('secret') != expected_secret:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    db = firestore.client()
+    now = datetime.now(timezone.utc)
+    twelve_hours_ago = now - timedelta(hours=12)
+
+    try:
+        # 1. Auto-Approve Housing
+        housing_ref = db.collection('housing_properties').where('status', '==', 'pending').stream()
+        for doc in housing_ref:
+            data = doc.to_dict()
+            # Rule: Must have rent > 1000 and images attached
+            if data.get('rentAmount', 0) > 1000 and len(data.get('images', [])) > 0:
+                doc.reference.update({'status': 'approved'})
+                db.collection('audit_logs').add({
+                    'admin_id': 'system_bot',
+                    'action': 'Auto-Approve Housing',
+                    'details': f"Property {doc.id} approved automatically",
+                    'timestamp': firestore.SERVER_TIMESTAMP
+                })
+
+        # 2. Auto-Approve Vendors
+        vendors_ref = db.collection('vendors').where('status', '==', 'pending').stream()
+        for doc in vendors_ref:
+            data = doc.to_dict()
+            if data.get('businessName') and data.get('phoneNumber'):
+                doc.reference.update({'status': 'approved'})
+                db.collection('audit_logs').add({
+                    'admin_id': 'system_bot',
+                    'action': 'Auto-Approve Vendor',
+                    'details': f"Vendor {doc.id} approved automatically",
+                    'timestamp': firestore.SERVER_TIMESTAMP
+                })
+
+        # 3. Idle Worker Auto-Offline
+        # Workers who haven't updated their location or status in 12 hours
+        workers_ref = db.collection('campus_gig_workers').where('is_available', '==', True).stream()
+        for doc in workers_ref:
+            data = doc.to_dict()
+            last_active = data.get('last_active')
+            if not last_active:
+                continue
+                
+            if hasattr(last_active, 'timestamp'):
+                last_active_ts = last_active.timestamp()
+            else:
+                last_active_ts = last_active
+                
+            if last_active_ts < twelve_hours_ago.timestamp():
+                doc.reference.update({'is_available': False})
+
+        return jsonify({"status": "success", "message": "System bots executed successfully."}), 200
+
+    except Exception as e:
+        import traceback
+        print(f"Error in system bots cron: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500

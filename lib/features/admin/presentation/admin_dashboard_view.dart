@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/widgets/high_friction_action.dart';
 import '../../student/presentation/student_main_scaffold.dart';
 import '../../vendor/presentation/vendor_dashboard_view.dart';
@@ -529,10 +530,11 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   final doc = posts[index];
                   final data = doc.data() as Map<String, dynamic>;
                   
-                  return ListTile(
-                    tileColor: _surfaceLight,
+                  return Container(
                     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    title: Text(data['content'] ?? 'No content', style: const TextStyle(color: Colors.white)),
+                    child: ListTile(
+                      tileColor: _surfaceLight,
+                      title: Text(data['content'] ?? 'No content', style: const TextStyle(color: Colors.white)),
                     subtitle: Text('Author: ${data['authorName'] ?? 'Unknown'}', style: const TextStyle(color: _textSecondary)),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete, color: _neonRed),
@@ -632,14 +634,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     );
   }
 
-  Future<void> _processMassPayouts() async {
-    try {
-      await AdminService().triggerManualPayout();
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payouts triggered successfully')));
-    } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payout Error: $e')));
-    }
-  }
 
   Widget _buildFinancialAuditTab() {
     return Column(
@@ -664,10 +658,11 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   final amount = data['amount'] ?? 0;
                   final status = data['status'] ?? 'pending';
                   
-                  return ListTile(
-                    tileColor: _surfaceLight,
+                  return Container(
                     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Icon(
+                    child: ListTile(
+                      tileColor: _surfaceLight,
+                      leading: Icon(
                       type.contains('Refund') ? Icons.keyboard_return : Icons.attach_money,
                       color: type.contains('Refund') ? _neonOrange : _neonCyan,
                     ),
@@ -988,7 +983,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                         ),
                       ]),
                     ),
-                    ),
                   ),
                 ],
               );
@@ -1020,6 +1014,8 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text('DASHBOARD TABS', style: TextStyle(fontWeight: FontWeight.bold, color: _textSecondary, fontSize: 12, letterSpacing: 1.5)),
             ),
             ListTile(

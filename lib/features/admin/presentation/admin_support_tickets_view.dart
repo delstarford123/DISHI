@@ -62,6 +62,92 @@ class _AdminSupportTicketsViewState extends State<AdminSupportTicketsView> {
     }
   }
 
+  Future<void> _refundGigTicket() async {
+    final TextEditingController controller = TextEditingController();
+    final requestId = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardColor,
+        title: const Text('Refund Gig Escrow', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Enter Gig Request ID',
+            hintStyle: TextStyle(color: _textSecondary),
+            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: _surfaceLight)),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.orangeAccent)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: _textSecondary))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent, foregroundColor: Colors.black),
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Refund'),
+          ),
+        ],
+      ),
+    );
+
+    if (requestId != null && requestId.isNotEmpty) {
+      try {
+        await _adminService.refundGigTicket(requestId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gig refunded successfully'), backgroundColor: _neonCyan));
+          setState(() {});
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Refund Error: $e'), backgroundColor: _neonRed));
+        }
+      }
+    }
+  }
+
+  Future<void> _suspendGigWorker() async {
+    final TextEditingController controller = TextEditingController();
+    final workerId = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardColor,
+        title: const Text('Suspend Gig Worker', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Enter Worker User ID',
+            hintStyle: TextStyle(color: _textSecondary),
+            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: _surfaceLight)),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: _neonRed)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: _textSecondary))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _neonRed, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Suspend'),
+          ),
+        ],
+      ),
+    );
+
+    if (workerId != null && workerId.isNotEmpty) {
+      try {
+        await _adminService.suspendGigWorker(workerId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Worker suspended successfully'), backgroundColor: _neonCyan));
+          setState(() {});
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Suspend Error: $e'), backgroundColor: _neonRed));
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -119,14 +205,27 @@ class _AdminSupportTicketsViewState extends State<AdminSupportTicketsView> {
                       Text(t['description'], style: const TextStyle(color: Colors.white70)),
                     ],
                     const SizedBox(height: 16),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
-                        onPressed: () => _resolveTicket(t['id']),
-                        icon: const Icon(Icons.check, size: 16),
-                        label: const Text('Resolve Ticket'),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(
+                          onPressed: _refundGigTicket,
+                          icon: const Icon(Icons.money_off, color: Colors.orangeAccent),
+                          tooltip: 'Refund Gig Escrow',
+                        ),
+                        IconButton(
+                          onPressed: _suspendGigWorker,
+                          icon: const Icon(Icons.block, color: _neonRed),
+                          tooltip: 'Suspend Gig Worker',
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+                          onPressed: () => _resolveTicket(t['id']),
+                          icon: const Icon(Icons.check, size: 16),
+                          label: const Text('Resolve'),
+                        ),
+                      ],
                     )
                   ],
                 ),

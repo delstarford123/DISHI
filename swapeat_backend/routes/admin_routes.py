@@ -783,9 +783,18 @@ def get_escrow_summary():
         db = firestore.client()
         tuition_docs = db.collection('tuition_escrow').where('status', '==', 'locked').get()
         housing_docs = db.collection('housing_payments').where('status', '==', 'escrow').get()
+        gig_docs = db.collection('campus_gig_requests').where('escrow_status', '==', 'HELD').get()
+        
         tuition_total = sum(d.to_dict().get('amount', 0) for d in tuition_docs)
         housing_total = sum(d.to_dict().get('amount', 0) for d in housing_docs)
-        return jsonify({'tuition_escrow': tuition_total, 'housing_escrow': housing_total, 'total_escrow': tuition_total + housing_total}), 200
+        gig_total = sum(d.to_dict().get('net_amount', 0) + d.to_dict().get('fee_deducted', 0) for d in gig_docs)
+        
+        return jsonify({
+            'tuition_escrow': tuition_total, 
+            'housing_escrow': housing_total, 
+            'gig_escrow': gig_total,
+            'total_escrow': tuition_total + housing_total + gig_total
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -823,6 +832,83 @@ def close_ticket(ticket_id):
             except: pass
             
         return jsonify({'message': 'Ticket closed'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/tickets/gig/refund', methods=['POST'])
+def refund_gig_ticket():
+    admin_id = verify_admin(request)
+    if not admin_id: return jsonify({"error": "Unauthorized"}), 401
+    try:
+        data = request.get_json() or {}
+        request_id = data.get('request_id')
+        if not request_id: return jsonify({'error': 'Missing request_id'}), 400
+        
+        db = firestore.client()
+        transaction_ref = db.transaction()
+        req_ref = db.collection('campus_gig_requests').document(request_id)
+        
+        @firestore.transactional
+        def process_gig_refund(transaction):
+            req_doc = req_ref.get(transaction=transaction)
+            if not req_doc.exists: raise Exception("Gig not found")
+            req_data = req_doc.to_dict()
+            if req_data.get('escrow_status') != 'HELD': raise Exception("Gig is not in Escrow")
+            
+            requester_id = req_data.get('requester_id')
+            net_amount = req_data.get('net_amount', 0)
+            fee = req_data.get('fee_deducted', 0)
+            total_refund = net_amount + fee
+            
+            user_ref = db.collection('users').document(requester_id)
+            user_doc = user_ref.get(transaction=transaction)
+            if not user_doc.exists: raise Exception("Requester not found")
+            
+            user_balance = float(user_doc.to_dict().get('walletBalance', 0))
+            transaction.update(user_ref, {'walletBalance': user_balance + total_refund})
+            
+            transaction.update(req_ref, {
+                'status': 'cancelled',
+                'escrow_status': 'REFUNDED_BY_ADMIN',
+                'cancelled_at': firestore.SERVER_TIMESTAMP
+            })
+            
+            tx_id = str(uuid.uuid4())
+            tx_ref = user_ref.collection('transactions').document(tx_id)
+            transaction.set(tx_ref, {
+                'type': 'ESCROW_REFUND',
+                'amount': total_refund,
+                'desc': 'Admin Refunded Campus Gig',
+                'timestamp': firestore.SERVER_TIMESTAMP,
+                'request_id': request_id
+            })
+            
+        process_gig_refund(transaction_ref)
+        log_admin_action(admin_id, "Refund Gig Escrow", f"Refunded gig {request_id}")
+        return jsonify({'message': 'Gig escrow refunded successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/tickets/gig/suspend_worker', methods=['POST'])
+def suspend_gig_worker():
+    admin_id = verify_admin(request)
+    if not admin_id: return jsonify({"error": "Unauthorized"}), 401
+    try:
+        data = request.get_json() or {}
+        worker_id = data.get('worker_id')
+        if not worker_id: return jsonify({'error': 'Missing worker_id'}), 400
+        
+        db = firestore.client()
+        worker_ref = db.collection('campus_gig_workers').document(worker_id)
+        if not worker_ref.get().exists: return jsonify({'error': 'Worker not found'}), 404
+        
+        worker_ref.update({
+            'status': 'suspended',
+            'is_available': False,
+            'suspended_at': firestore.SERVER_TIMESTAMP
+        })
+        log_admin_action(admin_id, "Suspend Gig Worker", f"Suspended worker {worker_id}")
+        return jsonify({'message': 'Worker suspended successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

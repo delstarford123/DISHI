@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from firebase_admin import firestore
 import uuid
 import traceback
+import random
 
 campus_gigs_v6_bp = Blueprint('campus_gigs_v6', __name__)
 
@@ -61,6 +62,15 @@ def request_gig():
             'worker_id': None,
             'created_at': firestore.SERVER_TIMESTAMP
         })
+        
+        # Broadcast FCM to online workers
+        try:
+            from utils.fcm_utils import send_fcm_notification
+            workers = db.collection('campus_gig_workers').where('category', '==', category).where('is_available', '==', True).stream()
+            for worker in workers:
+                send_fcm_notification(worker.id, "New Gig Alert! \U0001f6a8", f"New {category} requested. Offer: Ksh {price_offer}", data={"type": "gig_request", "request_id": request_id})
+        except Exception as e:
+            print("Failed to broadcast FCM:", e)
         
         return jsonify({"status": "success", "request_id": request_id}), 200
     except Exception as e:
@@ -143,11 +153,19 @@ def pay_escrow():
                 'walletBalance': user_balance - total_charge
             })
             
+            completion_pin = str(random.randint(1000, 9999))
             transaction.update(req_ref, {
                 'escrow_status': 'HELD',
                 'fee_deducted': fee,
-                'net_amount': price
+                'net_amount': price,
+                'completion_pin': completion_pin
             })
+            
+            # Notify the worker that funds are locked
+            try:
+                from utils.fcm_utils import send_fcm_notification
+                send_fcm_notification(worker_id, "Job Secured! \U0001f512", f"Escrow locked Ksh {price}. Proceed to student.", data={"type": "escrow_locked", "request_id": request_id})
+            except: pass
             
             tx_id_out = str(uuid.uuid4())
             tx_out_ref = user_ref.collection('transactions').document(tx_id_out)
@@ -171,9 +189,10 @@ def release_escrow():
     data = request.json or {}
     request_id = data.get('request_id')
     requester_id = data.get('requester_id')
+    pin = data.get('pin')
 
-    if not request_id or not requester_id:
-        return jsonify({"error": "Missing request_id or requester_id"}), 400
+    if not request_id or not requester_id or not pin:
+        return jsonify({"error": "Missing request_id, requester_id, or pin"}), 400
 
     db = firestore.client()
 
@@ -193,6 +212,9 @@ def release_escrow():
             
             if req_data.get('requester_id') != requester_id:
                 raise Exception("Only the requester can release escrow funds")
+                
+            if str(req_data.get('completion_pin', '')) != str(pin):
+                raise Exception("Invalid completion PIN. Worker must provide the correct PIN to release funds.")
 
             worker_id = req_data.get('worker_id')
             net_amount = req_data.get('net_amount', 0)

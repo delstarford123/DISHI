@@ -89,8 +89,8 @@ class _FraudVelocityViewState extends State<FraudVelocityView> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('User ID: \${vendor['user_id']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                                  Text('\${vendor['recent_tx_count']} Txs', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                  Text('User ID: ${vendor["user_id"]}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                                  Text('${vendor["recent_tx_count"]} Txs', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                                 ],
                               ),
                               const SizedBox(height: 8),
