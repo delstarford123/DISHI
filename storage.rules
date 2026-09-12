@@ -12,6 +12,11 @@ service firebase.storage {
       return isAuth() && request.auth.uid == uid;
     }
 
+    // Check if user is an admin via Custom Claims
+    function isAdmin() {
+      return isAuth() && request.auth.token.admin == true;
+    }
+
     // Shared image validation (must be an image or octet-stream, max 10 MB)
     function isValidImage() {
       return (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('application/octet-stream') || request.resource.contentType == '')
@@ -32,6 +37,11 @@ service firebase.storage {
     // ── Default Deny ──────────────────────────────────────────────────────────
     match /{allPaths=**} {
       allow read, write: if false;
+    }
+
+    // ── ADMIN BYPASS ──────────────────────────────────────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if isAdmin();
     }
 
     // ─────────────────────────────────────────────────────────────────────────

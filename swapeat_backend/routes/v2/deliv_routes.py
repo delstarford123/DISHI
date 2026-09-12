@@ -29,12 +29,12 @@ def register_driver():
             'capacity': int(capacity),
             'vehicle_image': vehicle_image,
             'active_passengers': 0,
-            'is_available': True,
-            'status': 'free',
+            'is_available': False, # Needs admin approval first
+            'status': 'pending_approval',
             'created_at': firestore.SERVER_TIMESTAMP
         }, merge=True)
         
-        return jsonify({"status": "success", "message": "Registered as driver"}), 200
+        return jsonify({"status": "success", "message": "Registered as driver. Pending admin approval."}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

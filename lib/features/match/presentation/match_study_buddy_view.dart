@@ -254,7 +254,7 @@ class _MatchStudyBuddyViewState extends State<MatchStudyBuddyView> with SingleTi
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        Checkbox(value: isGroup, onChanged: (v) => setSheetState(() => isGroup = v ?? false), fillColor: MaterialStateProperty.all(Colors.blueAccent)),
+                        Checkbox(value: isGroup, onChanged: (v) => setSheetState(() => isGroup = v ?? false), fillColor: WidgetStateProperty.all(Colors.blueAccent)),
                         const Text('Make this a Group Study', style: TextStyle(color: Colors.white70)),
                       ],
                     ),
@@ -346,7 +346,7 @@ class _MatchStudyBuddyViewState extends State<MatchStudyBuddyView> with SingleTi
                   SwitchListTile(
                     title: const Text('Tutor Mode', style: TextStyle(color: Colors.white)),
                     subtitle: const Text('I am offering to tutor others', style: TextStyle(color: Colors.white54)),
-                    activeColor: Colors.blueAccent,
+                    activeThumbColor: Colors.blueAccent,
                     value: _isTutor,
                     onChanged: (v) => setSheetState(() => _isTutor = v),
                   ),
@@ -442,7 +442,7 @@ class _MatchStudyBuddyViewState extends State<MatchStudyBuddyView> with SingleTi
                   const Text('Turn on to find study partners.', style: TextStyle(color: Colors.white70, fontSize: 12)),
                 ],
               ),
-              _isToggling ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator()) : Switch(value: _isAcademicMode, activeColor: accentColor, onChanged: _toggleAcademicMode)
+              _isToggling ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator()) : Switch(value: _isAcademicMode, activeThumbColor: accentColor, onChanged: _toggleAcademicMode)
             ],
           ),
         ),
@@ -470,7 +470,7 @@ class _MatchStudyBuddyViewState extends State<MatchStudyBuddyView> with SingleTi
                         Text('Status: $_myStatus', style: const TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
                       ],
                     ),
-                    _isToggling ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator()) : Switch(value: _isAcademicMode, activeColor: accentColor, onChanged: _toggleAcademicMode)
+                    _isToggling ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator()) : Switch(value: _isAcademicMode, activeThumbColor: accentColor, onChanged: _toggleAcademicMode)
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -631,7 +631,7 @@ class _MatchStudyBuddyViewState extends State<MatchStudyBuddyView> with SingleTi
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('👥 Group Study', style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold)),
-                      Text('${DateFormat('MMM dd • h:mm a').format(date)}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      Text(DateFormat('MMM dd • h:mm a').format(date), style: const TextStyle(color: Colors.white70, fontSize: 12)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -688,7 +688,7 @@ class _MatchStudyBuddyViewState extends State<MatchStudyBuddyView> with SingleTi
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text('${DateFormat('MMM dd, yyyy • h:mm a').format(date)}', style: const TextStyle(color: Colors.white70)),
+                  Text(DateFormat('MMM dd, yyyy • h:mm a').format(date), style: const TextStyle(color: Colors.white70)),
                   const SizedBox(height: 4),
                   Row(
                     children: [

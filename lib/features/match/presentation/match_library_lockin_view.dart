@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../core/theme/glass_card.dart';
 import 'match_chat_view.dart';
 
 class MatchLibraryLockInView extends StatefulWidget {
@@ -34,7 +32,7 @@ class _MatchLibraryLockInViewState extends State<MatchLibraryLockInView> {
   int _pomodoroSeconds = 1500; // 25 mins
 
   int _activeCount = 0;
-  int _studyStreak = 3;
+  final int _studyStreak = 3;
 
   String get currentUid => FirebaseAuth.instance.currentUser?.uid ?? 'guest';
 
@@ -278,7 +276,7 @@ class _MatchLibraryLockInViewState extends State<MatchLibraryLockInView> {
           
           // Library Select
           DropdownButtonFormField<String>(
-            value: _selectedLibrary,
+            initialValue: _selectedLibrary,
             dropdownColor: const Color(0xFF1E293B),
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
@@ -311,7 +309,7 @@ class _MatchLibraryLockInViewState extends State<MatchLibraryLockInView> {
           
           // Subject
           DropdownButtonFormField<String>(
-            value: _selectedSubject,
+            initialValue: _selectedSubject,
             dropdownColor: const Color(0xFF1E293B),
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
@@ -331,7 +329,7 @@ class _MatchLibraryLockInViewState extends State<MatchLibraryLockInView> {
           SwitchListTile(
             title: const Text('Silence Mode', style: TextStyle(color: Colors.white)),
             subtitle: const Text('I want a quiet accountability buddy.', style: TextStyle(color: Colors.white54)),
-            activeColor: Colors.greenAccent,
+            activeThumbColor: Colors.greenAccent,
             value: _isSilenceMode,
             onChanged: (v) => setState(() => _isSilenceMode = v),
           ),

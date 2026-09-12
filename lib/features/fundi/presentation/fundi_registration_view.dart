@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/models/user_model.dart';
 import 'fundi_dashboard_view.dart';
 
@@ -246,7 +245,7 @@ class _FundiRegistrationViewState extends State<FundiRegistrationView> {
 
   Widget _buildDropdown(String label, List<String> items, String? currentValue, Function(String?) onChanged) {
     return DropdownButtonFormField<String>(
-      value: currentValue,
+      initialValue: currentValue,
       dropdownColor: _cardColor,
       style: const TextStyle(color: Colors.white, fontSize: 16),
       icon: const Icon(Icons.arrow_drop_down, color: _neonOrange),
@@ -277,7 +276,7 @@ class _FundiRegistrationViewState extends State<FundiRegistrationView> {
           Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 16))),
           Switch(
             value: value,
-            activeColor: _neonOrange,
+            activeThumbColor: _neonOrange,
             onChanged: onChanged,
           ),
         ],

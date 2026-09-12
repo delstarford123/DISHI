@@ -176,7 +176,7 @@ class _CreateEventViewState extends State<CreateEventView> {
                     _buildTextField(_titleController, 'Event Title', Icons.title),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: _selectedCategory,
+                      initialValue: _selectedCategory,
                       dropdownColor: const Color(0xFF131A2A),
                       decoration: InputDecoration(
                         labelText: 'Category',
@@ -250,7 +250,7 @@ class _CreateEventViewState extends State<CreateEventView> {
                     const Text('A 5 KES commission applies per ticket. The rest is routed to your selected destination.', style: TextStyle(color: Colors.white54, fontSize: 12)),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: _payoutType,
+                      initialValue: _payoutType,
                       dropdownColor: const Color(0xFF131A2A),
                       decoration: InputDecoration(
                         labelText: 'Withdrawal Method',

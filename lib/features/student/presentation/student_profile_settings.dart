@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../../core/theme/mpesa_theme.dart';
 import '../../deliv/presentation/deliv_driver_dashboard.dart';
 import '../../deliv/presentation/deliv_registration_view.dart';
 import '../../auth/presentation/data_consent_view.dart';
@@ -473,7 +472,7 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
                 ),
                 Switch(
                   value: value,
-                  activeColor: iconColor,
+                  activeThumbColor: iconColor,
                   onChanged: onChanged,
                 ),
               ],

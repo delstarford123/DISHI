@@ -5,21 +5,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/models/user_model.dart';
-import '../../housing/presentation/housing_dashboard_view.dart';
 import '../../admin/presentation/admin_dashboard_view.dart';
-import '../../vendor/presentation/vendor_dashboard_view.dart';
 import '../../auth/presentation/login_view.dart';
-import '../../smartimer/ui/home_page.dart';
-import '../../smartimer/presentation/daily_focus_view.dart';
-import '../../match/presentation/match_discovery_view.dart';
 import '../../match/presentation/match_hub_view.dart';
 import '../../deliv/presentation/deliv_driver_dashboard.dart';
 import '../../deliv/presentation/deliv_registration_view.dart';
 import '../../../core/services/secure_storage_service.dart';
 import 'student_ledger_view.dart';
 import 'student_preorders_view.dart';
-import '../../auth/presentation/role_selection_view.dart';
-import '../../fundi/presentation/fundi_marketplace_view.dart';
 import 'okoa_food_view.dart';
 import 'all_features_view.dart';
 import 'virtual_card_view.dart';
@@ -487,7 +480,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
           ),
           Switch(
             value: _isDriverMode,
-            activeColor: _neonBlue,
+            activeThumbColor: _neonBlue,
             onChanged: (val) {
               setState(() => _isDriverMode = val);
               if (val) {

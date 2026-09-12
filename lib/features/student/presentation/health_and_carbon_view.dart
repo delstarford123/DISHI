@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/models/user_model.dart';
-import '../../../core/theme/mpesa_theme.dart';
 
 class HealthAndCarbonView extends StatefulWidget {
   final UserModel userModel;

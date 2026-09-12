@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/mpesa_theme.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EscrowMarketView extends StatefulWidget {
@@ -570,7 +568,7 @@ class _EscrowMarketViewState extends State<EscrowMarketView> with SingleTickerPr
               height: 160,
               width: double.infinity,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const SizedBox(),
+              errorBuilder: (_, _, _) => const SizedBox(),
             )
           else
             Container(

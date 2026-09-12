@@ -26,7 +26,7 @@ class StorageService {
     
     final uid = _auth.currentUser!.uid;
     final ext = path.extension(file.path).toLowerCase();
-    final ref = _storage.ref().child('profile_images/${uid}$ext');
+    final ref = _storage.ref().child('profile_images/$uid$ext');
     
     final uploadTask = await ref.putFile(file, SettableMetadata(contentType: 'image/${ext.substring(1)}'));
     return await uploadTask.ref.getDownloadURL();

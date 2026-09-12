@@ -5,7 +5,6 @@ import '../../../core/widgets/high_friction_action.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/models/user_model.dart';
 import '../../auth/presentation/login_view.dart';
-import '../../auth/presentation/login_view.dart';
 import 'qr_scanner_page.dart';
 import 'vendor_topup_view.dart';
 import 'vendor_kds_view.dart';

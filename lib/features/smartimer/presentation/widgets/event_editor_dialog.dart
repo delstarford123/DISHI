@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../models/timetable_event.dart';
 
 class EventEditorDialog extends StatefulWidget {
@@ -153,7 +152,7 @@ class _EventEditorDialogState extends State<EventEditorDialog> {
             const Text('Event Type', style: TextStyle(color: Colors.white70, fontSize: 12)),
             const SizedBox(height: 8),
             DropdownButtonFormField<EventType>(
-              value: _selectedType,
+              initialValue: _selectedType,
               dropdownColor: cardColor,
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(

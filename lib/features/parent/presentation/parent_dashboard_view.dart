@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/widgets/shared_savings_view.dart';
 import '../../../core/theme/mpesa_theme.dart';
-import '../../auth/presentation/login_view.dart';
 import 'offline_child_qr_view.dart';
 import '../../student/presentation/virtual_card_view.dart';
 import '../../../core/models/user_model.dart';
@@ -13,12 +11,10 @@ import '../../../core/services/api_config.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'auto_funding_settings.dart';
 import 'nutrition_settings.dart';
 import 'lunchbox_planner.dart';
-import 'security_settings.dart';
 import 'scheduled_allowances_view.dart';
 import 'dispute_resolution_view.dart';
 import 'spending_analytics_view.dart';
@@ -420,7 +416,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                   border: Border.all(color: _neonBlue.withOpacity(0.3)),
                 ),
                 child: DropdownButtonFormField<String>(
-                  value: _globalSelectedStudentUid,
+                  initialValue: _globalSelectedStudentUid,
                   dropdownColor: _cardColor,
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                   decoration: const InputDecoration(
@@ -445,7 +441,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
             
             const Text('Linked Students', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            ..._linkedStudents.map((student) => _buildStudentCard(student)).toList(),
+            ..._linkedStudents.map((student) => _buildStudentCard(student)),
             
             const SizedBox(height: 24),
             const Text('Manage Children', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
@@ -1002,7 +998,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                   title: Text(student['name'], style: const TextStyle(color: Colors.white)),
                   subtitle: Text(isFrozen ? 'Account is FROZEN' : 'Account is ACTIVE', style: TextStyle(color: isFrozen ? _neonPink : _textSecondary)),
                   value: isFrozen,
-                  activeColor: _neonPink,
+                  activeThumbColor: _neonPink,
                   onChanged: (val) async {
                     try {
                       await FirebaseFirestore.instance.collection('users').doc(student['uid']).update({
@@ -1500,7 +1496,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                   title: Text(student['name'], style: const TextStyle(color: Colors.white)),
                   subtitle: Text(useShared ? 'Using Parent Vault' : 'Using Individual Wallet', style: TextStyle(color: useShared ? _neonBlue : _textSecondary)),
                   value: useShared,
-                  activeColor: _neonBlue,
+                  activeThumbColor: _neonBlue,
                   onChanged: (val) async {
                     try {
                       await FirebaseFirestore.instance.collection('users').doc(student['uid']).update({

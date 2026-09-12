@@ -93,7 +93,7 @@ class _PreorderSheet extends StatefulWidget {
 class _PreorderSheetState extends State<_PreorderSheet> {
   final _mealController = TextEditingController(text: 'Ugali Nyama');
   int _quantity = 1;
-  double _pricePerItem = 250.0;
+  final double _pricePerItem = 250.0;
   TimeOfDay _pickupTime = const TimeOfDay(hour: 12, minute: 30);
   bool _isSubmitting = false;
 

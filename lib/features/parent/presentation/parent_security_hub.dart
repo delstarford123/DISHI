@@ -101,7 +101,7 @@ class ParentSecurityHub extends StatelessWidget {
                       ],
                     ),
                   );
-                }).toList(),
+                }),
             ],
           );
         },

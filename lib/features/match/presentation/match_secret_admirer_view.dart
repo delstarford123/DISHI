@@ -3,9 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/theme/glass_card.dart';
-import 'match_chat_view.dart';
 
 class MatchSecretAdmirerView extends StatefulWidget {
   final Map<String, dynamic>? userModel;

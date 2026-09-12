@@ -58,7 +58,7 @@ class HomeTabView extends StatelessWidget {
         const SizedBox(height: 24),
         const Text('Linked Students', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 16),
-        ...linkedStudents.map((s) => _buildStudentCard(s)).toList(),
+        ...linkedStudents.map((s) => _buildStudentCard(s)),
       ],
     );
   }

@@ -49,7 +49,7 @@ class _AutomationSettingsViewState extends State<AutomationSettingsView> {
       decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(12)),
       child: SwitchListTile(
         title: Text(title, style: const TextStyle(color: Colors.white)),
-        activeColor: _neonBlue,
+        activeThumbColor: _neonBlue,
         value: val,
         onChanged: onChanged,
       ),

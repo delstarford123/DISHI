@@ -177,7 +177,7 @@ class _HousingPaymentsViewState extends State<HousingPaymentsView> {
                         child: ListTile(
                           title: Text('Landlord: ${data['landlordId']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           subtitle: Text(
-                            'Student: ${studentName}\nStatus: $status',
+                            'Student: $studentName\nStatus: $status',
                             style: TextStyle(color: status == 'Completed' ? Colors.green : Colors.white54),
                           ),
                           trailing: Text('Ksh ${data['amount']}', style: const TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold, fontSize: 16)),

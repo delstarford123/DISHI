@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/mpesa_theme.dart';
 
 class TreatBountiesView extends StatefulWidget {
   const TreatBountiesView({super.key});

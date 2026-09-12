@@ -402,7 +402,7 @@ class _MerchantHousingDashboardState extends State<MerchantHousingDashboard> {
           if (prop.imageUrls.isNotEmpty)
             Image.network(prop.imageUrls.first,
                 height: 140, width: double.infinity, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox()),
+                errorBuilder: (_, _, _) => const SizedBox()),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(

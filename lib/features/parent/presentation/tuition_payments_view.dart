@@ -202,7 +202,7 @@ class _TuitionPaymentsViewState extends State<TuitionPaymentsView> {
                         child: ListTile(
                           title: Text('Account: ${data['accountNumber']} (Paybill: ${data['paybillNumber']})', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           subtitle: Text(
-                            'Student: ${studentName}\nStatus: $status',
+                            'Student: $studentName\nStatus: $status',
                             style: TextStyle(color: status == 'Completed' ? Colors.green : Colors.white54),
                           ),
                           trailing: Text('Ksh ${data['amount']}', style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 16)),

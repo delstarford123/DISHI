@@ -79,6 +79,8 @@ dependencies:
   google_fonts: ^6.1.0
   cached_network_image: ^3.3.1
   flutter_webrtc: ^1.6.1
+  local_auth_android: any
+  local_auth_darwin: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

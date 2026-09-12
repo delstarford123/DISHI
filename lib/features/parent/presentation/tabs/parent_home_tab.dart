@@ -78,7 +78,7 @@ class ParentHomeTab extends StatelessWidget {
           const Text('Linked Students', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           
-          ...linkedStudents.map((student) => _buildStudentCard(context, student)).toList(),
+          ...linkedStudents.map((student) => _buildStudentCard(context, student)),
           
           const SizedBox(height: 32),
           const Text('Manage Children', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),

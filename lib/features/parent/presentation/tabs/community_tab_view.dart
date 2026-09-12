@@ -78,7 +78,7 @@ class CommunityTabView extends StatelessWidget {
                 data['authorName'] ?? 'Anonymous',
                 'Recently',
               );
-            }).toList(),
+            }),
           ],
         );
       }
@@ -212,7 +212,7 @@ class CommunityTabView extends StatelessWidget {
                 data['location'] ?? 'TBD', 
                 data['isSchool'] ?? true
               );
-            }).toList(),
+            }),
           ],
         );
       }

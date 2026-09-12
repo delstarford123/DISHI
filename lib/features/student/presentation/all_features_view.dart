@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/models/user_model.dart';
-import 'package:flutter/cupertino.dart';
 
 // Import actual views
 import 'student_ledger_view.dart';
@@ -133,11 +131,11 @@ class AllFeaturesView extends StatelessWidget {
   }
 
   void _showFundMeDialog(BuildContext context, UserModel userModel) {
-    const Color _cardColor = Color(0xFF131A2A);
-    const Color _neonPink = Color(0xFFF92B60);
-    const Color _neonCyan = Color(0xFF05D5AA);
-    const Color _textSecondary = Color(0xFF8B9BB4);
-    const Color _surfaceLight = Color(0xFF1A2235);
+    const Color cardColor = Color(0xFF131A2A);
+    const Color neonPink = Color(0xFFF92B60);
+    const Color neonCyan = Color(0xFF05D5AA);
+    const Color textSecondary = Color(0xFF8B9BB4);
+    const Color surfaceLight = Color(0xFF1A2235);
 
     String currentDishiId = userModel.uid;
     final link = 'https://dishi.delstarfordworks.co.ke/fund?dishi_id=$currentDishiId';
@@ -145,11 +143,11 @@ class AllFeaturesView extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: _cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: _neonPink.withOpacity(0.5))),
+        backgroundColor: cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: neonPink.withOpacity(0.5))),
         title: const Row(
           children: [
-            Icon(Icons.favorite, color: _neonPink, size: 28),
+            Icon(Icons.favorite, color: neonPink, size: 28),
             SizedBox(width: 8),
             Text('Fund Me', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ],
@@ -159,19 +157,19 @@ class AllFeaturesView extends StatelessWidget {
           children: [
             const Text(
               'Share this link with your parents, guardians, or friends. They can fund your wallet directly via M-PESA.',
-              style: TextStyle(color: _textSecondary, fontSize: 14),
+              style: TextStyle(color: textSecondary, fontSize: 14),
             ),
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _surfaceLight,
+                color: surfaceLight,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _surfaceLight),
+                border: Border.all(color: surfaceLight),
               ),
               child: SelectableText(
                 link,
-                style: const TextStyle(color: _neonCyan, fontSize: 13, fontWeight: FontWeight.w500),
+                style: const TextStyle(color: neonCyan, fontSize: 13, fontWeight: FontWeight.w500),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -182,12 +180,12 @@ class AllFeaturesView extends StatelessWidget {
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: link));
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fund Me link copied to clipboard!'), backgroundColor: _neonCyan, duration: Duration(seconds: 3)));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fund Me link copied to clipboard!'), backgroundColor: neonCyan, duration: Duration(seconds: 3)));
                 },
                 icon: const Icon(Icons.copy, color: Colors.black),
                 label: const Text('Copy Link', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _neonCyan,
+                  backgroundColor: neonCyan,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -199,7 +197,7 @@ class AllFeaturesView extends StatelessWidget {
           Center(
             child: TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close', style: TextStyle(color: _textSecondary)),
+              child: const Text('Close', style: TextStyle(color: textSecondary)),
             ),
           ),
         ],

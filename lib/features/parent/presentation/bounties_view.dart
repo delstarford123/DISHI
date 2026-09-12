@@ -197,7 +197,7 @@ class _BountiesViewState extends State<BountiesView> {
                         child: ListTile(
                           title: Text(data['task'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           subtitle: Text(
-                            'Assignee: ${studentName}\nStatus: $status',
+                            'Assignee: $studentName\nStatus: $status',
                             style: TextStyle(
                               color: status == 'PendingApproval' ? Colors.orange : (status == 'Completed' ? Colors.green : Colors.white54),
                             ),

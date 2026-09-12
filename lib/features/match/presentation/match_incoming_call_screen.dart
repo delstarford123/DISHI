@@ -83,7 +83,7 @@ class _MatchIncomingCallScreenState extends State<MatchIncomingCallScreen> with 
     AudioService().stopRinging();
     await FirebaseFirestore.instance.collection('active_calls').doc(widget.callId).update({
       'status': 'declined',
-      if (message != null) 'declineMessage': message,
+      'declineMessage': ?message,
     });
     if (mounted) {
       Navigator.pop(context);

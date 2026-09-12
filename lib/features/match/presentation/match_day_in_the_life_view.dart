@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'match_chat_view.dart';
 
 const Color _bgColor = Color(0xFF0F172A);
 const Color _cardColor = Color(0xFF131A2A);
@@ -485,8 +484,9 @@ class _StoryViewerState extends State<_StoryViewer> with SingleTickerProviderSta
                           animation: _progressController,
                           builder: (context, child) {
                             double value = 0;
-                            if (index < _currentIndex) value = 1;
-                            else if (index == _currentIndex) value = _progressController.value;
+                            if (index < _currentIndex) {
+                              value = 1;
+                            } else if (index == _currentIndex) value = _progressController.value;
                             
                             return LinearProgressIndicator(
                               value: value,

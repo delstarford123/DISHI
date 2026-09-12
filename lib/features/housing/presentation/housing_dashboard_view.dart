@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../core/services/api_config.dart';
 import '../../../core/services/firestore_service.dart';
 import 'housing_marketplace_view.dart';
 import '../../auth/presentation/login_view.dart';

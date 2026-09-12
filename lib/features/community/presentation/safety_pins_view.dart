@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../core/theme/mpesa_theme.dart';
 
 class SafetyPinsView extends StatefulWidget {
   const SafetyPinsView({super.key});
@@ -38,7 +37,7 @@ class _SafetyPinsViewState extends State<SafetyPinsView> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: _selectedType,
+                    initialValue: _selectedType,
                     dropdownColor: const Color(0xFF1A2235),
                     style: const TextStyle(color: Colors.white),
                     decoration: const InputDecoration(

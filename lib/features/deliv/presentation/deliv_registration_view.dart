@@ -311,7 +311,7 @@ class _DelivRegistrationViewState extends State<DelivRegistrationView> {
           Text(label, style: const TextStyle(color: Colors.white, fontSize: 16)),
           Switch(
             value: value,
-            activeColor: MPesaTheme.primaryGreen,
+            activeThumbColor: MPesaTheme.primaryGreen,
             onChanged: onChanged,
           ),
         ],

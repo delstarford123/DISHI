@@ -96,7 +96,7 @@ class _AutoFundingSettingsState extends State<AutoFundingSettings> {
                 ),
                 Switch(
                   value: _autoTopup,
-                  activeColor: _neonCyan,
+                  activeThumbColor: _neonCyan,
                   onChanged: (val) {
                     setState(() => _autoTopup = val);
                     if (!val) _saveSettings();

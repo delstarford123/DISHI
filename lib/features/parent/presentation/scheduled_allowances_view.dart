@@ -125,7 +125,7 @@ class _ScheduledAllowancesViewState extends State<ScheduledAllowancesView> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _frequency,
+              initialValue: _frequency,
               dropdownColor: const Color(0xFF131A2A),
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(

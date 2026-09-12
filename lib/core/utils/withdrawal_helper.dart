@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../services/secure_http_client.dart';
-import '../services/api_config.dart';
 
 class WithdrawalHelper {
   /// Initiates a B2C / B2B Payout from the Vercel Python Backend.

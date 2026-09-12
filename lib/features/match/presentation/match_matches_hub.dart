@@ -42,7 +42,7 @@ class _MatchMatchesHubState extends State<MatchMatchesHub> {
         .get();
 
       final profiles = snapshot.docs
-          .map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+          .map((doc) => {'id': doc.id, ...doc.data()})
           .where((user) {
              final email = (user['email'] as String?)?.toLowerCase() ?? '';
              final roles = user['roles'] as List<dynamic>? ?? [];

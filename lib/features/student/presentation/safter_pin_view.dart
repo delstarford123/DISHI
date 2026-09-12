@@ -12,7 +12,7 @@ class SafterPinView extends StatefulWidget {
 
 class _SafterPinViewState extends State<SafterPinView> {
   final String _uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   // ─── Create/Deposit ───────────────────────────────────────────────────────
   void _showDepositDialog() {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../../../core/services/api_config.dart';
 
 class DataConsentView extends StatefulWidget {
   final String userId;

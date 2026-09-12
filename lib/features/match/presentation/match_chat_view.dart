@@ -7,13 +7,11 @@ import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
-import 'match_dishi_date_dialog.dart';
 import 'match_call_view.dart' as match_call;
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/user_model.dart';
 import '../../student/presentation/student_profile_settings.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);

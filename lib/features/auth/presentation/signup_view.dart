@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/local_auth_service.dart';
 import '../../../core/services/offline_sync_service.dart';
-import '../../../core/theme/mpesa_theme.dart';
 import 'role_selection_view.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_view.dart';
-import 'dart:ui';
 import 'widgets/photo_collage_widget.dart';
 
 class SignupView extends StatefulWidget {

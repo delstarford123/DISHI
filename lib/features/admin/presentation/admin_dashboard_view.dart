@@ -7,7 +7,14 @@ import '../../auth/presentation/login_view.dart';
 import 'fraud_velocity_view.dart';
 import 'admin_support_tickets_view.dart';
 import 'admin_transactions_view.dart';
+import 'admin_settings_view.dart';
+import 'admin_moderation_view.dart';
+import 'admin_onboarding_view.dart';
+import 'admin_payouts_view.dart';
+import 'admin_delivery_security_view.dart';
+import 'admin_match_safety_view.dart';
 import '../../../core/services/firestore_service.dart';
+import '../../../core/services/admin_service.dart';
 
 // -- CUSTOM DESIGN COLORS --
 const Color _bgColor = Color(0xFF0C101B);
@@ -34,6 +41,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
   int _activeVendors = 0;
   double _systemFloat = 0.0;
   int _flaggedTransactions = 0;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -239,7 +247,568 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       body: SafeArea(
         child: _isLoading 
             ? const Center(child: CircularProgressIndicator(color: _neonRed))
-            : CustomScrollView(
+            : _buildBody(),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    switch (_selectedIndex) {
+      case 0:
+        return _buildHomeTab();
+      case 1:
+        return _buildUserManagementTab();
+      case 2:
+        return _buildSystemSettingsTab();
+      case 3:
+        return _buildDisputesTab();
+      case 4:
+        return _buildModerationTab();
+      case 5:
+        return _buildFinancialAuditTab();
+      case 6:
+        return _buildHarambeeTab();
+      case 7:
+        return _buildSystemAuditTab();
+      default:
+        return _buildHomeTab();
+    }
+  }
+  
+  Widget _buildUserManagementTab() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            decoration: InputDecoration(
+              hintText: 'Search users by email or name...',
+              hintStyle: const TextStyle(color: _textSecondary),
+              filled: true,
+              fillColor: _surfaceLight,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              prefixIcon: const Icon(Icons.search, color: _textSecondary),
+            ),
+            style: const TextStyle(color: Colors.white),
+            onChanged: (val) {
+               setState(() {
+                 _searchQuery = val.toLowerCase();
+               });
+            },
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('users').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: _neonCyan));
+              }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Center(child: Text('No users found', style: TextStyle(color: _textSecondary)));
+              }
+
+              var users = snapshot.data!.docs;
+              if (_searchQuery.isNotEmpty) {
+                users = users.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final name = (data['name'] ?? data['displayName'] ?? '').toString().toLowerCase();
+                  final email = (data['email'] ?? '').toString().toLowerCase();
+                  return name.contains(_searchQuery) || email.contains(_searchQuery);
+                }).toList();
+              }
+
+              return ListView.builder(
+                itemCount: users.length,
+                itemBuilder: (context, index) {
+                  final userDoc = users[index];
+                  final data = userDoc.data() as Map<String, dynamic>;
+                  final uid = userDoc.id;
+                  final name = data['name'] ?? data['displayName'] ?? 'Unknown';
+                  final email = data['email'] ?? 'No Email';
+                  final role = data['role'] ?? 'user';
+                  final status = data['status'] ?? 'active';
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: _surfaceLight,
+                      child: Text(role.substring(0, 1).toUpperCase(), style: const TextStyle(color: _neonCyan)),
+                    ),
+                    title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    subtitle: Text('$email • Role: $role\nStatus: $status', style: TextStyle(color: status == 'suspended' ? _neonRed : _textSecondary)),
+                    trailing: PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, color: Colors.white),
+                      color: _cardColor,
+                      onSelected: (val) async {
+                        try {
+                           final adminService = AdminService();
+                           if (val == 'suspend') {
+                             await adminService.suspendUser(uid, 'Admin action');
+                             if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User suspended')));
+                           } else if (val == 'delete') {
+                             await adminService.deleteUser(uid);
+                             if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User deleted')));
+                           } else if (val == 'impersonate') {
+                             final token = await adminService.impersonateUser(uid);
+                             await FirebaseAuth.instance.signInWithCustomToken(token);
+                             if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ghost Login active')));
+                             // App will route out of Admin Dashboard automatically due to AuthState changes
+                           }
+                        } catch (e) {
+                           if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: 'impersonate', child: Text('Ghost Login (Impersonate)', style: TextStyle(color: Colors.white))),
+                        const PopupMenuItem(value: 'suspend', child: Text('Suspend User', style: TextStyle(color: Colors.orange))),
+                        const PopupMenuItem(value: 'delete', child: Text('Delete User', style: TextStyle(color: _neonRed))),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildSystemSettingsTab() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('system_settings').doc('platform_config').snapshots(),
+      builder: (context, snapshot) {
+        bool isMaintenance = false;
+        if (snapshot.hasData && snapshot.data!.exists) {
+          isMaintenance = (snapshot.data!.data() as Map<String, dynamic>)['maintenance_mode'] ?? false;
+        }
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text('Platform Controls', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Container(
+              decoration: BoxDecoration(
+                color: _surfaceLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isMaintenance ? _neonRed : Colors.transparent),
+              ),
+              child: SwitchListTile(
+                title: const Text('Maintenance Mode', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text('Disables the app for all non-admin users immediately.', style: TextStyle(color: _textSecondary)),
+                value: isMaintenance,
+                activeColor: _neonRed,
+                onChanged: (val) async {
+                  try {
+                    await AdminService().toggleMaintenanceMode(val);
+                  } catch (e) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 32),
+            const Text('Events & Fees', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            ListTile(
+              tileColor: _surfaceLight,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              leading: const Icon(Icons.percent, color: _neonCyan),
+              title: const Text('Global Commission Rate', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white),
+              onTap: () {
+                _showUpdateCommissionDialog();
+              }
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              tileColor: _surfaceLight,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              leading: const Icon(Icons.event, color: _neonOrange),
+              title: const Text('Make Event Free', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white),
+              onTap: () {
+                _showMakeEventFreeDialog();
+              }
+            )
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDisputesTab() {
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('Dispute Resolution Center', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('disputes').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _neonCyan));
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('No active disputes', style: TextStyle(color: _textSecondary)));
+
+              var disputes = snapshot.data!.docs;
+
+              return ListView.builder(
+                itemCount: disputes.length,
+                itemBuilder: (context, index) {
+                  final doc = disputes[index];
+                  final data = doc.data() as Map<String, dynamic>;
+                  final status = data['status'] ?? 'pending';
+                  if (status == 'resolved') return const SizedBox.shrink(); // hide resolved
+                  
+                  return Card(
+                    color: _surfaceLight,
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Dispute: ${doc.id}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Text('Amount: KES ${data['amount']}', style: const TextStyle(color: _neonOrange)),
+                          Text('Reason: ${data['reason'] ?? 'N/A'}', style: const TextStyle(color: _textSecondary)),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: _neonRed),
+                                onPressed: () async {
+                                  await AdminService().resolveDispute(doc.id, 'refund_student');
+                                },
+                                child: const Text('Refund Student', style: TextStyle(color: Colors.white)),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
+                                onPressed: () async {
+                                  await AdminService().resolveDispute(doc.id, 'release_to_vendor');
+                                },
+                                child: const Text('Release to Vendor', style: TextStyle(color: Colors.black)),
+                              ),
+                            ],
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModerationTab() {
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('Content Moderation (Campus Feed)', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('campus_feed').orderBy('createdAt', descending: true).limit(20).snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _neonCyan));
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('No posts', style: TextStyle(color: _textSecondary)));
+
+              var posts = snapshot.data!.docs;
+
+              return ListView.builder(
+                itemCount: posts.length,
+                itemBuilder: (context, index) {
+                  final doc = posts[index];
+                  final data = doc.data() as Map<String, dynamic>;
+                  
+                  return ListTile(
+                    tileColor: _surfaceLight,
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    title: Text(data['content'] ?? 'No content', style: const TextStyle(color: Colors.white)),
+                    subtitle: Text('Author: ${data['authorName'] ?? 'Unknown'}', style: const TextStyle(color: _textSecondary)),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: _neonRed),
+                      onPressed: () async {
+                        await FirebaseFirestore.instance.collection('campus_feed').doc(doc.id).delete();
+                      },
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showMakeEventFreeDialog() {
+    final eventIdController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardColor,
+        title: const Text('Make Event Free', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: eventIdController,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Enter Event ID',
+            hintStyle: TextStyle(color: _textSecondary),
+            filled: true,
+            fillColor: _surfaceLight,
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _neonOrange),
+            onPressed: () async {
+              if (eventIdController.text.isEmpty) return;
+              try {
+                await AdminService().overrideEvent(eventIdController.text.trim(), true);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Event updated!')));
+                }
+              } catch (e) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+              }
+            },
+            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+          )
+        ],
+      ),
+    );
+  }
+
+  void _showUpdateCommissionDialog() {
+    final rateController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardColor,
+        title: const Text('Global Commission Rate', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: rateController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Enter new rate (%) e.g. 5.0',
+            hintStyle: TextStyle(color: _textSecondary),
+            filled: true,
+            fillColor: _surfaceLight,
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _neonOrange),
+            onPressed: () async {
+              if (rateController.text.isEmpty) return;
+              try {
+                final rate = double.parse(rateController.text);
+                await AdminService().updateCommissionRate(rate);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Commission rate updated!')));
+                }
+              } catch (e) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+              }
+            },
+            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+          )
+        ],
+      ),
+    );
+  }
+
+  Future<void> _processMassPayouts() async {
+    try {
+      await AdminService().triggerManualPayout();
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payouts triggered successfully')));
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payout Error: $e')));
+    }
+  }
+
+  Widget _buildFinancialAuditTab() {
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('Financial Audit Logs', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('transactions').orderBy('timestamp', descending: true).limit(30).snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _neonCyan));
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('No transactions', style: TextStyle(color: _textSecondary)));
+
+              var txs = snapshot.data!.docs;
+              return ListView.builder(
+                itemCount: txs.length,
+                itemBuilder: (context, index) {
+                  final data = txs[index].data() as Map<String, dynamic>;
+                  final type = data['type'] ?? 'Unknown';
+                  final amount = data['amount'] ?? 0;
+                  final status = data['status'] ?? 'pending';
+                  
+                  return ListTile(
+                    tileColor: _surfaceLight,
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    leading: Icon(
+                      type.contains('Refund') ? Icons.keyboard_return : Icons.attach_money,
+                      color: type.contains('Refund') ? _neonOrange : _neonCyan,
+                    ),
+                    title: Text('$type: KES $amount', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    subtitle: Text('Status: $status', style: const TextStyle(color: _textSecondary)),
+                    trailing: Text(txs[index].id.substring(0, 8), style: const TextStyle(color: Colors.white38)),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHarambeeTab() {
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('Harambee Moderation', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('harambees').where('status', isEqualTo: 'active').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _neonCyan));
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('No active campaigns', style: TextStyle(color: _textSecondary)));
+
+              var campaigns = snapshot.data!.docs;
+              return ListView.builder(
+                itemCount: campaigns.length,
+                itemBuilder: (context, index) {
+                  final doc = campaigns[index];
+                  final data = doc.data() as Map<String, dynamic>;
+                  final title = data['title'] ?? 'Untitled';
+                  final raised = data['raised_amount'] ?? 0;
+                  
+                  return Card(
+                    color: _surfaceLight,
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          Text('Raised: KES $raised', style: const TextStyle(color: _neonOrange)),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                                onPressed: () async {
+                                  await AdminService().forceHarambeeAction(doc.id, 'pause');
+                                },
+                                child: const Text('Pause', style: TextStyle(color: Colors.white)),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: _neonRed),
+                                onPressed: () async {
+                                  await AdminService().forceHarambeeAction(doc.id, 'cancel_and_refund');
+                                },
+                                child: const Text('Cancel & Refund', style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSystemAuditTab() {
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('System Audit Trail', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+        ),
+        Expanded(
+          child: FutureBuilder<List<dynamic>>(
+            future: AdminService().getAuditLogs(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _neonCyan));
+              if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: _neonRed)));
+              if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text('No audit logs available', style: TextStyle(color: _textSecondary)));
+
+              var logs = snapshot.data!;
+              return ListView.builder(
+                itemCount: logs.length,
+                itemBuilder: (context, index) {
+                  final log = logs[index];
+                  final action = log['action'] ?? 'Unknown Action';
+                  final adminId = log['admin_id'] ?? 'Unknown Admin';
+                  final timestamp = log['timestamp'] ?? '';
+                  final details = log['details']?.toString() ?? '';
+                  
+                  return Card(
+                    color: _surfaceLight,
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(action, style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 16)),
+                              Text(timestamp, style: const TextStyle(color: _textSecondary, fontSize: 12)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text('Admin: $adminId', style: const TextStyle(color: Colors.white70)),
+                          const SizedBox(height: 4),
+                          Text('Details: $details', style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHomeTab() {
+    return CustomScrollView(
                 slivers: [
                   SliverAppBar(
                     expandedHeight: 80,
@@ -349,6 +918,58 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                              Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminSupportTicketsView()));
                           },
                         ),
+                        const SizedBox(height: 12),
+                        
+                        ListTile(
+                          tileColor: _surfaceLight,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          leading: const Icon(Icons.shield, color: _neonOrange),
+                          title: const Text('Community Moderation', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Review flagged content & bans', style: TextStyle(color: _textSecondary)),
+                          trailing: const Icon(Icons.chevron_right, color: Colors.white),
+                          onTap: () {
+                             Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminModerationView()));
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        ListTile(
+                          tileColor: _surfaceLight,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          leading: const Icon(Icons.how_to_reg, color: _neonCyan),
+                          title: const Text('Vendor Onboarding', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Approve new vendors & fundis', style: TextStyle(color: _textSecondary)),
+                          trailing: const Icon(Icons.chevron_right, color: Colors.white),
+                          onTap: () {
+                             Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminOnboardingView()));
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        ListTile(
+                          tileColor: _surfaceLight,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          leading: const Icon(Icons.two_wheeler, color: _neonCyan),
+                          title: const Text('Campus Delivery Security', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Approve drivers & view live rides', style: TextStyle(color: _textSecondary)),
+                          trailing: const Icon(Icons.chevron_right, color: Colors.white),
+                          onTap: () {
+                             Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDeliverySecurityView()));
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        ListTile(
+                          tileColor: _surfaceLight,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          leading: const Icon(Icons.emergency, color: _neonRed),
+                          title: const Text('Match Safety Response', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Monitor SOS alerts & dispatch', style: TextStyle(color: _textSecondary)),
+                          trailing: const Icon(Icons.chevron_right, color: Colors.white),
+                          onTap: () {
+                             Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminMatchSafetyView()));
+                          },
+                        ),
                         const SizedBox(height: 32),
                         
                         const Text('Financial Operations', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
@@ -367,11 +988,10 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                         ),
                       ]),
                     ),
+                    ),
                   ),
                 ],
-              ),
-      ),
-    );
+              );
   }
 
   Widget _buildRoleSwitcherDrawer() {
@@ -400,6 +1020,115 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 ],
               ),
             ),
+              child: Text('DASHBOARD TABS', style: TextStyle(fontWeight: FontWeight.bold, color: _textSecondary, fontSize: 12, letterSpacing: 1.5)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.dashboard, color: Colors.white),
+              title: const Text('Home / Overview', style: TextStyle(color: Colors.white)),
+              selected: _selectedIndex == 0,
+              selectedTileColor: _neonRed.withOpacity(0.1),
+              onTap: () {
+                setState(() => _selectedIndex = 0);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.people, color: Colors.white),
+              title: const Text('User Management', style: TextStyle(color: Colors.white)),
+              selected: _selectedIndex == 1,
+              selectedTileColor: _neonRed.withOpacity(0.1),
+              onTap: () {
+                setState(() => _selectedIndex = 1);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings, color: Colors.white),
+              title: const Text('System Settings', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminSettingsView()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.gavel, color: Colors.white),
+              title: const Text('Disputes Center', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminSupportTicketsView()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.security, color: Colors.white),
+              title: const Text('Content Moderation', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminModerationView()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_add, color: Colors.white),
+              title: const Text('Vendor Onboarding', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminOnboardingView()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.receipt_long, color: Colors.white),
+              title: const Text('Financial Audit', style: TextStyle(color: Colors.white)),
+              selected: _selectedIndex == 5,
+              selectedTileColor: _neonRed.withOpacity(0.1),
+              onTap: () {
+                setState(() => _selectedIndex = 5);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.payment, color: Colors.white),
+              title: const Text('Payouts & Escrow', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminPayoutsView()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.volunteer_activism, color: Colors.white),
+              title: const Text('Harambee Moderation', style: TextStyle(color: Colors.white)),
+              selected: _selectedIndex == 6,
+              selectedTileColor: _neonRed.withOpacity(0.1),
+              onTap: () {
+                setState(() => _selectedIndex = 6);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history, color: Colors.white),
+              title: const Text('System Audit Trail', style: TextStyle(color: Colors.white)),
+              selected: _selectedIndex == 7,
+              selectedTileColor: _neonRed.withOpacity(0.1),
+              onTap: () {
+                setState(() => _selectedIndex = 7);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.two_wheeler, color: Colors.white),
+              title: const Text('Delivery Security', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDeliverySecurityView()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.emergency, color: Colors.white),
+              title: const Text('Match Safety', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminMatchSafetyView()));
+              },
+            ),
+            const Divider(color: _surfaceLight),
             const Padding(
               padding: EdgeInsets.all(16.0),
               child: Text('SWITCH CONSOLE', style: TextStyle(fontWeight: FontWeight.bold, color: _textSecondary, fontSize: 12, letterSpacing: 1.5)),
@@ -541,20 +1270,20 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                         if (titleController.text.isEmpty || messageController.text.isEmpty) return;
                         setSheetState(() => isSending = true);
                         try {
-                          await FirebaseFirestore.instance.collection('notifications').add({
-                            'title': titleController.text.trim(),
-                            'message': messageController.text.trim(),
-                            'targetUserId': targetIdController.text.trim().isEmpty ? null : targetIdController.text.trim(),
-                            'createdAt': FieldValue.serverTimestamp(),
-                            'readBy': [],
-                            'dismissedBy': [],
-                          });
+                          await AdminService().sendBroadcastNotification(
+                            titleController.text.trim(),
+                            messageController.text.trim(),
+                            targetUserId: targetIdController.text.trim().isEmpty ? null : targetIdController.text.trim(),
+                          );
                           if (context.mounted) {
                             Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notification Sent'), backgroundColor: _neonCyan));
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notification Sent via FCM'), backgroundColor: _neonCyan));
                           }
                         } catch (e) {
                           setSheetState(() => isSending = false);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: _neonRed));
+                          }
                         }
                       },
                       child: const Text('Send', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),

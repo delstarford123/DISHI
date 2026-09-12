@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../auth/presentation/login_view.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -622,7 +621,7 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
                     isNumber: true),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: selectedCategory,
+                  initialValue: selectedCategory,
                   dropdownColor: _surfaceLight,
                   decoration: InputDecoration(
                     labelText: 'Category',
@@ -656,7 +655,9 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
             ElevatedButton(
               onPressed: () async {
                 if (titleCtrl.text.trim().isEmpty ||
-                    amountCtrl.text.trim().isEmpty) return;
+                    amountCtrl.text.trim().isEmpty) {
+                  return;
+                }
                 await FirebaseFirestore.instance
                     .collection('fundi_jobs')
                     .add({

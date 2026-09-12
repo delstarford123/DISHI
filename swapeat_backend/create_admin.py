@@ -22,6 +22,10 @@ except auth.UserNotFoundError:
     uid = user.uid
     print(f"Successfully created new admin user {email}.")
 
+# Set admin custom claim for Storage Rules
+auth.set_custom_user_claims(uid, {'admin': True})
+print("Set admin custom claim for Firebase Auth.")
+
 # Ensure the admin document exists in Firestore to bypass role selection if needed
 doc_ref = db.collection('users').document(uid)
 if not doc_ref.get().exists:

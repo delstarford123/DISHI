@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/models/user_model.dart';
-import '../../../core/theme/mpesa_theme.dart';
 
 class SplitBillView extends StatefulWidget {
   final UserModel userModel;
@@ -15,7 +14,7 @@ class SplitBillView extends StatefulWidget {
 class _SplitBillViewState extends State<SplitBillView> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _friendIdController = TextEditingController();
-  List<String> _friends = [];
+  final List<String> _friends = [];
   bool _isSending = false;
 
   void _addFriend() {

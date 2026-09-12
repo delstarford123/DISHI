@@ -172,8 +172,11 @@ class _SecuritySettingsState extends State<SecuritySettings> {
     );
     if (picked != null) {
       setState(() {
-        if (isStart) _startTime = picked;
-        else _endTime = picked;
+        if (isStart) {
+          _startTime = picked;
+        } else {
+          _endTime = picked;
+        }
       });
     }
   }
@@ -251,8 +254,11 @@ class _SecuritySettingsState extends State<SecuritySettings> {
                 labelStyle: TextStyle(color: isSelected ? _neonPink : Colors.white),
                 onSelected: (val) {
                   setState(() {
-                    if (val) _whitelistedVendors.add(vendor['id']!);
-                    else _whitelistedVendors.remove(vendor['id']);
+                    if (val) {
+                      _whitelistedVendors.add(vendor['id']!);
+                    } else {
+                      _whitelistedVendors.remove(vendor['id']);
+                    }
                   });
                 },
               );

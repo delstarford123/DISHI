@@ -30,7 +30,7 @@ class _MatchDoubleDateViewState extends State<MatchDoubleDateView> {
   final TextEditingController _squadBioController = TextEditingController();
   final TextEditingController _playlistController = TextEditingController();
   
-  List<String> _selectedInterests = [];
+  final List<String> _selectedInterests = [];
   final List<String> _interestOptions = ['Clubbing', 'Board Games', 'Hiking', 'Foodies', 'Movies', 'Concerts', 'Gaming'];
   
   // Phase 6 Additions
@@ -331,14 +331,14 @@ class _MatchDoubleDateViewState extends State<MatchDoubleDateView> {
               const Text('Squad Vibe & Double Date Idea', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedVibe, dropdownColor: _bgColor, style: const TextStyle(color: Colors.white),
+                initialValue: _selectedVibe, dropdownColor: _bgColor, style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(filled: true, fillColor: Colors.black26, border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide.none)),
                 items: _vibeOptions.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                 onChanged: (v) => setState(() => _selectedVibe = v!),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedDateIdea, dropdownColor: _bgColor, style: const TextStyle(color: Colors.white),
+                initialValue: _selectedDateIdea, dropdownColor: _bgColor, style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(filled: true, fillColor: Colors.black26, border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide.none)),
                 items: _dateIdeas.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                 onChanged: (v) => setState(() => _selectedDateIdea = v!),
@@ -347,7 +347,7 @@ class _MatchDoubleDateViewState extends State<MatchDoubleDateView> {
               
               const Text('Icebreaker Prompt', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
               DropdownButtonFormField<String>(
-                value: _selectedPrompt, dropdownColor: _bgColor, style: const TextStyle(color: Colors.white),
+                initialValue: _selectedPrompt, dropdownColor: _bgColor, style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(filled: true, fillColor: Colors.transparent, border: InputBorder.none),
                 items: _prompts.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                 onChanged: (v) => setState(() => _selectedPrompt = v!),
@@ -357,7 +357,7 @@ class _MatchDoubleDateViewState extends State<MatchDoubleDateView> {
               
               const Text('My Role & Wingman Bio', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
               DropdownButtonFormField<String>(
-                value: _myRole, dropdownColor: _bgColor, style: const TextStyle(color: Colors.white),
+                initialValue: _myRole, dropdownColor: _bgColor, style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(filled: true, fillColor: Colors.transparent, border: InputBorder.none),
                 items: _roleOptions.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                 onChanged: (v) => setState(() => _myRole = v!),

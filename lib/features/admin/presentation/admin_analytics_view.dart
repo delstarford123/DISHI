@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/admin_service.dart';
 
 // -- CUSTOM DESIGN COLORS --
 const Color _bgColor = Color(0xFF0C101B);
@@ -21,15 +22,34 @@ class AdminAnalyticsView extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text('Revenue Metrics', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          _buildStatCard('Total Revenue (DISHI Fee)', 'KES 45,200', Icons.show_chart, _neonCyan),
-          _buildStatCard('Active Users This Week', '3,492', Icons.groups, Colors.blue),
-          _buildStatCard('Total App Downloads', '5,020', Icons.download, Colors.purpleAccent),
-        ],
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: AdminService().getSystemAnalytics(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: _neonCyan));
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error loading analytics: ${snapshot.error}', style: const TextStyle(color: _neonRed)));
+          }
+          
+          final data = snapshot.data ?? {};
+          final totalRev = data['total_revenue']?.toString() ?? 'KES 0';
+          final activeUsers = data['active_users']?.toString() ?? '0';
+          final totalVendors = data['total_vendors']?.toString() ?? '0';
+          final totalTransactions = data['total_transactions']?.toString() ?? '0';
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              const Text('System Metrics', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              _buildStatCard('Total Revenue (DISHI Fee)', totalRev, Icons.show_chart, _neonCyan),
+              _buildStatCard('Total Active Vendors', totalVendors, Icons.storefront, Colors.orangeAccent),
+              _buildStatCard('Total Transactions Processed', totalTransactions, Icons.receipt_long, Colors.blueAccent),
+              _buildStatCard('Active Users This Week', activeUsers, Icons.groups, Colors.blue),
+            ],
+          );
+        },
       ),
     );
   }

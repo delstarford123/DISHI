@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'dart:async';
 import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../core/theme/glass_card.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _neonCyan = Color(0xFF05D5AA);

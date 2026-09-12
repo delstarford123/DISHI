@@ -6,7 +6,6 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/models/user_model.dart';
-import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/services/virtual_card_service.dart';
 import 'package:intl/intl.dart';
 
@@ -430,8 +429,9 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
             onPressed: () {
               // Toggle theme
               setState(() {
-                if (_selectedTheme == 'Neon Cyan') _selectedTheme = 'Midnight Blue';
-                else if (_selectedTheme == 'Midnight Blue') _selectedTheme = 'Lava Red';
+                if (_selectedTheme == 'Neon Cyan') {
+                  _selectedTheme = 'Midnight Blue';
+                } else if (_selectedTheme == 'Midnight Blue') _selectedTheme = 'Lava Red';
                 else _selectedTheme = 'Neon Cyan';
               });
             },

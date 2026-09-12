@@ -308,8 +308,11 @@ class _MatchMusicMatchViewState extends State<MatchMusicMatchView> with SingleTi
                 backgroundColor: _cardColor,
                 onSelected: (val) {
                   setState(() {
-                    if (val) _selectedGenres.add(genre);
-                    else _selectedGenres.remove(genre);
+                    if (val) {
+                      _selectedGenres.add(genre);
+                    } else {
+                      _selectedGenres.remove(genre);
+                    }
                   });
                 },
               );
@@ -334,7 +337,7 @@ class _MatchMusicMatchViewState extends State<MatchMusicMatchView> with SingleTi
                 ),
                 Switch(
                   value: _lookingForConcertBuddy,
-                  activeColor: _neonPurple,
+                  activeThumbColor: _neonPurple,
                   onChanged: (v) => setState(() => _lookingForConcertBuddy = v),
                 )
               ],

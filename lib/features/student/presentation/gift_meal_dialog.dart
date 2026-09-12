@@ -77,11 +77,11 @@ class _GiftMealDialogState extends State<GiftMealDialog> {
 
   @override
   Widget build(BuildContext context) {
-    const _cardColor = Color(0xFF1E293B);
-    const _neonCyan = Color(0xFF00F0FF);
+    const cardColor = Color(0xFF1E293B);
+    const neonCyan = Color(0xFF00F0FF);
     
     return AlertDialog(
-      backgroundColor: _cardColor,
+      backgroundColor: cardColor,
       title: const Text('Gift a Meal', style: TextStyle(color: Colors.white)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -93,14 +93,14 @@ class _GiftMealDialogState extends State<GiftMealDialog> {
           TextField(
             controller: _dishiIdController,
             style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(labelText: 'Recipient DISHI ID', labelStyle: TextStyle(color: _neonCyan), enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)), focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonCyan))),
+            decoration: const InputDecoration(labelText: 'Recipient DISHI ID', labelStyle: TextStyle(color: neonCyan), enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)), focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: neonCyan))),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _amountController,
             style: const TextStyle(color: Colors.white),
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Amount (KSH)', labelStyle: TextStyle(color: _neonCyan), enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)), focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonCyan))),
+            decoration: const InputDecoration(labelText: 'Amount (KSH)', labelStyle: TextStyle(color: neonCyan), enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)), focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: neonCyan))),
           ),
         ],
       ),
@@ -108,7 +108,7 @@ class _GiftMealDialogState extends State<GiftMealDialog> {
         TextButton(onPressed: _isLoading ? null : () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
         ElevatedButton(
           onPressed: _isLoading ? null : _sendGift,
-          style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
+          style: ElevatedButton.styleFrom(backgroundColor: neonCyan),
           child: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) : const Text('Send Gift', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         ),
       ],

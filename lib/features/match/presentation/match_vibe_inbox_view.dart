@@ -397,7 +397,7 @@ class _MatchVibeInboxViewState extends State<MatchVibeInboxView> with SingleTick
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Vibe from ${data['isSecret'] == true ? 'Secret Admirer' : data['senderName']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        Text(isAccepted ? 'You vibed back ${reaction != null ? reaction : ''}' : 'You passed', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                        Text(isAccepted ? 'You vibed back ${reaction ?? ''}' : 'You passed', style: const TextStyle(color: Colors.white54, fontSize: 12)),
                       ],
                     ),
                   ),

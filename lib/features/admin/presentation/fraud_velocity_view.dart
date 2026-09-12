@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/mpesa_theme.dart';
+import '../../../core/services/admin_service.dart';
 
 class FraudVelocityView extends StatefulWidget {
   const FraudVelocityView({super.key});
@@ -9,95 +10,113 @@ class FraudVelocityView extends StatefulWidget {
 }
 
 class _FraudVelocityViewState extends State<FraudVelocityView> {
-  final List<Map<String, dynamic>> _flaggedVendors = [
-    {
-      'vendor_id': 'V-1002',
-      'name': 'Mama Njeri Kiosk',
-      'offense': 'Wash Trading (Exceeded 500 KES Top-up)',
-      'timestamp': '2 mins ago',
-      'severity': 'High'
-    },
-    {
-      'vendor_id': 'V-1088',
-      'name': 'Student Center Cafe',
-      'offense': 'Rapid Successive Scanning',
-      'timestamp': '15 mins ago',
-      'severity': 'Medium'
-    },
-  ];
+  List<dynamic> _flaggedUsers = [];
+  bool _isLoading = true;
 
-  void _takeAction(String vendorId, String action) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Action "\$action" executed against \$vendorId')),
-    );
-    setState(() {
-      _flaggedVendors.removeWhere((v) => v['vendor_id'] == vendorId);
-    });
+  @override
+  void initState() {
+    super.initState();
+    _fetchFlags();
+  }
+
+  Future<void> _fetchFlags() async {
+    setState(() => _isLoading = true);
+    try {
+      final flags = await AdminService().getFraudFlags();
+      setState(() {
+        _flaggedUsers = flags;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _takeAction(String userId, String action) async {
+    try {
+      if (action == 'Shadow Ban') {
+        // Suspend user API call
+        // Assuming AdminService has suspendUser or we can hit it directly
+        // For now just show a message, real integration requires suspend endpoint wrapper in AdminService
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Action "\$action" executed against \$userId. (Call suspend API)')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Action "\$action" executed against \$userId')));
+      }
+      setState(() {
+        _flaggedUsers.removeWhere((v) => v['user_id'] == userId);
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error taking action: $e')));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: const Color(0xFF0F1219), // Match admin dashboard dark theme
       appBar: AppBar(
-        title: const Text('Fraud & Wash Trading'),
-        backgroundColor: MPesaTheme.primaryRed,
+        title: const Text('Fraud & Wash Trading', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF161B29),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SafeArea(
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _flaggedVendors.length,
-          itemBuilder: (context, index) {
-            final vendor = _flaggedVendors[index];
-            final isHighSeverity = vendor['severity'] == 'High';
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: Colors.redAccent))
+            : _flaggedUsers.isEmpty
+                ? const Center(child: Text('No flagged users', style: TextStyle(color: Colors.white70)))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _flaggedUsers.length,
+                    itemBuilder: (context, index) {
+                      final vendor = _flaggedUsers[index];
+                      final isHighSeverity = (vendor['recent_tx_count'] ?? 0) >= 5;
 
-            return Card(
-              margin: const EdgeInsets.only(bottom: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: isHighSeverity ? Colors.red.shade200 : Colors.orange.shade200),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(vendor['vendor_id'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                        Text(vendor['timestamp'], style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(vendor['name'], style: const TextStyle(fontSize: 18)),
-                    const SizedBox(height: 4),
-                    Text(
-                      vendor['offense'],
-                      style: TextStyle(color: isHighSeverity ? MPesaTheme.primaryRed : Colors.orange, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => _takeAction(vendor['vendor_id'], 'Dismiss'),
-                          child: const Text('Dismiss', style: TextStyle(color: Colors.grey)),
+                      return Card(
+                        color: const Color(0xFF1C2230),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: isHighSeverity ? Colors.redAccent : Colors.orangeAccent),
                         ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () => _takeAction(vendor['vendor_id'], 'Shadow Ban'),
-                          style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryRed),
-                          child: const Text('Shadow Ban'),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('User ID: \${vendor['user_id']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                                  Text('\${vendor['recent_tx_count']} Txs', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(vendor['reason'] ?? 'Suspicious Activity', style: TextStyle(color: isHighSeverity ? Colors.redAccent : Colors.orange, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  TextButton(
+                                    onPressed: () => _takeAction(vendor['user_id'], 'Dismiss'),
+                                    child: const Text('Dismiss', style: TextStyle(color: Colors.grey)),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    onPressed: () => _takeAction(vendor['user_id'], 'Shadow Ban'),
+                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                                    child: const Text('Shadow Ban', style: TextStyle(color: Colors.white)),
+                                  ),
+                                ],
+                              )
+                            ],
+                          ),
                         ),
-                      ],
-                    )
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
+                      );
+                    },
+                  ),
       ),
     );
   }

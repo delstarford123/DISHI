@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/widgets/high_friction_action.dart';
 import 'deliv_active_route_view.dart';
-import 'deliv_registration_view.dart';
 import 'driver_scanner_view.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -30,7 +28,7 @@ class DelivDriverDashboard extends StatefulWidget {
 
 class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
   bool _isOnline = false;
-  double _earnings = 0.0;
+  final double _earnings = 0.0;
 
   bool _isSearching = false;
   String _searchQuery = '';
@@ -276,7 +274,7 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
                       ),
                       Switch(
                         value: _isOnline,
-                        activeColor: _neonCyan,
+                        activeThumbColor: _neonCyan,
                         inactiveThumbColor: _textSecondary,
                         inactiveTrackColor: _surfaceLight,
                         onChanged: _toggleStatus,

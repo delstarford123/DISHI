@@ -216,7 +216,7 @@ class _SavingsTargetViewState extends State<SavingsTargetView> {
                                 ],
                               ),
                               const SizedBox(height: 4),
-                              Text('Student: ${studentName} | Match: ${data['matchPercentage']}%', style: const TextStyle(color: Colors.white54)),
+                              Text('Student: $studentName | Match: ${data['matchPercentage']}%', style: const TextStyle(color: Colors.white54)),
                               const SizedBox(height: 16),
                               LinearProgressIndicator(
                                 value: progress.clamp(0.0, 1.0),

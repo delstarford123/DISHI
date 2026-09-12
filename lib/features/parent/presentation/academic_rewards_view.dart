@@ -197,7 +197,7 @@ class _AcademicRewardsViewState extends State<AcademicRewardsView> {
                         child: ListTile(
                           title: Text('${data['unitName']} - Target: ${data['targetScore']}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           subtitle: Text(
-                            'Student: ${studentName}\nStatus: $status',
+                            'Student: $studentName\nStatus: $status',
                             style: TextStyle(color: status == 'Achieved' ? Colors.green : Colors.white54),
                           ),
                           trailing: Text('Ksh ${data['rewardAmount']}', style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold, fontSize: 16)),

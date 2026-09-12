@@ -380,7 +380,7 @@ class _ParentProfileSettingsState extends State<ParentProfileSettings> {
         title: Text(title, style: const TextStyle(color: Colors.white)),
         subtitle: Text(subtitle, style: const TextStyle(color: MPesaTheme.textSecondaryColor, fontSize: 12)),
         value: value,
-        activeColor: MPesaTheme.mpesaGreen,
+        activeThumbColor: MPesaTheme.mpesaGreen,
         onChanged: onChanged,
       ),
     );

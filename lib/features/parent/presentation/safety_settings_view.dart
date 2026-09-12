@@ -46,7 +46,7 @@ class _SafetySettingsViewState extends State<SafetySettingsView> {
                 ),
                 Switch(
                   value: _killSwitch,
-                  activeColor: _neonPink,
+                  activeThumbColor: _neonPink,
                   onChanged: (val) => setState(() => _killSwitch = val),
                 )
               ],
@@ -69,7 +69,7 @@ class _SafetySettingsViewState extends State<SafetySettingsView> {
       decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(12)),
       child: SwitchListTile(
         title: Text(title, style: const TextStyle(color: Colors.white)),
-        activeColor: _neonCyan,
+        activeThumbColor: _neonCyan,
         value: val,
         onChanged: onChanged,
       ),

@@ -29,7 +29,7 @@ class _VendorTopupViewState extends State<VendorTopupView> {
     {'id': 'item_drink_soda', 'name': 'Soda', 'price': 50, 'category': 'Sugar', 'allergens': []},
     {'id': 'item_drink_water', 'name': 'Water', 'price': 30, 'category': 'drink', 'allergens': []},
   ];
-  Map<String, int> _cart = {};
+  final Map<String, int> _cart = {};
 
   double get _totalAmount {
     double total = 0;
@@ -276,14 +276,14 @@ class _VendorTopupViewState extends State<VendorTopupView> {
               subtitle: const Text('Student is paying for a friend', style: TextStyle(color: Colors.black54)),
               value: _isBuddyMeal,
               onChanged: (val) => setState(() => _isBuddyMeal = val),
-              activeColor: MPesaTheme.primaryGreen,
+              activeThumbColor: MPesaTheme.primaryGreen,
             ),
             SwitchListTile(
               title: const Text('Cash Out Mode', style: TextStyle(fontWeight: FontWeight.bold)),
               subtitle: const Text('Provide physical cash to student (e.g., bus fare)', style: TextStyle(color: Colors.black54)),
               value: _isCashOut,
               onChanged: (val) => setState(() => _isCashOut = val),
-              activeColor: MPesaTheme.primaryGreen,
+              activeThumbColor: MPesaTheme.primaryGreen,
             ),
             
             const SizedBox(height: 16),

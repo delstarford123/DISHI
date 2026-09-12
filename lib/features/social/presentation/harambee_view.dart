@@ -53,7 +53,7 @@ class _HarambeeViewState extends State<HarambeeView> {
               const SizedBox(height: 16),
               SwitchListTile(
                 title: const Text('Donate Anonymously', style: TextStyle(color: Colors.white, fontSize: 14)),
-                activeColor: MPesaTheme.primaryGreen,
+                activeThumbColor: MPesaTheme.primaryGreen,
                 value: isAnonymous,
                 onChanged: (v) => setDialogState(() => isAnonymous = v),
               )
@@ -247,7 +247,7 @@ class _HarambeeViewState extends State<HarambeeView> {
                 TextField(controller: goalController, style: const TextStyle(color: Colors.white), keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Funding Goal (KES)', labelStyle: TextStyle(color: Colors.white70))),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: category,
+                  initialValue: category,
                   dropdownColor: const Color(0xFF131A2A),
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(labelText: 'Category', labelStyle: TextStyle(color: Colors.white70)),
@@ -256,7 +256,7 @@ class _HarambeeViewState extends State<HarambeeView> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: payoutMethod,
+                  initialValue: payoutMethod,
                   dropdownColor: const Color(0xFF131A2A),
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(labelText: 'Payout Method', labelStyle: TextStyle(color: Colors.white70)),

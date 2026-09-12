@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/theme/mpesa_theme.dart';
-import '../../../core/services/api_v3_client.dart'; // Handles the strict 30s timeout
+// Handles the strict 30s timeout
 
 class SmartiChatbotView extends StatefulWidget {
   const SmartiChatbotView({super.key});

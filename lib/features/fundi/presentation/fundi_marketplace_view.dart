@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/models/user_model.dart';
-import '../../auth/presentation/role_selection_view.dart';
 import 'fundi_dashboard_view.dart';
 import 'fundi_registration_view.dart';
 

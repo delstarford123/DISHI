@@ -141,7 +141,7 @@ class _SubscriptionManagerViewState extends State<SubscriptionManagerView> {
                                 Switch(
                                   value: isActive,
                                   onChanged: (val) => _toggleSubscription(subId, val, subData['merchant'] ?? 'Subscription'),
-                                  activeColor: const Color(0xFF05D5AA),
+                                  activeThumbColor: const Color(0xFF05D5AA),
                                 )
                               ],
                             ),

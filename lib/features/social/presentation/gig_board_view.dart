@@ -58,7 +58,7 @@ class _GigBoardViewState extends State<GigBoardView> {
                   ],
                 ),
                 DropdownButtonFormField<String>(
-                  value: category,
+                  initialValue: category,
                   dropdownColor: const Color(0xFF131A2A),
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(labelText: 'Category', labelStyle: TextStyle(color: Colors.white70)),
@@ -68,8 +68,8 @@ class _GigBoardViewState extends State<GigBoardView> {
                 TextField(controller: skillsController, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Required Skills (comma separated)', labelStyle: TextStyle(color: Colors.white70))),
                 TextField(controller: portfolioController, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Optional: Reference Link', labelStyle: TextStyle(color: Colors.white70))),
                 const SizedBox(height: 12),
-                SwitchListTile(title: const Text('Remote Work?', style: TextStyle(color: Colors.white)), activeColor: Colors.blueAccent, value: isRemote, onChanged: (v) => setDialogState(() => isRemote = v)),
-                SwitchListTile(title: const Text('Urgent (24h)?', style: TextStyle(color: Colors.redAccent)), activeColor: Colors.redAccent, value: isUrgent, onChanged: (v) => setDialogState(() => isUrgent = v)),
+                SwitchListTile(title: const Text('Remote Work?', style: TextStyle(color: Colors.white)), activeThumbColor: Colors.blueAccent, value: isRemote, onChanged: (v) => setDialogState(() => isRemote = v)),
+                SwitchListTile(title: const Text('Urgent (24h)?', style: TextStyle(color: Colors.redAccent)), activeThumbColor: Colors.redAccent, value: isUrgent, onChanged: (v) => setDialogState(() => isUrgent = v)),
               ],
             ),
           ),
@@ -131,7 +131,7 @@ class _GigBoardViewState extends State<GigBoardView> {
             onPressed: () async {
               if (coverLetterController.text.isNotEmpty) {
                 // Send application
-                final chatId = 'gig_${doc.id}_${currentUid}';
+                final chatId = 'gig_${doc.id}_$currentUid';
                 await FirebaseFirestore.instance.collection('gig_applications').add({
                   'gigId': doc.id,
                   'applicantId': currentUid,

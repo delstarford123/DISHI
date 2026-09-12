@@ -113,7 +113,7 @@ class _SmartiHomePageState extends State<SmartiHomePage> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: selectedCategory,
+                initialValue: selectedCategory,
                 items: categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
                 onChanged: (val) {
                   if (val != null) setState(() => selectedCategory = val);

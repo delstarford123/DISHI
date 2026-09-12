@@ -105,7 +105,7 @@ class _LostAndFoundViewState extends State<LostAndFoundView> {
                   TextField(controller: bountyController, style: const TextStyle(color: Colors.white), keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Bounty Reward (KES)', labelStyle: TextStyle(color: Colors.white70))),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: category,
+                  initialValue: category,
                   dropdownColor: const Color(0xFF131A2A),
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(labelText: 'Category', labelStyle: TextStyle(color: Colors.white70)),
@@ -114,7 +114,7 @@ class _LostAndFoundViewState extends State<LostAndFoundView> {
                 ),
                 if (type == 'Found')
                   DropdownButtonFormField<String>(
-                    value: dropOff,
+                    initialValue: dropOff,
                     dropdownColor: const Color(0xFF131A2A),
                     style: const TextStyle(color: Colors.white),
                     decoration: const InputDecoration(labelText: 'Safe Drop-off Location', labelStyle: TextStyle(color: Colors.white70)),
