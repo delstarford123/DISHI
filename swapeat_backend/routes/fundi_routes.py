@@ -32,7 +32,7 @@ def pay_fundi():
     db = firestore.client()
     
     try:
-        fee = amount * 0.015
+        fee = 3.0
         net_amount = amount - fee
 
         transaction_ref = db.transaction()
@@ -342,9 +342,10 @@ def accept_fundi_job():
 
     job_id = data.get('job_id')
     fundi_id = data.get('fundi_id')
+    eta = data.get('eta')
     
-    if not job_id or not fundi_id:
-        return jsonify({"error": "Missing job_id or fundi_id"}), 400
+    if not job_id or not fundi_id or not eta:
+        return jsonify({"error": "Missing job_id, fundi_id, or eta"}), 400
 
     db = firestore.client()
     try:
@@ -360,6 +361,7 @@ def accept_fundi_job():
         job_ref.update({
             'status': 'In Progress',
             'fundi_id': fundi_id,
+            'eta': eta,
             'accepted_at': firestore.SERVER_TIMESTAMP
         })
         

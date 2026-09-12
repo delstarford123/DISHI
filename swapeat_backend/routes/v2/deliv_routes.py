@@ -109,9 +109,10 @@ def accept_request():
     request_id = data.get('request_id')
     driver_id = data.get('driver_id')
     price = data.get('price', 0.0)
+    eta = data.get('eta')
     
-    if not request_id or not driver_id:
-        return jsonify({"error": "Missing required fields"}), 400
+    if not request_id or not driver_id or not eta:
+        return jsonify({"error": "Missing request_id, driver_id, or eta"}), 400
         
     try:
         db = firestore.client()
@@ -128,6 +129,7 @@ def accept_request():
             'status': 'accepted',
             'driver_id': driver_id,
             'price': float(price),
+            'eta': eta,
             'updated_at': firestore.SERVER_TIMESTAMP
         })
         
@@ -194,8 +196,8 @@ def complete_request():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@deliv_v2_bp.route('/pay', methods=['POST'])
-def pay_deliv_vault():
+@deliv_v2_bp.route('/pay_escrow', methods=['POST'])
+def pay_deliv_escrow():
     data = request.json or {}
     request_id = data.get('request_id')
     user_id = data.get('user_id')
@@ -213,117 +215,137 @@ def pay_deliv_vault():
         req_data = req_doc.to_dict()
         driver_id = req_data.get('driver_id')
         price = float(req_data.get('price', 0))
-        service_type = req_data.get('service_type', 'Errand')
-        payment_method = req_data.get('payment_method', 'vault')
-        phone_number = req_data.get('phone_number')
-        is_rain_surge = req_data.get('is_rain_surge', False)
-        is_night_owl = req_data.get('is_night_owl', False)
-        
-        is_ride = service_type.lower() == 'ride'
-        user_commission = 10.0 if is_ride else 25.0
-        if is_rain_surge:
-            user_commission += 30.0
-        if is_night_owl:
-            user_commission += 20.0
-            
-        total_user_charge = price + user_commission
         
         if not driver_id or price <= 0:
             return jsonify({"error": "Invalid driver or price"}), 400
+
+        # Flat 3 KSH platform fee
+        fee = 3.0
+        total_user_charge = price + fee
             
-        transaction = db.transaction()
+        transaction_ref = db.transaction()
         user_ref = db.collection('users').document(user_id)
-        driver_ref = db.collection('users').document(driver_id)
+        req_ref = db.collection('deliv_requests').document(request_id)
         
-        if payment_method == 'mpesa':
-            if not phone_number:
-                return jsonify({"error": "Phone number required for M-Pesa payment"}), 400
-                
-            from flask import request as flask_request
-            import requests
-            base_url = flask_request.host_url.rstrip('/')
-            
-            resp = requests.post(f"{base_url}/api/v1/mpesa/stkpush", json={
-                'phone_number': phone_number,
-                'amount': total_user_charge,
-                'credit_amount': price,
-                'user_id': driver_id, # Driver receives funds
-                'destination': 'vault_balance', # Add to driver's vault balance
-                'metadata': {
-                    'action': 'pay_deliv',
-                    'request_id': request_id
-                }
-            }, timeout=15)
-            
-            if resp.status_code != 200:
-                return jsonify({"error": "Failed to initiate M-Pesa payment"}), 400
-                
-            resp_data = resp.json()
-            checkout_id = resp_data.get('CheckoutRequestID')
-            
-            db.collection('transactions').add({
-                'sender_id': user_id,
-                'receiver_id': driver_id,
-                'amount': total_user_charge,
-                'type': 'DeLiv Payment',
-                'source': 'mpesa',
-                'request_id': request_id,
-                'checkout_id': checkout_id,
-                'timestamp': firestore.SERVER_TIMESTAMP
-            })
-            
-            # Removed optimistic status update
-            
-            return jsonify({"status": "pending", "checkout_id": checkout_id, "message": "M-Pesa payment initiated for Driver."}), 200
-            
         @firestore.transactional
-        def process_payment(transaction, user_ref, driver_ref, price, total_user_charge, payment_method):
+        def process_escrow(transaction):
             user_snap = user_ref.get(transaction=transaction)
             if not user_snap.exists:
                 raise Exception("User not found")
                 
             user_data = user_snap.to_dict()
+            user_balance = float(user_data.get('walletBalance', 0))
             
-            source_field = 'walletBalance' if payment_method == 'vault' else 'savingsBalance'
-            user_balance = float(user_data.get(source_field, 0))
-            
-            if user_balance >= total_user_charge:
-                new_balance = user_balance - total_user_charge
-            else:
-                raise Exception(f"Insufficient funds. You need Ksh {total_user_charge} (includes Ksh {user_commission} system fee).")
-                
-            driver_snap = driver_ref.get(transaction=transaction)
-            driver_vault = 0.0
-            if driver_snap.exists:
-                driver_data = driver_snap.to_dict()
-                driver_vault = float(driver_data.get('vault_balance', 0))
+            if user_balance < total_user_charge:
+                raise Exception(f"Insufficient funds. You need Ksh {total_user_charge} (includes Ksh {fee} system fee).")
                 
             transaction.update(user_ref, {
-                source_field: new_balance
+                'walletBalance': user_balance - total_user_charge
             })
             
+            transaction.update(req_ref, {
+                'escrow_status': 'HELD',
+                'payment_status': 'in_escrow',
+                'fee_deducted': fee,
+                'net_amount': price
+            })
+            
+            # Record escrow out transaction
+            import uuid
+            tx_id_out = str(uuid.uuid4())
+            tx_out_ref = user_ref.collection('transactions').document(tx_id_out)
+            
+            transaction.set(tx_out_ref, {
+                'type': 'ESCROW_LOCK',
+                'amount': total_user_charge,
+                'desc': 'DeLiv Escrow Hold',
+                'timestamp': firestore.SERVER_TIMESTAMP,
+                'request_id': request_id
+            })
+            
+        process_escrow(transaction_ref)
+        return jsonify({"status": "success", "message": "Funds locked in Escrow", "escrow_amount": total_user_charge}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@deliv_v2_bp.route('/release_escrow', methods=['POST'])
+def release_deliv_escrow():
+    data = request.json or {}
+    request_id = data.get('request_id')
+    user_id = data.get('user_id')
+
+    if not request_id or not user_id:
+        return jsonify({"error": "Missing request_id or user_id"}), 400
+
+    db = firestore.client()
+
+    try:
+        transaction_ref = db.transaction()
+        req_ref = db.collection('deliv_requests').document(request_id)
+
+        @firestore.transactional
+        def process_release(transaction):
+            req_doc = req_ref.get(transaction=transaction)
+            if not req_doc.exists:
+                raise Exception("Request not found")
+
+            req_data = req_doc.to_dict()
+            if req_data.get('escrow_status') != 'HELD':
+                raise Exception("Funds are not currently in Escrow for this request")
+            
+            if req_data.get('user_id') != user_id:
+                raise Exception("Only the requester can release escrow funds")
+
+            driver_id = req_data.get('driver_id')
+            net_amount = req_data.get('net_amount', 0)
+            fee = req_data.get('fee_deducted', 0)
+
+            driver_ref = db.collection('users').document(driver_id)
+            driver_doc = driver_ref.get(transaction=transaction)
+            if not driver_doc.exists:
+                raise Exception("Driver not found")
+
+            driver_data = driver_doc.to_dict()
+            driver_balance = driver_data.get('walletBalance', 0)
+
+            # Credit Driver
             transaction.update(driver_ref, {
-                'vault_balance': driver_vault + price
+                'walletBalance': driver_balance + net_amount
             })
-            
-            return source_field
-            
-        source = process_payment(transaction, user_ref, driver_ref, price, total_user_charge, payment_method)
-        
-        db.collection('transactions').add({
-            'sender_id': user_id,
-            'receiver_id': driver_id,
-            'amount': total_user_charge,
-            'type': 'DeLiv Payment',
-            'source': source,
-            'request_id': request_id,
-            'timestamp': firestore.SERVER_TIMESTAMP
-        })
-        
-        db.collection('deliv_requests').document(request_id).update({
-            'payment_status': 'paid'
-        })
-        
-        return jsonify({"status": "success", "message": f"Paid KSH {price} to driver successfully"}), 200
+
+            # Update Request status
+            transaction.update(req_ref, {
+                'status': 'completed',
+                'payment_status': 'paid',
+                'escrow_status': 'RELEASED',
+                'updated_at': firestore.SERVER_TIMESTAMP
+            })
+
+            import uuid
+            # Record incoming transaction for Driver
+            tx_id_in = str(uuid.uuid4())
+            tx_in_ref = driver_ref.collection('transactions').document(tx_id_in)
+            transaction.set(tx_in_ref, {
+                'type': 'ESCROW_RELEASED',
+                'amount': net_amount,
+                'desc': 'DeLiv Payment Released',
+                'timestamp': firestore.SERVER_TIMESTAMP,
+                'request_id': request_id,
+                'fee': fee
+            })
+
+            # Collect system fee
+            system_fee_ref = db.collection('system_revenue').document()
+            transaction.set(system_fee_ref, {
+                'type': 'DELIV_FEE',
+                'amount': fee,
+                'timestamp': firestore.SERVER_TIMESTAMP,
+                'request_id': request_id,
+                'driver_id': driver_id
+            })
+
+        process_release(transaction_ref)
+        return jsonify({"status": "success", "message": "Funds released to Driver successfully"}), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
