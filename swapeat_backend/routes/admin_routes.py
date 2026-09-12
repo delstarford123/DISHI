@@ -976,3 +976,67 @@ def get_active_rides():
         return jsonify({'rides': [r.to_dict() for r in rides]}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/delivery/online_drivers', methods=['GET'])
+def get_online_drivers():
+    admin_id = verify_admin(request)
+    if not admin_id: return jsonify({"error": "Unauthorized"}), 401
+    try:
+        db = firestore.client()
+        drivers = db.collection('deliv_drivers').where('isOnline', '==', True).where('status', 'in', ['free', 'busy']).get()
+        return jsonify({'drivers': [d.to_dict() for d in drivers]}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/delivery/manual_dispatch', methods=['POST'])
+def manual_dispatch_delivery():
+    admin_id = verify_admin(request)
+    if not admin_id: return jsonify({"error": "Unauthorized"}), 401
+    try:
+        data = request.get_json()
+        request_id = data.get('request_id')
+        driver_id = data.get('driver_id')
+        
+        db = firestore.client()
+        req_ref = db.collection('deliv_requests').document(request_id)
+        
+        req_ref.update({
+            'status': 'accepted',
+            'driver_id': driver_id,
+            'updated_at': firestore.SERVER_TIMESTAMP
+        })
+        
+        log_admin_action(admin_id, "Manual Dispatch", f"Assigned request {request_id} to driver {driver_id}")
+        
+        # Notify the driver
+        from firebase_admin import messaging
+        try:
+            messaging.send(messaging.Message(
+                notification=messaging.Notification(title="New Gig Assigned!", body="An admin has dispatched a delivery to you."),
+                topic=driver_id
+            ))
+        except: pass
+        
+        return jsonify({'message': 'Dispatched successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/delivery/notify_party', methods=['POST'])
+def notify_delivery_party():
+    admin_id = verify_admin(request)
+    if not admin_id: return jsonify({"error": "Unauthorized"}), 401
+    try:
+        data = request.get_json()
+        target_id = data.get('target_id')
+        title = data.get('title', 'Admin Alert')
+        message = data.get('message', 'Please check your delivery status.')
+        
+        from firebase_admin import messaging
+        messaging.send(messaging.Message(
+            notification=messaging.Notification(title=title, body=message),
+            topic=target_id
+        ))
+        
+        return jsonify({'message': 'Notification sent successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

@@ -402,4 +402,26 @@ class AdminService {
     final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/emergency/safe_house'), headers: headers, body: body);
     if (response.statusCode != 200) throw Exception(response.body);
   }
+
+  // C. Manual Dispatch
+  Future<List<dynamic>> getOnlineDrivers() async {
+    final headers = await _getHeaders();
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/delivery/online_drivers'), headers: headers);
+    if (response.statusCode != 200) throw Exception(response.body);
+    return jsonDecode(response.body)['drivers'];
+  }
+
+  Future<void> manualDispatchDelivery(String requestId, String driverId) async {
+    final headers = await _getHeaders();
+    final body = jsonEncode({'request_id': requestId, 'driver_id': driverId});
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/delivery/manual_dispatch'), headers: headers, body: body);
+    if (response.statusCode != 200) throw Exception(response.body);
+  }
+
+  Future<void> notifyDeliveryParty(String targetId, String title, String message) async {
+    final headers = await _getHeaders();
+    final body = jsonEncode({'target_id': targetId, 'title': title, 'message': message});
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/delivery/notify_party'), headers: headers, body: body);
+    if (response.statusCode != 200) throw Exception(response.body);
+  }
 }

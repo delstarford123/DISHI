@@ -160,10 +160,16 @@ class _AdminDeliverySecurityViewState extends State<AdminDeliverySecurityView> w
     );
   }
 
+  String? _selectedDriverId;
+  String? _selectedRequestId;
+
   Widget _buildLiveRidesTab() {
-    return FutureBuilder<List<dynamic>>(
-      future: _adminService.getActiveRides(),
-      builder: (context, snapshot) {
+    return FutureBuilder(
+      future: Future.wait([
+        _adminService.getActiveRides(),
+        _adminService.getOnlineDrivers(),
+      ]),
+      builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: _neonCyan));
         }
@@ -171,29 +177,136 @@ class _AdminDeliverySecurityViewState extends State<AdminDeliverySecurityView> w
           return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: _neonRed)));
         }
 
-        final rides = snapshot.data ?? [];
-        if (rides.isEmpty) {
-          return const Center(child: Text('No active deliveries right now.', style: TextStyle(color: _textSecondary)));
-        }
+        final rides = (snapshot.data?[0] as List<dynamic>?) ?? [];
+        final drivers = (snapshot.data?[1] as List<dynamic>?) ?? [];
 
-        return ListView.builder(
+        final pendingRides = rides.where((r) => r['status'] == 'pending').toList();
+        final activeRides = rides.where((r) => r['status'] != 'pending').toList();
+
+        return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          itemCount: rides.length,
-          itemBuilder: (context, index) {
-            final ride = rides[index];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(12)),
-              child: ListTile(
-                leading: const Icon(Icons.two_wheeler, color: _neonCyan),
-                title: Text('${ride['service_type']} - ${ride['status']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                subtitle: Text('Driver: ${ride['driver_id'] ?? "Searching..."}\nUser: ${ride['user_id']}', style: const TextStyle(color: _textSecondary)),
-                trailing: const Icon(Icons.chevron_right, color: _textSecondary),
-              ),
-            );
-          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Manual Dispatch (Pending Requests)', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              if (pendingRides.isEmpty)
+                const Text('No pending requests.', style: TextStyle(color: _textSecondary))
+              else
+                ...pendingRides.map((ride) => _buildDispatchCard(ride, drivers)),
+                
+              const SizedBox(height: 32),
+              const Text('Active Connected Rides', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              if (activeRides.isEmpty)
+                const Text('No active rides.', style: TextStyle(color: _textSecondary))
+              else
+                ...activeRides.map((ride) => _buildActiveRideCard(ride)),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  Widget _buildDispatchCard(Map<String, dynamic> ride, List<dynamic> drivers) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: _neonOrange)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Request: ${ride['service_type']} from User ${ride['user_id'].toString().substring(0,8)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              labelText: 'Assign Available Driver',
+              labelStyle: const TextStyle(color: _neonCyan),
+              filled: true,
+              fillColor: _surfaceLight,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+            ),
+            dropdownColor: _surfaceLight,
+            items: drivers.map((d) => DropdownMenuItem<String>(
+              value: d['user_id'],
+              child: Text('${d['vehicle_type']} - ${d['phone']}', style: const TextStyle(color: Colors.white)),
+            )).toList(),
+            onChanged: (val) {
+              setState(() {
+                _selectedDriverId = val;
+                _selectedRequestId = ride['id'];
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+              onPressed: () async {
+                if (_selectedDriverId == null) return;
+                try {
+                  await _adminService.manualDispatchDelivery(ride['id'], _selectedDriverId!);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dispatched successfully')));
+                  setState(() {});
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              },
+              child: const Text('Force Dispatch'),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveRideCard(Map<String, dynamic> ride) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${ride['service_type']} - ${ride['status'].toString().toUpperCase()}', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text('User: ${ride['user_id']}', style: const TextStyle(color: _textSecondary)),
+          Text('Driver: ${ride['driver_id']}', style: const TextStyle(color: _textSecondary)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: _surfaceLight, foregroundColor: Colors.white),
+                  icon: const Icon(Icons.call, size: 16),
+                  label: const Text('Call Users'),
+                  onPressed: () {
+                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Calling users is integrated with SIP trunk.')));
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: _neonOrange, foregroundColor: Colors.black),
+                  icon: const Icon(Icons.notifications_active, size: 16),
+                  label: const Text('FCM Alert'),
+                  onPressed: () async {
+                    try {
+                      await _adminService.notifyDeliveryParty(ride['driver_id'], 'Admin Alert', 'Please check in on your active ride immediately.');
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notification Sent to Driver via FCM')));
+                    } catch (e) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to send FCM: $e')));
+                    }
+                  },
+                ),
+              ),
+            ],
+          )
+        ],
+      ),
     );
   }
 }
