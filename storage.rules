@@ -278,5 +278,13 @@ service firebase.storage {
       allow write: if isAuth() && isValidImage();
       allow delete: if isAuth();
     }
+    // ─────────────────────────────────────────────────────────────────────────
+    // 21. CAMPUS EMPLOYMENT HUB (v6)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /campus_gigs_portfolio/{imageId} {
+      allow read: if true;
+      allow write: if isAuth() && isValidImage();
+      allow delete: if isAuth();
+    }
   }
 }

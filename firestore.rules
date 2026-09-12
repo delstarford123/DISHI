@@ -876,5 +876,24 @@ service cloud.firestore {
       allow read, write: if isSelf(uid) || isAdmin();
       match /{docId} { allow read, write: if isSelf(uid) || isAdmin(); }
     }
+    // ─────────────────────────────────────────────────────────────────────────
+    // 28. CAMPUS EMPLOYMENT HUB (v6)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /campus_gig_workers/{workerId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && isSelf(workerId);
+      allow update: if isAuth() && (isSelf(workerId) || isAdmin());
+      allow delete: if isAdmin();
+    }
+    match /campus_gig_requests/{requestId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() && 
+        (resource == null || 
+         request.auth.uid == resource.data.requester_id || 
+         request.auth.uid == resource.data.worker_id || 
+         isAdmin());
+      allow delete: if isAdmin();
+    }
   }
 }

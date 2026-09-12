@@ -111,6 +111,7 @@ from routes.match_premium_routes import match_premium_bp
 from routes.events_routes import events_bp
 from routes.virtual_card_routes import card_bp
 from routes.vibe_routes import vibe_bp
+from routes.v6.campus_gigs_routes import campus_gigs_v6_bp
 
 
 
@@ -158,6 +159,7 @@ app.register_blueprint(match_premium_bp,    url_prefix='/api/v1/match_premium')
 app.register_blueprint(events_bp)
 app.register_blueprint(card_bp)
 app.register_blueprint(vibe_bp, url_prefix='/api/vibe')
+app.register_blueprint(campus_gigs_v6_bp,   url_prefix='/api/v6/campus_gigs')
 
 
 

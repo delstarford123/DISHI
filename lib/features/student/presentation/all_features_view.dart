@@ -27,6 +27,7 @@ import '../../marketplace/presentation/escrow_market_view.dart';
 import '../../marketplace/presentation/swipe_exchange_view.dart';
 import '../../community/presentation/ar_campus_map_view.dart';
 import 'safter_pin_view.dart';
+import 'campus_employment_hub.dart';
 class AllFeaturesView extends StatelessWidget {
   final UserModel userModel;
 
@@ -94,7 +95,7 @@ class AllFeaturesView extends StatelessWidget {
           _buildSliverGrid([
             _FeatureItem(icon: Icons.volunteer_activism, label: 'Harambee', color: Colors.pinkAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => HarambeeView(user: userModel.toJson())))),
             _FeatureItem(icon: Icons.find_in_page, label: 'Lost & Found', color: Colors.orange, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LostAndFoundView(user: userModel.toJson())))),
-            _FeatureItem(icon: Icons.work, label: 'Gig Board', color: Colors.cyanAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => GigBoardView(user: userModel.toJson())))),
+            _FeatureItem(icon: Icons.work_outline, label: 'Campus Gigs Hub', color: Colors.cyanAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CampusEmploymentHubView()))),
             _FeatureItem(icon: Icons.confirmation_num, label: 'Event Tickets', color: Colors.purpleAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EventTicketsView(user: userModel.toJson())))),
           ], cardColor),
 
