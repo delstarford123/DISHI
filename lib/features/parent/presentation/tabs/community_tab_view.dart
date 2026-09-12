@@ -73,10 +73,12 @@ class CommunityTabView extends StatelessWidget {
             ...docs.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
               return _buildForumPost(
+                doc.id,
                 data['title'] ?? 'No Title',
                 data['content'] ?? '',
                 data['authorName'] ?? 'Anonymous',
                 'Recently',
+                data['authorUid'] ?? '',
               );
             }),
           ],
@@ -126,31 +128,38 @@ class CommunityTabView extends StatelessWidget {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel', style: TextStyle(color: _textSecondary)),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final title = titleController.text.trim();
-              final content = contentController.text.trim();
-              if (title.isEmpty || content.isEmpty) return;
-              
-              await FirebaseFirestore.instance.collection('forums').add({
-                'title': title,
-                'content': content,
-                'authorUid': FirebaseAuth.instance.currentUser!.uid,
-                'authorName': user['name'] ?? user['displayName'] ?? 'Parent',
-                'createdAt': FieldValue.serverTimestamp(),
-              });
-              
-              if (context.mounted) Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: _neonBlue),
-            child: const Text('Post', style: TextStyle(color: Colors.white)),
+            ElevatedButton(
+              onPressed: () async {
+                final title = titleController.text.trim();
+                final content = contentController.text.trim();
+                if (title.isEmpty || content.isEmpty) return;
+                
+                try {
+                  await FirebaseFirestore.instance.collection('forums').add({
+                    'title': title,
+                    'content': content,
+                    'authorUid': FirebaseAuth.instance.currentUser!.uid,
+                    'authorName': user['name'] ?? user['displayName'] ?? 'Parent',
+                    'createdAt': FieldValue.serverTimestamp(),
+                  });
+                  if (context.mounted) Navigator.pop(context);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to post: $e')));
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: _neonBlue),
+              child: const Text('Post', style: TextStyle(color: Colors.white)),
           )
         ],
       )
     );
   }
 
-  Widget _buildForumPost(String title, String content, String author, String time) {
+  Widget _buildForumPost(String docId, String title, String content, String author, String time, String authorUid) {
+    final bool canDelete = authorUid == FirebaseAuth.instance.currentUser?.uid;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -161,7 +170,19 @@ class CommunityTabView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+              if (canDelete)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                  onPressed: () async {
+                    await FirebaseFirestore.instance.collection('forums').doc(docId).delete();
+                  },
+                ),
+            ],
+          ),
           const SizedBox(height: 8),
           Text(content, style: const TextStyle(color: _textSecondary)),
           const SizedBox(height: 12),
@@ -207,10 +228,13 @@ class CommunityTabView extends StatelessWidget {
             ...docs.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
               return _buildEventCard(
+                context,
+                doc.id,
                 data['title'] ?? 'Event', 
                 data['dateStr'] ?? 'Upcoming', 
                 data['location'] ?? 'TBD', 
-                data['isSchool'] ?? true
+                data['isSchool'] ?? true,
+                data['creatorId'] ?? data['uid'] ?? '',
               );
             }),
           ],
@@ -219,18 +243,58 @@ class CommunityTabView extends StatelessWidget {
     );
   }
 
-  Widget _buildEventCard(String title, String date, String location, bool isSchool) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border(left: BorderSide(color: isSchool ? _neonBlue : _neonCyan, width: 4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    Widget _buildEventCard(BuildContext context, String docId, String title, String date, String location, bool isSchool, String creatorUid) {
+      final bool canDelete = creatorUid == FirebaseAuth.instance.currentUser?.uid;
+      
+      return GestureDetector(
+        onTap: () {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: _cardColor,
+              title: Text(title, style: const TextStyle(color: Colors.white)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Date: $date', style: const TextStyle(color: Colors.white)),
+                  const SizedBox(height: 8),
+                  Text('Location: $location', style: const TextStyle(color: Colors.white)),
+                  const SizedBox(height: 8),
+                  Text('Type: ${isSchool ? 'School' : 'Family'}', style: const TextStyle(color: Colors.white)),
+                ],
+              ),
+              actions: [
+                if (canDelete)
+                  TextButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      await FirebaseFirestore.instance.collection('events').doc(docId).delete();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Event deleted')));
+                      }
+                    },
+                    child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close', style: TextStyle(color: _neonBlue)),
+                )
+              ],
+            )
+          );
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border(left: BorderSide(color: isSchool ? _neonBlue : _neonCyan, width: 4)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -259,6 +323,7 @@ class CommunityTabView extends StatelessWidget {
             ],
           )
         ],
+      ),
       ),
     );
   }

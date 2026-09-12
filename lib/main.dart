@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'core/theme/mpesa_theme.dart';
 import 'features/auth/presentation/signup_view.dart';
+import 'features/auth/presentation/login_view.dart';
 import 'features/auth/presentation/pin_unlock_view.dart';
 import 'features/auth/presentation/splash_screen.dart';
 import 'features/student/presentation/student_main_scaffold.dart';
@@ -12,6 +13,7 @@ import 'features/vendor/presentation/vendor_dashboard_view.dart';
 import 'features/parent/presentation/parent_dashboard_view.dart';
 import 'features/deliv/presentation/deliv_driver_dashboard.dart';
 import 'features/housing/presentation/housing_dashboard_view.dart';
+import 'features/fundi/presentation/fundi_dashboard_view.dart';
 import 'core/security/secure_storage_service.dart';
 
 import 'package:provider/provider.dart';
@@ -103,7 +105,13 @@ class _InitialRouterState extends State<InitialRouter> {
             onSuccess: () async {
               final userData = await SecureStorageService.getUserData();
               final role = userData['role'] ?? 'student';
-              final userMap = {'roles': [role]};
+              final userMap = {
+                'uid': userData['userId'] ?? user.uid,
+                'roles': [role],
+                'name': userData['name'] ?? '',
+                'email': userData['email'] ?? '',
+                'phoneNumber': userData['phone'] ?? '',
+              };
               if (!mounted) return;
               
               Widget dashboard;
@@ -117,6 +125,8 @@ class _InitialRouterState extends State<InitialRouter> {
                 dashboard = DelivDriverDashboard(user: userMap);
               } else if (role == 'house_owner') {
                 dashboard = HousingDashboardView(user: userMap);
+              } else if (role == 'fundi') {
+                dashboard = FundiDashboardView(user: userMap);
               } else {
                 dashboard = StudentMainScaffold(user: userMap);
               }
@@ -125,12 +135,12 @@ class _InitialRouterState extends State<InitialRouter> {
             }
           )));
         } else {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const SignupView()));
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
         }
       }
     } else {
       if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const SignupView()));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
       }
     }
   }

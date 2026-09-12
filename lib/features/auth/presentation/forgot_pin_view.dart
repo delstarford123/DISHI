@@ -2,8 +2,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'login_view.dart';
 import '../../../core/services/api_config.dart';
 import '../../../core/theme/mpesa_theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/security/security_service.dart';
+import '../../../core/security/secure_storage_service.dart';
 
 class ForgotPinView extends StatefulWidget {
   const ForgotPinView({super.key});
@@ -132,10 +136,27 @@ class _ForgotPinViewState extends State<ForgotPinView> {
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PIN reset successfully! You can now log in.')),
-        );
-        Navigator.of(context).pop();
+        // Now also update the local secure storage and Firestore to keep everything in sync
+        final hashedPin = SecurityService.hashPin(newPin);
+        await SecureStorageService.saveHashedPin(hashedPin);
+        
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+            'pin': hashedPin
+          });
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('PIN reset successfully! You can now log in.')),
+          );
+          // Navigate completely back to LoginView so they can authenticate cleanly with the new session
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LoginView()),
+            (route) => false,
+          );
+        }
       } else {
         final data = jsonDecode(response.body);
         setState(() => _errorMessage = data['error'] ?? 'Failed to reset PIN.');
@@ -159,36 +180,41 @@ class _ForgotPinViewState extends State<ForgotPinView> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 8),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  _step == 1 ? 'Enter your email' : _step == 2 ? 'Verify OTP' : 'Create New PIN',
-                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (_errorMessage != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF92B60).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFF92B60).withOpacity(0.5)),
-                  ),
-                  child: Text(
-                    _errorMessage!,
-                    style: const TextStyle(color: Color(0xFFF92B60), fontWeight: FontWeight.w600),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              if (_step == 1) ...[
+        child: CustomScrollView(
+          slivers: [
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 8),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _step == 1 ? 'Enter your email' : _step == 2 ? 'Verify OTP' : 'Create New PIN',
+                        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.2),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (_errorMessage != null)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF92B60).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFF92B60).withOpacity(0.5)),
+                        ),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Color(0xFFF92B60), fontWeight: FontWeight.w600),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    const Spacer(),
+                    if (_step == 1) ...[
                 const Text('We will send a 6-digit OTP to your registered email address.', style: TextStyle(color: Colors.white54, fontSize: 16), textAlign: TextAlign.center),
                 const SizedBox(height: 32),
                 if (_loggedInEmail != null && _loggedInEmail!.isNotEmpty)
@@ -343,11 +369,14 @@ class _ForgotPinViewState extends State<ForgotPinView> {
                           child: const Text('Save New PIN', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
                         ),
                       ),
-              ]
+              ],
             ],
           ),
         ),
       ),
+    ],
+  ),
+),
     );
   }
 }

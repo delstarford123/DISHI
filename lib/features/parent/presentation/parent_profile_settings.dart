@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import '../../auth/presentation/forgot_pin_view.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import '../../auth/presentation/login_view.dart';
 import '../../../core/services/secure_storage_service.dart';
@@ -289,17 +292,32 @@ class _ParentProfileSettingsState extends State<ParentProfileSettings> {
             _buildListTile(
                 icon: Icons.lock,
                 title: 'Change Password',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Change Password coming soon')));
+                onTap: () async {
+                  final email = FirebaseAuth.instance.currentUser?.email;
+                  if (email != null && email.isNotEmpty) {
+                    try {
+                      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Password reset email sent to $email')));
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to send email: $e')));
+                      }
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No email associated with this account')));
+                  }
                 }),
             _buildListTile(
                 icon: Icons.security,
                 title: 'Parent PIN Settings',
                 subtitle: 'Manage vault authorization PIN',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('PIN Settings coming soon')));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ForgotPinView()),
+                  );
                 }),
             const SizedBox(height: 24),
             
@@ -308,13 +326,40 @@ class _ParentProfileSettingsState extends State<ParentProfileSettings> {
                 icon: Icons.help,
                 title: 'Help Center',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Help Center coming soon')));
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      backgroundColor: const Color(0xFF131A2A),
+                      title: const Text('Help Center', style: TextStyle(color: Colors.white)),
+                      content: const Text('For support, please contact us at:\nsupport@dishi.delstarfordworks.co.ke\nOr call: +254 700 000 000', style: TextStyle(color: Colors.white70)),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Close', style: TextStyle(color: MPesaTheme.mpesaGreen)),
+                        )
+                      ],
+                    )
+                  );
                 }),
             _buildListTile(
                 icon: Icons.privacy_tip,
                 title: 'Privacy Policy',
-                onTap: () {}),
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      backgroundColor: const Color(0xFF131A2A),
+                      title: const Text('Privacy Policy', style: TextStyle(color: Colors.white)),
+                      content: const Text('Our privacy policy can be found on our website at:\nhttps://dishi.delstarfordworks.co.ke/privacy', style: TextStyle(color: Colors.white70)),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Close', style: TextStyle(color: MPesaTheme.mpesaGreen)),
+                        )
+                      ],
+                    )
+                  );
+                }),
             const SizedBox(height: 32),
             SafeArea(
               child: ListTile(

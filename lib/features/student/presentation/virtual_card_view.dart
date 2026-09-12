@@ -314,7 +314,7 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.only(right: 12),
                       child: Text(
-                        _isLoading ? '***' : (_showDetails ? _cardData!['cvv'] : '***'),
+                        _isLoading || _cardData == null ? '***' : (_showDetails ? (_cardData?['cvv']?.toString() ?? '***') : '***'),
                         style: const TextStyle(color: Colors.black, fontStyle: FontStyle.italic, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),

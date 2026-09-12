@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import 'offline_child_qr_view.dart';
 import '../../student/presentation/virtual_card_view.dart';
@@ -441,7 +442,17 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
             
             const Text('Linked Students', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            ..._linkedStudents.map((student) => _buildStudentCard(student)),
+            if (_linkedStudents.isNotEmpty)
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 380), // Approx height for 2 cards
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _linkedStudents.length,
+                  itemBuilder: (context, index) {
+                    return _buildStudentCard(_linkedStudents[index]);
+                  },
+                ),
+              ),
             
             const SizedBox(height: 24),
             const Text('Manage Children', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
@@ -794,7 +805,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
     });
     
     await FirebaseFirestore.instance.collection('users').doc(studentUid).update({
-      'parentUid': parentUid
+      'linkedParents': FieldValue.arrayUnion([parentUid])
     });
 
     if (mounted) {
@@ -1680,6 +1691,26 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                 ],
               ),
               const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    final parentUid = FirebaseAuth.instance.currentUser!.uid;
+                    final parentName = widget.user['displayName'] ?? 'A parent';
+                    final inviteLink = 'https://dishi.delstarfordworks.co.ke/support_invite?childUid=$childUid&parentName=${Uri.encodeComponent(parentName)}';
+                    Clipboard.setData(ClipboardData(text: inviteLink));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invite link copied! Share it with the sponsor.')));
+                  },
+                  icon: const Icon(Icons.share, color: Colors.orangeAccent),
+                  label: const Text('Invite Sponsor', style: TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: const BorderSide(color: Colors.orangeAccent),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -1839,13 +1870,13 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
        final parentUid = FirebaseAuth.instance.currentUser!.uid;
        final batch = FirebaseFirestore.instance.batch();
        
-       final parentRef = FirebaseFirestore.instance.collection('users').doc(parentUid);
-       batch.update(parentRef, {'savingsBalance': FieldValue.increment(-totalAmount)});
+        final parentRef = FirebaseFirestore.instance.collection('users').doc(parentUid);
+        batch.set(parentRef, {'savingsBalance': FieldValue.increment(-totalAmount)}, SetOptions(merge: true));
 
-       for (var student in _linkedStudents) {
-         final studentRef = FirebaseFirestore.instance.collection('users').doc(student['uid']);
-         batch.update(studentRef, {'walletBalance': FieldValue.increment(amountPerStudent)});
-       }
+        for (var student in _linkedStudents) {
+          final studentRef = FirebaseFirestore.instance.collection('users').doc(student['uid']);
+          batch.set(studentRef, {'walletBalance': FieldValue.increment(amountPerStudent)}, SetOptions(merge: true));
+        }
 
        await batch.commit();
        _fetchParentData();

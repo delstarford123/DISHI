@@ -67,7 +67,7 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
     setState(() { _isLoading = true; });
     try {
       final response = await http.get(
-        Uri.parse('https://swapeatbackend.vercel.app/v3/academic/flashcards?student_id=$_studentId'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/v3/academic/flashcards?student_id=$_studentId'),
       ).timeout(const Duration(seconds: 15));
       
       if (response.statusCode == 200) {
@@ -148,7 +148,7 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
 
     try {
       final response = await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/v3/academic/flashcards/review'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/v3/academic/flashcards/review'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'studentId': _studentId,
@@ -240,7 +240,7 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
             onPressed: () async {
               if (qController.text.isNotEmpty && aController.text.isNotEmpty) {
                 await http.post(
-                  Uri.parse('https://swapeatbackend.vercel.app/v3/academic/flashcards'),
+                  Uri.parse('https://dishi.delstarfordworks.co.ke/v3/academic/flashcards'),
                   headers: {'Content-Type': 'application/json'},
                   body: jsonEncode({
                     'studentId': _studentId,

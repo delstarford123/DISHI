@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support {{ student_name }} | DISHI</title>
+    <meta name="description" content="Support this student securely via Safaricom M-PESA.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            var(--bg): #0B0F19;
+            var(--text): #F8FAFC;
+        }
+        body { font-family: 'Inter', sans-serif; background: #0B0F19; color: #F8FAFC; padding: 20px; text-align: center; }
+        .card { max-width: 480px; margin: 0 auto; background: #131A2A; padding: 24px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        .hero { background: rgba(37,99,235,0.1); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .subtitle { color: #94A3B8; font-size: 14px; margin-bottom: 20px; line-height: 1.5; }
+        .input-group { margin-bottom: 16px; text-align: left; }
+        .label { font-size: 12px; font-weight: bold; color: #94A3B8; margin-bottom: 8px; display: block; }
+        .input { width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #3B82F6; background: #fff; color: #000; font-size: 16px; }
+        .btn { width: 100%; padding: 16px; background: #3B82F6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn:hover { background: #2563EB; }
+        
+        #state-waiting, #state-success, #state-error { display: none; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        {% if error %}
+            <div class="title" style="color: #EF4444;">Oops!</div>
+            <div class="subtitle">{{ error }}</div>
+        {% else %}
+            <div id="state-form">
+                <div class="hero">
+                    <div class="title">Support {{ student_name }}</div>
+                    <div class="subtitle">You've been invited by <strong>{{ parent_name }}</strong> to help fund {{ student_name }}'s campus meals on DISHI.</div>
+                </div>
+
+                <div class="input-group">
+                    <label class="label">Amount (KSH)</label>
+                    <input type="number" id="amountInput" class="input" placeholder="Enter amount" min="10">
+                </div>
+
+                <div class="input-group">
+                    <label class="label">Your Safaricom M-PESA Number</label>
+                    <input type="tel" id="phoneInput" class="input" placeholder="2547XX..." maxlength="12">
+                </div>
+
+                <button class="btn" id="fundBtn">Fund via M-PESA</button>
+            </div>
+            
+            <div id="state-waiting">
+                <div class="title">Check your phone</div>
+                <div class="subtitle">An M-PESA prompt has been sent. Please enter your PIN.</div>
+            </div>
+            
+            <div id="state-success">
+                <div class="title" style="color: #22C55E;">Payment Confirmed!</div>
+                <div class="subtitle">Thank you for supporting {{ student_name }}.</div>
+            </div>
+            
+            <div id="state-error">
+                <div class="title" style="color: #EF4444;">Payment Failed</div>
+                <div class="subtitle" id="errorMsg">Please try again.</div>
+            </div>
+        {% endif %}
+    </div>
+    
+    {% if not error %}
+    <script>
+        const USER_ID = "{{ user_id }}";
+        const fundBtn = document.getElementById('fundBtn');
+        
+        function showState(id) {
+            ['state-form', 'state-waiting', 'state-success', 'state-error'].forEach(s => {
+                document.getElementById(s).style.display = (s === id) ? 'block' : 'none';
+            });
+        }
+        
+        fundBtn.addEventListener('click', async () => {
+            const amount = parseInt(document.getElementById('amountInput').value);
+            let phone = document.getElementById('phoneInput').value.trim();
+            
+            if (phone.startsWith('0')) phone = '254' + phone.substring(1);
+            if (!phone.startsWith('254') || phone.length !== 12 || isNaN(amount)) return;
+            
+            showState('state-waiting');
+            fundBtn.disabled = true;
+            
+            try {
+                const resp = await fetch('/api/v1/mpesa/stkpush', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone_number: phone,
+                        amount: amount,
+                        credit_amount: amount,
+                        user_id: USER_ID,
+                        destination: 'walletBalance',
+                        metadata: { action: 'fund_student', funder_phone: phone, student_name: "{{ student_name }}" }
+                    })
+                });
+                const data = await resp.json();
+                
+                if (resp.ok && data.ResponseCode === '0' && data.CheckoutRequestID) {
+                    let attempts = 0;
+                    const interval = setInterval(async () => {
+                        attempts++;
+                        try {
+                            const check = await fetch('/api/v1/mpesa/check_status?checkout_id=' + data.CheckoutRequestID);
+                            const checkData = await check.json();
+                            if (checkData.status === 'completed') {
+                                clearInterval(interval);
+                                showState('state-success');
+                            } else if (checkData.status === 'failed' || attempts > 20) {
+                                clearInterval(interval);
+                                document.getElementById('errorMsg').textContent = checkData.result_desc || 'Payment failed.';
+                                showState('state-error');
+                            }
+                        } catch (e) {}
+                    }, 4000);
+                } else {
+                    document.getElementById('errorMsg').textContent = data.error || 'Request failed';
+                    showState('state-error');
+                }
+            } catch (e) {
+                document.getElementById('errorMsg').textContent = 'Network error';
+                showState('state-error');
+            }
+        });
+    </script>
+    {% endif %}
+</body>
+</html>

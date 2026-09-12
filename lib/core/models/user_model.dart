@@ -4,6 +4,7 @@ class UserModel {
   final String uid;
   final String displayName;
   final String email;
+  final String? phoneNumber;
   final List<String> roles;
   final String? profileImageUrl;
   final double walletBalance;
@@ -62,6 +63,7 @@ class UserModel {
     required this.uid,
     required this.displayName,
     required this.email,
+    this.phoneNumber,
     required this.roles,
     this.profileImageUrl,
     this.walletBalance = 0.0,
@@ -110,6 +112,7 @@ class UserModel {
       uid: documentId,
       displayName: json['displayName'] ?? json['name'] ?? '',
       email: json['email'] ?? '',
+      phoneNumber: json['phoneNumber'] ?? json['phone'],
       roles: json['roles'] != null ? List<String>.from(json['roles']) : (json['role'] != null ? [json['role']] : ['student']),
       profileImageUrl: json['profileImageUrl'],
       walletBalance: (json['walletBalance'] ?? 0.0).toDouble(),
@@ -159,6 +162,7 @@ class UserModel {
     return {
       'displayName': displayName,
       'email': email,
+      'phoneNumber': phoneNumber,
       'roles': roles,
       'profileImageUrl': profileImageUrl,
       'walletBalance': walletBalance,

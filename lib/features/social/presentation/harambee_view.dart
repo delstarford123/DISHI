@@ -115,7 +115,7 @@ class _HarambeeViewState extends State<HarambeeView> {
     showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator(color: MPesaTheme.primaryGreen)));
     try {
       final response = await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v2/social/harambee/donate'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v2/social/harambee/donate'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'donorId': currentUid,
@@ -193,7 +193,7 @@ class _HarambeeViewState extends State<HarambeeView> {
     try {
       final campaign = campaignDoc.data() as Map<String, dynamic>;
       final response = await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v1/mpesa/stkpush'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/mpesa/stkpush'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'phone_number': phone,

@@ -66,6 +66,7 @@ service cloud.firestore {
       allow write: if isSelf(userId) || isAdmin() || 
                    (resource != null && isParentOf(userId)) || 
                    (resource != null && isAuth() && hasRole('parent') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedParents'])) ||
+                   (resource != null && isAuth() && hasRole('parent') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedStudents'])) ||
                    (resource == null && isAuth() && hasRole('parent') && request.resource.data.isOffline == true);
 
       // All subcollections under /users/{uid}/... (menu, staff, notifications, bounties, etc.)
@@ -635,8 +636,8 @@ service cloud.firestore {
     // 18. VIRTUAL CARD & CARD TRANSACTIONS
     // ─────────────────────────────────────────────────────────────────────────
     match /virtual_cards/{uid} {
-      // Only the card owner can read/write their own card
-      allow read: if isSelf(uid) || isAdmin();
+      // Only the card owner or their parent can read/write their own card
+      allow read: if isSelf(uid) || isAdmin() || isParentOf(uid);
       allow create: if isSelf(uid);
       allow update: if isSelf(uid) || isAdmin();
       allow delete: if isAdmin();
@@ -646,7 +647,8 @@ service cloud.firestore {
       allow read: if isAuth() &&
         (resource == null ||
          request.auth.uid == resource.data.uid ||
-         isAdmin());
+         isAdmin() ||
+         isParentOf(resource.data.uid));
       allow create: if isAuth();
       allow update, delete: if isAdmin();
     }
@@ -894,6 +896,11 @@ service cloud.firestore {
          request.auth.uid == resource.data.worker_id || 
          isAdmin());
       allow delete: if isAdmin();
+    }
+    match /forums/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() && (resource == null || request.auth.uid == resource.data.authorUid || isAdmin());
     }
   }
 }

@@ -244,6 +244,30 @@ def harambee_fund():
         print(f"Harambee lookup error: {e}")
         return render_template('harambee.html', error="An error occurred while loading this page. Please try again.", student_name="Student", user_id="", dest=dest)
 
+# ─── Parent Support Invite ──────────────────────────────────────────────────────
+@app.route('/support_invite')
+def support_invite():
+    child_uid = request.args.get('childUid')
+    parent_name = request.args.get('parentName', 'A Parent')
+    
+    if not child_uid:
+        return render_template('support_invite.html', error="Invalid invite link.", student_name="Student", user_id="")
+        
+    try:
+        from firebase_admin import firestore
+        db = firestore.client()
+        user_doc = db.collection('users').document(child_uid).get()
+        if not user_doc.exists:
+            return render_template('support_invite.html', error="Student not found.", student_name="Student", user_id="")
+            
+        user_data = user_doc.to_dict()
+        student_name = user_data.get('displayName') or user_data.get('name') or 'Student'
+        
+        return render_template('support_invite.html', student_name=student_name, user_id=child_uid, parent_name=parent_name)
+    except Exception as e:
+        print(f"Support invite lookup error: {e}")
+        return render_template('support_invite.html', error="An error occurred. Please try again.", student_name="Student", user_id="")
+
 # ─── Event Web Ticketing ────────────────────────────────────────────────────────
 @app.route('/event')
 def event_ticket():

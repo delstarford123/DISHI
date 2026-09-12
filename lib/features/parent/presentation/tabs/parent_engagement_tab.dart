@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/mpesa_theme.dart';
+import '../document_vault_view.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
@@ -43,7 +45,7 @@ class ParentEngagementTab extends StatelessWidget {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('App Themes coming soon')));
               }),
               _buildActionGridButton(context, Icons.folder_shared, 'ID & Document Vault', Colors.tealAccent, () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Document Vault coming soon')));
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const DocumentVaultView()));
               }),
               _buildActionGridButton(context, Icons.event, 'Family Calendar', Colors.amberAccent, () {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Family Calendar coming soon')));

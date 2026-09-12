@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthRateLimiter {
-  static const int maxAttempts = 3;
+  static const int maxAttempts = 4;
   static const Duration lockoutDuration = Duration(minutes: 5);
 
   static const String _keyAttempts = 'auth_failed_attempts';

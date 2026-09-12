@@ -11,6 +11,7 @@ import '../../fundi/presentation/fundi_dashboard_view.dart';
 import '../../../core/theme/glass_card.dart';
 import '../../../core/security/secure_storage_service.dart';
 import '../../../core/security/security_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PinSetupView extends StatefulWidget {
   final String role;
@@ -75,12 +76,28 @@ class _PinSetupViewState extends State<PinSetupView> with SingleTickerProviderSt
       final hashed = SecurityService.hashPin(_pin);
       await SecureStorageService.saveHashedPin(hashed);
       
+      final userData = await SecureStorageService.getUserData();
+      final uid = userData['userId'];
+      if (uid != null && uid.isNotEmpty) {
+        try {
+          await FirebaseFirestore.instance.collection('users').doc(uid).update({'pin': hashed});
+        } catch (e) {
+          debugPrint('Error saving PIN to cloud: $e');
+        }
+      }
+      
       if (mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) {
-              final userMap = {'roles': [widget.role]};
+              final userMap = {
+                'uid': userData['userId'] ?? '',
+                'roles': [widget.role],
+                'name': userData['name'] ?? '',
+                'email': userData['email'] ?? '',
+                'phoneNumber': userData['phone'] ?? '',
+              };
               if (widget.role == 'vendor') return VendorDashboardView(user: userMap);
               if (widget.role == 'admin') return AdminDashboardView(user: userMap);
               if (widget.role == 'parent') return ParentDashboardView(user: userMap);
@@ -152,9 +169,9 @@ class _PinSetupViewState extends State<PinSetupView> with SingleTickerProviderSt
                     return Transform.translate(
                       offset: Offset(0, waveOffset),
                       child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
-                        width: 60,
-                        height: 80,
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        width: 65,
+                        height: 85,
                         decoration: BoxDecoration(
                           color: isFilled ? MPesaTheme.neonCyan.withOpacity(0.15) : MPesaTheme.cardDark,
                           borderRadius: BorderRadius.circular(16),

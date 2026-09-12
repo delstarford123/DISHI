@@ -9,7 +9,7 @@ class AntiTamperEngine {
     
     try {
       // Basic connectivity test mapped to your backend
-      final socket = await Socket.connect('swapeatbackend.vercel.app', 443, timeout: const Duration(seconds: 5));
+      final socket = await Socket.connect('dishi.delstarfordworks.co.ke', 443, timeout: const Duration(seconds: 5));
       socket.destroy();
       
       // If we reach here, we assume the base SSL handshake is un-intercepted
