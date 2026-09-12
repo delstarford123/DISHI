@@ -98,6 +98,11 @@ def manage_stock():
             return jsonify({"status": "success", "message": msg}), 200
         else:
             return jsonify({"error": msg}), 400
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @vendor_operations_bp.route('/vendor_offline_scan_deduction', methods=['POST'])
 def vendor_offline_scan_deduction():
