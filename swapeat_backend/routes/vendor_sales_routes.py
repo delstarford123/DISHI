@@ -36,6 +36,8 @@ def create_flash_sale():
                     title=f"FLASH SALE: {item_name}",
                     body=discount_msg,
                 ),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                 topic="campus_deals"
             )
             messaging.send(message)

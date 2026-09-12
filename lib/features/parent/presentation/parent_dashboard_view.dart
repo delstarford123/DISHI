@@ -3,7 +3,7 @@ import '../../../core/widgets/shared_savings_view.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import '../../auth/presentation/login_view.dart';
 import 'offline_child_qr_view.dart';
-import '../student/presentation/virtual_card_view.dart';
+import '../../student/presentation/virtual_card_view.dart';
 import '../../../core/models/user_model.dart';
 
 import 'dart:convert';

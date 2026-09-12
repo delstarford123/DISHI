@@ -131,6 +131,55 @@ class _ParentProfileSettingsState extends State<ParentProfileSettings> {
     );
   }
 
+  Future<void> _deleteAccount() async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: MPesaTheme.surfaceColor,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: MPesaTheme.mpesaRed)),
+        title: const Text('Delete Account',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to delete your account? This action cannot be undone.',
+            style: TextStyle(color: MPesaTheme.textSecondaryColor)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel',
+                style: TextStyle(color: MPesaTheme.textSecondaryColor)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
+              final uid = FirebaseAuth.instance.currentUser?.uid ?? widget.userMap['uid'];
+              if (uid != null) {
+                await FirebaseFirestore.instance.collection('deleted_users').doc(uid).set({
+                  'status': 'pending_permanent_deletion',
+                  'deleted_at': FieldValue.serverTimestamp(),
+                  'scheduled_deletion_date': Timestamp.fromDate(DateTime.now().add(const Duration(days: 30))),
+                });
+              }
+              await SecureStorageService.clearAll();
+              await FirebaseAuth.instance.signOut();
+              if (mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginView()),
+                  (Route<dynamic> route) => false,
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: MPesaTheme.mpesaRed,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final parentName = widget.userMap['name'] ?? widget.userMap['displayName'] ?? 'Parent';
@@ -267,6 +316,16 @@ class _ParentProfileSettingsState extends State<ParentProfileSettings> {
                 title: 'Privacy Policy',
                 onTap: () {}),
             const SizedBox(height: 32),
+            SafeArea(
+              child: ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                tileColor: Colors.redAccent.withOpacity(0.1),
+                leading: const Icon(Icons.delete_forever, color: Colors.redAccent),
+                title: const Text('Delete Account', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                onTap: _deleteAccount,
+              ),
+            ),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(

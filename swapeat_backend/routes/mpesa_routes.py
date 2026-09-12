@@ -58,6 +58,8 @@ def _send_notification(db, user_id: str, title: str, body: str):
                         title=title,
                         body=body,
                     ),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                     token=token,
                 ))
     except Exception as e:
@@ -77,6 +79,8 @@ def _notify_parent(db, student_id: str, message_body: str):
                         title="DISHI Wallet Update",
                         body=message_body,
                     ),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                     token=token,
                 ))
     except Exception as e:
@@ -154,7 +158,7 @@ def trigger_stk_push():
                     return jsonify({"error": "Please wait 30 seconds before trying again."}), 429
                     
         user_doc = db.collection('users').document(user_id).get()
-        if not user_doc.exists:
+        if not user_doc.exists and action != 'harambee_donate':
             return jsonify({"error": f"No user found with ID '{user_id}'. Please check the student ID."}), 404
     except Exception as e:
         print(f"Firestore lookup error: {e}")
@@ -353,9 +357,6 @@ def mpesa_callback():
                 donor_email = metadata.get('donor_email')
                 donor_name = metadata.get('donor_name', 'Anonymous')
                 
-                # Credit the student wallet
-                user_ref.update({'walletBalance': firestore.Increment(credit_amt)})
-                
                 # Update Harambee Campaign raised amount and donors
                 if campaign_id:
                     campaign_ref = db.collection('harambee_campaigns').document(campaign_id)
@@ -532,6 +533,8 @@ def mpesa_callback():
                                     title="Rent Paid",
                                     body="Your Rent has been successfully paid by your Guardian."
                                 ),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                                 token=student_token,
                             ))
                     except Exception as e:

@@ -12,6 +12,8 @@ import '../../auth/presentation/data_consent_view.dart';
 import '../../match/presentation/match_profile_setup.dart';
 import '../../fundi/presentation/fundi_registration_view.dart';
 import '../../../core/models/user_model.dart';
+import '../../auth/presentation/login_view.dart';
+import '../../../core/services/secure_storage_service.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF161B29);
@@ -149,6 +151,47 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red));
       }
     }
+  }
+
+  Future<void> _logout() async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardColor,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: _neonPink)),
+        title: const Text('Logout',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to log out?',
+            style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel',
+                style: TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
+              await SecureStorageService.clearAll();
+              await FirebaseAuth.instance.signOut();
+              if (mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginView()),
+                  (Route<dynamic> route) => false,
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _neonPink,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -340,6 +383,24 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const DataConsentView(userId: 'current_user_id')));
               },
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _logout,
+              icon: const Icon(Icons.logout),
+              label: const Text('Logout'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent.withOpacity(0.1),
+                foregroundColor: Colors.redAccent,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Colors.redAccent),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 80),

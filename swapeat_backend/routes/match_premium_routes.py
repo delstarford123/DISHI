@@ -74,7 +74,7 @@ def anti_ghosting_nudge():
         message_ref.set({
             'senderUid': 'system_admin',
             'type': 'system_nudge',
-            'message': 'It\'s been a while! Don\'t leave them hanging 👋',
+            'message': 'It's been a while! Don't leave them hanging 👋',
             'timestamp': firestore.SERVER_TIMESTAMP
         })
         return jsonify({"status": "success", "message": "Nudge sent."}), 200

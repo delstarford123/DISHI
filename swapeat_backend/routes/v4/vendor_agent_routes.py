@@ -164,6 +164,8 @@ def topup_wallet():
                         title="Wallet Top-Up",
                         body=f"{amount} KES credited to your wallet. New Balance: {result['newStudentBalance']} KES. TxID: {result['txId'][-6:]}",
                     ),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                     token=fcm_token,
                 ))
             except Exception as e:

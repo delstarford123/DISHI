@@ -1421,6 +1421,8 @@ def broadcast_announcement():
             if tokens:
                 msg = messaging.MulticastMessage(
                     notification=messaging.Notification(title="Announcement from Merchant", body=message),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                     tokens=tokens
                 )
                 messaging.send_multicast(msg)
@@ -2280,6 +2282,8 @@ def student_move_in():
                 if token:
                     messaging.send(messaging.Message(
                         notification=messaging.Notification(title="\U0001f3e0 Tenant Moved In", body=f"{student_name} has confirmed they have moved into their room."),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                         token=token,
                     ))
         except Exception as e:
@@ -2352,6 +2356,8 @@ def student_exit_room():
                             title="🏠 Room Vacancy Notice", 
                             body=f"Dear Landlord, {student_name} has officially vacated '{room_title}'. The room is now listed as Vacant and available for new applicants."
                         ),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                         token=token,
                     ))
         except Exception as e:
@@ -2367,6 +2373,8 @@ def student_exit_room():
                             title="✅ Room Exit Confirmed", 
                             body=f"You have successfully exited {room_title}. Your application has been withdrawn."
                         ),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                         token=student_token,
                     ))
         except Exception:
@@ -2427,6 +2435,8 @@ def merchant_set_room_vacant():
                     if token:
                         messaging.send(messaging.Message(
                             notification=messaging.Notification(title="\U0001f514 Room Status Update", body="Your room has been marked as vacant by the landlord."),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                             token=token,
                         ))
             except Exception as e:

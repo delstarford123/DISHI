@@ -115,6 +115,8 @@ def _send_notification(db, user_id: str, title: str, body: str):
                         title=title,
                         body=body,
                     ),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                     token=token,
                 ))
     except Exception as e:

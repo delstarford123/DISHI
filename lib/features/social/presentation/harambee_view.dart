@@ -227,7 +227,9 @@ class _HarambeeViewState extends State<HarambeeView> {
     final titleController = TextEditingController();
     final descController = TextEditingController();
     final goalController = TextEditingController();
+    final payoutDetailsController = TextEditingController();
     String category = 'Tuition';
+    String payoutMethod = 'MPESA';
     int daysActive = 30;
 
     showDialog(
@@ -253,6 +255,27 @@ class _HarambeeViewState extends State<HarambeeView> {
                   onChanged: (v) => setDialogState(() => category = v!),
                 ),
                 const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: payoutMethod,
+                  dropdownColor: const Color(0xFF131A2A),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(labelText: 'Payout Method', labelStyle: TextStyle(color: Colors.white70)),
+                  items: const [
+                    DropdownMenuItem(value: 'MPESA', child: Text('M-Pesa Number')),
+                    DropdownMenuItem(value: 'PAYBILL', child: Text('Paybill')),
+                    DropdownMenuItem(value: 'BUY_GOODS', child: Text('Buy Goods')),
+                  ],
+                  onChanged: (v) => setDialogState(() => payoutMethod = v!),
+                ),
+                TextField(
+                  controller: payoutDetailsController, 
+                  style: const TextStyle(color: Colors.white), 
+                  decoration: InputDecoration(
+                    labelText: payoutMethod == 'MPESA' ? 'M-Pesa Number (e.g. 2547XXXXXXXX)' : (payoutMethod == 'PAYBILL' ? 'Paybill Number & Account' : 'Till Number'), 
+                    labelStyle: const TextStyle(color: Colors.white70)
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     const Text('Duration:', style: TextStyle(color: Colors.white)),
@@ -276,7 +299,7 @@ class _HarambeeViewState extends State<HarambeeView> {
               style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryGreen),
               onPressed: () async {
                 final goalAmount = double.tryParse(goalController.text) ?? 0.0;
-                if (titleController.text.isNotEmpty && descController.text.isNotEmpty && goalAmount > 0) {
+                if (titleController.text.isNotEmpty && descController.text.isNotEmpty && goalAmount > 0 && payoutDetailsController.text.isNotEmpty) {
                   await FirebaseFirestore.instance.collection('harambee_campaigns').add({
                     'title': titleController.text,
                     'description': descController.text,
@@ -285,16 +308,22 @@ class _HarambeeViewState extends State<HarambeeView> {
                     'category': category,
                     'studentId': currentUid,
                     'student': widget.user['displayName'] ?? 'A Student',
-                    'isVerifiedStudent': true, // Mock logic
+                    'isVerifiedStudent': true,
                     'createdAt': FieldValue.serverTimestamp(),
                     'deadline': Timestamp.fromDate(DateTime.now().add(Duration(days: daysActive))),
                     'donors': [],
                     'updates': [],
+                    'payout_method': payoutMethod,
+                    'payout_details': payoutDetailsController.text.trim(),
+                    'payout_status': 'pending',
                   });
                   if (mounted) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Campaign created!')));
+                    setState(() => _selectedCategory = category);
                   }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
                 }
               },
               child: const Text('Publish', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),

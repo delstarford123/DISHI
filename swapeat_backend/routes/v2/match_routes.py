@@ -641,6 +641,8 @@ def start_night_club_event():
                                 title="🎉 Virtual Club is NOW LIVE!",
                                 body="Join the Virtual Club now! Meet students online from all campuses, listen to DJ party tracks, chat, and call live!",
                             ),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                             token=token,
                         ))
                         notified_count += 1
@@ -1306,6 +1308,8 @@ def notify_confession_author():
                             title="👀 Crush Confession Alert!",
                             body=f"{reader_name} just tapped 'Is this about me?' on your campus confession post!",
                         ),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                         token=token,
                     ))
                 except Exception:
@@ -1402,6 +1406,8 @@ def send_radar_wink():
                 try:
                     messaging.send(messaging.Message(
                         notification=messaging.Notification(title=title, body=body),
+                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
+                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                         token=token,
                     ))
                 except Exception:
