@@ -5,7 +5,14 @@ import 'firebase_options.dart';
 import 'core/theme/mpesa_theme.dart';
 import 'features/auth/presentation/signup_view.dart';
 import 'features/auth/presentation/pin_unlock_view.dart';
-import 'core/services/secure_storage_service.dart';
+import 'features/auth/presentation/splash_screen.dart';
+import 'features/student/presentation/student_main_scaffold.dart';
+import 'features/admin/presentation/admin_dashboard_view.dart';
+import 'features/vendor/presentation/vendor_dashboard_view.dart';
+import 'features/parent/presentation/parent_dashboard_view.dart';
+import 'features/delivery/presentation/deliv_driver_dashboard.dart';
+import 'features/housing/presentation/housing_dashboard_view.dart';
+import 'core/security/secure_storage_service.dart';
 
 import 'package:provider/provider.dart';
 import 'features/smartimer/data/hive_service.dart';
@@ -87,13 +94,36 @@ class _InitialRouterState extends State<InitialRouter> {
   }
 
   Future<void> _checkInitialRoute() async {
-
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final pin = await SecureStorageService.getOfflinePin();
+      final pin = await SecureStorageService.getHashedPin();
       if (mounted) {
         if (pin != null && pin.isNotEmpty) {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const PinUnlockView()));
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => PinUnlockView(
+            onSuccess: () async {
+              final userData = await SecureStorageService.getUserData();
+              final role = userData['role'] ?? 'student';
+              final userMap = {'roles': [role]};
+              if (!mounted) return;
+              
+              Widget dashboard;
+              if (role == 'vendor') {
+                dashboard = VendorDashboardView(user: userMap);
+              } else if (role == 'admin') {
+                dashboard = AdminDashboardView(user: userMap);
+              } else if (role == 'parent') {
+                dashboard = ParentDashboardView(user: userMap);
+              } else if (role == 'driver') {
+                dashboard = DelivDriverDashboard(user: userMap);
+              } else if (role == 'house_owner') {
+                dashboard = HousingDashboardView(user: userMap);
+              } else {
+                dashboard = StudentMainScaffold(user: userMap);
+              }
+              
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => dashboard));
+            }
+          )));
         } else {
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const SignupView()));
         }
@@ -107,10 +137,7 @@ class _InitialRouterState extends State<InitialRouter> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFF0F172A),
-      body: Center(child: CircularProgressIndicator(color: MPesaTheme.primaryGreen)),
-    );
+    return SplashScreen(onInitializationComplete: _checkInitialRoute);
   }
 }
 

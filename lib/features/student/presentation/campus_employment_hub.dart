@@ -135,7 +135,7 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
       if (user == null) return;
       
       final response = await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v6/campus_gigs/register'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v6/campus_gigs/register'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'user_id': user.uid,
@@ -283,7 +283,7 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
       if (price <= 0) throw Exception("Please enter a valid price");
       
       final response = await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v6/campus_gigs/request'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v6/campus_gigs/request'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'requester_id': user.uid,
@@ -442,7 +442,7 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
     
     return StreamBuilder<QuerySnapshot>(
       stream: _firestore.collection('campus_gig_requests')
-          .where('requester_id', '==', user.uid)
+          .where('requester_id', isEqualTo: user.uid)
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
@@ -520,7 +520,7 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
       if (user == null) return;
       
       final response = await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v6/campus_gigs/release_escrow'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v6/campus_gigs/release_escrow'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'requester_id': user.uid,

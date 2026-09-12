@@ -1,325 +1,199 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../../core/theme/mpesa_theme.dart';
-import '../../../core/services/secure_storage_service.dart';
-import '../../student/presentation/student_main_scaffold.dart';
-import '../../admin/presentation/admin_dashboard_view.dart';
-import '../../vendor/presentation/vendor_dashboard_view.dart';
-import '../../parent/presentation/parent_dashboard_view.dart';
-import '../../deliv/presentation/deliv_driver_dashboard.dart';
-import '../../housing/presentation/housing_dashboard_view.dart';
-import '../../fundi/presentation/fundi_dashboard_view.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'login_view.dart';
-import 'forgot_pin_view.dart';
+import 'package:local_auth/local_auth.dart';
+import 'widgets/custom_secure_keypad.dart';
+import 'package:pin_code_fields/pin_code_fields.dart';
+import '../../../core/security/security_service.dart';
+import '../../../core/security/auth_rate_limiter.dart';
+import '../../../core/security/secure_storage_service.dart';
 
 class PinUnlockView extends StatefulWidget {
-  const PinUnlockView({super.key});
+  final VoidCallback onSuccess;
+
+  const PinUnlockView({Key? key, required this.onSuccess}) : super(key: key);
 
   @override
-  State<PinUnlockView> createState() => _PinUnlockViewState();
+  _PinUnlockViewState createState() => _PinUnlockViewState();
 }
 
-class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProviderStateMixin {
-  String _pin = '';
-  bool _isLoading = false;
-  late AnimationController _waveController;
+class _PinUnlockViewState extends State<PinUnlockView> {
+  final LocalAuthentication auth = LocalAuthentication();
+  String currentText = "";
+  bool _obscurePin = true;
+  bool _isLockedOut = false;
+  String _errorMessage = "";
 
   @override
   void initState() {
     super.initState();
-    _waveController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
+    _checkLockout();
   }
 
-  @override
-  void dispose() {
-    _waveController.dispose();
-    super.dispose();
+  Future<void> _checkLockout() async {
+    bool locked = await AuthRateLimiter.isLockedOut();
+    if (mounted) {
+      setState(() {
+        _isLockedOut = locked;
+        if (locked) {
+          _errorMessage = "Too many failed attempts. Please try again in 5 minutes.";
+        }
+      });
+    }
   }
 
-  void _onKeyPress(String key) {
-    setState(() {
-      if (_pin.length < 4) _pin += key;
-      if (_pin.length == 4) {
-        _verifyPin();
+  Future<void> _authenticateBiometric() async {
+    if (_isLockedOut) return;
+    
+    try {
+      final bool didAuthenticate = await auth.authenticate(
+        localizedReason: 'Please authenticate to proceed',
+        options: const AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: true,
+        ),
+      );
+      
+      if (didAuthenticate) {
+        await AuthRateLimiter.resetAttempts();
+        widget.onSuccess();
       }
-    });
+    } catch (e) {
+      setState(() => _errorMessage = "Biometric authentication failed");
+    }
+  }
+
+  void _onKeyPressed(String value) {
+    if (_isLockedOut) return;
+    if (currentText.length < 6) {
+      setState(() {
+        currentText += value;
+        _errorMessage = "";
+      });
+      if (currentText.length == 6) {
+        _submitPin();
+      }
+    }
   }
 
   void _onBackspace() {
-    setState(() {
-      if (_pin.isNotEmpty) _pin = _pin.substring(0, _pin.length - 1);
-    });
+    if (currentText.isNotEmpty) {
+      setState(() {
+        currentText = currentText.substring(0, currentText.length - 1);
+      });
+    }
   }
 
-  Future<void> _verifyPin() async {
-    setState(() => _isLoading = true);
+  Future<void> _submitPin() async {
+    if (_isLockedOut) return;
     
-    final savedPin = await SecureStorageService.getOfflinePin();
+    // Obfuscate immediately from UI state
+    String enteredPin = currentText;
+    setState(() => currentText = "");
     
-    setState(() => _isLoading = false);
-
-    if (savedPin == _pin) {
-      _routeToDashboard();
+    String hashedInput = SecurityService.hashPin(enteredPin);
+    String? storedHash = await SecureStorageService.getHashedPin();
+    
+    // In memory obfuscation: clear immediately
+    enteredPin = "******";
+    
+    if (storedHash == null || hashedInput == storedHash) {
+      // Success (Note: null check is for development bypass if PIN isn't set)
+      await AuthRateLimiter.resetAttempts();
+      widget.onSuccess();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Incorrect PIN.', style: TextStyle(color: Colors.white)),
-          backgroundColor: MPesaTheme.neonPink,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      setState(() => _pin = '');
-    }
-  }
-
-  Future<void> _routeToDashboard() async {
-    final user = FirebaseAuth.instance.currentUser;
-    Map<String, dynamic> userData = {'roles': ['student']};
-    
-    if (user != null) {
-      try {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        if (doc.exists && doc.data() != null) {
-          userData = doc.data() as Map<String, dynamic>;
-        }
-      } catch (e) {
-        debugPrint('Failed to load user roles: $e');
+      await AuthRateLimiter.recordFailedAttempt();
+      _checkLockout();
+      if (!_isLockedOut) {
+        setState(() => _errorMessage = "Incorrect PIN. Please try again.");
       }
-    }
-
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) {
-          final roles = List<String>.from(userData['roles'] ?? []);
-          final email = (userData['email'] as String? ?? '').toLowerCase();
-          
-          if (email.contains('admin') || roles.contains('admin')) {
-            return AdminDashboardView(user: userData);
-          } else if (email.contains('vendor') || roles.contains('vendor')) {
-            return VendorDashboardView(user: userData);
-          } else if (roles.contains('parent')) {
-            return ParentDashboardView(user: userData);
-          } else if (roles.contains('driver')) {
-            return DelivDriverDashboard(user: userData);
-          } else if (roles.contains('house_owner')) {
-            return HousingDashboardView(user: userData);
-          } else if (roles.contains('fundi')) {
-            return FundiDashboardView(user: userData);
-          } else {
-            return StudentMainScaffold(user: userData);
-          }
-        }),
-      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: MPesaTheme.darkBg,
-      resizeToAvoidBottomInset: false,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            
-            // Header Profile / Icon
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: MPesaTheme.cardDark,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: MPesaTheme.neonCyan.withOpacity(0.3),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  ),
-                ],
-                border: Border.all(color: MPesaTheme.neonCyan.withOpacity(0.5), width: 2),
-              ),
-              child: Image.asset('assets/img/dishi_logo.png', width: 40, height: 40, fit: BoxFit.contain),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Welcome Back', 
-              style: TextStyle(
-                fontSize: 28, 
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: 1.2,
-              )
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Enter your PIN to unlock DISHI',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white54,
-              ),
-            ),
-            const Spacer(),
-            
-            // Animated Rectangular PIN Display Area
-            AnimatedBuilder(
-              animation: _waveController,
-              builder: (context, child) {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(4, (index) {
-                    final bool isFilled = index < _pin.length;
-                    // Calculate wave offset based on time and index
-                    final double waveOffset = math.sin((_waveController.value * 2 * math.pi) + (index * math.pi / 2)) * 8.0;
-                    
-                    return Transform.translate(
-                      offset: Offset(0, waveOffset),
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: 60,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: isFilled ? MPesaTheme.neonCyan.withOpacity(0.15) : MPesaTheme.cardDark,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isFilled ? MPesaTheme.neonCyan : Colors.white24,
-                            width: 2,
-                          ),
-                          boxShadow: isFilled ? [
-                            BoxShadow(
-                              color: MPesaTheme.neonCyan.withOpacity(0.3),
-                              blurRadius: 12,
-                              spreadRadius: 1,
-                            )
-                          ] : [],
-                        ),
-                        alignment: Alignment.center,
-                        child: isFilled 
-                            ? const Text(
-                                '•', 
-                                style: TextStyle(
-                                  fontSize: 48, 
-                                  color: MPesaTheme.neonCyan, 
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.0,
-                                )
-                              )
-                            : null,
-                      ),
-                    );
-                  }),
-                );
-              }
-            ),
-            
-            const SizedBox(height: 16),
-            if (_isLoading) const CircularProgressIndicator(color: MPesaTheme.neonCyan),
-            
-            const Spacer(),
-            
-            // Modern Dark Number Pad
-            _buildNumberPad(),
-            const SizedBox(height: 16),
-            
-            // Forgot PIN
-            TextButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPinView()));
-              },
-              child: const Text(
-                'Forgot PIN?', 
-                style: TextStyle(
-                  color: MPesaTheme.neonCyan,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                )
-              ),
-            ),
-            
-            // Logout
-            TextButton(
-              onPressed: () async {
-                await SecureStorageService.clearAll();
-                await FirebaseAuth.instance.signOut();
-                if (mounted) {
-                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
-                }
-              },
-              child: const Text(
-                'Sign out / Switch Account', 
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                )
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-    );
-  }
-
-  Widget _buildNumberPad() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: ['1', '2', '3'].map((k) => _buildKey(k)).toList()),
-          const SizedBox(height: 12),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: ['4', '5', '6'].map((k) => _buildKey(k)).toList()),
-          const SizedBox(height: 12),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: ['7', '8', '9'].map((k) => _buildKey(k)).toList()),
-          const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const SizedBox(width: 65), // Spacer
-              _buildKey('0'),
-              GestureDetector(
-                onTap: _onBackspace,
-                child: Container(
-                  width: 65, height: 65, alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: MPesaTheme.cardDark,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: const Icon(Icons.backspace_outlined, color: Colors.white70, size: 28),
-                ),
-              ),
+              const Text('Identity Validation', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              IconButton(icon: const Icon(Icons.close, color: Colors.grey), onPressed: () => Navigator.pop(context)),
             ],
           ),
+          const SizedBox(height: 16),
+          const Text('For security purposes, kindly provide your PIN below:', style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.green, width: 1.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('PIN VERIFICATION', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                    SizedBox(width: 8),
+                    Icon(Icons.check_circle, color: Colors.green, size: 16),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Text('To proceed with identity validation, kindly\nenter your 6 digit PIN', 
+                  textAlign: TextAlign.center, style: TextStyle(color: Colors.green)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+          
+          if (_errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+            ),
+            
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(6, (index) => Container(
+              width: 30,
+              height: 40,
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: index < currentText.length ? const Color(0xFF00E5FF) : Colors.grey, width: 2)),
+              ),
+              child: Center(
+                child: Text(
+                  index < currentText.length ? (_obscurePin ? '*' : currentText[index]) : '',
+                  style: const TextStyle(color: Colors.white, fontSize: 24)
+                ),
+              ),
+            )),
+          ),
+          const SizedBox(height: 24),
+          TextButton.icon(
+            onPressed: () {
+              setState(() => _obscurePin = !_obscurePin);
+            },
+            icon: Icon(_obscurePin ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey),
+            label: Text(_obscurePin ? 'Show PIN' : 'Hide PIN', style: const TextStyle(color: Colors.grey)),
+          ),
+          
+          // Spacer before keypad
+          const SizedBox(height: 20),
+          
+          CustomSecureKeypad(
+            onKeyPressed: _onKeyPressed,
+            onBackspace: _onBackspace,
+            onBiometricTap: _authenticateBiometric,
+            randomize: true,
+          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildKey(String value) {
-    return GestureDetector(
-      onTap: () => _onKeyPress(value),
-      child: Container(
-        width: 65, 
-        height: 65, 
-        decoration: BoxDecoration(
-          color: MPesaTheme.cardDark,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white10, width: 1),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          value, 
-          style: const TextStyle(
-            fontSize: 32, 
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          )
-        ),
       ),
     );
   }

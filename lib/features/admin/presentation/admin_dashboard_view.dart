@@ -535,12 +535,13 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                     child: ListTile(
                       tileColor: _surfaceLight,
                       title: Text(data['content'] ?? 'No content', style: const TextStyle(color: Colors.white)),
-                    subtitle: Text('Author: ${data['authorName'] ?? 'Unknown'}', style: const TextStyle(color: _textSecondary)),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: _neonRed),
-                      onPressed: () async {
-                        await FirebaseFirestore.instance.collection('campus_feed').doc(doc.id).delete();
-                      },
+                      subtitle: Text('Author: ${data['authorName'] ?? 'Unknown'}', style: const TextStyle(color: _textSecondary)),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: _neonRed),
+                        onPressed: () async {
+                          await FirebaseFirestore.instance.collection('campus_feed').doc(doc.id).delete();
+                        },
+                      ),
                     ),
                   );
                 },
@@ -663,12 +664,13 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                     child: ListTile(
                       tileColor: _surfaceLight,
                       leading: Icon(
-                      type.contains('Refund') ? Icons.keyboard_return : Icons.attach_money,
-                      color: type.contains('Refund') ? _neonOrange : _neonCyan,
+                        type.contains('Refund') ? Icons.keyboard_return : Icons.attach_money,
+                        color: type.contains('Refund') ? _neonOrange : _neonCyan,
+                      ),
+                      title: Text('$type: KES $amount', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      subtitle: Text('Status: $status', style: const TextStyle(color: _textSecondary)),
+                      trailing: Text(txs[index].id.substring(0, 8), style: const TextStyle(color: Colors.white38)),
                     ),
-                    title: Text('$type: KES $amount', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    subtitle: Text('Status: $status', style: const TextStyle(color: _textSecondary)),
-                    trailing: Text(txs[index].id.substring(0, 8), style: const TextStyle(color: Colors.white38)),
                   );
                 },
               );

@@ -81,6 +81,8 @@ dependencies:
   flutter_webrtc: ^1.6.1
   local_auth_android: any
   local_auth_darwin: any
+  flutter_jailbreak_detection: ^1.10.0
+  pin_code_fields: ^8.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

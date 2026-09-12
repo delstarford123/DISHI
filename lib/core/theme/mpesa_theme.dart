@@ -31,6 +31,13 @@ class MPesaTheme {
   static const Color grey = Color(0xFF9E9E9E);
   static const Color lightGray = Color(0xFFEEEEEE);
 
+  static const TextStyle headingStyle = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
+    color: white,
+    fontFamily: 'Outfit',
+  );
+
   static ThemeData get lightTheme {
     return ThemeData(
       brightness: Brightness.light,

@@ -8,7 +8,9 @@ import '../../parent/presentation/parent_dashboard_view.dart';
 import '../../deliv/presentation/deliv_driver_dashboard.dart';
 import '../../housing/presentation/housing_dashboard_view.dart';
 import '../../fundi/presentation/fundi_dashboard_view.dart';
-import '../../../core/services/secure_storage_service.dart';
+import '../../../core/theme/glass_card.dart';
+import '../../../core/security/secure_storage_service.dart';
+import '../../../core/security/security_service.dart';
 
 class PinSetupView extends StatefulWidget {
   final String role;
@@ -69,8 +71,9 @@ class _PinSetupViewState extends State<PinSetupView> with SingleTickerProviderSt
 
   Future<void> _verifyAndSave() async {
     if (_pin == _confirmPin) {
-      // Save PIN securely
-      await SecureStorageService.saveOfflinePin(_pin);
+      // Save PIN securely using the new Core Security engine
+      final hashed = SecurityService.hashPin(_pin);
+      await SecureStorageService.saveHashedPin(hashed);
       
       if (mounted) {
         Navigator.pushReplacement(
