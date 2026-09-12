@@ -10,7 +10,7 @@ import 'features/student/presentation/student_main_scaffold.dart';
 import 'features/admin/presentation/admin_dashboard_view.dart';
 import 'features/vendor/presentation/vendor_dashboard_view.dart';
 import 'features/parent/presentation/parent_dashboard_view.dart';
-import 'features/delivery/presentation/deliv_driver_dashboard.dart';
+import 'features/deliv/presentation/deliv_driver_dashboard.dart';
 import 'features/housing/presentation/housing_dashboard_view.dart';
 import 'core/security/secure_storage_service.dart';
 
