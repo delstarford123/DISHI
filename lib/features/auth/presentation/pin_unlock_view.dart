@@ -3,6 +3,7 @@ import 'package:local_auth/local_auth.dart';
 import 'widgets/custom_secure_keypad.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'forgot_pin_view.dart';
+import 'pin_setup_view.dart';
 import '../../../core/security/security_service.dart';
 import '../../../core/security/auth_rate_limiter.dart';
 import '../../../core/security/secure_storage_service.dart';
@@ -26,6 +27,22 @@ class _PinUnlockViewState extends State<PinUnlockView> {
   @override
   void initState() {
     super.initState();
+    _checkInitialState();
+  }
+
+  Future<void> _checkInitialState() async {
+    String? storedHash = await SecureStorageService.getHashedPin();
+    if (storedHash == null || storedHash.isEmpty) {
+      final userData = await SecureStorageService.getUserData();
+      final role = userData['role'] ?? 'student';
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => PinSetupView(role: role)),
+        );
+      }
+      return;
+    }
     _checkLockout();
   }
 
@@ -119,106 +136,171 @@ class _PinUnlockViewState extends State<PinUnlockView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: Colors.black.withOpacity(0.9), // Dark translucent background look
       body: SafeArea(
-        child: SingleChildScrollView(
+        bottom: false,
+        child: Align(
+          alignment: Alignment.topCenter,
           child: Container(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Identity Validation', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                    IconButton(icon: const Icon(Icons.close, color: Colors.grey), onPressed: () => Navigator.pop(context)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Text('For security purposes, kindly provide your PIN below:', style: TextStyle(color: Colors.grey)),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.green, width: 1.5),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Column(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: Color(0xFF1A1A1A), // Sleek dark card color
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(32),
+                bottomRight: Radius.circular(32),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black54,
+                  blurRadius: 15,
+                  spreadRadius: 5,
+                  offset: Offset(0, 5),
+                )
+              ]
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('PIN VERIFICATION', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                          SizedBox(width: 8),
-                          Icon(Icons.check_circle, color: Colors.green, size: 16),
-                        ],
+                      const Text(
+                        'Identity Validation', 
+                        style: TextStyle(
+                          color: Colors.white, 
+                          fontSize: 22, 
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        )
                       ),
-                      SizedBox(height: 8),
-                      Text('To proceed with identity validation, kindly\nenter your 4 digit PIN', 
-                        textAlign: TextAlign.center, style: TextStyle(color: Colors.green)),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.grey), 
+                        onPressed: () => Navigator.pop(context),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 32),
-                
-                if (_errorMessage.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'For security purposes, kindly provide your PIN below.', 
+                    style: TextStyle(color: Colors.white70, fontSize: 14)
                   ),
+                  const SizedBox(height: 24),
                   
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(4, (index) => Container(
-                    width: 50,
-                    height: 60,
+                  // Professional Verification Box
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                     decoration: BoxDecoration(
-                      border: Border(bottom: BorderSide(color: index < currentText.length ? const Color(0xFF00E5FF) : Colors.grey, width: 3)),
+                      color: Colors.green.withOpacity(0.08),
+                      border: Border.all(color: Colors.green.withOpacity(0.3), width: 1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Center(
-                      child: Text(
-                        index < currentText.length ? (_obscurePin ? '*' : currentText[index]) : '',
-                        style: const TextStyle(color: Colors.white, fontSize: 32)
+                    child: const Row(
+                      children: [
+                        Icon(Icons.verified_user_outlined, color: Colors.green, size: 22),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Enter your 4-digit PIN to proceed securely.',
+                            style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  
+                  if (_errorMessage.isNotEmpty)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Text(_errorMessage, style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w500)),
                       ),
                     ),
-                  )),
-                ),
-                const SizedBox(height: 24),
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() => _obscurePin = !_obscurePin);
-                  },
-                  icon: Icon(_obscurePin ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey),
-                  label: Text(_obscurePin ? 'Show PIN' : 'Hide PIN', style: const TextStyle(color: Colors.grey)),
-                ),
-                
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ForgotPinView()),
-                    );
-                  },
-                  child: const Text(
-                    'Forgot PIN?',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                      decoration: TextDecoration.underline,
-                    ),
+                    
+                  // Elegant PIN Indicator
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(4, (index) => Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 12),
+                      width: 16,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: index < currentText.length 
+                            ? (_obscurePin ? Colors.white : Colors.transparent)
+                            : Colors.transparent,
+                        border: Border.all(
+                          color: index < currentText.length ? Colors.white : Colors.grey.shade800, 
+                          width: 2
+                        ),
+                      ),
+                      child: index < currentText.length && !_obscurePin
+                          ? Center(
+                              child: Text(
+                                currentText[index],
+                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, height: 1.0),
+                              ),
+                            )
+                          : null,
+                    )),
                   ),
-                ),
-                // Spacer before keypad
-                const SizedBox(height: 8),
-                
-                CustomSecureKeypad(
-                  onKeyPressed: _onKeyPressed,
-                  onBackspace: _onBackspace,
-                  onBiometricTap: _authenticateBiometric,
-                  randomize: true,
-                ),
-              ],
+                  const SizedBox(height: 32),
+                  
+                  // Actions Row: Show/Hide & Forgot PIN
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () {
+                          setState(() => _obscurePin = !_obscurePin);
+                        },
+                        icon: Icon(_obscurePin ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey.shade400, size: 18),
+                        label: Text(_obscurePin ? 'Show PIN' : 'Hide PIN', style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const ForgotPinView()),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          'Forgot PIN?',
+                          style: TextStyle(
+                            color: Color(0xFF00E5FF),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Keypad - ordered professionally
+                  CustomSecureKeypad(
+                    onKeyPressed: _onKeyPressed,
+                    onBackspace: _onBackspace,
+                    onBiometricTap: _authenticateBiometric,
+                    randomize: false, // Ensures PIN numbers are ordered 1 to 0
+                  ),
+                ],
+              ),
             ),
           ),
         ),
