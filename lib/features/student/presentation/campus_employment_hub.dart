@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/services/location_service.dart';
-import '../match/presentation/match_chat_view.dart';
+import '../../match/presentation/match_chat_view.dart';
 import 'dart:convert';
 import '../../../core/theme/mpesa_theme.dart';
 
@@ -477,8 +477,14 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final docs = snapshot.data!.docs;
-        if (docs.isEmpty) return const Center(child: Text("No active gigs requested.", style: TextStyle(color: Colors.grey)));
+        
+        // Filter out completed gigs so they don't clutter the active list
+        final docs = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return data['status'] != 'completed';
+        }).toList();
+        
+        if (docs.isEmpty) return const Center(child: Text("No active gigs right now.", style: TextStyle(color: Colors.grey)));
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
