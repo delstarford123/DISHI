@@ -20,6 +20,8 @@ class ParentProfileSettings extends StatefulWidget {
 }
 
 class _ParentProfileSettingsState extends State<ParentProfileSettings> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
   bool _pushNotifications = true;
@@ -33,6 +35,8 @@ class _ParentProfileSettingsState extends State<ParentProfileSettings> {
   void initState() {
     super.initState();
     _localProfileImageUrl = widget.userMap['profileImageUrl'];
+    _nameController.text = widget.userMap['name'] ?? widget.userMap['displayName'] ?? '';
+    _emailController.text = widget.userMap['email'] ?? '';
     _phoneController.text = widget.userMap['phone'] ?? widget.userMap['phone_number'] ?? '';
     _bioController.text = widget.userMap['bio'] ?? '';
     _pushNotifications = widget.userMap['pushNotifications'] ?? true;
@@ -42,6 +46,8 @@ class _ParentProfileSettingsState extends State<ParentProfileSettings> {
 
   @override
   void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
     _phoneController.dispose();
     _bioController.dispose();
     super.dispose();
@@ -235,20 +241,11 @@ class _ParentProfileSettingsState extends State<ParentProfileSettings> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              parentName,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              email,
-              style: const TextStyle(color: MPesaTheme.textSecondaryColor),
-            ),
             const SizedBox(height: 32),
+            
+            _buildSectionHeader('Profile Info'),
+            _buildSettingTextField(label: 'Full Name', icon: Icons.person, controller: _nameController, firestoreKey: 'name'),
+            _buildSettingTextField(label: 'Email', icon: Icons.email, controller: _emailController, firestoreKey: 'email', keyboardType: TextInputType.emailAddress),
             
             _buildSectionHeader('Contact Info'),
             _buildSettingTextField(label: 'Phone Number', icon: Icons.phone, controller: _phoneController, firestoreKey: 'phone_number', keyboardType: TextInputType.phone),

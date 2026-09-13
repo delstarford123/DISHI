@@ -180,6 +180,11 @@ service firebase.storage {
     // ─────────────────────────────────────────────────────────────────────────
     // 12. VENDOR MENU IMAGES
     // ─────────────────────────────────────────────────────────────────────────
+    match /vendor_menus/{vendorId}/{imageId} {
+      allow read: if true;
+      allow write: if isAuth() && request.auth.uid == vendorId && isValidImage();
+      allow delete: if isAuth() && request.auth.uid == vendorId;
+    }
     match /menu_images/{imageId} {
       allow read: if true;
       allow write: if isAuth() && isValidImage();

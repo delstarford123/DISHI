@@ -98,40 +98,42 @@ class _InitialRouterState extends State<InitialRouter> {
   Future<void> _checkInitialRoute() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final pin = await SecureStorageService.getHashedPin();
+      // 1. Lightning Fast Boot Checks (L1 Cache)
+      final hasPin = await SecureStorageService.hasPinFastCheck();
+      
       if (mounted) {
-        if (pin != null && pin.isNotEmpty) {
+        if (hasPin) {
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => PinUnlockView(
             onSuccess: () async {
-              final userData = await SecureStorageService.getUserData();
-              final role = userData['role'] ?? 'student';
-              final userMap = {
-                'uid': userData['userId'] ?? user.uid,
-                'roles': [role],
-                'name': userData['name'] ?? '',
-                'email': userData['email'] ?? '',
-                'phoneNumber': userData['phone'] ?? '',
-              };
+              // 2. Slow Decrypt + Fetch (L2 Cache / Network) running AFTER UI renders
+              final role = await SecureStorageService.getRoleFastCheck() ?? 'student';
+              final userDataFuture = SecureStorageService.getUserData();
+              
               if (appNavigatorKey.currentState == null) return;
               
               Widget dashboard;
               if (role == 'vendor') {
-                dashboard = VendorDashboardView(user: userMap);
+                dashboard = VendorDashboardView(user: {'uid': user.uid, 'roles': [role]});
               } else if (role == 'admin') {
-                dashboard = AdminDashboardView(user: userMap);
+                dashboard = AdminDashboardView(user: {'uid': user.uid, 'roles': [role]});
               } else if (role == 'parent') {
-                dashboard = ParentDashboardView(user: userMap);
+                dashboard = ParentDashboardView(user: {'uid': user.uid, 'roles': [role]});
               } else if (role == 'driver') {
-                dashboard = DelivDriverDashboard(user: userMap);
+                dashboard = DelivDriverDashboard(user: {'uid': user.uid, 'roles': [role]});
               } else if (role == 'house_owner') {
-                dashboard = HousingDashboardView(user: userMap);
+                dashboard = HousingDashboardView(user: {'uid': user.uid, 'roles': [role]});
               } else if (role == 'fundi') {
-                dashboard = FundiDashboardView(user: userMap);
+                dashboard = FundiDashboardView(user: {'uid': user.uid, 'roles': [role]});
               } else {
-                dashboard = StudentMainScaffold(user: userMap);
+                dashboard = StudentMainScaffold(user: {'uid': user.uid, 'roles': [role]});
               }
               
               appNavigatorKey.currentState!.pushReplacement(MaterialPageRoute(builder: (context) => dashboard));
+
+              // Backfill the complete user map asynchronously
+              final userData = await userDataFuture;
+              // Depending on implementation, you could broadcast the rich userData 
+              // or just rely on Firebase's cache for subsequent reads.
             }
           )));
         } else {

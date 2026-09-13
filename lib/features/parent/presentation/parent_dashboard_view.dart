@@ -122,8 +122,12 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
           _vaultBalance = totalFamilyCash;
           _linkedStudents = students;
           _isLoading = false;
-          if (_globalSelectedStudentUid == null && students.isNotEmpty) {
+          
+          bool hasSelected = students.any((s) => s['uid'] == _globalSelectedStudentUid);
+          if (!hasSelected && students.isNotEmpty) {
             _globalSelectedStudentUid = students.first['uid'];
+          } else if (students.isEmpty) {
+            _globalSelectedStudentUid = null;
           }
         });
       }
@@ -292,82 +296,94 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       );
     }
 
-    final parentName = widget.user['name'] ?? widget.user['displayName'] ?? 'Parent';
-    final profileImageUrl = widget.user['profileImageUrl'];
-    final parentPhone = widget.user['phoneNumber'] ?? widget.user['phone'] ?? '';
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
+      builder: (context, snapshot) {
+        String parentName = widget.user['name'] ?? widget.user['displayName'] ?? 'Parent';
+        String? profileImageUrl = widget.user['profileImageUrl'];
+        String parentPhone = widget.user['phoneNumber'] ?? widget.user['phone'] ?? '';
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161B29).withOpacity(0.8),
-        borderRadius: BorderRadius.circular(40),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: Row(
-        children: [
-          Stack(
-            children: [
-              GestureDetector(
-                onTap: () => _showProfileMenu(context),
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundImage: profileImageUrl != null ? NetworkImage(profileImageUrl) : const AssetImage('assets/img/dishi_logo.png') as ImageProvider,
-                  backgroundColor: _surfaceLight,
-                  child: profileImageUrl == null ? const Icon(Icons.person, color: _textSecondary, size: 20) : null,
-                ),
-              ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: Colors.greenAccent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _bgColor, width: 2),
-                  ),
-                ),
+        if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>;
+          parentName = data['name'] ?? data['displayName'] ?? parentName;
+          profileImageUrl = data['profileImageUrl'] ?? profileImageUrl;
+          parentPhone = data['phone'] ?? data['phone_number'] ?? parentPhone;
+        }
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF161B29).withOpacity(0.8),
+            borderRadius: BorderRadius.circular(40),
+            border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               )
             ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(_getGreeting(), style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                Text(
-                  parentName, 
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (parentPhone.isNotEmpty)
-                  Text(
-                    parentPhone,
-                    style: const TextStyle(color: _neonBlue, fontSize: 10, fontWeight: FontWeight.w600),
+          child: Row(
+            children: [
+              Stack(
+                children: [
+                  GestureDetector(
+                    onTap: () => _showProfileMenu(context),
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundImage: profileImageUrl != null ? NetworkImage(profileImageUrl) : const AssetImage('assets/img/dishi_logo.png') as ImageProvider,
+                      backgroundColor: _surfaceLight,
+                      child: profileImageUrl == null ? const Icon(Icons.person, color: _textSecondary, size: 20) : null,
+                    ),
                   ),
-              ],
-            ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.greenAccent,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _bgColor, width: 2),
+                      ),
+                    ),
+                  )
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_getGreeting(), style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                    Text(
+                      parentName, 
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (parentPhone.isNotEmpty)
+                      Text(
+                        parentPhone,
+                        style: const TextStyle(color: _neonBlue, fontSize: 10, fontWeight: FontWeight.w600),
+                      ),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: () => setState(() => _isSearching = true),
+                child: const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: Icon(Icons.search, color: Colors.white, size: 22),
+                ),
+              ),
+            ],
           ),
-          GestureDetector(
-            onTap: () => setState(() => _isSearching = true),
-            child: const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: Icon(Icons.search, color: Colors.white, size: 22),
-            ),
-          ),
-        ],
-      ),
+        );
+      }
     );
   }
 
@@ -767,6 +783,18 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                 children: [
                   const Text('Wallet', style: TextStyle(color: _textSecondary, fontSize: 12)),
                   Text('KSH ${student['balance'].toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () => _confirmDeleteStudent(student),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.link_off, color: MPesaTheme.primaryRed, size: 14),
+                        SizedBox(width: 4),
+                        Text('Stop Funding', style: TextStyle(color: MPesaTheme.primaryRed, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  )
                 ],
               )
             ],
@@ -837,6 +865,62 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
           )
         ],
       ),
+    );
+  }
+
+  void _confirmDeleteStudent(Map<String, dynamic> student) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardColor,
+        title: const Text('Stop Funding Student', style: TextStyle(color: MPesaTheme.primaryRed)),
+        content: Text('Are you sure you want to unlink ${student['name']}? You will no longer be able to fund or manage their account.', style: const TextStyle(color: Colors.white)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: _textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                final parentUid = FirebaseAuth.instance.currentUser!.uid;
+                final studentUid = student['uid'];
+                
+                await FirebaseFirestore.instance.collection('users').doc(parentUid).update({
+                  'linkedStudents': FieldValue.arrayRemove([studentUid])
+                });
+                
+                await FirebaseFirestore.instance.collection('users').doc(studentUid).update({
+                  'linkedParents': FieldValue.arrayRemove([parentUid])
+                });
+                
+                // If the student is offline, we completely delete their account to avoid orphaned data
+                if (student['isOffline'] == true) {
+                  await FirebaseFirestore.instance.collection('users').doc(studentUid).delete();
+                }
+                
+                if (mounted) {
+                  setState(() {
+                    _linkedStudents.removeWhere((s) => s['uid'] == studentUid);
+                    if (!_linkedStudents.any((s) => s['uid'] == _globalSelectedStudentUid)) {
+                      _globalSelectedStudentUid = _linkedStudents.isNotEmpty ? _linkedStudents.first['uid'] : null;
+                    }
+                  });
+                  _fetchParentData();
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student unlinked successfully.')));
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryRed),
+            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+          )
+        ],
+      )
     );
   }
 
@@ -1171,6 +1255,14 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       return;
     }
     
+    if (_globalSelectedStudentUid != null) {
+      final student = _linkedStudents.firstWhere((s) => s['uid'] == _globalSelectedStudentUid);
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => NutritionSettings(studentUid: student['uid'], studentName: student['name'])
+      ));
+      return;
+    }
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1415,6 +1507,18 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
       return;
     }
     
+    if (_globalSelectedStudentUid != null) {
+      final student = _linkedStudents.firstWhere((s) => s['uid'] == _globalSelectedStudentUid);
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => LunchboxPlanner(
+          studentUid: student['uid'], 
+          studentName: student['name'],
+          parentUid: FirebaseAuth.instance.currentUser!.uid,
+        )
+      ));
+      return;
+    }
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1458,6 +1562,12 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
   void _showDietaryLimitsDialog() {
     if (_linkedStudents.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No students linked.')));
+      return;
+    }
+    
+    if (_globalSelectedStudentUid != null) {
+      final student = _linkedStudents.firstWhere((s) => s['uid'] == _globalSelectedStudentUid);
+      _showSetLimitDialog(student['uid'], student['name'], student['dailyLimit']);
       return;
     }
     

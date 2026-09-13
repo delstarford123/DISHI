@@ -9,6 +9,7 @@ import 'qr_scanner_page.dart';
 import 'vendor_topup_view.dart';
 import 'vendor_kds_view.dart';
 import 'vendor_reports_view.dart';
+import 'vendor_profile_view.dart';
 
 import 'tabs/vendor_finance_tab.dart';
 import 'tabs/vendor_operations_tab.dart';
@@ -51,19 +52,54 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Processing $type Cash-Out...'), backgroundColor: _neonCyan));
-    
-    WithdrawalHelper.initiateWithdrawal(
-      targetNumber: widget.user['phone'] ?? '254700000000',
-      amount: availableBalance - 1.0, 
-      withdrawalType: type,
+    final phoneController = TextEditingController(text: widget.user['phone'] ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardColor,
+        title: Text('$type Cash-Out', style: const TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Withdrawal will be sent to your registered profile number:', style: TextStyle(color: _textSecondary, fontSize: 12)),
+            const SizedBox(height: 16),
+            Text(widget.user['phone'] ?? 'N/A', style: const TextStyle(color: _neonCyan, fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white))),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              final phone = widget.user['phone'] ?? '';
+              if (phone.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile phone number missing')));
+                return;
+              }
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Processing $type Cash-Out...'), backgroundColor: _neonCyan));
+              WithdrawalHelper.initiateWithdrawal(
+                targetNumber: phone,
+                amount: availableBalance - 1.0, 
+                withdrawalType: type,
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
+            child: const Text('Confirm', style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
     );
   }
 
-  Future<void> _triggerMpesaTopup(BuildContext context, String amountStr) async {
+  Future<void> _triggerMpesaTopup(BuildContext context, String amountStr, String phoneNumber) async {
     final amount = double.tryParse(amountStr);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid amount')));
+      return;
+    }
+    if (phoneNumber.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid phone number')));
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Initiating STK Push...')));
@@ -73,7 +109,7 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
         Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/mpesa/stkpush'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'phone_number': widget.user['phone'] ?? '254700000000',
+          'phone_number': phoneNumber,
           'amount': amount,
           'user_id': widget.user['uid'],
           'destination': 'walletBalance',
@@ -81,6 +117,7 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
         }),
       ).timeout(const Duration(seconds: 30));
       
+      if (!mounted) return;
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('STK Push sent! Please enter M-Pesa PIN.'), backgroundColor: _neonCyan));
       } else {
@@ -92,14 +129,17 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errMsg), backgroundColor: Colors.red));
       }
     } on TimeoutException catch (_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request timed out. Please try again.'), backgroundColor: Colors.red));
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Network error: $e')));
     }
   }
 
   void _showTopUpDialog(BuildContext context) {
     final amountController = TextEditingController();
+    final phoneController = TextEditingController(text: widget.user['phone'] ?? '');
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -108,7 +148,19 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Enter amount to deposit via M-Pesa.', style: TextStyle(color: _textSecondary, fontSize: 12)),
+            const Text('Enter details for M-Pesa STK Push.', style: TextStyle(color: _textSecondary, fontSize: 12)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'Phone Number',
+                labelStyle: TextStyle(color: _neonCyan),
+                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonCyan)),
+                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonCyan)),
+              ),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: amountController,
@@ -128,7 +180,7 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _triggerMpesaTopup(context, amountController.text);
+              _triggerMpesaTopup(context, amountController.text, phoneController.text.trim());
             },
             style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
             child: const Text('Send STK Push', style: TextStyle(color: Colors.black)),
@@ -164,7 +216,7 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
               title: const Text('My Profile', style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile coming soon')));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => VendorProfileView(user: widget.user)));
               },
             ),
             ListTile(
@@ -309,11 +361,8 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
               snapshot.data!.id
             );
 
-            // Mocking today's revenue until we have complex Firestore aggregation queries
-            final double todayRevenueMock = userModel.walletBalance * 0.25; 
-
             final List<Widget> tabs = [
-              _buildHomeTab(userModel, todayRevenueMock),
+              _buildHomeTab(userModel),
               VendorFinanceTabView(user: widget.user),
               VendorOperationsTabView(user: widget.user),
               VendorSalesTabView(user: widget.user),
@@ -360,7 +409,7 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
     );
   }
 
-  Widget _buildHomeTab(UserModel userModel, double todayRevenueMock) {
+  Widget _buildHomeTab(UserModel userModel) {
     return CustomScrollView(
               slivers: [
                 SliverAppBar(
@@ -385,7 +434,27 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                           children: [
                             Expanded(child: _buildBalanceCard('E-Float', userModel.walletBalance, Icons.account_balance_wallet, _neonOrange)),
                             const SizedBox(width: 16),
-                            Expanded(child: _buildBalanceCard('Today\'s Revenue', todayRevenueMock, Icons.trending_up, _neonCyan)),
+                            Expanded(
+                              child: StreamBuilder<QuerySnapshot>(
+                                stream: FirebaseFirestore.instance.collection('orders').where('vendorUid', isEqualTo: userModel.uid).snapshots(),
+                                builder: (context, snapshot) {
+                                  double todayRevenue = 0.0;
+                                  if (snapshot.hasData) {
+                                    final now = DateTime.now();
+                                    for (var doc in snapshot.data!.docs) {
+                                      final data = doc.data() as Map<String, dynamic>;
+                                      if (data['timestamp'] != null) {
+                                        final dt = (data['timestamp'] as Timestamp).toDate();
+                                        if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+                                          todayRevenue += (data['totalAmount'] ?? 0.0);
+                                        }
+                                      }
+                                    }
+                                  }
+                                  return _buildBalanceCard('Today\'s Revenue', todayRevenue, Icons.trending_up, _neonCyan);
+                                }
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -535,6 +604,68 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(height: 32),
+                      const Text('Recent Orders', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance.collection('orders')
+                          .where('vendorUid', isEqualTo: userModel.uid)
+                          .orderBy('timestamp', descending: true)
+                          .limit(5)
+                          .snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: CircularProgressIndicator(color: _neonCyan));
+                          }
+                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Text('No recent orders.', style: TextStyle(color: _textSecondary)),
+                            );
+                          }
+                          return ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: snapshot.data!.docs.length,
+                            itemBuilder: (context, index) {
+                              final data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+                              final amount = data['totalAmount'] ?? 0.0;
+                              final items = data['items'] as List<dynamic>? ?? [];
+                              final dt = data['timestamp'] != null ? (data['timestamp'] as Timestamp).toDate() : DateTime.now();
+                              
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: _cardColor,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: _surfaceLight),
+                                ),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundColor: _neonCyan.withOpacity(0.2),
+                                      child: const Icon(Icons.receipt_long, color: _neonCyan),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Order #${snapshot.data!.docs[index].id.substring(0, 5)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                          const SizedBox(height: 4),
+                                          Text('${items.length} items • ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}', style: const TextStyle(color: _textSecondary, fontSize: 12)),
+                                        ],
+                                      ),
+                                    ),
+                                    Text('+ KSH $amount', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 16)),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        }
                       ),
                       const SizedBox(height: 24),
                       UniversalSupportWidget(userId: userModel.uid, userRole: 'vendor'),

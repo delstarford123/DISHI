@@ -1,16 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
 const Color _neonCyan = Color(0xFF05D5AA);
 const Color _neonBlue = Color(0xFF3B82F6);
 const Color _textSecondary = Color(0xFF8B9BB4);
 
-class CommunityTabView extends StatelessWidget {
+class CommunityTabView extends StatefulWidget {
   final Map<String, dynamic> user;
   
   const CommunityTabView({super.key, required this.user});
+
+  @override
+  State<CommunityTabView> createState() => _CommunityTabViewState();
+}
+
+class _CommunityTabViewState extends State<CommunityTabView> {
+  Set<String> _expandedPosts = {};
+
+  Future<bool> _checkRateLimit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastPostTime = prefs.getInt('last_forum_post_time') ?? 0;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    
+    if (now - lastPostTime < 60000) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please wait 1 minute between posts/replies to prevent spam.'), backgroundColor: Colors.orange)
+        );
+      }
+      return false;
+    }
+    
+    await prefs.setInt('last_forum_post_time', now);
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -128,85 +154,235 @@ class CommunityTabView extends StatelessWidget {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel', style: TextStyle(color: _textSecondary)),
           ),
+              ElevatedButton(
+                onPressed: () async {
+                  final title = titleController.text.trim();
+                  final content = contentController.text.trim();
+                  if (title.isEmpty || content.isEmpty) return;
+                  
+                  if (!await _checkRateLimit()) return;
+                  
+                  try {
+                    await FirebaseFirestore.instance.collection('forums').add({
+                      'title': title,
+                      'content': content,
+                      'authorUid': FirebaseAuth.instance.currentUser!.uid,
+                      'authorName': widget.user['name'] ?? widget.user['displayName'] ?? 'Parent',
+                      'createdAt': FieldValue.serverTimestamp(),
+                      'replyCount': 0,
+                    });
+                    if (context.mounted) Navigator.pop(context);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to post: $e')));
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: _neonBlue),
+                child: const Text('Post', style: TextStyle(color: Colors.white)),
+            )
+          ],
+        )
+      );
+    }
+
+    Widget _buildForumPost(String docId, String title, String content, String author, String time, String authorUid) {
+      final bool canDelete = authorUid == FirebaseAuth.instance.currentUser?.uid;
+      final bool isExpanded = _expandedPosts.contains(docId);
+      
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: _cardColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            InkWell(
+              onTap: () {
+                setState(() {
+                  if (isExpanded) {
+                    _expandedPosts.remove(docId);
+                  } else {
+                    _expandedPosts.add(docId);
+                  }
+                });
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+                        if (canDelete)
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                            onPressed: () async {
+                              await FirebaseFirestore.instance.collection('forums').doc(docId).delete();
+                            },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(content, style: const TextStyle(color: _textSecondary)),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('$author • $time', style: const TextStyle(color: _neonCyan, fontSize: 12)),
+                        const Row(
+                          children: [
+                            Icon(Icons.comment_outlined, color: _textSecondary, size: 16),
+                            SizedBox(width: 4),
+                            Text('Replies', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                          ],
+                        )
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            ),
+            if (isExpanded)
+              _buildRepliesSection(docId),
+          ],
+        ),
+      );
+    }
+
+    Widget _buildRepliesSection(String postId) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Colors.white10)),
+        ),
+        child: Column(
+          children: [
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('forums')
+                  .doc(postId)
+                  .collection('replies')
+                  .orderBy('createdAt', descending: false)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(color: _neonBlue));
+                }
+                final replies = snapshot.data?.docs ?? [];
+                if (replies.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8.0),
+                    child: Text('No replies yet.', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                  );
+                }
+                return Column(
+                  children: replies.map((replyDoc) {
+                    final rData = replyDoc.data() as Map<String, dynamic>;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.subdirectory_arrow_right, color: _textSecondary, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(rData['content'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                                const SizedBox(height: 2),
+                                Text(rData['authorName'] ?? 'Anonymous', style: const TextStyle(color: _neonCyan, fontSize: 10)),
+                              ],
+                            ),
+                          )
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                );
+              }
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showAddReplyDialog(context, postId),
+                    icon: const Icon(Icons.reply, size: 16, color: _neonBlue),
+                    label: const Text('Add Reply', style: TextStyle(color: _neonBlue)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _neonBlue),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
+                    ),
+                  ),
+                )
+              ],
+            )
+          ],
+        ),
+      );
+    }
+
+    void _showAddReplyDialog(BuildContext context, String postId) {
+      final contentController = TextEditingController();
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: _cardColor,
+          title: const Text('Add Reply', style: TextStyle(color: Colors.white)),
+          content: TextField(
+            controller: contentController,
+            style: const TextStyle(color: Colors.white),
+            maxLines: 2,
+            decoration: InputDecoration(
+              hintText: 'Type your reply...',
+              hintStyle: const TextStyle(color: _textSecondary),
+              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonCyan.withOpacity(0.5))),
+              focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _neonCyan)),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: _textSecondary)),
+            ),
             ElevatedButton(
               onPressed: () async {
-                final title = titleController.text.trim();
                 final content = contentController.text.trim();
-                if (title.isEmpty || content.isEmpty) return;
+                if (content.isEmpty) return;
+                if (!await _checkRateLimit()) return;
                 
                 try {
-                  await FirebaseFirestore.instance.collection('forums').add({
-                    'title': title,
+                  await FirebaseFirestore.instance
+                      .collection('forums')
+                      .doc(postId)
+                      .collection('replies')
+                      .add({
                     'content': content,
                     'authorUid': FirebaseAuth.instance.currentUser!.uid,
-                    'authorName': user['name'] ?? user['displayName'] ?? 'Parent',
+                    'authorName': widget.user['name'] ?? widget.user['displayName'] ?? 'Parent',
                     'createdAt': FieldValue.serverTimestamp(),
+                  });
+                  await FirebaseFirestore.instance.collection('forums').doc(postId).update({
+                    'replyCount': FieldValue.increment(1)
                   });
                   if (context.mounted) Navigator.pop(context);
                 } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to post: $e')));
-                  }
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: _neonBlue),
-              child: const Text('Post', style: TextStyle(color: Colors.white)),
-          )
-        ],
-      )
-    );
-  }
-
-  Widget _buildForumPost(String docId, String title, String content, String author, String time, String authorUid) {
-    final bool canDelete = authorUid == FirebaseAuth.instance.currentUser?.uid;
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _cardColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
-              if (canDelete)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                  onPressed: () async {
-                    await FirebaseFirestore.instance.collection('forums').doc(docId).delete();
-                  },
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(content, style: const TextStyle(color: _textSecondary)),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('$author • $time', style: const TextStyle(color: _neonCyan, fontSize: 12)),
-              const Row(
-                children: [
-                  Icon(Icons.thumb_up_alt_outlined, color: _textSecondary, size: 16),
-                  SizedBox(width: 4),
-                  Text('0', style: TextStyle(color: _textSecondary, fontSize: 12)),
-                  SizedBox(width: 12),
-                  Icon(Icons.comment_outlined, color: _textSecondary, size: 16),
-                  SizedBox(width: 4),
-                  Text('0', style: TextStyle(color: _textSecondary, fontSize: 12)),
-                ],
-              )
-            ],
-          )
-        ],
-      ),
-    );
-  }
+              child: const Text('Reply', style: TextStyle(color: Colors.white)),
+            )
+          ],
+        )
+      );
+    }
 
   Widget _buildCalendarView() {
     return StreamBuilder<QuerySnapshot>(

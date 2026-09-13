@@ -17,9 +17,77 @@ class CoParentingInviteView extends StatefulWidget {
 }
 
 class _CoParentingInviteViewState extends State<CoParentingInviteView> {
-    final _emailController = TextEditingController();
+  final _emailController = TextEditingController();
 
   bool _isInviting = false;
+  bool _isLoadingCoParents = true;
+  List<Map<String, dynamic>> _coParents = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCoParents();
+  }
+
+  Future<void> _fetchCoParents() async {
+    if (widget.selectedStudentUid == null) {
+      setState(() => _isLoadingCoParents = false);
+      return;
+    }
+    
+    try {
+      final studentDoc = await FirebaseFirestore.instance.collection('users').doc(widget.selectedStudentUid).get();
+      if (!studentDoc.exists) return;
+      
+      final studentData = studentDoc.data()!;
+      List<dynamic> linkedUids = studentData['linkedParents'] ?? [];
+      
+      List<Map<String, dynamic>> fetchedCoParents = [];
+      for (String uid in linkedUids) {
+        if (uid == widget.parentUser['uid']) continue; // Skip current user
+        
+        final parentDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+        if (parentDoc.exists) {
+          final pData = parentDoc.data()!;
+          fetchedCoParents.add({
+            'uid': uid,
+            'name': pData['name'] ?? pData['displayName'] ?? 'Unknown Parent',
+            'email': pData['email'] ?? 'No email',
+            'profileImageUrl': pData['profileImageUrl'],
+          });
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _coParents = fetchedCoParents;
+          _isLoadingCoParents = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingCoParents = false);
+    }
+  }
+
+  Future<void> _revokeAccess(String targetParentUid) async {
+    if (widget.selectedStudentUid == null) return;
+    
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(widget.selectedStudentUid).update({
+        'linkedParents': FieldValue.arrayRemove([targetParentUid])
+      });
+      await FirebaseFirestore.instance.collection('users').doc(targetParentUid).update({
+        'linkedStudents': FieldValue.arrayRemove([widget.selectedStudentUid])
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Access revoked successfully.')));
+        _fetchCoParents(); // Refresh the list
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
 
   Future<void> _sendInvite() async {
     final email = _emailController.text.trim();
@@ -66,6 +134,7 @@ class _CoParentingInviteViewState extends State<CoParentingInviteView> {
           const SnackBar(content: Text('Co-Parent linked successfully!'), backgroundColor: MPesaTheme.primaryGreen),
         );
         _emailController.clear();
+        _fetchCoParents(); // Refresh the list
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -134,6 +203,85 @@ class _CoParentingInviteViewState extends State<CoParentingInviteView> {
                     : const Text('Send Invite', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
+            const SizedBox(height: 32),
+            const Text(
+              'Current Co-Parents',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            if (_isLoadingCoParents)
+              const Center(child: CircularProgressIndicator(color: MPesaTheme.neonCyan))
+            else if (_coParents.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text('No co-parents invited yet.', style: TextStyle(color: Colors.white54)),
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _coParents.length,
+                itemBuilder: (context, index) {
+                  final cp = _coParents[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF131A2A),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: MPesaTheme.neonCyan.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: Colors.white10,
+                          backgroundImage: cp['profileImageUrl'] != null ? NetworkImage(cp['profileImageUrl']) : null,
+                          child: cp['profileImageUrl'] == null ? const Icon(Icons.person, color: Colors.white54) : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(cp['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              Text(cp['email'], style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                backgroundColor: const Color(0xFF131A2A),
+                                title: const Text('Revoke Access', style: TextStyle(color: Colors.redAccent)),
+                                content: Text('Are you sure you want to remove ${cp['name']} as a co-parent?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      _revokeAccess(cp['uid']);
+                                    },
+                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                                    child: const Text('Revoke', style: TextStyle(color: Colors.white)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
           ],
         ),
       ),

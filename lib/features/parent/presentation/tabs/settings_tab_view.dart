@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../document_vault_view.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
@@ -16,55 +17,101 @@ class SettingsTabView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Document & ID Vault
-        const Text('Document & ID Vault', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        const Text('Secure storage for school IDs and medical slips.', style: TextStyle(color: _textSecondary, fontSize: 12)),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(child: _buildDocCard('School ID', Icons.badge)),
-            const SizedBox(width: 12),
-            Expanded(child: _buildDocCard('Insurance', Icons.health_and_safety)),
-            const SizedBox(width: 12),
-            Expanded(child: _buildDocCard('Upload', Icons.upload_file, isUpload: true)),
-          ],
+        // Document & ID Vault Entry
+        _buildSectionHeader('Secure Storage'),
+        _buildSettingsTile(
+          title: 'Document & ID Vault',
+          subtitle: 'Manage passports, insurance, and medical records',
+          icon: Icons.security,
+          iconColor: _neonCyan,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => DocumentVaultView(user: user)),
+            );
+          },
+        ),
+        
+        const SizedBox(height: 24),
+        _buildSectionHeader('Security Settings'),
+        _buildSwitchTile('Biometric Login', 'Use Fingerprint/FaceID to login', true, (val) {}),
+        _buildSwitchTile('Two-Factor Authentication', 'Require SMS code on new devices', false, (val) {}),
+        _buildSettingsTile(title: 'Change Recovery PIN', icon: Icons.password, onTap: () {}),
+
+        const SizedBox(height: 24),
+        _buildSectionHeader('Preferences'),
+        _buildSwitchTile('Dark Mode', 'Use dark theme across the app', true, (val) {}),
+        _buildSwitchTile('Notification Sounds', 'Play sound on new alerts', true, (val) {}),
+        
+        const SizedBox(height: 24),
+        _buildSectionHeader('Account & Support'),
+        _buildSettingsTile(title: 'Privacy Policy', icon: Icons.privacy_tip, onTap: () {}),
+        _buildSettingsTile(title: 'Help & Support', icon: Icons.help_outline, onTap: () {}),
+        _buildSettingsTile(title: 'Clear Cache', subtitle: 'Free up local storage', icon: Icons.cleaning_services, onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cache cleared successfully.')));
+        }),
+        _buildSettingsTile(
+          title: 'Delete Account',
+          subtitle: 'Permanently remove your data',
+          icon: Icons.delete_forever,
+          iconColor: _neonPink,
+          textColor: _neonPink,
+          onTap: () {},
         ),
         
         const SizedBox(height: 32),
-        
-        // Notifications Center
+        // Keep notifications at the bottom
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Notifications Center', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Recent Notifications', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             TextButton(onPressed: () {}, child: const Text('Mark all read', style: TextStyle(color: _neonCyan))),
           ],
         ),
         const SizedBox(height: 8),
         _buildNotificationItem('Allergy Warning', 'Attempted purchase of peanuts blocked.', true),
         _buildNotificationItem('Chore Completed', 'John marked "Clean Room" as done.', false),
-        _buildNotificationItem('Low Balance', 'Vault balance is below Ksh 1000.', false),
       ],
     );
   }
 
-  Widget _buildDocCard(String title, IconData icon, {bool isUpload = false}) {
-    return Container(
-      height: 100,
-      decoration: BoxDecoration(
-        color: isUpload ? Colors.transparent : _cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isUpload ? _textSecondary : Colors.transparent, style: isUpload ? BorderStyle.solid : BorderStyle.solid),
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(title, style: const TextStyle(color: _textSecondary, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+    );
+  }
+
+  Widget _buildSettingsTile({
+    required String title,
+    String? subtitle,
+    required IconData icon,
+    Color iconColor = _neonCyan,
+    Color textColor = Colors.white,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(8), border: Border.all(color: iconColor.withOpacity(0.3))),
+        child: Icon(icon, color: iconColor, size: 20),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: isUpload ? _textSecondary : _neonCyan, size: 32),
-          const SizedBox(height: 8),
-          Text(title, style: TextStyle(color: isUpload ? _textSecondary : Colors.white, fontSize: 12)),
-        ],
-      ),
+      title: Text(title, style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+      subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(color: _textSecondary, fontSize: 12)) : null,
+      trailing: const Icon(Icons.arrow_forward_ios, color: _textSecondary, size: 14),
+      onTap: onTap,
+    );
+  }
+
+  Widget _buildSwitchTile(String title, String subtitle, bool value, Function(bool) onChanged) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      subtitle: Text(subtitle, style: const TextStyle(color: _textSecondary, fontSize: 12)),
+      value: value,
+      activeColor: _neonCyan,
+      onChanged: onChanged,
     );
   }
 

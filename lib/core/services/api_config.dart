@@ -21,4 +21,5 @@ class ApiConfig {
   static const String transactionCharge = 'https://dishi.delstarfordworks.co.ke/api/v1/transaction/charge';
   static const String transactionSos = 'https://dishi.delstarfordworks.co.ke/api/v1/transaction/sos';
   static const String transactionCashout = 'https://dishi.delstarfordworks.co.ke/api/v1/transaction/cashout';
+  static const String transactionTopup = 'https://dishi.delstarfordworks.co.ke/api/v1/transaction/topup';
 }

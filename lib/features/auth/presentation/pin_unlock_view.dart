@@ -99,41 +99,47 @@ class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProvider
     if (_isLockedOut || _isAuthenticatingBiometric) return;
     
     if (!autoTriggered) {
-      // Feature: Haptic feedback for UI responsiveness
       HapticFeedback.lightImpact();
-      // Feature: Visual hint during scan
       setState(() => _errorMessage = "Scan your fingerprint or face...");
     }
     
     setState(() => _isAuthenticatingBiometric = true);
     
     try {
-      final String? decryptedHash = await BiometricStorageService.readBiometricKey();
+      final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
+      final bool canAuthenticate = canAuthenticateWithBiometrics || await auth.isDeviceSupported();
+
+      if (!canAuthenticate) {
+        setState(() => _errorMessage = "Biometrics not supported on this device");
+        return;
+      }
       
-      if (decryptedHash != null) {
-        String? storedHash = await SecureStorageService.getHashedPin();
-        
-        if (storedHash == null || decryptedHash == storedHash) {
-          // Feature: Success Haptic feedback
-          HapticFeedback.mediumImpact();
-          await AuthRateLimiter.resetAttempts();
-          if (mounted) {
-            widget.onSuccess();
-          }
-        } else {
-          // Feature: Error Haptic feedback
-          HapticFeedback.heavyImpact();
-          setState(() => _errorMessage = "Invalid biometric payload.");
+      final bool didAuthenticate = await auth.authenticate(
+        localizedReason: 'Authenticate to unlock DISHI',
+        options: const AuthenticationOptions(
+          biometricOnly: false,
+          stickyAuth: true,
+        ),
+      );
+      
+      if (didAuthenticate) {
+        HapticFeedback.mediumImpact();
+        await AuthRateLimiter.resetAttempts();
+        if (mounted) {
+          widget.onSuccess();
         }
       } else {
+        HapticFeedback.heavyImpact();
         if (!autoTriggered) {
           setState(() => _errorMessage = "Biometric authentication failed or was cancelled.");
         } else {
-          setState(() => _errorMessage = ""); // Clear any message if they just cancelled the auto-prompt
+          setState(() => _errorMessage = ""); 
         }
       }
     } catch (e) {
-      setState(() => _errorMessage = "Biometric key invalidated. Please use PIN.");
+      if (!autoTriggered) {
+        setState(() => _errorMessage = "Biometric error. Please use PIN.");
+      }
     } finally {
       if (mounted) {
         setState(() => _isAuthenticatingBiometric = false);

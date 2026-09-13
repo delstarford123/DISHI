@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
@@ -6,10 +9,113 @@ const Color _neonCyan = Color(0xFF05D5AA);
 const Color _neonOrange = Color(0xFFFF6F00);
 const Color _textSecondary = Color(0xFF8B9BB4);
 
-class VendorOperationsTabView extends StatelessWidget {
+class VendorOperationsTabView extends StatefulWidget {
   final Map<String, dynamic> user;
 
   const VendorOperationsTabView({super.key, required this.user});
+
+  @override
+  State<VendorOperationsTabView> createState() => _VendorOperationsTabViewState();
+}
+
+class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
+  // Waste Management Controllers
+  final _wasteItemController = TextEditingController();
+  final _wasteQtyController = TextEditingController();
+  bool _isWasteLoading = false;
+
+  // Costing State
+  bool _isCostingLoading = false;
+  Map<String, dynamic>? _costingResult;
+
+  // Predictive Prep Future
+  late Future<List<dynamic>> _predictivePrepFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _predictivePrepFuture = _fetchPredictions();
+  }
+
+  Future<List<dynamic>> _fetchPredictions() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_operations/predictive_prep?vendorUid=${widget.user['uid']}'),
+      ).timeout(const Duration(seconds: 15));
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['predictions'] ?? [];
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<void> _handleDynamicCosting() async {
+    setState(() => _isCostingLoading = true);
+    try {
+      final response = await http.post(
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_operations/inventory/costing'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'sellingPrice': 180.0,
+          'ingredients': [
+            {'name': 'Rice (200g)', 'cost': 30},
+            {'name': 'Beef (100g)', 'cost': 60},
+            {'name': 'Cooking Oil / Gas', 'cost': 15}
+          ]
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _costingResult = jsonDecode(response.body);
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to calculate costing')));
+      }
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error calculating costing')));
+    } finally {
+      setState(() => _isCostingLoading = false);
+    }
+  }
+
+  Future<void> _handleWasteLog() async {
+    final item = _wasteItemController.text.trim();
+    final qty = double.tryParse(_wasteQtyController.text.trim()) ?? 0.0;
+
+    if (item.isEmpty || qty <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid Item and Quantity')));
+      return;
+    }
+
+    setState(() => _isWasteLoading = true);
+    try {
+      final response = await http.post(
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_operations/waste/log'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'vendorUid': widget.user['uid'],
+          'itemName': item,
+          'quantity': qty,
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Waste logged successfully'), backgroundColor: _neonCyan));
+        _wasteItemController.clear();
+        _wasteQtyController.clear();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Waste log failed'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isWasteLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,8 +130,23 @@ class VendorOperationsTabView extends StatelessWidget {
           style: TextStyle(color: _textSecondary, fontSize: 13),
         ),
         const SizedBox(height: 16),
-        _buildPredictionCard('Chapati', 60, 'High demand on Tuesdays'),
-        _buildPredictionCard('Beef Stew', 35, 'Cold weather expected'),
+        FutureBuilder<List<dynamic>>(
+          future: _predictivePrepFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: _neonCyan));
+            }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Text('No predictions available right now.', style: TextStyle(color: _textSecondary));
+            }
+            
+            return Column(
+              children: snapshot.data!.map((pred) {
+                return _buildPredictionCard(pred['item'], pred['suggested_prep'], pred['reason']);
+              }).toList(),
+            );
+          },
+        ),
         
         const SizedBox(height: 32),
 
@@ -45,7 +166,12 @@ class VendorOperationsTabView extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Current Meal: Beef Stew & Rice', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  TextButton(onPressed: () {}, child: const Text('Change Recipe', style: TextStyle(color: _neonOrange))),
+                  TextButton(
+                    onPressed: _isCostingLoading ? null : _handleDynamicCosting, 
+                    child: _isCostingLoading 
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: _neonOrange, strokeWidth: 2))
+                      : const Text('Calculate', style: TextStyle(color: _neonOrange))
+                  ),
                 ],
               ),
               const Divider(color: _textSecondary),
@@ -53,20 +179,28 @@ class VendorOperationsTabView extends StatelessWidget {
               _buildCostRow('Beef (100g)', 'KSH 60'),
               _buildCostRow('Cooking Oil / Gas', 'KSH 15'),
               const Divider(color: _textSecondary),
-              _buildCostRow('Total Cost', 'KSH 105', isBold: true),
-              _buildCostRow('Selling Price', 'KSH 180', isBold: true, color: _neonCyan),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: _neonCyan.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Profit Margin', style: TextStyle(color: _neonCyan, fontWeight: FontWeight.bold)),
-                    Text('41.6%', style: TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 18)),
-                  ],
-                ),
-              )
+              
+              if (_costingResult != null) ...[
+                _buildCostRow('Total Cost', 'KSH ${_costingResult!['totalCost']}', isBold: true),
+                _buildCostRow('Selling Price', 'KSH 180.0', isBold: true, color: _neonCyan),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: _neonCyan.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Profit Margin', style: TextStyle(color: _neonCyan, fontWeight: FontWeight.bold)),
+                      Text('${_costingResult!['marginPercentage']}%', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 18)),
+                    ],
+                  ),
+                )
+              ] else ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                  child: Center(child: Text('Tap Calculate to see margins.', style: TextStyle(color: _textSecondary))),
+                )
+              ]
             ],
           ),
         ),
@@ -85,6 +219,7 @@ class VendorOperationsTabView extends StatelessWidget {
           child: Column(
             children: [
               TextField(
+                controller: _wasteItemController,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   labelText: 'Item Name (e.g., Rice)',
@@ -96,6 +231,7 @@ class VendorOperationsTabView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               TextField(
+                controller: _wasteQtyController,
                 style: const TextStyle(color: Colors.white),
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
@@ -110,9 +246,11 @@ class VendorOperationsTabView extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () {},
+                  onPressed: _isWasteLoading ? null : _handleWasteLog,
                   style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white)),
-                  child: const Text('Log Unsold Food', style: TextStyle(color: Colors.white)),
+                  child: _isWasteLoading 
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white))
+                    : const Text('Log Unsold Food', style: TextStyle(color: Colors.white)),
                 ),
               )
             ],
@@ -129,7 +267,9 @@ class VendorOperationsTabView extends StatelessWidget {
       children: [
         Icon(icon, color: color),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        Expanded(
+          child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        ),
       ],
     );
   }
@@ -146,14 +286,17 @@ class VendorOperationsTabView extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(item, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 4),
-              Text(reason, style: const TextStyle(color: _textSecondary, fontSize: 12)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 4),
+                Text(reason, style: const TextStyle(color: _textSecondary, fontSize: 12)),
+              ],
+            ),
           ),
+          const SizedBox(width: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(color: _neonCyan.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),

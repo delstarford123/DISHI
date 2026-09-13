@@ -452,6 +452,13 @@ service cloud.firestore {
       allow read: if isAuth();
       allow write: if isSelf(vendorId) || isAdmin();
     }
+    match /vendor_menus/{docId} {
+      allow read: if isAuth();
+      allow write: if isAuth() && 
+        (resource == null || 
+         request.auth.uid == resource.data.vendorId || 
+         isAdmin());
+    }
     match /vendor_kds_orders/{orderId}      { allow read, write: if isAuth(); }
     match /vendor_staff/{staffId}           { allow read, write: if isAuth(); }
     match /vendor_shifts/{shiftId}          { allow read, write: if isAuth(); }
@@ -636,8 +643,8 @@ service cloud.firestore {
     // 18. VIRTUAL CARD & CARD TRANSACTIONS
     // ─────────────────────────────────────────────────────────────────────────
     match /virtual_cards/{uid} {
-      // Only the card owner or their parent can read/write their own card
-      allow read: if isSelf(uid) || isAdmin() || isParentOf(uid);
+      // Only the card owner, parent, or vendor can read
+      allow read: if isSelf(uid) || isAdmin() || isParentOf(uid) || isVendor();
       allow create: if isSelf(uid);
       allow update: if isSelf(uid) || isAdmin();
       allow delete: if isAdmin();

@@ -3,11 +3,14 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../core/theme/mpesa_theme.dart';
 import 'vendor_topup_view.dart';
+const Color _bgColor = Color(0xFF0C101B);
+const Color _cardColor = Color(0xFF161B29);
+const Color _neonCyan = Color(0xFF05D5AA);
 
 class QrScannerPage extends StatefulWidget {
-  const QrScannerPage({super.key});
+  final bool returnUidOnly;
+  const QrScannerPage({super.key, this.returnUidOnly = false});
 
   @override
   State<QrScannerPage> createState() => _QrScannerPageState();
@@ -145,8 +148,8 @@ class _QrScannerPageState extends State<QrScannerPage> {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error verifying PIN: $e')));
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryGreen),
-            child: const Text('Verify'),
+            style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
+            child: const Text('Verify', style: TextStyle(color: Colors.black)),
           ),
         ],
       ),
@@ -154,14 +157,18 @@ class _QrScannerPageState extends State<QrScannerPage> {
   }
 
   void _routeToTopup(String uid) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => VendorTopupView(studentUid: uid)),
-    );
+    if (widget.returnUidOnly) {
+      Navigator.pop(context, uid);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => VendorTopupView(studentUid: uid)),
+      );
+    }
   }
 
   void _showErrorAndResume(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message, style: const TextStyle(color: Colors.white)), backgroundColor: MPesaTheme.primaryRed));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message, style: const TextStyle(color: Colors.white)), backgroundColor: Colors.red));
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         setState(() => _isProcessing = false);
@@ -179,16 +186,18 @@ class _QrScannerPageState extends State<QrScannerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text('Scan Student QR'),
-        backgroundColor: MPesaTheme.primaryGreen,
+        title: const Text('Scan Student QR', style: TextStyle(color: Colors.white)),
+        backgroundColor: _bgColor,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.flash_on, color: Colors.yellow),
+            icon: const Icon(Icons.flash_on, color: _neonCyan),
             onPressed: () => _scannerController.toggleTorch(),
           ),
           IconButton(
-            icon: const Icon(Icons.cameraswitch),
+            icon: const Icon(Icons.cameraswitch, color: Colors.white),
             onPressed: () => _scannerController.switchCamera(),
           ),
         ],
@@ -210,7 +219,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
                   width: 250,
                   height: 250,
                   decoration: BoxDecoration(
-                    border: Border.all(color: MPesaTheme.primaryGreen, width: 4),
+                    border: Border.all(color: _neonCyan, width: 4),
                     borderRadius: BorderRadius.circular(24),
                   ),
                 ),

@@ -110,7 +110,7 @@ class _LoginViewState extends State<LoginView> {
 
   Future<void> _handlePostAuthRouting(String uid) async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get(const GetOptions(source: Source.serverAndCache));
       if (!doc.exists) {
         setState(() => _errorMessage = 'User profile not found.');
         return;
@@ -122,7 +122,8 @@ class _LoginViewState extends State<LoginView> {
       final email = data['email'] as String?;
       final phone = data['phoneNumber'] as String?;
 
-      await SecureStorageService.saveUserData(
+      // Fast, parallel execution of storage saving
+      final saveFuture = SecureStorageService.saveUserData(
         userId: uid, 
         role: primaryRole,
         name: name,
@@ -138,6 +139,9 @@ class _LoginViewState extends State<LoginView> {
         await SecureStorageService.saveHashedPin(cloudPin);
         localPin = cloudPin;
       }
+      
+      // Wait for user data to save before pushing
+      await saveFuture;
 
       if (mounted) {
         if (localPin == null || localPin.isEmpty) {
@@ -148,43 +152,35 @@ class _LoginViewState extends State<LoginView> {
         } else {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (_) => PinUnlockView(
-                onSuccess: () async {
-                  if (appNavigatorKey.currentState == null) return;
-                  final userData = await SecureStorageService.getUserData();
-                  final userMap = {
-                    'uid': uid,
-                    'roles': [primaryRole],
-                    'name': userData['name'] ?? '',
-                    'email': userData['email'] ?? '',
-                    'phoneNumber': userData['phone'] ?? '',
-                  };
-                  Widget dashboard;
-                  if (primaryRole == 'vendor') {
-                    dashboard = VendorDashboardView(user: userMap);
-                  } else if (primaryRole == 'admin') {
-                    dashboard = AdminDashboardView(user: userMap);
-                  } else if (primaryRole == 'parent') {
-                    dashboard = ParentDashboardView(user: userMap);
-                  } else if (primaryRole == 'driver') {
-                    dashboard = DelivDriverDashboard(user: userMap);
-                  } else if (primaryRole == 'house_owner') {
-                    dashboard = HousingDashboardView(user: userMap);
-                  } else if (primaryRole == 'fundi') {
-                    dashboard = FundiDashboardView(user: userMap);
-                  } else {
-                    dashboard = StudentMainScaffold(user: userMap);
-                  }
-                  appNavigatorKey.currentState!.pushReplacement(MaterialPageRoute(builder: (_) => dashboard));
+            MaterialPageRoute(builder: (_) => PinUnlockView(
+              onSuccess: () {
+                Widget dashboard;
+                if (primaryRole == 'vendor') {
+                  dashboard = VendorDashboardView(user: {'uid': uid, 'roles': [primaryRole]});
+                } else if (primaryRole == 'admin') {
+                  dashboard = AdminDashboardView(user: {'uid': uid, 'roles': [primaryRole]});
+                } else if (primaryRole == 'parent') {
+                  dashboard = ParentDashboardView(user: {'uid': uid, 'roles': [primaryRole]});
+                } else if (primaryRole == 'driver') {
+                  dashboard = DelivDriverDashboard(user: {'uid': uid, 'roles': [primaryRole]});
+                } else if (primaryRole == 'house_owner') {
+                  dashboard = HousingDashboardView(user: {'uid': uid, 'roles': [primaryRole]});
+                } else if (primaryRole == 'fundi') {
+                  dashboard = FundiDashboardView(user: {'uid': uid, 'roles': [primaryRole]});
+                } else {
+                  dashboard = StudentMainScaffold(user: {'uid': uid, 'roles': [primaryRole]});
                 }
-              ),
-            ),
+                
+                appNavigatorKey.currentState?.pushReplacement(
+                  MaterialPageRoute(builder: (_) => dashboard),
+                );
+              },
+            )),
           );
         }
       }
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = 'Failed to route user. Please try again.');
+      if (mounted) setState(() => _errorMessage = 'Failed to load profile. Please try again.');
     }
   }
 
