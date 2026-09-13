@@ -239,7 +239,17 @@ def harambee_fund():
         student_name = user_data.get('displayName') or user_data.get('name') or 'Student'
         real_user_id = user_doc.id
         
-        return render_template('harambee.html', student_name=student_name, user_id=real_user_id, dest=dest, campaign=campaign_data)
+        fund_type = "Student Fund"
+        if campaign_data:
+            c_type = str(campaign_data.get('type', '')).lower()
+            if 'harambee' in c_type:
+                fund_type = "Harambee"
+            elif 'crowdfund' in c_type:
+                fund_type = "Crowdfunding"
+            else:
+                fund_type = "Campaign"
+        
+        return render_template('harambee.html', student_name=student_name, user_id=real_user_id, dest=dest, campaign=campaign_data, fund_type=fund_type)
     except Exception as e:
         print(f"Harambee lookup error: {e}")
         return render_template('harambee.html', error="An error occurred while loading this page. Please try again.", student_name="Student", user_id="", dest=dest)

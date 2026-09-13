@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ campaign.title if campaign else 'Harambee Crowdfunding' }} | DISHI</title>
+    <title>{{ fund_type|default('Harambee Crowdfunding') }} | DISHI</title>
     <meta name="description" content="Support this crowdfunding campaign securely via Safaricom M-PESA.">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -564,9 +564,9 @@
             </div>
         </div>
         {% else %}
-        <div class="student-name-big">Support Campaign</div>
-        <div class="verified-chip" data-tooltip="This campaign has been securely vetted by DISHI using official documentation. 100% of your funds go to the right organizer.">
-            <span>✅</span> Verified DISHI Campaign
+        <div class="student-name-big">{{ fund_type|default('Student Fund') }} for {{ student_name }}</div>
+        <div class="verified-chip" data-tooltip="This {{ fund_type|default('fund')|lower }} has been securely vetted by DISHI. 100% of your funds go directly to the student.">
+            <span>✅</span> Verified {{ fund_type|default('Student Fund') }}
         </div>
         <div class="fund-purpose" style="background: rgba(0,0,0,0.2);">
             <div class="fund-purpose-title">How your contribution helps</div>
@@ -591,7 +591,7 @@
         <a href="dishi://harambee?id={{ campaign.id if campaign else '' }}" class="action-btn" style="flex: 1; min-width: 100px; background: rgba(5, 213, 250, 0.1); color: var(--accent-blue, #05D5FA); border: 1px solid rgba(5, 213, 250, 0.3); padding: 10px; border-radius: 8px; text-align: center; text-decoration: none; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;">
             <span style="font-size: 16px;">📱</span> App Pay
         </a>
-        <a href="https://wa.me/?text={{ 'Support my education via DISHI! 🚀 Fast, secure, and instant. Click here to help: ' | urlencode }}{{ request.url | urlencode }}" target="_blank" class="action-btn" style="flex: 1; min-width: 100px; background: rgba(37, 211, 102, 0.1); color: #25D366; border: 1px solid rgba(37, 211, 102, 0.3); padding: 10px; border-radius: 8px; text-align: center; text-decoration: none; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;">
+        <a href="https://wa.me/?text={{ ('Support this ' ~ fund_type|default('Student Fund') ~ ' via DISHI! 🚀 Fast, secure, and instant. Click here to help: ') | urlencode }}{{ request.url | urlencode }}" target="_blank" class="action-btn" style="flex: 1; min-width: 100px; background: rgba(37, 211, 102, 0.1); color: #25D366; border: 1px solid rgba(37, 211, 102, 0.3); padding: 10px; border-radius: 8px; text-align: center; text-decoration: none; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;">
             <span style="font-size: 16px;">💬</span> Share
         </a>
         <button onclick="document.getElementById('qrModal').style.display='flex'" class="action-btn" style="flex: 1; min-width: 100px; background: rgba(168, 85, 247, 0.1); color: var(--purple, #A855F7); border: 1px solid rgba(168, 85, 247, 0.3); padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;">
