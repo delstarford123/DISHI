@@ -20,12 +20,26 @@ class BiometricStorageService {
     return response == CanAuthenticateResponse.success;
   }
 
+  static const PromptInfo _promptInfo = PromptInfo(
+    iosPromptInfo: IosPromptInfo(
+      saveTitle: 'Authenticate to enable Biometric PIN',
+      accessTitle: 'Scan fingerprint/face to unlock DISHI',
+    ),
+    androidPromptInfo: AndroidPromptInfo(
+      title: 'DISHI Secure Unlock',
+      subtitle: 'Log in using your biometric credential',
+      description: 'Place your finger on the sensor or use face recognition to unlock your account quickly and securely.',
+      negativeButton: 'Use PIN Instead',
+      confirmationRequired: false,
+    ),
+  );
+
   /// Writes the hashed PIN to the Keystore. 
   /// The OS handles the biometric prompt cryptographically.
   static Future<void> saveBiometricKey(String hashedPin) async {
     try {
       final storage = await _getStorageFile();
-      await storage.write(hashedPin);
+      await storage.write(hashedPin, promptInfo: _promptInfo);
     } catch (e) {
       debugPrint('Error writing to biometric storage: $e');
       rethrow;
@@ -37,7 +51,7 @@ class BiometricStorageService {
   static Future<String?> readBiometricKey() async {
     try {
       final storage = await _getStorageFile();
-      return await storage.read();
+      return await storage.read(promptInfo: _promptInfo);
     } catch (e) {
       debugPrint('Error reading from biometric storage: $e');
       // If it throws KeyPermanentlyInvalidatedException or auth fails, we return null.

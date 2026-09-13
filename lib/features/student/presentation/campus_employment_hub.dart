@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import '../../../core/services/location_service.dart';
+import '../match/presentation/match_chat_view.dart';
 import 'dart:convert';
 import '../../../core/theme/mpesa_theme.dart';
 
@@ -134,6 +136,17 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
       final user = _auth.currentUser;
       if (user == null) return;
       
+      // Fetch precise location for proximity matching
+      double? lat;
+      double? lng;
+      try {
+        final pos = await LocationService.getCurrentLocation();
+        lat = pos.latitude;
+        lng = pos.longitude;
+      } catch (e) {
+        debugPrint('Could not fetch location: $e');
+      }
+      
       final response = await http.post(
         Uri.parse('https://dishi.delstarfordworks.co.ke/api/v6/campus_gigs/register'),
         headers: {'Content-Type': 'application/json'},
@@ -142,6 +155,8 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
           'category': category,
           'description': description,
           'portfolio_images': [],
+          'latitude': lat,
+          'longitude': lng,
         }),
       ).timeout(const Duration(seconds: 30));
       
@@ -282,6 +297,17 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
       final price = double.tryParse(priceStr) ?? 0;
       if (price <= 0) throw Exception("Please enter a valid price");
       
+      // Fetch location for proximity matching
+      double? lat;
+      double? lng;
+      try {
+        final pos = await LocationService.getCurrentLocation();
+        lat = pos.latitude;
+        lng = pos.longitude;
+      } catch (e) {
+        debugPrint('Could not fetch location: $e');
+      }
+      
       final response = await http.post(
         Uri.parse('https://dishi.delstarfordworks.co.ke/api/v6/campus_gigs/request'),
         headers: {'Content-Type': 'application/json'},
@@ -290,6 +316,8 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
           'category': category,
           'details': details,
           'price_offer': price,
+          'latitude': lat,
+          'longitude': lng,
         }),
       ).timeout(const Duration(seconds: 30));
       
@@ -442,7 +470,10 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
     
     return StreamBuilder<QuerySnapshot>(
       stream: _firestore.collection('campus_gig_requests')
-          .where('requester_id', isEqualTo: user.uid)
+          .where(Filter.or(
+            Filter('requester_id', isEqualTo: user.uid),
+            Filter('worker_id', isEqualTo: user.uid),
+          ))
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
@@ -459,24 +490,149 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
             final price = data['price_offer'] ?? 0;
             final category = data['category'] ?? '';
             
-            return Card(
-              color: MPesaTheme.surfaceColor,
-              margin: const EdgeInsets.only(bottom: 16),
-              child: ListTile(
-                title: Text('$category Gig', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                subtitle: Text('Status: $status | Escrow: $escrowStatus\nPrice: KSH $price', style: const TextStyle(color: Colors.grey)),
-                trailing: escrowStatus == 'HELD' 
-                  ? ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.neonGreen),
-                      onPressed: () => _showPinDialog(docs[index].id),
-                      child: const Text('Complete', style: TextStyle(color: Colors.black)),
-                    )
-                  : null,
-              ),
-            );
+              return Card(
+                color: MPesaTheme.surfaceColor,
+                margin: const EdgeInsets.only(bottom: 16),
+                child: ListTile(
+                  title: Text('$category Gig', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: Text('Status: $status | Escrow: $escrowStatus\nPrice: KSH $price', style: const TextStyle(color: Colors.grey)),
+                  onTap: () => _showGigDetails(docs[index]),
+                  trailing: (escrowStatus == 'HELD' && data['requester_id'] == user.uid)
+                    ? ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.neonGreen),
+                        onPressed: () => _showPinDialog(docs[index].id),
+                        child: const Text('Complete', style: TextStyle(color: Colors.black)),
+                      )
+                    : null,
+                ),
+              );
           },
         );
       }
+    );
+  }
+
+  void _showGigDetails(DocumentSnapshot gigDoc) async {
+    final data = gigDoc.data() as Map<String, dynamic>;
+    final user = _auth.currentUser;
+    if (user == null) return;
+    
+    final bool amIRequester = data['requester_id'] == user.uid;
+    final otherUserId = amIRequester ? data['worker_id'] : data['requester_id'];
+    
+    String otherUserName = "Awaiting Provider";
+    String? otherUserAvatar;
+    
+    if (otherUserId != null) {
+      try {
+        final doc = await _firestore.collection('users').doc(otherUserId).get();
+        if (doc.exists) {
+          final uData = doc.data()!;
+          otherUserName = uData['displayName'] ?? uData['name'] ?? uData['full_name'] ?? 'DISHI User';
+          otherUserAvatar = uData['avatar_url'] ?? uData['photo_url'] ?? uData['profile_picture'];
+        }
+      } catch (_) {}
+    }
+    
+    if (!mounted) return;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: MPesaTheme.surfaceColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: MPesaTheme.neonGreen.withOpacity(0.3)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${data['category']} Gig Details', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 16),
+            Text('Status: ${data['status']}', style: const TextStyle(color: Colors.grey)),
+            Text('Price Offer: KSH ${data['price_offer']}', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text('Details: ${data['details'] ?? 'N/A'}', style: const TextStyle(color: Colors.white70)),
+            const SizedBox(height: 24),
+            
+            if (otherUserId != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.grey.shade800,
+                      backgroundImage: otherUserAvatar != null ? NetworkImage(otherUserAvatar) : null,
+                      child: otherUserAvatar == null ? const Icon(Icons.person, color: Colors.white) : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(amIRequester ? 'Provider' : 'Client', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          Text(otherUserName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: MPesaTheme.neonGreen,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context); // Close bottom sheet
+                        final chatId = 'gig_${gigDoc.id}';
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MatchChatView(
+                              chatId: chatId,
+                              myUid: user.uid,
+                              matchName: otherUserName,
+                              matchAvatar: otherUserAvatar,
+                              matchId: otherUserId,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                      label: const Text('Chat'),
+                    )
+                  ],
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.hourglass_empty, color: Colors.blue),
+                    SizedBox(width: 12),
+                    Expanded(child: Text('Waiting for a provider to accept this gig. We have notified online workers.', style: TextStyle(color: Colors.white70, fontSize: 13))),
+                  ],
+                ),
+              ),
+              
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
     );
   }
 

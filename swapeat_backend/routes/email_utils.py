@@ -433,3 +433,67 @@ def event_ticket_email(event_title: str, ticket_tier: str, amount: float, ticket
       </div>
     """
     return subject, _base_template(content, preheader=f"Your {ticket_tier} ticket for {event_title}")
+
+def campus_gig_alert_email(worker_name: str, category: str, price: float) -> tuple:
+    """
+    Returns (subject, html_body) for a Campus Gig request alert sent to workers.
+    """
+    name = worker_name or "DISHI Partner"
+    subject = f"Congratulations! Your {category} services are in demand 🚀"
+    
+    content = f"""
+      <p class="greeting">New Gig Alert! 💼</p>
+      <p class="body-text" style="margin-top:8px;">
+        Hi <strong style="color:#F8FAFC;">{name}</strong>,<br/><br/>
+        Congratulations! A student on campus just requested a <strong style="color:#F8FAFC;">{category}</strong>. Since you are a registered provider, you have the opportunity to secure this gig.
+      </p>
+      
+      <div class="divider"></div>
+      
+      <div class="highlight">
+        <p style="font-size:12px;text-transform:uppercase;color:#64748B;letter-spacing:1px;margin-bottom:6px;">Gig Details</p>
+        <p style="font-size:16px;font-weight:600;color:#F8FAFC;margin-bottom:8px;">Category: {category}</p>
+        <p><strong>Offer Price:</strong> KES {price:,.2f}</p>
+      </div>
+      
+      <p class="body-text" style="margin-top:20px;">
+        Open the DISHI app immediately to accept the request before another provider takes it. Remember, prompt responses lead to better ratings!
+      </p>
+      
+      <div style="text-align:center;">
+        <a href="https://dishi.delstarfordworks.co.ke" class="btn">Open DISHI to Accept &rarr;</a>
+      </div>
+    """
+    return subject, _base_template(content, preheader=f"A new {category} gig is available!")
+
+def campus_gig_accepted_email(requester_name: str, worker_name: str, category: str) -> tuple:
+    """
+    Returns (subject, html_body) for when a worker accepts a gig request.
+    """
+    r_name = requester_name or "Student"
+    w_name = worker_name or "A DISHI Provider"
+    subject = f"Good news! Your {category} gig was accepted 🎉"
+    
+    content = f"""
+      <p class="greeting">Gig Accepted! ✅</p>
+      <p class="body-text" style="margin-top:8px;">
+        Hi <strong style="color:#F8FAFC;">{r_name}</strong>,<br/><br/>
+        Good news! <strong style="color:{DISHI_PRIMARY_GREEN};">{w_name}</strong> has officially accepted your <strong style="color:#F8FAFC;">{category}</strong> request.
+      </p>
+      
+      <div class="divider"></div>
+      
+      <div class="highlight">
+        <p style="font-size:12px;text-transform:uppercase;color:#64748B;letter-spacing:1px;margin-bottom:6px;">Next Steps</p>
+        <p><strong>1.</strong> Open the DISHI app and go to Campus Gigs > Active Gigs.</p>
+        <p><strong>2.</strong> Tap on the gig and press <strong>Chat</strong> to coordinate details with {w_name}.</p>
+        <p><strong>3.</strong> Lock the funds in Escrow to officially secure the service.</p>
+      </div>
+      
+      <div style="text-align:center;">
+        <a href="https://dishi.delstarfordworks.co.ke" class="btn">Open App to Chat &rarr;</a>
+      </div>
+    """
+    return subject, _base_template(content, preheader=f"{w_name} is ready to help you with {category}!")
+
+

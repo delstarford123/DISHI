@@ -8,6 +8,8 @@ import '../../../core/theme/mpesa_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/security/security_service.dart';
 import '../../../core/security/secure_storage_service.dart';
+import '../../../core/security/biometric_storage_service.dart';
+import '../../../main.dart';
 
 class ForgotPinView extends StatefulWidget {
   const ForgotPinView({super.key});
@@ -140,6 +142,14 @@ class _ForgotPinViewState extends State<ForgotPinView> {
         final hashedPin = SecurityService.hashPin(newPin);
         await SecureStorageService.saveHashedPin(hashedPin);
         
+        try {
+          if (await BiometricStorageService.isSupported()) {
+            await BiometricStorageService.saveBiometricKey(hashedPin);
+          }
+        } catch (e) {
+          debugPrint('Biometric storage not available or failed: $e');
+        }
+        
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
           await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
@@ -149,11 +159,11 @@ class _ForgotPinViewState extends State<ForgotPinView> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('PIN reset successfully! You can now log in.')),
+            const SnackBar(content: Text('PIN reset successfully!')),
           );
-          // Navigate completely back to LoginView so they can authenticate cleanly with the new session
+          // Navigate to InitialRouter which will cleanly route to PinUnlockView
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const LoginView()),
+            MaterialPageRoute(builder: (context) => const InitialRouter()),
             (route) => false,
           );
         }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../main.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -150,7 +151,7 @@ class _LoginViewState extends State<LoginView> {
             MaterialPageRoute(
               builder: (_) => PinUnlockView(
                 onSuccess: () async {
-                  if (!mounted) return;
+                  if (appNavigatorKey.currentState == null) return;
                   final userData = await SecureStorageService.getUserData();
                   final userMap = {
                     'uid': uid,
@@ -175,7 +176,7 @@ class _LoginViewState extends State<LoginView> {
                   } else {
                     dashboard = StudentMainScaffold(user: userMap);
                   }
-                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => dashboard));
+                  appNavigatorKey.currentState!.pushReplacement(MaterialPageRoute(builder: (_) => dashboard));
                 }
               ),
             ),

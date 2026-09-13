@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import 'widgets/custom_secure_keypad.dart';
@@ -8,6 +9,9 @@ import '../../../core/security/security_service.dart';
 import '../../../core/security/auth_rate_limiter.dart';
 import '../../../core/security/secure_storage_service.dart';
 import '../../../core/security/biometric_storage_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart'; // Added for HapticFeedback
+import 'login_view.dart';
 
 class PinUnlockView extends StatefulWidget {
   final VoidCallback onSuccess;
@@ -18,17 +22,42 @@ class PinUnlockView extends StatefulWidget {
   _PinUnlockViewState createState() => _PinUnlockViewState();
 }
 
-class _PinUnlockViewState extends State<PinUnlockView> {
+class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProviderStateMixin {
   final LocalAuthentication auth = LocalAuthentication();
   String currentText = "";
   bool _obscurePin = true;
   bool _isLockedOut = false;
   String _errorMessage = "";
+  late AnimationController _waveController;
+  bool _isBiometricSupported = false;
+  bool _isAuthenticatingBiometric = false;
 
   @override
   void initState() {
     super.initState();
+    _waveController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
     _checkInitialState();
+    _initBiometrics();
+  }
+
+  Future<void> _initBiometrics() async {
+    bool supported = await BiometricStorageService.isSupported();
+    if (mounted) {
+      setState(() => _isBiometricSupported = supported);
+      if (supported) {
+        // Feature: Auto-trigger on startup for convenience
+        _authenticateBiometric(autoTriggered: true);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _waveController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkInitialState() async {
@@ -66,8 +95,17 @@ class _PinUnlockViewState extends State<PinUnlockView> {
     }
   }
 
-  Future<void> _authenticateBiometric() async {
-    if (_isLockedOut) return;
+  Future<void> _authenticateBiometric({bool autoTriggered = false}) async {
+    if (_isLockedOut || _isAuthenticatingBiometric) return;
+    
+    if (!autoTriggered) {
+      // Feature: Haptic feedback for UI responsiveness
+      HapticFeedback.lightImpact();
+      // Feature: Visual hint during scan
+      setState(() => _errorMessage = "Scan your fingerprint or face...");
+    }
+    
+    setState(() => _isAuthenticatingBiometric = true);
     
     try {
       final String? decryptedHash = await BiometricStorageService.readBiometricKey();
@@ -76,17 +114,30 @@ class _PinUnlockViewState extends State<PinUnlockView> {
         String? storedHash = await SecureStorageService.getHashedPin();
         
         if (storedHash == null || decryptedHash == storedHash) {
+          // Feature: Success Haptic feedback
+          HapticFeedback.mediumImpact();
           await AuthRateLimiter.resetAttempts();
           if (mounted) {
             widget.onSuccess();
           }
         } else {
+          // Feature: Error Haptic feedback
+          HapticFeedback.heavyImpact();
           setState(() => _errorMessage = "Invalid biometric payload.");
         }
+      } else {
+        if (!autoTriggered) {
+          setState(() => _errorMessage = "Biometric authentication failed or was cancelled.");
+        } else {
+          setState(() => _errorMessage = ""); // Clear any message if they just cancelled the auto-prompt
+        }
       }
-      // If null, user cancelled or failed, they can just use the PIN fallback.
     } catch (e) {
       setState(() => _errorMessage = "Biometric key invalidated. Please use PIN.");
+    } finally {
+      if (mounted) {
+        setState(() => _isAuthenticatingBiometric = false);
+      }
     }
   }
 
@@ -98,7 +149,9 @@ class _PinUnlockViewState extends State<PinUnlockView> {
         _errorMessage = "";
       });
       if (currentText.length == 4) {
-        _submitPin();
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) _submitPin();
+        });
       }
     }
   }
@@ -182,7 +235,16 @@ class _PinUnlockViewState extends State<PinUnlockView> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, color: Colors.grey), 
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () async {
+                          // Since they are trapped in the PIN screen, closing it means they want to switch accounts/exit.
+                          await FirebaseAuth.instance.signOut();
+                          if (context.mounted) {
+                            Navigator.pushReplacement(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const LoginView()),
+                            );
+                          }
+                        },
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
@@ -222,36 +284,66 @@ class _PinUnlockViewState extends State<PinUnlockView> {
                     Center(
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 16),
-                        child: Text(_errorMessage, style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w500)),
+                        child: Text(
+                          _errorMessage, 
+                          style: TextStyle(
+                            color: _errorMessage.contains("Scan") ? Colors.greenAccent : Colors.redAccent, 
+                            fontSize: 14, 
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ),
                     
                   // Elegant PIN Indicator
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(4, (index) => Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 12),
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: index < currentText.length 
-                            ? (_obscurePin ? Colors.white : Colors.transparent)
-                            : Colors.transparent,
-                        border: Border.all(
-                          color: index < currentText.length ? Colors.white : Colors.grey.shade800, 
-                          width: 2
-                        ),
-                      ),
-                      child: index < currentText.length && !_obscurePin
-                          ? Center(
-                              child: Text(
-                                currentText[index],
-                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, height: 1.0),
+                  AnimatedBuilder(
+                    animation: _waveController,
+                    builder: (context, child) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(4, (index) {
+                          final bool isFilled = index < currentText.length;
+                          // Calculate wave offset based on time and index
+                          final double waveOffset = math.sin((_waveController.value * 2 * math.pi) + (index * math.pi / 2)) * 8.0;
+                          
+                          return Transform.translate(
+                            offset: Offset(0, waveOffset),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 6),
+                              width: 60,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: isFilled ? const Color(0xFF00E5FF).withOpacity(0.15) : const Color(0xFF1E1E1E), // MPesaTheme.neonCyan and cardDark
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isFilled ? const Color(0xFF00E5FF) : Colors.white24,
+                                  width: 2,
+                                ),
+                                boxShadow: isFilled ? [
+                                  BoxShadow(
+                                    color: const Color(0xFF00E5FF).withOpacity(0.3),
+                                    blurRadius: 12,
+                                    spreadRadius: 1,
+                                  )
+                                ] : [],
                               ),
-                            )
-                          : null,
-                    )),
+                              alignment: Alignment.center,
+                              child: isFilled 
+                                  ? Text(
+                                      _obscurePin ? '•' : currentText[index], 
+                                      style: TextStyle(
+                                        fontSize: _obscurePin ? 48 : 36, 
+                                        color: const Color(0xFF00E5FF), 
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.0,
+                                      )
+                                    )
+                                  : null,
+                            ),
+                          );
+                        }),
+                      );
+                    }
                   ),
                   const SizedBox(height: 32),
                   
@@ -300,8 +392,9 @@ class _PinUnlockViewState extends State<PinUnlockView> {
                   CustomSecureKeypad(
                     onKeyPressed: _onKeyPressed,
                     onBackspace: _onBackspace,
-                    onBiometricTap: _authenticateBiometric,
+                    onBiometricTap: () => _authenticateBiometric(autoTriggered: false),
                     randomize: false, // Ensures PIN numbers are ordered 1 to 0
+                    showBiometric: _isBiometricSupported, // Feature: Only show if device supports it
                   ),
                 ],
               ),

@@ -112,7 +112,7 @@ class _InitialRouterState extends State<InitialRouter> {
                 'email': userData['email'] ?? '',
                 'phoneNumber': userData['phone'] ?? '',
               };
-              if (!mounted) return;
+              if (appNavigatorKey.currentState == null) return;
               
               Widget dashboard;
               if (role == 'vendor') {
@@ -131,7 +131,7 @@ class _InitialRouterState extends State<InitialRouter> {
                 dashboard = StudentMainScaffold(user: userMap);
               }
               
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => dashboard));
+              appNavigatorKey.currentState!.pushReplacement(MaterialPageRoute(builder: (context) => dashboard));
             }
           )));
         } else {
