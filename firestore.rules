@@ -897,6 +897,16 @@ service cloud.firestore {
          isAdmin());
       allow delete: if isAdmin();
     }
+    match /virtual_cards/{cardId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() && (resource == null || request.auth.uid == resource.data.parentUid || request.auth.uid == resource.data.uid || isAdmin());
+    }
+    match /savings_goals/{goalId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() && (resource == null || request.auth.uid == resource.data.parentUid || isAdmin());
+    }
     match /forums/{docId} {
       allow read: if isAuth();
       allow create: if isAuth();

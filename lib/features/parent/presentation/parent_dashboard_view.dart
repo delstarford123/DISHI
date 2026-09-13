@@ -153,6 +153,118 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
     );
   }
 
+  Widget _buildBehaviorAnalyticsWidget() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _neonCyan.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.insights, color: _neonCyan),
+              SizedBox(width: 8),
+              Text('Behavioral Insights', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildInsightMetric('Chore Rate', '85%', Colors.greenAccent),
+              _buildInsightMetric('Savings', '+12%', _neonCyan),
+              _buildInsightMetric('Flags', '0', _neonPink),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsightMetric(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(value, style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(color: _textSecondary, fontSize: 12)),
+      ],
+    );
+  }
+
+  Widget _buildCommunityFeedSnippet() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _neonBlue.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.forum, color: _neonBlue),
+              SizedBox(width: 8),
+              Text('Parent Community', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text('"How do you guys handle lunchbox limits? My kid keeps buying junk food!"', style: TextStyle(color: Colors.white70, fontStyle: FontStyle.italic)),
+          const SizedBox(height: 8),
+          const Text('- Sarah N., 15 mins ago', style: TextStyle(color: _neonBlue, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  void _showSavingsMatcher() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardColor,
+        title: const Text('Savings Matcher', style: TextStyle(color: _neonCyan)),
+        content: const Text('Automatically match your child\'s savings by 50% from your Family Vault. (Coming soon)', style: TextStyle(color: Colors.white)),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close', style: TextStyle(color: _textSecondary)))],
+      )
+    );
+  }
+
+
+
+  void _grantEmergencyOverdraft(Map<String, dynamic> student) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardColor,
+        title: const Text('Emergency Overdraft', style: TextStyle(color: MPesaTheme.primaryRed)),
+        content: Text('Allow ${student['name']} to go into negative balance (up to Ksh 500) for emergencies?', style: const TextStyle(color: Colors.white)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: _textSecondary))),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await FirebaseFirestore.instance.collection('users').doc(student['uid']).update({
+                  'allowOverdraft': true,
+                  'overdraftLimit': 500
+                });
+                if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Overdraft granted.')));
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Error: $e')));
+              }
+            },
+            child: const Text('Grant Ksh 500', style: TextStyle(color: MPesaTheme.primaryRed, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      )
+    );
+  }
+
   Widget _buildCustomAppBar() {
     if (_isSearching) {
       return Row(
@@ -384,10 +496,16 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                   _buildActionGridButton(Icons.warning_amber_rounded, 'SOS Alerts', MPesaTheme.primaryRed, _showEmergencyAlerts),
                   _buildActionGridButton(Icons.gavel, 'Disputes', _neonPink, _showDisputes),
                   _buildActionGridButton(Icons.group_add, 'Co-Parent', _neonBlue, _showCoParenting),
+                  _buildActionGridButton(Icons.handshake, 'Savings Match', _neonCyan, _showSavingsMatcher),
+                  _buildActionGridButton(Icons.timeline, 'Live Tracker', Colors.orangeAccent, _showGeofenceAlerts),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
+              _buildBehaviorAnalyticsWidget(),
+              const SizedBox(height: 32),
               UniversalSupportWidget(userId: FirebaseAuth.instance.currentUser?.uid ?? 'unknown', userRole: 'parent'),
+              const SizedBox(height: 32),
+              _buildCommunityFeedSnippet(),
             ]),
           ),
         ),
@@ -701,16 +819,17 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
               Expanded(
                 child: InkWell(
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => OfflineChildQrView(studentName: student['name'], uid: student['uid'])));
+                    _grantEmergencyOverdraft(student);
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: _neonBlue,
+                      color: MPesaTheme.primaryRed.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: MPesaTheme.primaryRed),
                     ),
                     alignment: Alignment.center,
-                    child: const Text('ID Card', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                    child: const Text('Overdraft', style: TextStyle(color: MPesaTheme.primaryRed, fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ),
               ),

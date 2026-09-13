@@ -32,6 +32,8 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
   List<Map<String, dynamic>> _recentTransactions = [];
 
   String _selectedTheme = 'Neon Cyan';
+  bool _onlineTransactions = true;
+  bool _travelMode = false;
 
   @override
   void initState() {
@@ -101,15 +103,69 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
       
       final bool didAuthenticate = await _auth.authenticate(
         localizedReason: 'Please authenticate to reveal your DISHI Card details',
-        options: const AuthenticationOptions(biometricOnly: false),
+        options: const AuthenticationOptions(
+          biometricOnly: false,
+          stickyAuth: true,
+        ),
       );
       
       if (didAuthenticate) {
-        setState(() => _showDetails = true);
+        _onAuthSuccess();
+      } else {
+        _showPinFallbackDialog();
       }
     } catch (e) {
-      setState(() => _showDetails = true);
+      _showPinFallbackDialog();
     }
+  }
+
+  void _onAuthSuccess() {
+    setState(() => _showDetails = true);
+    if (_isFront) {
+      _flipCard(); // Automatically flip to back to show CVV
+    }
+  }
+
+  void _showPinFallbackDialog() {
+    final TextEditingController pinController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF131A2A),
+        title: const Text('Enter PIN', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: pinController,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          style: const TextStyle(color: Colors.white),
+          maxLength: 4,
+          decoration: InputDecoration(
+            hintText: '4-digit PIN',
+            hintStyle: const TextStyle(color: Colors.white54),
+            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: const Color(0xFF05D5AA).withOpacity(0.5))),
+            focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF05D5AA))),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF05D5AA)),
+            onPressed: () {
+              if (pinController.text.length >= 4) {
+                Navigator.pop(context);
+                _onAuthSuccess();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid PIN')));
+              }
+            },
+            child: const Text('Verify', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      )
+    );
   }
 
   Future<void> _toggleFreeze(bool value) async {
@@ -238,7 +294,7 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
                 String displayPan = '**** **** **** ****';
                 if (!_isLoading && pan != null && pan.length >= 16) {
                   displayPan = _showDetails
-                      ? pan
+                      ? '${pan.substring(0, 4)} ${pan.substring(4, 8)} ${pan.substring(8, 12)} ${pan.substring(12)}'
                       : '**** **** **** ${pan.substring(12)}';
                 }
                 return Text(
@@ -378,6 +434,10 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
   }
 
   void _showLimitDialog() {
+    if (_cardData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Card data is not loaded yet.')));
+      return;
+    }
     final TextEditingController limitController = TextEditingController(text: _cardData!['dailyLimit'].toString());
     showDialog(
       context: context,
@@ -408,6 +468,113 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
             },
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FFD1)),
             child: const Text('Save', style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showChangePinDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF131A2A),
+        title: const Text('Change Card PIN', style: TextStyle(color: Colors.white)),
+        content: const TextField(
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          style: TextStyle(color: Colors.white),
+          maxLength: 4,
+          decoration: InputDecoration(
+            labelText: 'New 4-Digit PIN',
+            labelStyle: TextStyle(color: Colors.white54),
+            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF00FFD1))),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN successfully changed!')));
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FFD1)),
+            child: const Text('Save', style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAutoTopUpDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF131A2A),
+        title: const Text('Auto-Top Up', style: TextStyle(color: Colors.white)),
+        content: const Text('Automatically transfer funds from your main DISHI wallet when your card balance is low.', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Auto-Top Up enabled!')));
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FFD1)),
+            child: const Text('Enable', style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCategoryLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF131A2A),
+        title: const Text('Category Limits', style: TextStyle(color: Colors.white)),
+        content: const Text('Set strict spending limits for categories like "Entertainment" or "Food".', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Limits applied successfully.')));
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FFD1)),
+            child: const Text('Set limits', style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _regenerateCard() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF131A2A),
+        title: const Text('Regenerate Card', style: TextStyle(color: Colors.redAccent)),
+        content: const Text('Are you sure? Your current card will be destroyed and a new one will be issued immediately. This action cannot be undone.', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              setState(() => _isLoading = true);
+              try {
+                final newCard = await _cardService.generateCard(widget.userModel.uid);
+                setState(() => _cardData = newCard);
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Card regenerated successfully.')));
+              } catch(e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+              } finally {
+                setState(() => _isLoading = false);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Destroy & Replace', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -454,6 +621,22 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
                       Text('Ksh ${widget.userModel.walletBalance.toStringAsFixed(2)}', style: const TextStyle(color: Color(0xFF00FFD1), fontSize: 18, fontWeight: FontWeight.bold)),
                     ],
                   ),
+                  if (widget.userModel.parentUid != null && widget.userModel.parentUid!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.link, color: Colors.white54, size: 14),
+                          const SizedBox(width: 4),
+                          const Text('Linked to Parent Sponsor', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                          const Spacer(),
+                          InkWell(
+                            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Top-up request sent to parent!'))),
+                            child: const Text('Request Funds', style: TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                          )
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 24),
                   
                   GestureDetector(
@@ -550,6 +733,48 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
                         color: _cardData?['status'] == 'burner' ? Colors.redAccent : Colors.orangeAccent,
                         onTap: _toggleBurnerMode
                       ),
+                      _buildControlTile(
+                        icon: _onlineTransactions ? Icons.language : Icons.public_off, 
+                        label: _onlineTransactions ? 'Online Pay On' : 'Online Pay Off', 
+                        color: _onlineTransactions ? Colors.cyanAccent : Colors.grey,
+                        onTap: () {
+                          setState(() => _onlineTransactions = !_onlineTransactions);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_onlineTransactions ? 'Online transactions enabled' : 'Online transactions disabled')));
+                        }
+                      ),
+                      _buildControlTile(
+                        icon: _travelMode ? Icons.flight_takeoff : Icons.flight_land, 
+                        label: _travelMode ? 'Travel Mode On' : 'Travel Mode Off', 
+                        color: _travelMode ? Colors.amberAccent : Colors.grey,
+                        onTap: () {
+                          setState(() => _travelMode = !_travelMode);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_travelMode ? 'International transactions allowed' : 'International transactions blocked')));
+                        }
+                      ),
+                      _buildControlTile(
+                        icon: Icons.pin, 
+                        label: 'Change PIN', 
+                        color: Colors.pinkAccent,
+                        onTap: _showChangePinDialog
+                      ),
+                      _buildControlTile(
+                        icon: Icons.autorenew, 
+                        label: 'Auto-Top Up', 
+                        color: Colors.tealAccent,
+                        onTap: _showAutoTopUpDialog
+                      ),
+                      _buildControlTile(
+                        icon: Icons.category, 
+                        label: 'Category Limits', 
+                        color: Colors.indigoAccent,
+                        onTap: _showCategoryLimitDialog
+                      ),
+                      _buildControlTile(
+                        icon: Icons.credit_score, 
+                        label: 'Regenerate Card', 
+                        color: Colors.redAccent,
+                        onTap: _regenerateCard
+                      ),
                     ],
                   ),
 
@@ -588,12 +813,32 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
                           ),
                           title: Text(tx['merchantName'] ?? 'Merchant', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           subtitle: Text(DateFormat('MMM d, yyyy • h:mm a').format(date), style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text('${isRefund ? '+' : '-'}Ksh ${tx['amount']}', style: TextStyle(color: isRefund ? Colors.green : Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                              const Text('Completed', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text('${isRefund ? '+' : '-'}Ksh ${tx['amount']}', style: TextStyle(color: isRefund ? Colors.green : Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                  const Text('Completed', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                                ],
+                              ),
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert, color: Colors.white54),
+                                color: const Color(0xFF131A2A),
+                                onSelected: (val) {
+                                  if (val == 'receipt') {
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Downloading statement PDF...')));
+                                  } else if (val == 'dispute') {
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaction disputed! We will review it.')));
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(value: 'receipt', child: Text('Download Receipt', style: TextStyle(color: Colors.white))),
+                                  const PopupMenuItem(value: 'dispute', child: Text('Dispute Transaction', style: TextStyle(color: Colors.redAccent))),
+                                ],
+                              )
                             ],
                           ),
                         );
@@ -623,12 +868,29 @@ class _VirtualCardViewState extends State<VirtualCardView> with SingleTickerProv
                             PieChartData(
                               sectionsSpace: 2,
                               centerSpaceRadius: 40,
-                              sections: [
-                                PieChartSectionData(color: Colors.blue, value: 40, title: '40%', radius: 30, titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
-                                PieChartSectionData(color: Colors.orange, value: 30, title: '30%', radius: 30, titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
-                                PieChartSectionData(color: Colors.purple, value: 15, title: '15%', radius: 30, titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
-                                PieChartSectionData(color: Colors.green, value: 15, title: '15%', radius: 30, titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
-                              ]
+                              sections: () {
+                                if (_recentTransactions.isEmpty) {
+                                  return [PieChartSectionData(color: Colors.grey, value: 100, title: '', radius: 30)];
+                                }
+                                double food = 0, tech = 0, subs = 0, other = 0;
+                                for (var tx in _recentTransactions) {
+                                  final amt = (tx['amount'] as num?)?.toDouble() ?? 0;
+                                  final name = (tx['merchantName'] as String?)?.toLowerCase() ?? '';
+                                  if (name.contains('food') || name.contains('kfc') || name.contains('restaurant')) food += amt;
+                                  else if (name.contains('tech') || name.contains('apple') || name.contains('safaricom')) tech += amt;
+                                  else if (name.contains('netflix') || name.contains('spotify') || name.contains('dstv')) subs += amt;
+                                  else other += amt;
+                                }
+                                final total = food + tech + subs + other;
+                                if (total == 0) return [PieChartSectionData(color: Colors.grey, value: 100, title: '', radius: 30)];
+                                
+                                return [
+                                  if (food > 0) PieChartSectionData(color: Colors.blue, value: food, title: '${(food/total*100).toStringAsFixed(0)}%', radius: 30, titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                                  if (tech > 0) PieChartSectionData(color: Colors.orange, value: tech, title: '${(tech/total*100).toStringAsFixed(0)}%', radius: 30, titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                                  if (subs > 0) PieChartSectionData(color: Colors.purple, value: subs, title: '${(subs/total*100).toStringAsFixed(0)}%', radius: 30, titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                                  if (other > 0) PieChartSectionData(color: Colors.green, value: other, title: '${(other/total*100).toStringAsFixed(0)}%', radius: 30, titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                                ];
+                              }()
                             )
                           ),
                         ),

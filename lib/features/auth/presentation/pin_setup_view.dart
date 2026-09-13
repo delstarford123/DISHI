@@ -48,7 +48,7 @@ class _PinSetupViewState extends State<PinSetupView> with SingleTickerProviderSt
       if (!_isConfirming) {
         if (_pin.length < 4) _pin += key;
         if (_pin.length == 4) {
-          Future.delayed(const Duration(milliseconds: 300), () {
+          Future.delayed(const Duration(milliseconds: 50), () {
             if (mounted) setState(() => _isConfirming = true);
           });
         }

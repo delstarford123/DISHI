@@ -149,7 +149,7 @@ class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProvider
         _errorMessage = "";
       });
       if (currentText.length == 4) {
-        Future.delayed(const Duration(milliseconds: 300), () {
+        Future.delayed(const Duration(milliseconds: 50), () {
           if (mounted) _submitPin();
         });
       }

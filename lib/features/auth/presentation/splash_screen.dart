@@ -21,9 +21,6 @@ class _SplashScreenState extends State<SplashScreen> {
     await precacheImage(const AssetImage('assets/img/photo_collage.png'), context);
     await precacheImage(const AssetImage('assets/img/dishi_logo.png'), context);
     
-    // Simulate backend checks or wait for minimum time
-    await Future.delayed(const Duration(seconds: 2));
-    
     widget.onInitializationComplete();
   }
 

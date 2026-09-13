@@ -35,12 +35,16 @@ class _BountiesViewState extends State<BountiesView> {
 
     setState(() => _isSaving = true);
     try {
+      final studentDoc = await FirebaseFirestore.instance.collection('users').doc(widget.selectedStudentUid).get();
+      final studentName = studentDoc.data()?['name'] ?? studentDoc.data()?['displayName'] ?? 'Student';
+
       await FirebaseFirestore.instance.collection('bounties').add({
         'parentUid': widget.parentUser['uid'],
         'studentUid': widget.selectedStudentUid,
+        'studentName': studentName,
         'task': task,
         'reward': reward,
-        'status': 'Open', // Open, PendingApproval, Completed
+        'status': 'Open', // Open, PendingApproval, Completed, Rework
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -79,6 +83,19 @@ class _BountiesViewState extends State<BountiesView> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Bounty approved! Ksh $amount transferred.'), backgroundColor: MPesaTheme.neonCyan),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> _denyBounty(String docId) async {
+    try {
+      await FirebaseFirestore.instance.collection('bounties').doc(docId).update({'status': 'Rework'});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bounty sent back for rework!'), backgroundColor: Colors.redAccent),
         );
       }
     } catch (e) {
@@ -188,7 +205,7 @@ class _BountiesViewState extends State<BountiesView> {
                       final data = doc.data() as Map<String, dynamic>;
                       final status = data['status'] ?? 'Open';
                       
-                      final studentName = 'Selected Student';
+                      final studentName = data['studentName'] ?? 'Selected Student';
 
                       return Card(
                         color: const Color(0xFF131A2A),
@@ -199,7 +216,7 @@ class _BountiesViewState extends State<BountiesView> {
                           subtitle: Text(
                             'Assignee: $studentName\nStatus: $status',
                             style: TextStyle(
-                              color: status == 'PendingApproval' ? Colors.orange : (status == 'Completed' ? Colors.green : Colors.white54),
+                              color: status == 'PendingApproval' ? Colors.orange : (status == 'Completed' ? Colors.green : (status == 'Rework' ? Colors.redAccent : Colors.white54)),
                             ),
                           ),
                           trailing: Column(
@@ -207,9 +224,19 @@ class _BountiesViewState extends State<BountiesView> {
                             children: [
                               Text('Ksh ${data['reward']}', style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold, fontSize: 16)),
                               if (status == 'PendingApproval')
-                                InkWell(
-                                  onTap: () => _approveBounty(doc.id, (data['reward'] as num).toDouble(), data['studentUid']),
-                                  child: const Text('APPROVE', style: TextStyle(color: MPesaTheme.neonCyan, fontWeight: FontWeight.bold)),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    InkWell(
+                                      onTap: () => _denyBounty(doc.id),
+                                      child: const Text('REWORK', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      onTap: () => _approveBounty(doc.id, (data['reward'] as num).toDouble(), data['studentUid']),
+                                      child: const Text('APPROVE', style: TextStyle(color: MPesaTheme.neonCyan, fontWeight: FontWeight.bold, fontSize: 12)),
+                                    ),
+                                  ],
                                 )
                             ],
                           ),
