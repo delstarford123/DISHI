@@ -11,6 +11,7 @@ import '../../fundi/presentation/fundi_dashboard_view.dart';
 import '../../../core/theme/glass_card.dart';
 import '../../../core/security/secure_storage_service.dart';
 import '../../../core/security/security_service.dart';
+import '../../../core/security/biometric_storage_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PinSetupView extends StatefulWidget {
@@ -75,6 +76,14 @@ class _PinSetupViewState extends State<PinSetupView> with SingleTickerProviderSt
       // Save PIN securely using the new Core Security engine
       final hashed = SecurityService.hashPin(_pin);
       await SecureStorageService.saveHashedPin(hashed);
+      
+      try {
+        if (await BiometricStorageService.isSupported()) {
+          await BiometricStorageService.saveBiometricKey(hashed);
+        }
+      } catch (e) {
+        debugPrint('Biometric storage not available or failed: $e');
+      }
       
       final userData = await SecureStorageService.getUserData();
       final uid = userData['userId'];

@@ -7,6 +7,7 @@ import 'pin_setup_view.dart';
 import '../../../core/security/security_service.dart';
 import '../../../core/security/auth_rate_limiter.dart';
 import '../../../core/security/secure_storage_service.dart';
+import '../../../core/security/biometric_storage_service.dart';
 
 class PinUnlockView extends StatefulWidget {
   final VoidCallback onSuccess;
@@ -69,20 +70,23 @@ class _PinUnlockViewState extends State<PinUnlockView> {
     if (_isLockedOut) return;
     
     try {
-      final bool didAuthenticate = await auth.authenticate(
-        localizedReason: 'Please authenticate to proceed',
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: true,
-        ),
-      );
+      final String? decryptedHash = await BiometricStorageService.readBiometricKey();
       
-      if (didAuthenticate) {
-        await AuthRateLimiter.resetAttempts();
-        widget.onSuccess();
+      if (decryptedHash != null) {
+        String? storedHash = await SecureStorageService.getHashedPin();
+        
+        if (storedHash == null || decryptedHash == storedHash) {
+          await AuthRateLimiter.resetAttempts();
+          if (mounted) {
+            widget.onSuccess();
+          }
+        } else {
+          setState(() => _errorMessage = "Invalid biometric payload.");
+        }
       }
+      // If null, user cancelled or failed, they can just use the PIN fallback.
     } catch (e) {
-      setState(() => _errorMessage = "Biometric authentication failed");
+      setState(() => _errorMessage = "Biometric key invalidated. Please use PIN.");
     }
   }
 
