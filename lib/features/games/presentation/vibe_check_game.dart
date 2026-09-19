@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'coins_display.dart';
 import 'dart:math';
 
 class VibeCheckGame extends StatefulWidget {
@@ -103,6 +104,7 @@ class _VibeCheckGameState extends State<VibeCheckGame> {
         title: const Text('Vibe Check', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: _bgColor,
         foregroundColor: Colors.white,
+        actions: [CoinsDisplay(uid: widget.userModel.uid)],
       ),
       body: isGameOver ? _buildGameOver() : _buildGameArea(),
     );

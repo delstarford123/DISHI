@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'coins_display.dart';
 
 class DeliveryDashGame extends StatefulWidget {
   final UserModel userModel;
@@ -197,6 +198,7 @@ class _DeliveryDashGameState extends State<DeliveryDashGame> {
         title: const Text('Delivery Dash', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: _bgColor,
         foregroundColor: Colors.white,
+        actions: [CoinsDisplay(uid: widget.userModel.uid)],
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,

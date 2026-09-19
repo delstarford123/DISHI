@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'coins_display.dart';
 
 class CampusQuizzerGame extends StatefulWidget {
   final UserModel userModel;
@@ -141,6 +142,7 @@ class _CampusQuizzerGameState extends State<CampusQuizzerGame> with SingleTicker
         backgroundColor: _bgColor,
         foregroundColor: Colors.white,
         actions: [
+          CoinsDisplay(uid: widget.userModel.uid),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Center(child: Text('Score: $score', style: TextStyle(color: _neonCyan, fontSize: 18, fontWeight: FontWeight.bold))),

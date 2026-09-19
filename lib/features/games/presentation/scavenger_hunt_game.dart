@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'coins_display.dart';
 import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
 import 'package:http/http.dart' as http;
@@ -107,6 +108,7 @@ class _ScavengerHuntGameState extends State<ScavengerHuntGame> {
         title: const Text('Campus Scavenger Hunt', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: _bgColor,
         foregroundColor: Colors.white,
+        actions: [CoinsDisplay(uid: widget.userModel.uid)],
       ),
       body: isGameOver ? _buildGameOver() : _buildHunt(),
     );

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'coins_display.dart';
 
 class DailySpinGame extends StatefulWidget {
   final UserModel userModel;
@@ -143,6 +144,7 @@ class _DailySpinGameState extends State<DailySpinGame> with SingleTickerProvider
         title: const Text('Daily Spin', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: _bgColor,
         foregroundColor: Colors.white,
+        actions: [CoinsDisplay(uid: widget.userModel.uid)],
       ),
       body: Center(
         child: Column(

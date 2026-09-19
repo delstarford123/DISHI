@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'coins_display.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 enum Direction { up, down, left, right }
@@ -204,6 +205,7 @@ class _HungryFresherGameState extends State<HungryFresherGame> {
         backgroundColor: _bgColor,
         foregroundColor: Colors.white,
         actions: [
+          CoinsDisplay(uid: widget.userModel.uid),
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0),
@@ -217,18 +219,21 @@ class _HungryFresherGameState extends State<HungryFresherGame> {
           Expanded(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onVerticalDragUpdate: (details) {
-                if (direction != Direction.up && details.delta.dy > 0) {
-                  direction = Direction.down;
-                } else if (direction != Direction.down && details.delta.dy < 0) {
-                  direction = Direction.up;
-                }
-              },
-              onHorizontalDragUpdate: (details) {
-                if (direction != Direction.left && details.delta.dx > 0) {
-                  direction = Direction.right;
-                } else if (direction != Direction.right && details.delta.dx < 0) {
-                  direction = Direction.left;
+              onPanUpdate: (details) {
+                if (details.delta.dx.abs() > details.delta.dy.abs()) {
+                  // Horizontal swipe
+                  if (details.delta.dx > 0 && direction != Direction.left) {
+                    direction = Direction.right;
+                  } else if (details.delta.dx < 0 && direction != Direction.right) {
+                    direction = Direction.left;
+                  }
+                } else {
+                  // Vertical swipe
+                  if (details.delta.dy > 0 && direction != Direction.up) {
+                    direction = Direction.down;
+                  } else if (details.delta.dy < 0 && direction != Direction.down) {
+                    direction = Direction.up;
+                  }
                 }
               },
               child: GridView.builder(
