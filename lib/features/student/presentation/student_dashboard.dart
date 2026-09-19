@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/presentation/profile_hub_sheet.dart';
 import 'package:swapeat/features/student/presentation/gift_meal_dialog.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -19,6 +20,8 @@ import 'virtual_card_view.dart';
 import 'student_profile_settings.dart';
 import '../../../shared/presentation/universal_support_widget.dart';
 import '../../../core/services/fcm_service.dart';
+import '../../../core/services/location_service.dart';
+import 'campus_map_view.dart';
 
 import 'dart:convert';
 import 'dart:async';
@@ -52,7 +55,8 @@ class StudentDashboardView extends StatefulWidget {
   State<StudentDashboardView> createState() => _StudentDashboardViewState();
 }
 
-class _StudentDashboardViewState extends State<StudentDashboardView> {
+class _StudentDashboardViewState extends State<StudentDashboardView>
+    with SingleTickerProviderStateMixin {
   final FirestoreService _firestoreService = FirestoreService();
   bool _isDriverMode = false;
   final PageController _balancePageController = PageController();
@@ -68,6 +72,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
   }
   
   bool _isBalanceVisible = false;
+  bool _sosActive = false;
+  bool _isBroadcasting = false;
+  String? _activeSosAlertId; // Firestore doc ID for the current active SOS alert
+  late AnimationController _sosPulseController;
   late Stream<DocumentSnapshot> _userProfileStream;
 
   String _getGreeting() {
@@ -87,6 +95,12 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
     
     // Initialize FCM
     FCMService.initialize();
+
+    // SOS animation controller
+    _sosPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
   }
 
   List<String> _featureOrder = ['Fundi Juaji Market', 'Find Your Match', 'Study Companion', 'Keja Yangu'];
@@ -111,7 +125,101 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
   @override
   void dispose() {
     _balancePageController.dispose();
+    _sosPulseController.dispose();
+    // Stop broadcasting if the student leaves the dashboard
+    final uid = widget.user['uid'] as String?;
+    if (_isBroadcasting && uid != null) {
+      LocationService.stopBroadcasting(studentUid: uid);
+    }
     super.dispose();
+  }
+
+  Future<void> _activateSOS(String uid) async {
+    setState(() {
+      _sosActive = true;
+      _isBroadcasting = true;
+    });
+    _sosPulseController.repeat(reverse: true);
+
+    // High-frequency SOS broadcast
+    await LocationService.startBroadcasting(uid, sosMode: true);
+
+    // Mark SOS in Firestore (immediate, even before backend call)
+    await FirebaseFirestore.instance.collection('users').doc(uid).set(
+      {'sosActive': true, 'shareLocationWithParents': true},
+      SetOptions(merge: true),
+    );
+
+    // Get current display name for the notification
+    final userSnap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final studentName = userSnap.data()?['displayName'] as String? ?? 'Your Student';
+
+    // Get current GPS location for the SOS payload
+    double? lat;
+    double? lng;
+    try {
+      final pos = await LocationService.getCurrentLocation();
+      lat = pos.latitude;
+      lng = pos.longitude;
+    } catch (_) {}
+
+    // Notify parents via backend → FCM
+    final alertId = await FCMService.sendSOSToParents(
+      studentUid:  uid,
+      studentName: studentName,
+      lat:         lat,
+      lng:         lng,
+    );
+    if (alertId != null) {
+      setState(() => _activeSosAlertId = alertId);
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFF92B60),
+          content: Text(
+            '🚨 SOS ACTIVE — Parents are being notified and your location is live.',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          duration: Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
+  Future<void> _deactivateSOS(String uid) async {
+    setState(() {
+      _sosActive = false;
+      _isBroadcasting = false;
+    });
+    _sosPulseController.stop();
+    _sosPulseController.reset();
+    await LocationService.stopBroadcasting(studentUid: uid);
+    await FirebaseFirestore.instance.collection('users').doc(uid).set(
+      {'sosActive': false},
+      SetOptions(merge: true),
+    );
+
+    // Notify parents that SOS is resolved
+    final userSnap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final studentName = userSnap.data()?['displayName'] as String? ?? 'Your Student';
+    await FCMService.sendSOSResolved(
+      studentUid:  uid,
+      studentName: studentName,
+      alertId:     _activeSosAlertId,
+    );
+    setState(() => _activeSosAlertId = null);
+  }
+
+  Future<void> _toggleBroadcast(String uid) async {
+    if (_isBroadcasting) {
+      setState(() => _isBroadcasting = false);
+      await LocationService.stopBroadcasting(studentUid: uid);
+    } else {
+      setState(() => _isBroadcasting = true);
+      await LocationService.startBroadcasting(uid);
+    }
   }
 
   @override
@@ -175,6 +283,8 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                           const SizedBox(height: 32),
                           _buildQuickActions(userModel),
                           const SizedBox(height: 24),
+                          _buildSafetyCard(userModel),
+                          const SizedBox(height: 16),
                           _buildDishiIdCard(userModel),
                           const SizedBox(height: 16),
                           UniversalSupportWidget(userId: userModel.uid, userRole: 'student'),
@@ -183,11 +293,12 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                     ),
                   ],
                 ),
-                // Context-Aware Floating Action Button
+                // Existing context-aware FAB
                 Positioned(
                   bottom: 24,
                   right: 24,
                   child: FloatingActionButton.extended(
+                    heroTag: 'student_main_fab',
                     onPressed: () {
                       final hour = DateTime.now().hour;
                       if (hour >= 11 && hour <= 14) {
@@ -206,7 +317,36 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
                       style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)
                     ),
                   ),
-                )
+                ),
+
+
+                // Location broadcast indicator
+                if (_isBroadcasting && !_sosActive)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      color: const Color(0xFF05D5AA).withOpacity(0.1),
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.location_on, color: Color(0xFF05D5AA), size: 14),
+                          SizedBox(width: 6),
+                          Text(
+                            'Location broadcasting — Parents can see you',
+                            style: TextStyle(
+                              color: Color(0xFF05D5AA),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
               ],
             );
           },
@@ -261,7 +401,14 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
           Stack(
             children: [
               GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentProfileSettings(userModel: userModel))),
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => ProfileHubSheet(user: widget.user),
+                  );
+                },
                 child: CircleAvatar(
                   radius: 20,
                   backgroundColor: _neonCyan,
@@ -1070,6 +1217,208 @@ class _StudentDashboardViewState extends State<StudentDashboardView> {
           height: 120,
           child: PageView(
             children: pages,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// A compact Safety card containing the safe-walk status chip and the SOS
+  /// panic button — both grouped under a single labelled section so the top
+  /// app bar area stays clean.
+  Widget _buildSafetyCard(UserModel userModel) {
+    final bool isNight = DateTime.now().hour >= 18 || DateTime.now().hour < 6;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.shield_outlined, color: _neonPink, size: 20),
+            SizedBox(width: 8),
+            Text('Safety', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _neonPink.withOpacity(0.25), width: 1.5),
+            boxShadow: [
+              BoxShadow(color: _neonPink.withOpacity(0.06), blurRadius: 16, spreadRadius: 2)
+            ],
+          ),
+          child: Column(
+            children: [
+              // ── Safe-Walk row ──────────────────────────────────────
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+                    ),
+                    child: const Icon(Icons.nightlight_round, color: Color(0xFF10B981), size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isNight ? 'Night Mode · Active' : 'Safe-Walk Mode',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        Text(
+                          isNight
+                              ? 'Safe-walk corridor active · Follow green path'
+                              : 'Activates after 6 PM — stays on till 6 AM',
+                          style: TextStyle(
+                            color: isNight ? const Color(0xFF10B981) : _textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CampusMapView(studentUid: userModel.uid),
+                      ),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.map_outlined, color: Color(0xFF10B981), size: 14),
+                          SizedBox(width: 4),
+                          Text('Map', style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const Divider(color: Colors.white10, height: 28),
+
+              // ── SOS row ────────────────────────────────────────────
+              Row(
+                children: [
+                  AnimatedBuilder(
+                    animation: _sosActive ? _sosPulseController : kAlwaysCompleteAnimation,
+                    builder: (_, __) {
+                      final scale = _sosActive ? 1.0 + 0.12 * _sosPulseController.value : 1.0;
+                      return Transform.scale(
+                        scale: scale,
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: _sosActive ? _neonPink : _neonPink.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: _neonPink, width: 1.5),
+                            boxShadow: _sosActive
+                                ? [BoxShadow(color: _neonPink.withOpacity(0.5), blurRadius: 16, spreadRadius: 3)]
+                                : [],
+                          ),
+                          child: Icon(Icons.emergency, color: _sosActive ? Colors.white : _neonPink, size: 22),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _sosActive ? '🚨 SOS ACTIVE' : 'Emergency SOS',
+                          style: TextStyle(
+                            color: _sosActive ? _neonPink : Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          _sosActive
+                              ? 'Broadcasting live location to parents'
+                              : 'Hold button for 2 seconds to activate',
+                          style: const TextStyle(color: _textSecondary, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onLongPress: () {
+                      final uid = userModel.uid;
+                      if (_sosActive) {
+                        _deactivateSOS(uid);
+                      } else {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            backgroundColor: _cardColor,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            title: const Row(
+                              children: [
+                                Icon(Icons.warning_amber, color: _neonPink, size: 28),
+                                SizedBox(width: 8),
+                                Text('Activate SOS?', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                            content: const Text(
+                              'This will override all privacy settings and broadcast your live location to all linked parents immediately.',
+                              style: TextStyle(color: _textSecondary),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('Cancel', style: TextStyle(color: _textSecondary)),
+                              ),
+                              ElevatedButton(
+                                onPressed: () { Navigator.pop(ctx); _activateSOS(uid); },
+                                style: ElevatedButton.styleFrom(backgroundColor: _neonPink, foregroundColor: Colors.white),
+                                child: const Text('ACTIVATE SOS'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _sosActive ? _neonPink : Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: _neonPink, width: 2),
+                      ),
+                      child: Text(
+                        _sosActive ? 'DEACTIVATE' : 'HOLD · SOS',
+                        style: TextStyle(
+                          color: _sosActive ? Colors.white : _neonPink,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ],

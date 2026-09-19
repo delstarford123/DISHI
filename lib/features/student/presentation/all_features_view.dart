@@ -28,6 +28,9 @@ import '../../marketplace/presentation/swipe_exchange_view.dart';
 import '../../community/presentation/ar_campus_map_view.dart';
 import 'safter_pin_view.dart';
 import 'campus_employment_hub.dart';
+import 'campus_map_view.dart';
+import 'nearby_services_map_view.dart';
+import '../../match/presentation/meetup_share_view.dart';
 class AllFeaturesView extends StatelessWidget {
   final UserModel userModel;
 
@@ -102,6 +105,13 @@ class AllFeaturesView extends StatelessWidget {
           _buildStickyHeader('Advanced Tech'),
           _buildSliverGrid([
             _FeatureItem(icon: Icons.view_in_ar, label: 'AR Campus Map', color: Colors.greenAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ArCampusMapView()))),
+          ], cardColor),
+
+          _buildStickyHeader('Location \u0026 Maps'),
+          _buildSliverGrid([
+            _FeatureItem(icon: Icons.map, label: 'Campus Navigator', color: const Color(0xFF05D5AA), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CampusMapView(studentUid: userModel.uid)))),
+            _FeatureItem(icon: Icons.store_mall_directory, label: 'Nearby Services', color: const Color(0xFFFF6F00), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NearbyServicesMapView(studentUid: userModel.uid)))),
+            _FeatureItem(icon: Icons.share_location, label: 'Meet Up Share', color: const Color(0xFF3B82F6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MeetupShareView(studentUid: userModel.uid, studentName: userModel.displayName)))),
           ], cardColor),
 
           _buildStickyHeader('Family & Safety'),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import 'offline_child_qr_view.dart';
 import '../../student/presentation/virtual_card_view.dart';
@@ -33,12 +36,14 @@ import 'tuition_payments_view.dart';
 import 'savings_target_view.dart';
 import 'graduation_fund_view.dart';
 import 'subscription_manager_view.dart';
+import 'parent_live_tracking_view.dart';
 
 import 'tabs/growth_tab_view.dart';
 import '../presentation/tabs/community_tab_view.dart';
 import '../presentation/tabs/settings_tab_view.dart';
 import '../../../shared/presentation/universal_support_widget.dart';
 import 'parent_profile_settings.dart';
+import '../../../core/services/fcm_service.dart';
 
 // -- CUSTOM DESIGN COLORS --
 const Color _bgColor = Color(0xFF0C101B);
@@ -65,11 +70,53 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
   List<Map<String, dynamic>> _linkedStudents = [];
   int _selectedIndex = 0;
   String? _globalSelectedStudentUid;
+  int _unresolvedSosCount = 0; // Live count of unresolved SOS alerts
+  StreamSubscription<QuerySnapshot>? _sosStreamSub;
 
   @override
   void initState() {
     super.initState();
     _fetchParentData();
+
+    // Initialize FCM so this parent gets push notifications
+    FCMService.initialize();
+
+    // Handle notification taps — if it's an SOS alert, jump to SOS Alerts screen
+    FCMService.onNotificationTap = (message) {
+      final type = message.data['type'] as String? ?? '';
+      if ((type == 'sos_alert' || type == 'sos_resolved') && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EmergencyAlertsView(
+              parentUser: widget.user,
+              selectedStudentUid: _globalSelectedStudentUid,
+            ),
+          ),
+        );
+      }
+    };
+
+    // Start listening for unresolved SOS alerts for this parent
+    final parentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (parentUid != null) {
+      _sosStreamSub = FirebaseFirestore.instance
+          .collection('safety_alerts')
+          .where('parentUids', arrayContains: parentUid)
+          .where('status', isEqualTo: 'Unresolved')
+          .snapshots()
+          .listen((snap) {
+        if (mounted) {
+          setState(() => _unresolvedSosCount = snap.docs.length);
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _sosStreamSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchParentData() async {
@@ -449,6 +496,11 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
           padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 80.0),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
+              // —— SOS Banner (only when there are unresolved alerts) ———————————————
+              if (_unresolvedSosCount > 0)
+                _buildSosBanner(),
+              if (_unresolvedSosCount > 0)
+                const SizedBox(height: 16),
               // High Level Overview
               Container(
                 padding: const EdgeInsets.all(20),
@@ -509,11 +561,11 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                 mainAxisSpacing: 16,
                 children: [
                   _buildActionGridButton(Icons.security, 'Kill Switch', _neonPink, _showKillSwitchDialog),
-                  _buildActionGridButton(Icons.warning_amber_rounded, 'SOS Alerts', MPesaTheme.primaryRed, _showEmergencyAlerts),
+                  _buildActionGridButton(Icons.warning_amber_rounded, 'SOS Alerts', MPesaTheme.primaryRed, _showEmergencyAlerts, badge: _unresolvedSosCount),
                   _buildActionGridButton(Icons.gavel, 'Disputes', _neonPink, _showDisputes),
                   _buildActionGridButton(Icons.group_add, 'Co-Parent', _neonBlue, _showCoParenting),
                   _buildActionGridButton(Icons.handshake, 'Savings Match', _neonCyan, _showSavingsMatcher),
-                  _buildActionGridButton(Icons.timeline, 'Live Tracker', Colors.orangeAccent, _showGeofenceAlerts),
+                  _buildActionGridButton(Icons.timeline, 'Live Tracker', Colors.orangeAccent, _showLiveTracking),
                 ],
               ),
               const SizedBox(height: 32),
@@ -1025,6 +1077,8 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
     final pinController = TextEditingController();
     bool isCreating = false;
     bool obscurePin = true;
+    File? selectedImage;
+    final ImagePicker picker = ImagePicker();
 
     showDialog(
       context: context,
@@ -1038,6 +1092,25 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
               children: [
                 const Text('Create a DISHI profile for a child in primary or secondary school without a phone. They will get a QR code and PIN to use at school.', style: TextStyle(color: _textSecondary, fontSize: 13)),
                 const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () async {
+                    try {
+                      final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+                      if (image != null) {
+                        setState(() => selectedImage = File(image.path));
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
+                    }
+                  },
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundColor: _neonBlue.withOpacity(0.2),
+                    backgroundImage: selectedImage != null ? FileImage(selectedImage!) : null,
+                    child: selectedImage == null ? const Icon(Icons.add_a_photo, color: _neonBlue, size: 30) : null,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: nameController,
                   style: const TextStyle(color: Colors.white),
@@ -1119,6 +1192,15 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                   final newUid = const Uuid().v4();
                   final shortId = newUid.substring(0, 7).toUpperCase();
 
+                  String? profileImageUrl;
+                  if (selectedImage != null) {
+                    final fileName = 'profile_${newUid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                    final storageRef = FirebaseStorage.instance.ref().child('profile_images').child(fileName);
+                    final uploadTask = storageRef.putFile(selectedImage!);
+                    final snapshot = await uploadTask;
+                    profileImageUrl = await snapshot.ref.getDownloadURL();
+                  }
+
                   await FirebaseFirestore.instance.collection('users').doc(newUid).set({
                     'displayName': name,
                     'roles': ['student'],
@@ -1131,6 +1213,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                     'dishiId': shortId,
                     'walletBalance': 0.0,
                     'createdAt': FieldValue.serverTimestamp(),
+                    if (profileImageUrl != null) 'profileImageUrl': profileImageUrl,
                   });
 
                   await FirebaseFirestore.instance.collection('users').doc(parentUid).update({
@@ -1159,30 +1242,113 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
     );
   }
 
-  Widget _buildActionGridButton(IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _buildActionGridButton(IconData icon, String label, Color color, VoidCallback onTap, {int badge = 0}) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: _cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 32),
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: badge > 0 ? color.withOpacity(0.08) : _cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: badge > 0 ? color : color.withOpacity(0.3), width: badge > 0 ? 1.5 : 1),
+              boxShadow: badge > 0 ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 12, spreadRadius: 1)] : [],
             ),
-            const SizedBox(height: 12),
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-          ],
-        ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 32),
+                ),
+                const SizedBox(height: 12),
+                Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          if (badge > 0)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    badge > 9 ? '9+' : badge.toString(),
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSosBanner() {
+    return GestureDetector(
+      onTap: _showEmergencyAlerts,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.7, end: 1.0),
+        duration: const Duration(milliseconds: 900),
+        curve: Curves.easeInOut,
+        onEnd: () => setState(() {}), // Rebuild to restart animation
+        builder: (context, value, child) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [const Color(0xFF8B0000).withOpacity(0.9), const Color(0xFFF92B60).withOpacity(0.85 * value)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFF92B60), width: 1.5),
+              boxShadow: [
+                BoxShadow(color: const Color(0xFFF92B60).withOpacity(0.4 * value), blurRadius: 16, spreadRadius: 2)
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.emergency, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '🚨 SOS ALERT— $_unresolvedSosCount ${_unresolvedSosCount == 1 ? 'student needs' : 'students need'} help!',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Tap to view location and acknowledge',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: Colors.white),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -1400,6 +1566,32 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
         builder: (context) => GeofenceAlertsView(
           parentUser: widget.user,
           selectedStudentUid: _globalSelectedStudentUid,
+        ),
+      ),
+    );
+  }
+
+  void _showLiveTracking() {
+    if (_globalSelectedStudentUid == null || _linkedStudents.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a student in the Dependents tab first.'),
+          backgroundColor: Color(0xFFFF6F00),
+        ),
+      );
+      return;
+    }
+    final student = _linkedStudents.firstWhere(
+      (s) => s['uid'] == _globalSelectedStudentUid,
+      orElse: () => _linkedStudents.first,
+    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ParentLiveTrackingView(
+          studentUid: _globalSelectedStudentUid!,
+          studentName: student['name'] as String? ?? 'Student',
+          homeZone: widget.user['homeZone'] as Map<String, dynamic>?,
         ),
       ),
     );

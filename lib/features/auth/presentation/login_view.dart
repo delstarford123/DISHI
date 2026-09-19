@@ -116,9 +116,14 @@ class _LoginViewState extends State<LoginView> {
         return;
       }
       final data = doc.data() as Map<String, dynamic>;
-      final roles = data['roles'] as List<dynamic>? ?? [];
-      final primaryRole = roles.isNotEmpty ? roles.first.toString() : 'student';
-      final name = data['name'] as String?;
+      // Support both 'roles' (list) and 'role' (singular string) — admin doc may use either
+      final rolesList = data['roles'] as List<dynamic>? ?? [];
+      final roleSingular = data['role'] as String? ?? '';
+      final primaryRole = rolesList.isNotEmpty
+          ? rolesList.first.toString()
+          : (roleSingular.isNotEmpty ? roleSingular : 'student');
+      final name = data['displayName'] as String? ?? data['name'] as String?;
+
       final email = data['email'] as String?;
       final phone = data['phoneNumber'] as String?;
 

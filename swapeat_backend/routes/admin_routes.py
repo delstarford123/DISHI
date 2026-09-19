@@ -603,6 +603,43 @@ def system_overview():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@admin_bp.route('/analytics/dashboard_stats', methods=['GET'])
+def dashboard_stats():
+    admin_id = verify_admin(request)
+    if not admin_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        db = firestore.client()
+        # Use aggregation queries for performance
+        users_count = db.collection('users').count().get()[0][0].value
+        vendors_count = db.collection('users').where('role', '==', 'vendor').count().get()[0][0].value
+        float_sum = db.collection('users').aggregate(firestore.Sum('walletBalance')).get()[0][0].value
+        return jsonify({
+            'usersCount': users_count,
+            'vendorsCount': vendors_count,
+            'floatSum': float_sum,
+            'flaggedTransactions': 0
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/users/all', methods=['GET'])
+def get_all_users():
+    admin_id = verify_admin(request)
+    if not admin_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        db = firestore.client()
+        docs = db.collection('users').get()
+        users = []
+        for d in docs:
+            user_data = d.to_dict()
+            user_data['uid'] = d.id
+            users.append(user_data)
+        return jsonify({'users': users}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @admin_bp.route('/housing/pending', methods=['GET'])
 def get_pending_housing():
     admin_id = verify_admin(request)
@@ -1126,3 +1163,4 @@ def notify_delivery_party():
         return jsonify({'message': 'Notification sent successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+

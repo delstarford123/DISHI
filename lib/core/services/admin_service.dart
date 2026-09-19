@@ -20,7 +20,7 @@ class AdminService {
 
   Future<void> suspendUser(String userId, String reason) async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/users/$userId/suspend');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/$userId/suspend');
     final response = await http.post(
       url,
       headers: headers,
@@ -34,7 +34,7 @@ class AdminService {
 
   Future<void> deleteUser(String userId) async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/users/$userId/delete');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/$userId/delete');
     final response = await http.delete(
       url,
       headers: headers,
@@ -47,7 +47,7 @@ class AdminService {
 
   Future<void> overrideEvent(String eventId, bool makeFree) async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/events/$eventId/override');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/events/$eventId/override');
     final response = await http.post(
       url,
       headers: headers,
@@ -61,7 +61,7 @@ class AdminService {
 
   Future<void> toggleMaintenanceMode(bool enable) async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/platform/maintenance');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/platform/maintenance');
     final response = await http.post(
       url,
       headers: headers,
@@ -75,7 +75,7 @@ class AdminService {
 
   Future<String> impersonateUser(String userId) async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/users/$userId/impersonate');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/$userId/impersonate');
     final response = await http.post(
       url,
       headers: headers,
@@ -91,7 +91,7 @@ class AdminService {
 
   Future<void> resolveDispute(String disputeId, String action) async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/disputes/$disputeId/resolve');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/disputes/$disputeId/resolve');
     final response = await http.post(
       url,
       headers: headers,
@@ -105,7 +105,7 @@ class AdminService {
 
   Future<double> getCommissionRate() async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/settings/commission');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/settings/commission');
     final response = await http.get(url, headers: headers);
     
     if (response.statusCode != 200) {
@@ -117,7 +117,7 @@ class AdminService {
 
   Future<void> updateCommissionRate(double rate) async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/settings/commission');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/settings/commission');
     final response = await http.post(
       url,
       headers: headers,
@@ -131,7 +131,7 @@ class AdminService {
 
   Future<void> forceHarambeeAction(String campaignId, String action) async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/harambee/$campaignId/force_action');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/harambee/$campaignId/force_action');
     final response = await http.post(
       url,
       headers: headers,
@@ -145,7 +145,7 @@ class AdminService {
 
   Future<void> triggerManualPayout() async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/payouts/force_trigger');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/payouts/force_trigger');
     final response = await http.post(url, headers: headers);
     
     if (response.statusCode != 200) {
@@ -155,7 +155,7 @@ class AdminService {
 
   Future<List<dynamic>> getFraudFlags() async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/fraud_flags');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/fraud_flags');
     final response = await http.get(url, headers: headers);
     
     if (response.statusCode != 200) {
@@ -168,7 +168,7 @@ class AdminService {
 
   Future<List<dynamic>> getAuditLogs() async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/audit_logs');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/audit_logs');
     final response = await http.get(url, headers: headers);
     
     if (response.statusCode != 200) {
@@ -181,7 +181,7 @@ class AdminService {
 
   Future<Map<String, dynamic>> getSystemAnalytics() async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/analytics/system_overview');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/analytics/system_overview');
     final response = await http.get(url, headers: headers);
     
     if (response.statusCode != 200) {
@@ -192,7 +192,7 @@ class AdminService {
 
   Future<List<dynamic>> getPendingHousing() async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/housing/pending');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/housing/pending');
     final response = await http.get(url, headers: headers);
     
     if (response.statusCode != 200) {
@@ -204,21 +204,21 @@ class AdminService {
 
   Future<void> approveHousing(String propertyId) async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/housing/$propertyId/approve');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/housing/$propertyId/approve');
     final response = await http.post(url, headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
   Future<void> rejectHousing(String propertyId) async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/housing/$propertyId/reject');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/housing/$propertyId/reject');
     final response = await http.post(url, headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
   Future<void> sendBroadcastNotification(String title, String message, {String? targetUserId}) async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/notifications/broadcast');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/notifications/broadcast');
     
     final body = jsonEncode({
       'title': title,
@@ -234,7 +234,7 @@ class AdminService {
 
   Future<void> approveAllHousing() async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/housing/approve_all');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/housing/approve_all');
     final response = await http.post(url, headers: headers);
     if (response.statusCode != 200) {
       throw Exception('Failed to bulk approve housing: ${response.body}');
@@ -243,7 +243,7 @@ class AdminService {
 
   Future<List<dynamic>> getRichTransactions() async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/transactions/rich');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/transactions/rich');
     final response = await http.get(url, headers: headers);
     
     if (response.statusCode != 200) {
@@ -261,20 +261,20 @@ class AdminService {
   // 1. Financial Ops
   Future<List<dynamic>> getFailedPayouts() async {
     final headers = await _getHeaders();
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/payouts/failed'), headers: headers);
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/payouts/failed'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
     return jsonDecode(response.body)['payouts'];
   }
 
   Future<void> retryFailedPayout(String txId) async {
     final headers = await _getHeaders();
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/payouts/retry/$txId'), headers: headers);
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/payouts/retry/$txId'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
   Future<Map<String, dynamic>> getEscrowSummary() async {
     final headers = await _getHeaders();
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/escrow/summary'), headers: headers);
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/escrow/summary'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
     return jsonDecode(response.body);
   }
@@ -282,68 +282,68 @@ class AdminService {
   // 2. Helpdesk
   Future<List<dynamic>> getActiveTickets() async {
     final headers = await _getHeaders();
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/tickets/active'), headers: headers);
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/tickets/active'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
     return jsonDecode(response.body)['tickets'];
   }
 
   Future<void> closeTicket(String ticketId, String resolution) async {
     final headers = await _getHeaders();
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/tickets/$ticketId/close'), headers: headers, body: jsonEncode({'resolution': resolution}));
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/tickets/$ticketId/close'), headers: headers, body: jsonEncode({'resolution': resolution}));
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
   Future<void> refundGigTicket(String requestId) async {
     final headers = await _getHeaders();
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/tickets/gig/refund'), headers: headers, body: jsonEncode({'request_id': requestId}));
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/tickets/gig/refund'), headers: headers, body: jsonEncode({'request_id': requestId}));
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
   Future<void> suspendGigWorker(String workerId) async {
     final headers = await _getHeaders();
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/tickets/gig/suspend_worker'), headers: headers, body: jsonEncode({'worker_id': workerId}));
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/tickets/gig/suspend_worker'), headers: headers, body: jsonEncode({'worker_id': workerId}));
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
   // 3. Moderation
   Future<List<dynamic>> getModerationIncidents() async {
     final headers = await _getHeaders();
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/moderation/incidents'), headers: headers);
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/moderation/incidents'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
     return jsonDecode(response.body)['incidents'];
   }
 
   Future<void> resolveIncident(String incidentId, String action) async {
     final headers = await _getHeaders();
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/moderation/action'), headers: headers, body: jsonEncode({'incident_id': incidentId, 'action': action}));
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/moderation/action'), headers: headers, body: jsonEncode({'incident_id': incidentId, 'action': action}));
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
   // 4. Config & Feature Flags
   Future<Map<String, dynamic>> getSystemConfig() async {
     final headers = await _getHeaders();
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/config'), headers: headers);
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/config'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
     return jsonDecode(response.body)['feature_flags'];
   }
 
   Future<void> toggleConfig(String flagId, bool enabled) async {
     final headers = await _getHeaders();
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/config/toggle'), headers: headers, body: jsonEncode({'flag_id': flagId, 'enabled': enabled}));
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/config/toggle'), headers: headers, body: jsonEncode({'flag_id': flagId, 'enabled': enabled}));
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
   // 5. Onboarding
   Future<List<dynamic>> getPendingOnboarding() async {
     final headers = await _getHeaders();
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/onboarding/pending'), headers: headers);
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/onboarding/pending'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
     return jsonDecode(response.body)['onboarding'];
   }
 
   Future<void> approveOnboarding(String userType, String userId) async {
     final headers = await _getHeaders();
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/onboarding/$userType/$userId/approve'), headers: headers);
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/onboarding/$userType/$userId/approve'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
@@ -354,26 +354,26 @@ class AdminService {
   // A. Delivery Security
   Future<List<dynamic>> getDeliveryDrivers() async {
     final headers = await _getHeaders();
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/delivery/drivers'), headers: headers);
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/delivery/drivers'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
     return jsonDecode(response.body)['drivers'];
   }
 
   Future<void> verifyDriver(String userId) async {
     final headers = await _getHeaders();
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/delivery/driver/$userId/verify'), headers: headers);
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/delivery/driver/$userId/verify'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
   Future<void> suspendDriver(String userId) async {
     final headers = await _getHeaders();
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/delivery/driver/$userId/suspend'), headers: headers);
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/delivery/driver/$userId/suspend'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
   Future<List<dynamic>> getActiveRides() async {
     final headers = await _getHeaders();
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/delivery/active_rides'), headers: headers);
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/delivery/active_rides'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
     return jsonDecode(response.body)['rides'];
   }
@@ -385,7 +385,7 @@ class AdminService {
     // Using current user's uid as admin_id query param
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not logged in');
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/emergency/sos?admin_id=${user.uid}'), headers: headers);
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v5/admin/emergency/sos?admin_id=${user.uid}'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
     return jsonDecode(response.body)['alerts'];
   }
@@ -395,7 +395,7 @@ class AdminService {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not logged in');
     final body = jsonEncode({'admin_id': user.uid, 'alert_id': alertId});
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/emergency/dispatch_security'), headers: headers, body: body);
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v5/admin/emergency/dispatch_security'), headers: headers, body: body);
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
@@ -404,7 +404,7 @@ class AdminService {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not logged in');
     final body = jsonEncode({'admin_id': user.uid, 'alert_id': alertId});
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/emergency/dispatch_driver'), headers: headers, body: body);
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v5/admin/emergency/dispatch_driver'), headers: headers, body: body);
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
@@ -413,14 +413,14 @@ class AdminService {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not logged in');
     final body = jsonEncode({'admin_id': user.uid, 'target_uid': targetUid});
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/emergency/safe_house'), headers: headers, body: body);
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v5/admin/emergency/safe_house'), headers: headers, body: body);
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
   // C. Manual Dispatch
   Future<List<dynamic>> getOnlineDrivers() async {
     final headers = await _getHeaders();
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/delivery/online_drivers'), headers: headers);
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/delivery/online_drivers'), headers: headers);
     if (response.statusCode != 200) throw Exception(response.body);
     return jsonDecode(response.body)['drivers'];
   }
@@ -428,14 +428,29 @@ class AdminService {
   Future<void> manualDispatchDelivery(String requestId, String driverId) async {
     final headers = await _getHeaders();
     final body = jsonEncode({'request_id': requestId, 'driver_id': driverId});
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/delivery/manual_dispatch'), headers: headers, body: body);
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/delivery/manual_dispatch'), headers: headers, body: body);
     if (response.statusCode != 200) throw Exception(response.body);
   }
 
   Future<void> notifyDeliveryParty(String targetId, String title, String message) async {
     final headers = await _getHeaders();
     final body = jsonEncode({'target_id': targetId, 'title': title, 'message': message});
-    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/delivery/notify_party'), headers: headers, body: body);
+    final response = await http.post(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/delivery/notify_party'), headers: headers, body: body);
     if (response.statusCode != 200) throw Exception(response.body);
+  }
+
+  // D. General Admin Dashboard Stats
+  Future<Map<String, dynamic>> getSystemOverview() async {
+    final headers = await _getHeaders();
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/analytics/dashboard_stats'), headers: headers);
+    if (response.statusCode != 200) throw Exception(response.body);
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getAllUsers() async {
+    final headers = await _getHeaders();
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/all'), headers: headers);
+    if (response.statusCode != 200) throw Exception(response.body);
+    return jsonDecode(response.body)['users'];
   }
 }

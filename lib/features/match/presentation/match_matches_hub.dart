@@ -47,7 +47,8 @@ class _MatchMatchesHubState extends State<MatchMatchesHub> {
              final email = (user['email'] as String?)?.toLowerCase() ?? '';
              final roles = user['roles'] as List<dynamic>? ?? [];
              final isTestAccount = user['isTestAccount'] == true || email.contains('test') || roles.contains('test');
-             return user['id'] != _currentUid && !isTestAccount;
+             final isOffline = user['isOffline'] == true;
+             return user['id'] != _currentUid && !isTestAccount && !isOffline;
           })
           .toList();
 
@@ -207,7 +208,7 @@ class _MatchMatchesHubState extends State<MatchMatchesHub> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text((user['displayName'] ?? 'Student').split(' ')[0], style: const TextStyle(color: Colors.white, fontSize: 12)),
+                      Text((user['displayName'] ?? user['name'] ?? 'Student').split(' ')[0], style: const TextStyle(color: Colors.white, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -221,7 +222,7 @@ class _MatchMatchesHubState extends State<MatchMatchesHub> {
   }
 
   Widget _buildChatTile(Map<String, dynamic> user) {
-    String name = user['displayName'] ?? 'Student';
+    String name = user['displayName'] ?? user['name'] ?? 'Student';
     String? avatar = user['profileImageUrl'];
     
     return ListTile(

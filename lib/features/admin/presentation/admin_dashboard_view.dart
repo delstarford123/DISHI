@@ -1,3 +1,5 @@
+import '../../../main.dart';
+import '../../../core/security/secure_storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -54,16 +56,14 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
 
   Future<void> _fetchAdminStats() async {
     try {
-      final usersCount = await _firestoreService.getCollectionCount('users', whereField: 'role', isEqualTo: 'student');
-      final vendorsCount = await _firestoreService.getCollectionCount('users', whereField: 'role', isEqualTo: 'vendor');
-      final floatSum = await _firestoreService.getCollectionSum('users', 'walletBalance');
+      final stats = await AdminService().getSystemOverview();
       
       if (mounted) {
         setState(() {
-          _activeUsers = usersCount;
-          _activeVendors = vendorsCount;
-          _systemFloat = floatSum;
-          _flaggedTransactions = 0; // Keeping 0 for now until fraud logic is live
+          _activeUsers = stats['usersCount'] ?? 0;
+          _activeVendors = stats['vendorsCount'] ?? 0;
+          _systemFloat = (stats['floatSum'] ?? 0.0).toDouble();
+          _flaggedTransactions = stats['flaggedTransactions'] ?? 0;
           _isLoading = false;
         });
       }
@@ -244,6 +244,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bgColor,
+      resizeToAvoidBottomInset: false,
       drawer: _buildRoleSwitcherDrawer(),
       body: SafeArea(
         child: _isLoading 
@@ -281,40 +282,58 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: 'Search users by email or name...',
-              hintStyle: const TextStyle(color: _textSecondary),
-              filled: true,
-              fillColor: _surfaceLight,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              prefixIcon: const Icon(Icons.search, color: _textSecondary),
-            ),
-            style: const TextStyle(color: Colors.white),
-            onChanged: (val) {
-               setState(() {
-                 _searchQuery = val.toLowerCase();
-               });
-            },
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    _selectedIndex = 0; // Go back to Home tab
+                  });
+                },
+                tooltip: 'Back to Home',
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search users by email or name...',
+                    hintStyle: const TextStyle(color: _textSecondary),
+                    filled: true,
+                    fillColor: _surfaceLight,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    prefixIcon: const Icon(Icons.search, color: _textSecondary),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (val) {
+                     setState(() {
+                       _searchQuery = val.toLowerCase();
+                     });
+                  },
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('users').snapshots(),
+          child: FutureBuilder<List<dynamic>>(
+            future: AdminService().getAllUsers(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator(color: _neonCyan));
               }
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              if (snapshot.hasError) {
+                return Center(child: Text('Error loading users: ${snapshot.error}', style: const TextStyle(color: _neonRed)));
+              }
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(child: Text('No users found', style: TextStyle(color: _textSecondary)));
               }
 
-              var users = snapshot.data!.docs;
+              var users = snapshot.data!;
               if (_searchQuery.isNotEmpty) {
-                users = users.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final name = (data['name'] ?? data['displayName'] ?? '').toString().toLowerCase();
-                  final email = (data['email'] ?? '').toString().toLowerCase();
+                users = users.where((user) {
+                  final name = (user['name'] ?? user['displayName'] ?? '').toString().toLowerCase();
+                  final email = (user['email'] ?? '').toString().toLowerCase();
                   return name.contains(_searchQuery) || email.contains(_searchQuery);
                 }).toList();
               }
@@ -322,18 +341,21 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               return ListView.builder(
                 itemCount: users.length,
                 itemBuilder: (context, index) {
-                  final userDoc = users[index];
-                  final data = userDoc.data() as Map<String, dynamic>;
-                  final uid = userDoc.id;
+                  final data = users[index];
+                  final uid = data['uid'];
                   final name = data['name'] ?? data['displayName'] ?? 'Unknown';
                   final email = data['email'] ?? 'No Email';
                   final role = data['role'] ?? 'user';
                   final status = data['status'] ?? 'active';
+                  final photoUrl = data['photoUrl'] ?? data['profilePic'] ?? data['photo'] ?? data['image'];
 
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: _surfaceLight,
-                      child: Text(role.substring(0, 1).toUpperCase(), style: const TextStyle(color: _neonCyan)),
+                      backgroundImage: photoUrl != null && photoUrl.toString().isNotEmpty ? NetworkImage(photoUrl.toString()) : null,
+                      child: (photoUrl == null || photoUrl.toString().isEmpty) 
+                          ? Text(role.substring(0, 1).toUpperCase(), style: const TextStyle(color: _neonCyan))
+                          : null,
                     ),
                     title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     subtitle: Text('$email • Role: $role\nStatus: $status', style: TextStyle(color: status == 'suspended' ? _neonRed : _textSecondary)),
@@ -345,15 +367,51 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                            final adminService = AdminService();
                            if (val == 'suspend') {
                              await adminService.suspendUser(uid, 'Admin action');
-                             if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User suspended')));
+                             if (context.mounted) {
+                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User suspended. Please refresh.')));
+                             }
                            } else if (val == 'delete') {
                              await adminService.deleteUser(uid);
-                             if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User deleted')));
+                             if (context.mounted) {
+                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User deleted. Please refresh.')));
+                             }
                            } else if (val == 'impersonate') {
                              final token = await adminService.impersonateUser(uid);
                              await FirebaseAuth.instance.signInWithCustomToken(token);
-                             if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ghost Login active')));
-                             // App will route out of Admin Dashboard automatically due to AuthState changes
+                             
+                             final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+                             final uData = userDoc.data();
+                             if (uData != null) {
+                               final rolesList = uData['roles'] as List<dynamic>? ?? [];
+                               final roleSingular = uData['role'] as String? ?? '';
+                               final userRole = rolesList.isNotEmpty
+                                   ? rolesList.first.toString()
+                                   : (roleSingular.isNotEmpty ? roleSingular : 'student');
+                               
+                               final userName = uData['name'] ?? uData['displayName'] ?? '';
+                               await SecureStorageService.saveUserData(
+                                 userId: uid,
+                                 role: userRole,
+                                 name: userName,
+                                 email: uData['email'],
+                                 phone: uData['phoneNumber'],
+                               );
+                             } else {
+                               await SecureStorageService.saveUserData(
+                                 userId: uid,
+                                 role: 'student',
+                                 name: 'Impersonated User',
+                               );
+                             }
+
+                             if (context.mounted) {
+                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ghost Login active. Redirecting...')));
+                               Navigator.pushAndRemoveUntil(
+                                 context,
+                                 MaterialPageRoute(builder: (_) => const InitialRouter()),
+                                 (route) => false,
+                               );
+                             }
                            }
                         } catch (e) {
                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -1011,7 +1069,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                     child: const Icon(Icons.admin_panel_settings, size: 40, color: _neonRed),
                   ),
                   const SizedBox(height: 16),
-                  Text(widget.user['name'] ?? 'Super Admin', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text(widget.user['name'] ?? widget.user['displayName'] ?? 'Super Admin', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                   Text(widget.user['email'] ?? 'admin@swapeat.com', style: const TextStyle(color: _textSecondary)),
                 ],
               ),
@@ -1020,6 +1078,11 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text('DASHBOARD TABS', style: TextStyle(fontWeight: FontWeight.bold, color: _textSecondary, fontSize: 12, letterSpacing: 1.5)),
             ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+
             ListTile(
               leading: const Icon(Icons.dashboard, color: Colors.white),
               title: const Text('Home / Overview', style: TextStyle(color: Colors.white)),
@@ -1150,12 +1213,14 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 title: const Text('Vendor POS', style: TextStyle(color: Colors.white70)),
                 onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => VendorDashboardView(user: widget.user))),
               ),
-            const Spacer(),
-            const Divider(color: _surfaceLight),
-            ListTile(
-              leading: const Icon(Icons.logout, color: _neonRed),
-              title: const Text('Sign Out', style: TextStyle(color: _neonRed)),
-              onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView())),
+                const Divider(color: _surfaceLight),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: _neonRed),
+                  title: const Text('Sign Out', style: TextStyle(color: _neonRed)),
+                  onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView())),
+                ),
+              ],
+            ),
             ),
           ],
         ),

@@ -196,7 +196,8 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
               ).where((user) {
                  final roles = user['roles'] as List<dynamic>? ?? [];
                  final isAdmin = roles.contains('admin') || roles.contains('system_admin');
-                 return user['uid'] != currentUid && !isAdmin;
+                 final isOffline = user['isOffline'] == true;
+                 return user['uid'] != currentUid && !isAdmin && !isOffline;
               }).toList() ?? [];
 
               return Column(

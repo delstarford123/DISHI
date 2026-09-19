@@ -120,7 +120,12 @@ class _MatchDiscoveryViewState extends State<MatchDiscoveryView> with TickerProv
             data['isOnline'] = data['isOnline'] ?? false;
             return {'id': doc.id, ...data};
           })
-          .where((user) => user['id'] != currentUid && user['id'] != null)
+          .where((user) {
+             final roles = user['roles'] as List<dynamic>? ?? [];
+             final isStudent = roles.contains('student');
+             final isOnline = user['isOnline'] == true;
+             return user['id'] != currentUid && user['id'] != null && user['isOffline'] != true && isStudent && isOnline;
+          })
           .toList();
 
       if (mounted) setState(() { _profiles = profiles; _isLoading = false; });
@@ -139,14 +144,15 @@ class _MatchDiscoveryViewState extends State<MatchDiscoveryView> with TickerProv
     });
     
     if (isSuperLike) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Super Liked ${profile['displayName']}! ⭐', style: const TextStyle(color: Colors.black)), backgroundColor: _neonYellow));
+      final name = profile['displayName'] ?? profile['name'] ?? 'Student';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Super Liked $name! ⭐', style: const TextStyle(color: Colors.black)), backgroundColor: _neonYellow));
     }
     
     // Simulate a 20% match chance on right swipe
     if (isRight && math.Random().nextDouble() > 0.8) {
       setState(() {
         _showMatchOverlay = true;
-        _matchedName = profile['displayName'] ?? 'Someone';
+        _matchedName = profile['displayName'] ?? profile['name'] ?? 'Student';
       });
       _matchAnimController.forward().then((_) {
         Future.delayed(const Duration(seconds: 1), () {
@@ -371,7 +377,7 @@ class _SwipeableCardState extends State<_SwipeableCard> {
                   children: [
                     Row(
                       children: [
-                        Expanded(child: Text(widget.profile['displayName'] ?? 'Student', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold))),
+                        Expanded(child: Text(widget.profile['displayName'] ?? widget.profile['name'] ?? 'Student', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold))),
                         if (isOnline) Container(width: 12, height: 12, decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle)),
                       ],
                     ),
@@ -452,7 +458,7 @@ class _ExpandedProfileSheet extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(profile['displayName'] ?? 'Student', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+                      Text(profile['displayName'] ?? profile['name'] ?? 'Student', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       Text(profile['bio'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 16)),
                       const SizedBox(height: 24),

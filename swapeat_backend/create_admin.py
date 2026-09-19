@@ -28,18 +28,30 @@ print("Set admin custom claim for Firebase Auth.")
 
 # Ensure the admin document exists in Firestore to bypass role selection if needed
 doc_ref = db.collection('users').document(uid)
+admin_fields = {
+    'email': email,
+    'role': 'admin',          # singular — for legacy checks
+    'roles': ['admin'],       # list — for login_view.dart & UserModel routing
+    'displayName': 'System Admin',
+    'isVerified': True,
+    'walletBalance': 0.0,
+    'vaultBalance': 0.0,
+    'okoaBalance': 0.0,
+    'isOffline': False,
+}
+
 if not doc_ref.get().exists:
-    doc_ref.set({
-        'email': email,
-        'role': 'admin',
-        'isVerified': True,
-        'displayName': 'System Admin',
-        'createdAt': firestore.SERVER_TIMESTAMP
-    })
+    admin_fields['createdAt'] = firestore.SERVER_TIMESTAMP
+    doc_ref.set(admin_fields)
     print("Created Firestore document for admin.")
 else:
-    doc_ref.update({'role': 'admin'})
-    print("Updated Firestore document role to admin.")
+    doc_ref.update({
+        'role': 'admin',
+        'roles': ['admin'],
+        'displayName': 'System Admin',
+        'isVerified': True,
+    })
+    print("Updated Firestore document with role + roles fields.")
 
 print("\n==============================================")
 print("ADMIN LOGIN CREDENTIALS:")

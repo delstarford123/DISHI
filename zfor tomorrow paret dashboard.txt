@@ -1,0 +1,46 @@
+Inclusive Parent Dashboard Features
+Disability Profiling & Dashboard Controls
+
+Dynamic Disability Profiles: Parents toggle specific conditions (e.g., blind, wheelchair user, non-verbal), which automatically recalibrates the dashboard's alert thresholds and UI.
+
+Caregiver Multi-Access: Securely share view-only tracking links with school nurses, teachers, or secondary guardians during specific hours.
+
+Medical ID NFC Broadcast: The watch acts as a digital medical ID tag that paramedics can tap with a smartphone to read the child's specific condition and allergies.
+
+Historical Routine AI: The dashboard learns the child’s daily schedule and automatically flags if a lecture or therapy session is missed.
+
+Battery & Signal Mapping: The map pin visualizes the watch's battery level and GSM signal strength so parents know if a dropped connection is a dead battery or a network dead zone.
+
+Wellness AI Summaries: An LLM generates a daily text summary of the child's activity levels, temperature stability, and safe zone adherence.
+
+Mobility & Mapping
+7. Accessibility-First Routing: The parent’s map visually highlights whether the child’s current path has ramps, paved sidewalks, or elevators (crucial for mobility impairments).
+8. Path Deviation Alerts: AI detects if the child wanders off their usual trajectory—critical for cognitive disabilities or autism.
+9. Micro-Geofencing Hazards: Draw tight "danger zones" around specific campus hazards (like open drainage or heavy traffic intersections) that trigger instant alerts.
+10. Indoor Positioning (Wi-Fi Scanning): The dashboard switches from GPS to Wi-Fi triangulation to track the child inside complex university buildings where satellites fail.
+11. Transit Handoff Tracking: The map verifies when the child boards and exits campus mobility shuttles by matching speed and route.
+12. Haptic Turn-by-Turn (Blind Users): The parent can trigger routing where the watch vibrates specifically on the left or right side of the wrist to guide the child safely.
+
+Health & Vitals Monitoring
+13. Continuous Skin Temperature: Live graphing of body temperature against time to predict fevers or sun exposure before the child feels ill.
+14. Hypo/Hyperthermia SMS Alarms: Hardcoded thresholds that send emergency SMS alerts if the temperature spikes above 37.8°C or drops dangerously low.
+15. Fall Detection (IMU): The accelerometer detects a hard impact followed by zero movement, instantly triggering an SOS on the map.
+16. Agitation/Meltdown Detection: The gyroscope detects repetitive, rapid thrashing movements (often associated with sensory overload meltdowns) and alerts the parent.
+17. Step/Wheel Push Differentiation: The dashboard calibrates activity tracking specifically for wheelchair pushes versus walking steps.
+18. Medication Haptic Reminders: Parents schedule silent, vibrating reminders on the watch for timed medications.
+
+Environment & Context Awareness
+19. Live Ambient Audio Snippet: Parents can press a "Listen In" button on the dashboard to request a 10-second compressed audio clip to hear if the child is in a distressed or bullying environment.
+20. Environmental Temp Overlays: The watch measures outside ambient temperature so parents know if a mobility-impaired child is stuck in the hot sun.
+21. Crowd & Noise Density Map: The dashboard highlights areas of high noise pollution on campus, helping parents guide autistic children away from sensory triggers.
+22. Weather Context Sync: The map integrates live weather APIs, alerting the parent if rain is starting exactly where the wheelchair-bound child is located.
+23. Lighting Level Sensor: Detects if a visually impaired child has accidentally wandered into a completely unlit area at night.
+24. Proximity Beacon (Find Your Match): Pings the parent if the child gets separated by more than 20 meters during a guided outing.
+
+Emergency & Communication
+25. One-Tap SOS Siren: A physical panic button on the watch that flashes LEDs and sounds a loud alarm while pinging the dashboard.
+26. Silent SOS: A discrete double-tap pattern that alerts the parent without triggering any local alarms.
+27. Two-Way VoLTE Auto-Answer: The parent can call the watch, and it auto-answers on speakerphone so they can talk to the child hands-free.
+28. Morse-Code Haptics: Parents can send predefined vibrations (e.g., two short buzzes for "Call me," one long buzz for "I'm on my way") for deaf students.
+29. Voice-to-Text Dashboard Log: The child speaks into the watch, and the audio is transcribed into text bubbles that appear directly over their map pin.
+30. First Responder Campus Network: The SOS button can be configured to simultaneously alert the nearest registered Swapeat/Dishi vendor or campus security booth.

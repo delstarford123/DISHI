@@ -1,0 +1,139 @@
+# Driver Dashboard Redesign + Profile Hub
+
+## Overview
+
+Two major deliverables:
+
+1. **Driver Dashboard** — full visual redesign + 20 new campus gig categories, all creating real `deliv_requests` Firestore documents that the existing accept/reject flow already handles.
+2. **Profile Hub** — a bottom sheet that slides up when any user taps their profile avatar (student, driver, parent), containing identity card, quick edits, logout, and delete account.
+
+---
+
+## Part 1: Driver Dashboard Redesign
+
+### What's wrong now
+- Plain card with only `Total Earnings` + 3 quick-action buttons + raw gig list
+- No tabs, no stats, no gig posting, no categories
+- Profile menu is a basic AlertDialog with no image and a "coming soon" stub
+
+### New design layout
+
+```
+┌─ Header ─────────────────────────────────────────┐
+│  [Avatar]  Good evening, James       [ONLINE ▶]  │
+│            Boda · ★ 4.9 · 312 trips              │
+└──────────────────────────────────────────────────┘
+
+┌─ Earnings strip (3 mini-cards in a row) ──────────┐
+│  Today KES 240  │  Week KES 1,800  │  All KES 18k │
+└──────────────────────────────────────────────────┘
+
+┌─ [Slide to Cash Out] ─────────────────────────────┘
+
+┌─ Stats row ───────────────────────────────────────┐
+│  ★ Rating  │  Deliveries  │  Acceptance %  │ Level │
+└──────────────────────────────────────────────────┘
+
+┌─ Gig Categories (horizontal scroll chips) ────────┐
+│  All │ 🛵 Delivery │ 📦 Errand │ 🎓 Tutoring │ ... │
+└──────────────────────────────────────────────────┘
+
+┌─ Post a Gig (FAB-style card) ─────────────────────┐
+│  "+ Create Campus Job"  →  bottom sheet picker    │
+└──────────────────────────────────────────────────┘
+
+┌─ Available Gigs feed ─────────────────────────────┐
+│  (existing StreamBuilder, filtered by category)  │
+└──────────────────────────────────────────────────┘
+```
+
+### 20 New Campus Gig Types
+
+| # | Gig | Icon | Color |
+|---|-----|------|-------|
+| 1 | Food Delivery | 🍔 | Orange |
+| 2 | Grocery Run | 🛒 | Green |
+| 3 | Parcel Pickup | 📦 | Blue |
+| 4 | Laundry Pickup & Drop | 🧺 | Purple |
+| 5 | Printing & Photocopy | 🖨️ | Cyan |
+| 6 | Library Book Return | 📚 | Brown |
+| 7 | Campus Errand | 🏃 | Yellow |
+| 8 | Phone Top-up Delivery | 📱 | Pink |
+| 9 | Notes/Docs Delivery | 📄 | Indigo |
+| 10 | Boda-Boda Ride | 🛵 | Red |
+| 11 | Walker Escort (safe-walk) | 🚶 | Teal |
+| 12 | Event Set-up Help | 🎪 | Amber |
+| 13 | Tutoring Session | 🎓 | Deep Blue |
+| 14 | Tech Repair (screen, charging) | 🔧 | Grey |
+| 15 | Lost & Found Delivery | 🔍 | Lime |
+| 16 | Hostel Move Help | 🏠 | Bronze |
+| 17 | Pharmacy / Chemist Run | 💊 | Red |
+| 18 | Market / Tuck Shop Run | 🏪 | Olive |
+| 19 | Water / Drinks Delivery | 💧 | Sky Blue |
+| 20 | Custom Gig (free text) | ✨ | Neon Cyan |
+
+Each gig posts to `deliv_requests` with `{ type, pickup, dropoff, pay, status: 'open', postedBy, createdAt }`.
+
+---
+
+## Part 2: Profile Hub
+
+### What it is
+A **DraggableScrollableSheet** that opens from the bottom when the user taps their profile avatar on **any** dashboard (student, driver, vendor). It replaces the old AlertDialog profile menu.
+
+### Contents (scrollable top-to-bottom)
+
+```
+┌─────────────────────────────────────┐
+│  [Large Avatar]  Name               │
+│  Role badge · Campus · Course       │
+│  DISHI ID · Stars/Level             │
+├─────────────────────────────────────┤
+│  📷  Change Profile Photo           │
+│  ✏️  Edit Display Name              │
+│  📞  Edit Phone Number              │
+│  🎂  Date of Birth                  │
+├─────────────────────────────────────┤
+│  🔔  Push Notifications   [Toggle]  │
+│  👻  Ghost Mode           [Toggle]  │
+├─────────────────────────────────────┤
+│  🚪  Logout                         │
+│  🗑️  Delete Account  (danger zone)  │
+└─────────────────────────────────────┘
+```
+
+### Where it's triggered
+- Student dashboard: tapping the `CircleAvatar` in `_buildCustomAppBar()`
+- Driver dashboard: tapping avatar in `_buildCustomAppBar()`
+- Profile tab: tapping the avatar at top of `StudentProfileSettings`
+
+### Implementation
+- New shared widget: `lib/shared/presentation/profile_hub_sheet.dart`
+- Takes a `UserModel` and a `Map<String, dynamic> user` 
+- Delete Account flow: confirmation dialog → re-auth → `user.delete()` + Firestore doc delete → navigate to LoginView
+- Logout flow: `SecureStorageService.clearAll()` + `FirebaseAuth.signOut()` → LoginView
+
+---
+
+## Files Changed
+
+### [NEW] `lib/shared/presentation/profile_hub_sheet.dart`
+The shared profile bottom sheet widget.
+
+### [MODIFY] `lib/features/deliv/presentation/deliv_driver_dashboard.dart`
+- Full redesign: stats strip, category chips, earnings split, gig-type picker bottom sheet, profile avatar → ProfileHubSheet
+- 20 gig types wired to `_postGig(type, pay, pickup, dropoff)`
+
+### [MODIFY] `lib/features/student/presentation/student_dashboard.dart`
+- Tap on `CircleAvatar` in `_buildCustomAppBar` → open `ProfileHubSheet` instead of routing to `StudentProfileSettings` directly
+
+---
+
+## Verification Plan
+
+- Hot-reload and confirm dashboard tabs/chips render
+- Tap each gig category → confirm feed filters
+- Post a test gig → confirm it appears in Firestore `deliv_requests`
+- Tap avatar → ProfileHubSheet slides up
+- Test logout from hub → goes to LoginView
+- Test delete account → confirm dialog, re-auth prompt shown

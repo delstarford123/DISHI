@@ -130,9 +130,33 @@ service cloud.firestore {
     }
     
     match /safety_alerts/{docId} {
-      allow read, write: if isAuth();
+      // Students can create their own SOS alerts
+      allow create: if isAuth() && request.resource.data.studentUid == request.auth.uid;
+      // Students can update their own alert (e.g. resolve it)
+      allow update: if isAuth() && (
+        resource.data.studentUid == request.auth.uid ||
+        (request.auth.uid in resource.data.parentUids) ||
+        isAdmin()
+      );
+      // Parents listed in parentUids can read; students can read their own; admins can read all
+      allow read: if isAuth() && (
+        resource.data.studentUid == request.auth.uid ||
+        (request.auth.uid in resource.data.parentUids) ||
+        isAdmin()
+      );
+      // Only admins can delete
+      allow delete: if isAdmin();
     }
-    
+
+    // In-app notifications (written server-side by Admin SDK)
+    // Each notification has a targetUserId field — only that user can read it.
+    match /notifications/{notifId} {
+      allow read: if isAuth() && resource.data.targetUserId == request.auth.uid;
+      allow create: if false; // Written only by backend (Admin SDK bypasses rules)
+      allow update: if isAuth() && resource.data.targetUserId == request.auth.uid;
+      allow delete: if isAdmin() || (isAuth() && resource.data.targetUserId == request.auth.uid);
+    }
+
     match /medical_locks/{docId} {
       allow read, write: if isAuth();
     }
@@ -162,6 +186,26 @@ service cloud.firestore {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // 3b. GEOFENCE / SAFETY  (danger_zones, location_reminders)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /danger_zones/{zoneId} {
+      // Any authenticated user can read danger zones (required for GeofenceService)
+      allow read: if isAuth();
+      // Only admins can create, modify, or delete danger zones
+      allow write: if isAdmin();
+    }
+
+    match /location_reminders/{userId} {
+      // Allow a user to read/write their own top-level reminder doc (if used)
+      allow read, write: if isSelf(userId) || isAdmin();
+
+      match /reminders/{reminderId} {
+        // Users manage their own proximity reminders; parents can also read
+        allow read, write: if isSelf(userId) || isAdmin() || isParentOf(userId);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // 4. TRANSACTIONS  (peer-to-peer wallet, preorders, savings)
     // ─────────────────────────────────────────────────────────────────────────
     match /transactions/{txId} {
@@ -169,11 +213,46 @@ service cloud.firestore {
       // Client creates legitimate transaction records; backend can update
       allow create: if isAuth();
       // Only the parties involved or admin may update (e.g. status changes)
+      // Supports both vendorUid (camelCase) and vendor_id (legacy snake_case)
       allow update: if isAuth() &&
         (request.auth.uid == resource.data.student_id ||
          request.auth.uid == resource.data.vendor_id ||
+         request.auth.uid == resource.data.vendorUid ||
          isAdmin());
       allow delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4b. ORDERS  (vendor POS, KDS, pre-orders)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /orders/{orderId} {
+      // Vendors can read their own orders (for KDS live stream)
+      // Students can read their own orders
+      allow read: if isAuth() &&
+        (request.auth.uid == resource.data.vendorUid ||
+         request.auth.uid == resource.data.studentUid ||
+         isAdmin());
+      // Students and vendors can create orders
+      allow create: if isAuth();
+      // Only the vendor, student, or backend (admin) can update (e.g. fulfillment)
+      allow update: if isAuth() &&
+        (request.auth.uid == resource.data.vendorUid ||
+         request.auth.uid == resource.data.studentUid ||
+         isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4c. FLASH SALES  (vendor broadcasts)
+    // ─────────────────────────────────────────────────────────────────────────
+    match /flash_sales/{saleId} {
+      // Any signed-in user can read active flash sales
+      allow read: if isAuth();
+      // Only vendors can create flash sales
+      allow create: if isAuth() && isVendor();
+      // Only the owning vendor or admin can update/delete
+      allow update, delete: if isAuth() &&
+        (request.auth.uid == resource.data.vendorUid || isAdmin());
     }
 
     // ─────────────────────────────────────────────────────────────────────────

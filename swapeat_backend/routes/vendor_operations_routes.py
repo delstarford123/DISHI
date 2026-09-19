@@ -159,24 +159,24 @@ def vendor_offline_scan_deduction():
             if not parent_doc.exists:
                 return False, "Parent account not found."
                 
-            parent_wallet = float(parent_doc.to_dict().get('wallet_balance', 0.0))
+            parent_wallet = float(parent_doc.to_dict().get('walletBalance', 0.0))
             if parent_wallet < amount:
                 return False, "Parent vault has insufficient funds."
                 
             vendor_doc = vendor_ref.get(transaction=transaction)
-            vendor_wallet = float(vendor_doc.to_dict().get('wallet_balance', 0.0)) if vendor_doc.exists else 0.0
+            vendor_wallet = float(vendor_doc.to_dict().get('walletBalance', 0.0)) if vendor_doc.exists else 0.0
             
             # Deduct from Parent, Add to Vendor
-            transaction.update(parent_ref, {'wallet_balance': parent_wallet - amount})
-            transaction.update(vendor_ref, {'wallet_balance': vendor_wallet + amount})
+            transaction.update(parent_ref, {'walletBalance': parent_wallet - amount})
+            transaction.update(vendor_ref, {'walletBalance': vendor_wallet + amount})
             
             # Create transaction record
             tx_ref = db.collection('transactions').document()
             transaction.set(tx_ref, {
                 'id': tx_ref.id,
-                'student_id': student_id, # Link to offline profile
+                'student_id': student_id,
                 'parent_id': parent_id,
-                'vendor_id': vendor_id,
+                'vendorUid': vendor_id,      # camelCase — consistent with Flutter dashboard
                 'amount': amount,
                 'type': 'offline_qr_payment',
                 'status': 'completed',
@@ -203,10 +203,6 @@ def vendor_offline_scan_deduction():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-            
-    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @vendor_operations_bp.route('/inventory/costing', methods=['POST'])
