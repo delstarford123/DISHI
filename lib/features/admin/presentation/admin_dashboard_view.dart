@@ -1070,7 +1070,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   ),
                   const SizedBox(height: 16),
                   Text(widget.user['name'] ?? widget.user['displayName'] ?? 'Super Admin', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                  Text(widget.user['email'] ?? 'admin@swapeat.com', style: const TextStyle(color: _textSecondary)),
+                  Text(widget.user['email'] ?? 'admin@dishi.com', style: const TextStyle(color: _textSecondary)),
                 ],
               ),
             ),

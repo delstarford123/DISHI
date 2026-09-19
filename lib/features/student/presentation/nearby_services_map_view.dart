@@ -262,7 +262,7 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
   Widget _buildTabBar() {
     final tabs = [
       (_ServicesTab.dishi, '🍔 Delivery', _neonOrange),
-      (_ServicesTab.swapeat, '🥘 Swapeat', _neonCyan),
+      (_ServicesTab.swapeat, '🥘 DISHI', _neonCyan),
       (_ServicesTab.housing, '🏠 Housing', _neonBlue),
       (_ServicesTab.reminders, '📍 Reminders', _neonPink),
     ];

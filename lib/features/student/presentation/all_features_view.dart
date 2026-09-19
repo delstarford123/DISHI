@@ -31,6 +31,8 @@ import 'campus_employment_hub.dart';
 import 'campus_map_view.dart';
 import 'nearby_services_map_view.dart';
 import '../../match/presentation/meetup_share_view.dart';
+import '../../games/presentation/games_hub_view.dart';
+
 class AllFeaturesView extends StatelessWidget {
   final UserModel userModel;
 
@@ -66,6 +68,10 @@ class AllFeaturesView extends StatelessWidget {
             _FeatureItem(icon: Icons.call_split, label: 'Split Bill', color: Colors.purpleAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SplitBillView(userModel: userModel)))),
             _FeatureItem(icon: Icons.event_repeat, label: 'Subscriptions', color: Colors.orangeAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SubscriptionManagerView(userModel: userModel)))),
             _FeatureItem(icon: Icons.savings, label: 'Safter Pin', color: Colors.amber, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SafterPinView()))),
+          ], cardColor),
+          _buildStickyHeader('Games & Rewards'),
+          _buildSliverGrid([
+            _FeatureItem(icon: Icons.sports_esports, label: 'Games Hub', color: neonCyan, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => GamesHubView(userModel: userModel)))),
           ], cardColor),
           
           _buildStickyHeader('Academic & Study (Smarti)'),

@@ -113,6 +113,7 @@ from routes.virtual_card_routes import card_bp
 from routes.vibe_routes import vibe_bp
 from routes.v6.campus_gigs_routes import campus_gigs_v6_bp
 from routes.sos_notify_routes import sos_notify_bp
+from routes.games_routes import games_bp
 
 
 
@@ -162,6 +163,7 @@ app.register_blueprint(card_bp)
 app.register_blueprint(vibe_bp, url_prefix='/api/vibe')
 app.register_blueprint(campus_gigs_v6_bp,   url_prefix='/api/v6/campus_gigs')
 app.register_blueprint(sos_notify_bp,        url_prefix='/api/v1/notify')
+app.register_blueprint(games_bp,             url_prefix='/api/v1/games')
 
 
 

@@ -273,7 +273,7 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
           }),
           
           const SizedBox(height: 32),
-          _buildSectionHeader('Swapeat Vibe', Icons.restaurant, _neonPink),
+          _buildSectionHeader('DISHI Vibe', Icons.restaurant, _neonPink),
           const SizedBox(height: 16),
           _buildSettingTextField(label: 'Dietary Preferences', hint: 'Vegan, Halal, Nut Allergy (comma separated)', icon: Icons.no_food, controller: _dietaryController, firestoreKey: 'dietaryPreferences'),
           _buildSettingTextField(label: 'Food Vibe', hint: 'e.g. Foodie, Chef', icon: Icons.local_dining, controller: _foodVibeController, firestoreKey: 'foodVibe'),

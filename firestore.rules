@@ -998,5 +998,27 @@ service cloud.firestore {
       allow create: if isAuth();
       allow update, delete: if isAuth() && (resource == null || request.auth.uid == resource.data.authorUid || isAdmin());
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 29. GAMES HUB
+    // ─────────────────────────────────────────────────────────────────────────
+    match /game_leaderboards/{docId} {
+      allow read: if isAuth();
+      // Only backend writes to leaderboards to prevent client-side cheating
+      allow write: if isAdmin();
+    }
+    match /user_game_stats/{userId} {
+      allow read: if isSelf(userId) || isAdmin();
+      // Only backend updates stats (like last_spin)
+      allow write: if isAdmin();
+    }
+    match /taste_profiles/{userId} {
+      allow read: if isAuth();
+      allow write: if isSelf(userId) || isAdmin();
+    }
+    match /trivia_questions/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
   }
 }
