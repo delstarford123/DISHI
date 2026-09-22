@@ -16,11 +16,11 @@ class MemoryMatchGame extends StatefulWidget {
 }
 
 class MemoryCard {
-  final String emoji;
+  final String icon;
   bool isFlipped;
   bool isMatched;
 
-  MemoryCard(this.emoji, {this.isFlipped = false, this.isMatched = false});
+  MemoryCard(this.icon, {this.isFlipped = false, this.isMatched = false});
 }
 
 class _MemoryMatchGameState extends State<MemoryMatchGame> {
@@ -38,9 +38,11 @@ class _MemoryMatchGameState extends State<MemoryMatchGame> {
   Timer? _timer;
   int timeLeft = 60;
 
-  final List<String> _emojiPool = [
-    '🍔', '🍟', '🍕', '🍎', '🌮', '🍩', '🥑', '🍿',
-    '🌭', '🥗', '🥪', '🥩', '🥘', '🍣'
+  final List<String> _iconPool = [
+    '🍔', '📖', '🍕', '🍎', 
+    '🍽️', '🍩', '🥬', '🍿',
+    '🍔', '🍱', '🍢', '🍜',
+    '☕', '🍦'
   ];
 
   @override
@@ -52,9 +54,9 @@ class _MemoryMatchGameState extends State<MemoryMatchGame> {
   void _initGame() {
     _timer?.cancel();
     List<String> deck = [];
-    for (var emoji in _emojiPool) {
-      deck.add(emoji);
-      deck.add(emoji); // Add pairs
+    for (var icon in _iconPool) {
+      deck.add(icon);
+      deck.add(icon); // Add pairs
     }
     deck.shuffle(Random()); // Ensure totally random shuffle every time
 
@@ -105,7 +107,7 @@ class _MemoryMatchGameState extends State<MemoryMatchGame> {
       isProcessing = true;
     });
 
-    if (cards[index1].emoji == cards[index2].emoji) {
+    if (cards[index1].icon == cards[index2].icon) {
       // Match found
       setState(() {
         cards[index1].isMatched = true;
@@ -114,7 +116,7 @@ class _MemoryMatchGameState extends State<MemoryMatchGame> {
         matchesFound++;
         firstSelectedIndex = null;
         isProcessing = false;
-        if (matchesFound == _emojiPool.length) {
+        if (matchesFound == _iconPool.length) {
           _timer?.cancel();
           // Add remaining time as bonus score
           score += (timeLeft * 5);
@@ -248,7 +250,7 @@ class _MemoryMatchGameState extends State<MemoryMatchGame> {
                     ),
                     child: Center(
                       child: isFaceUp
-                          ? Text(card.emoji, style: const TextStyle(fontSize: 40))
+                          ? Text(card.icon, style: TextStyle(fontSize: 40))
                           : Icon(Icons.help_outline, color: _neonCyan.withOpacity(0.5), size: 30),
                     ),
                   ),
@@ -266,7 +268,7 @@ class _MemoryMatchGameState extends State<MemoryMatchGame> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.star, color: Colors.yellowAccent, size: 100),
+          const Text('⭐', style: TextStyle(fontSize: 100)),
           const SizedBox(height: 20),
           Text(
             timeLeft > 0 ? 'YOU WIN' : 'YOU LOSE',

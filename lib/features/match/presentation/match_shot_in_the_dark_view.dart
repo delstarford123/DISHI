@@ -60,7 +60,14 @@ class _MatchShotInTheDarkViewState extends State<MatchShotInTheDarkView> with Si
   }
 
   Future<void> _joinQueue() async {
-    if (currentGender.isEmpty) {
+    String gender = currentGender;
+    if (gender.isEmpty) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(currentUid).get();
+      if (doc.exists && doc.data() != null && doc.data()!.containsKey('gender')) {
+        gender = doc.data()!['gender'];
+      }
+    }
+    if (gender.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please set your gender in your profile first!')));
       return;
     }
@@ -68,7 +75,7 @@ class _MatchShotInTheDarkViewState extends State<MatchShotInTheDarkView> with Si
     setState(() => _status = 'queuing');
     
     try {
-      final oppositeGender = currentGender.toLowerCase() == 'male' ? 'female' : 'male';
+      final oppositeGender = gender.toLowerCase() == 'male' ? 'female' : 'male';
       
       final queueRef = FirebaseFirestore.instance.collection('blind_chat_queue');
       final potentialMatches = await queueRef
@@ -92,13 +99,13 @@ class _MatchShotInTheDarkViewState extends State<MatchShotInTheDarkView> with Si
         });
         
         await matchDoc.reference.update({'status': 'matched', 'session_id': sessionId});
-        await queueRef.doc(currentUid).set({'status': 'matched', 'session_id': sessionId, 'gender': currentGender});
+        await queueRef.doc(currentUid).set({'status': 'matched', 'session_id': sessionId, 'gender': gender});
         
         setState(() => _sessionId = sessionId);
         _startChat();
       } else {
         await queueRef.doc(currentUid).set({
-          'gender': currentGender,
+          'gender': gender,
           'status': 'waiting',
           'timestamp': FieldValue.serverTimestamp(),
         });

@@ -285,42 +285,89 @@ class _ProfileHubSheetState extends State<ProfileHubSheet> {
   }
 
   Widget _buildHeader() {
-    final photoUrl = _userData?['photoUrl'] ?? _userData?['profilePic'] ?? _userData?['image'];
-    final name = _userData?['name'] ?? _userData?['displayName'] ?? 'User';
-    final role = (_userData?['roles'] as List<dynamic>?)?.isNotEmpty == true 
-        ? _userData!['roles'].first.toString().toUpperCase() 
-        : (_userData?['role']?.toString().toUpperCase() ?? 'STUDENT');
+    // Check all known photo field names in priority order
+    final photoUrl = _userData?['photoUrl']
+        ?? _userData?['profileImageUrl']
+        ?? _userData?['profilePic']
+        ?? _userData?['image']
+        ?? _userData?['studentImageUrl'];
+    final name = (_userData?['name'] ?? _userData?['displayName'] ?? widget.user['name'] ?? widget.user['displayName'] ?? 'User').toString();
+    final course = (_userData?['course'] ?? '').toString();
+    final bio = (_userData?['bio'] ?? '').toString();
+    final subtitle = course.isNotEmpty ? course : (bio.isNotEmpty ? bio : null);
     final dishiId = widget.user['uid'].toString().substring(0, 8).toUpperCase();
 
     return Column(
       children: [
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: _cardColor,
-              backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-              child: photoUrl == null ? const Icon(Icons.person, size: 50, color: Colors.white54) : null,
-            ),
-            if (_isLoading)
-              const CircularProgressIndicator(),
-          ],
+        GestureDetector(
+          onTap: _changePhoto,
+          child: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: MPesaTheme.primaryGreen, width: 2.5),
+                  boxShadow: [
+                    BoxShadow(color: MPesaTheme.primaryGreen.withValues(alpha: 0.3), blurRadius: 20, spreadRadius: 2),
+                  ],
+                ),
+                child: CircleAvatar(
+                  radius: 48,
+                  backgroundColor: _cardColor,
+                  backgroundImage: (photoUrl != null && photoUrl.toString().isNotEmpty)
+                      ? NetworkImage(photoUrl.toString())
+                      : null,
+                  child: (photoUrl == null || photoUrl.toString().isEmpty)
+                      ? const Icon(Icons.person, size: 52, color: Colors.white54)
+                      : null,
+                ),
+              ),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: MPesaTheme.primaryGreen,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _bgColor, width: 2),
+                ),
+                child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+              ),
+              if (_isLoading)
+                Positioned.fill(
+                  child: Container(
+                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.black45),
+                    child: const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))),
+                  ),
+                ),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
-        Text(name, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: MPesaTheme.primaryGreen.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: MPesaTheme.primaryGreen.withValues(alpha: 0.5)),
-          ),
-          child: Text(role, style: const TextStyle(color: MPesaTheme.primaryGreen, fontSize: 12, fontWeight: FontWeight.bold)),
-        ),
+        Text(name, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(subtitle, style: TextStyle(color: _textSecondary, fontSize: 13), textAlign: TextAlign.center),
+        ],
         const SizedBox(height: 12),
-        Text('DISHI ID: $dishiId', style: TextStyle(color: _textSecondary, fontSize: 14)),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.badge_outlined, size: 14, color: _textSecondary),
+              const SizedBox(width: 6),
+              Text('DISHI ID: $dishiId', style: TextStyle(color: _textSecondary, fontSize: 13, fontFamily: 'monospace')),
+            ],
+          ),
+        ),
       ],
     );
   }

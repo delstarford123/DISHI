@@ -191,13 +191,17 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
               }
 
               final currentUid = FirebaseAuth.instance.currentUser?.uid;
-              final profiles = snapshot.data?.docs.map((doc) => 
+              final profiles = snapshot.data?.docs.map((doc) =>
                 {'uid': doc.id, ...doc.data() as Map<String, dynamic>}
               ).where((user) {
-                 final roles = user['roles'] as List<dynamic>? ?? [];
-                 final isAdmin = roles.contains('admin') || roles.contains('system_admin');
+                 // Only show students who are not offline and not the current user
+                 final roles = (user['roles'] as List<dynamic>?) ?? [];
+                 final role = user['role']?.toString() ?? '';
+                 final isStudent = roles.contains('student') || role == 'student';
+                 final isAdmin = roles.contains('admin') || roles.contains('system_admin') || role == 'admin';
+                 final isVendor = roles.contains('vendor') || role == 'vendor';
                  final isOffline = user['isOffline'] == true;
-                 return user['uid'] != currentUid && !isAdmin && !isOffline;
+                 return user['uid'] != currentUid && isStudent && !isAdmin && !isVendor && !isOffline;
               }).toList() ?? [];
 
               return Column(
@@ -247,15 +251,18 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
                           final profile = profiles[index];
                           final glowColor = [Colors.cyanAccent, Colors.pinkAccent, Colors.purpleAccent][index % 3];
                           final icon = [Icons.person, Icons.person_2, Icons.person_3, Icons.person_4][index % 4];
-                          final String fakeSchool = ['UoN', 'Strathmore', 'KU', 'JKUAT'][index % 4];
                           
                           final name = (profile['displayName'] ?? profile['name'] ?? 'Student').toString();
-                          final String? avatarUrl = profile['profileImageUrl'];
-                          final subtext = (profile['bio'] ?? 'Looking to vibe').toString();
+                          // Check multiple possible photo field names
+                          final String? avatarUrl = (profile['photoUrl'] ?? profile['profileImageUrl'] ?? profile['profilePic'] ?? profile['image'])?.toString();
+                          final campus = (profile['campus'] ?? profile['university'] ?? '').toString();
+                          final course = (profile['course'] ?? '').toString();
+                          final subtextParts = [if (campus.isNotEmpty) campus, if (course.isNotEmpty) course];
+                          final displaySub = subtextParts.isNotEmpty ? subtextParts.join(' • ') : (profile['bio']?.toString() ?? 'Looking to vibe');
 
                           return GestureDetector(
                             onTap: () {
-                              _showCallOptions(name, '$fakeSchool • $subtext', profile['uid'] ?? profile['id'] ?? '', avatarUrl ?? '');
+                              _showCallOptions(name, displaySub, profile['uid'] ?? profile['id'] ?? '', avatarUrl ?? '');
                             },
                             child: AnimatedBuilder(
                               animation: _danceController,
@@ -275,7 +282,7 @@ class _MatchNightClubViewState extends State<MatchNightClubView> with TickerProv
                               },
                               child: _buildGlowingAvatar(
                                 name, 
-                                '$fakeSchool • $subtext', 
+                                displaySub, 
                                 glowColor, 
                                 icon,
                                 avatarUrl,

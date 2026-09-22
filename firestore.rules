@@ -2,6 +2,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Allow users to read and vote on campus idols
+    match /campus_idols/{idolId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null; // Optional: Only allow if you're updating vote counts
+    }
     // ── Helper Functions ──────────────────────────────────────────────────────
 
     // Check if the requester is a signed-in user
@@ -103,10 +109,16 @@ service cloud.firestore {
     // ─────────────────────────────────────────────────────────────────────────
     // 3.5. NOTIFICATIONS, PREORDERS, SCHEDULED ALLOWANCES, DISPUTES
     // ─────────────────────────────────────────────────────────────────────────
+    // In-app notifications (written server-side by Admin SDK)
+    // Each notification has a targetUserId field — only that user can read it.
     match /notifications/{notificationId} {
-      allow read: if isAuth();
-      // Allow users to update readBy and dismissedBy arrays
-      allow write: if isAuth();
+      allow read: if isAuth() && (
+        resource == null || resource.data.targetUserId == request.auth.uid
+      );
+      allow create: if false; // Written only by backend (Admin SDK bypasses rules)
+      // Allow users to update their own notification (mark read, dismiss)
+      allow update: if isAuth() && resource.data.targetUserId == request.auth.uid;
+      allow delete: if isAdmin() || (isAuth() && resource.data.targetUserId == request.auth.uid);
     }
     
     match /preorders/{docId} {
@@ -148,14 +160,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // In-app notifications (written server-side by Admin SDK)
-    // Each notification has a targetUserId field — only that user can read it.
-    match /notifications/{notifId} {
-      allow read: if isAuth() && resource.data.targetUserId == request.auth.uid;
-      allow create: if false; // Written only by backend (Admin SDK bypasses rules)
-      allow update: if isAuth() && resource.data.targetUserId == request.auth.uid;
-      allow delete: if isAdmin() || (isAuth() && resource.data.targetUserId == request.auth.uid);
-    }
+
 
     match /medical_locks/{docId} {
       allow read, write: if isAuth();
@@ -706,6 +711,21 @@ service cloud.firestore {
          request.auth.uid == resource.data.uid ||
          isAdmin());
     }
+    // campus_events — pin-dropped events on the campus map
+    match /campus_events/{eventId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.creatorId ||
+         request.auth.uid == resource.data.uid ||
+         isAdmin());
+      allow delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.creatorId ||
+         request.auth.uid == resource.data.uid ||
+         isAdmin());
+    }
     match /event_tickets/{ticketId} {
       allow read: if isAuth();
       allow create: if isAuth();
@@ -946,16 +966,9 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // 29. FLASHCARDS — user-created custom cards
-    // ─────────────────────────────────────────────────────────────────────────
-    match /flashcards/{cardId} {
-      allow read: if isAuth();
-      // Students can create their own cards; admin manages global ones
-      allow create: if isAuth();
-      allow update, delete: if isAuth() &&
-        (resource == null || request.auth.uid == resource.data.uid || isAdmin());
-    }
+    // flashcards — user-created custom cards
+    // NOTE: global flashcards (admin-managed) are handled in section 23 above.
+    // This duplicate is intentionally removed to avoid the open write override.
 
     // ─────────────────────────────────────────────────────────────────────────
     // 30. MY EVENTS DASHBOARD  (user's own events list)
@@ -983,11 +996,7 @@ service cloud.firestore {
          isAdmin());
       allow delete: if isAdmin();
     }
-    match /virtual_cards/{cardId} {
-      allow read: if isAuth();
-      allow create: if isAuth();
-      allow update, delete: if isAuth() && (resource == null || request.auth.uid == resource.data.parentUid || request.auth.uid == resource.data.uid || isAdmin());
-    }
+    // virtual_cards already fully defined in section 18 above — no duplicate needed
     match /savings_goals/{goalId} {
       allow read: if isAuth();
       allow create: if isAuth();

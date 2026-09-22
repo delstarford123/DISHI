@@ -15,10 +15,10 @@ class TasteMatchGame extends StatefulWidget {
 
 class FoodCombo {
   final String title;
-  final String emoji;
+  final String icon;
   final String description;
 
-  FoodCombo(this.title, this.emoji, this.description);
+  FoodCombo(this.title, this.icon, this.description);
 }
 
 class _TasteMatchGameState extends State<TasteMatchGame> {
@@ -42,16 +42,12 @@ class _TasteMatchGameState extends State<TasteMatchGame> {
 
   void _loadDeck() {
     deck = [
-      FoodCombo('Fries & Ice Cream', '🍟🍨', 'Sweet and salty perfection?'),
-      FoodCombo('Pineapple on Pizza', '🍍🍕', 'The ultimate debate.'),
-      FoodCombo('Ketchup on Eggs', '🍳🍅', 'Breakfast of champions?'),
-      FoodCombo('Ugali & Cabbage', '🌽🥬', 'The campus survival kit.'),
-      FoodCombo('Avocado on Everything', '🥑🍞', 'Millennial classic.'),
-      FoodCombo('Tea with Mandazi', '☕🍩', 'The 10 AM savior.'),
-      FoodCombo('Chapati & Beans', '🫓🫘', 'Madondo supremacy.'),
-      FoodCombo('Rice & Ketchup', '🍚🍅', 'End of the month struggle.'),
-      FoodCombo('Milk & Soda', '🥛🥤', 'Wait, what?'),
-      FoodCombo('Spicy Noodles', '🍜🔥', 'Indomie at 2 AM.'),
+      FoodCombo('Spicy Pizza', '🍕', 'Hot and cheesy!'),
+      FoodCombo('Burger & Fries', '🍔', 'The classic.'),
+      FoodCombo('Avocado Toast', '🥬', 'Healthy start.'),
+      FoodCombo('Sweet Donut', '🍩', 'Sugar rush!'),
+      FoodCombo('Taco Tuesday', '🍽️', 'Crunchy goodness.'),
+      FoodCombo('Fruit Bowl', '🍎', 'Fresh and juicy.'),
     ];
     deck.shuffle();
   }
@@ -137,7 +133,7 @@ class _TasteMatchGameState extends State<TasteMatchGame> {
               child: const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.close, color: Colors.white, size: 48),
+                  Text('❌', style: TextStyle(fontSize: 48)),
                   Text('HATE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
                 ],
               ),
@@ -152,7 +148,7 @@ class _TasteMatchGameState extends State<TasteMatchGame> {
               child: const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.favorite, color: Colors.white, size: 48),
+                  Text('❤️', style: TextStyle(fontSize: 48)),
                   Text('LOVE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
                 ],
               ),
@@ -171,7 +167,7 @@ class _TasteMatchGameState extends State<TasteMatchGame> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(currentCard.emoji, style: const TextStyle(fontSize: 100)),
+                  Text(currentCard.icon, style: TextStyle(fontSize: 100)),
                   const SizedBox(height: 20),
                   Text(
                     currentCard.title,
@@ -199,13 +195,13 @@ class _TasteMatchGameState extends State<TasteMatchGame> {
               heroTag: 'hate',
               backgroundColor: _cardColor,
               onPressed: () => _handleSwipe(false),
-              child: Icon(Icons.close, color: _neonPink, size: 30),
+              child: Text('❌', style: TextStyle(fontSize: 30)),
             ),
             FloatingActionButton(
               heroTag: 'love',
               backgroundColor: _cardColor,
               onPressed: () => _handleSwipe(true),
-              child: Icon(Icons.favorite, color: _neonCyan, size: 30),
+              child: Text('❤️', style: TextStyle(fontSize: 30)),
             ),
           ],
         )
@@ -218,7 +214,7 @@ class _TasteMatchGameState extends State<TasteMatchGame> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.check_circle, color: Color(0xFF05D5AA), size: 80),
+          Text('✅', style: const TextStyle(fontSize: 80)),
           const SizedBox(height: 20),
           const Text(
             'Taste Profile Built!',

@@ -68,7 +68,7 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
     try {
       final response = await http.get(
         Uri.parse('https://dishi.delstarfordworks.co.ke/v3/academic/flashcards?student_id=$_studentId'),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 3));
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

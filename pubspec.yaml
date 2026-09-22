@@ -58,6 +58,8 @@ dependencies:
   qr_flutter: ^4.1.0
   permission_handler: ^11.3.1
   gal: ^2.3.0
+  animate_do: ^3.3.4
+  flutter_native_splash: ^2.4.1
   google_sign_in: ^6.2.1
   mobile_scanner: ^5.2.3
   url_launcher: ^6.3.0

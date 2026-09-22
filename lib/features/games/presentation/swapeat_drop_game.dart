@@ -19,9 +19,9 @@ class FallingObject {
   double x;
   double y;
   final bool isBad;
-  final String emoji;
+  final String icon;
 
-  FallingObject({required this.x, required this.y, required this.isBad, required this.emoji});
+  FallingObject({required this.x, required this.y, required this.isBad, required this.icon});
 }
 
 class _SwapEatDropGameState extends State<SwapEatDropGame> {
@@ -38,8 +38,8 @@ class _SwapEatDropGameState extends State<SwapEatDropGame> {
   final Color _neonCyan = const Color(0xFF05D5AA);
   final Color _neonPink = const Color(0xFFF92B60);
 
-  final List<String> goodFoods = ['🍔', '🍟', '🍕', '🍎', '🌮'];
-  final List<String> badItems = ['📚', '☠️', '🗑️'];
+  final List<String> goodFoods = ['🍔', '📖', '🍕', '🍎', '🍽️'];
+  final List<String> badItems = ['📚', '🐛', '🗑️'];
 
   void startGame() {
     setState(() {
@@ -66,14 +66,14 @@ class _SwapEatDropGameState extends State<SwapEatDropGame> {
     final rand = Random();
     final isBad = rand.nextDouble() > 0.7; // 30% chance to be bad
     final list = isBad ? badItems : goodFoods;
-    final emoji = list[rand.nextInt(list.length)];
+    final icon = list[rand.nextInt(list.length)];
     
     setState(() {
       objects.add(FallingObject(
         x: rand.nextDouble() * 0.8 + 0.1, // keep within screen bounds
         y: -0.1,
         isBad: isBad,
-        emoji: emoji,
+        icon: icon,
       ));
     });
   }
@@ -211,7 +211,7 @@ class _SwapEatDropGameState extends State<SwapEatDropGame> {
           ...objects.map((obj) {
             return Align(
               alignment: Alignment(obj.x * 2 - 1, obj.y * 2 - 1),
-              child: Text(obj.emoji, style: const TextStyle(fontSize: 40)),
+              child: Text(obj.icon, style: TextStyle(fontSize: 40)),
             );
           }),
 
@@ -245,11 +245,7 @@ class _SwapEatDropGameState extends State<SwapEatDropGame> {
                   Text('Score: $score', style: TextStyle(color: _neonCyan, fontSize: 24, fontWeight: FontWeight.bold)),
                   Row(
                     children: List.generate(3, (index) {
-                      return Icon(
-                        index < lives ? Icons.favorite : Icons.favorite_border,
-                        color: _neonPink,
-                        size: 28,
-                      );
+                      return Text(index < lives ? '❤️' : '🤍', style: TextStyle(fontSize: 28));
                     }),
                   )
                 ],

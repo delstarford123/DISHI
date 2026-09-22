@@ -16,9 +16,9 @@ class ScavengerHuntGame extends StatefulWidget {
 class Riddle {
   final String text;
   final List<String> acceptableAnswers;
-  final String emoji;
+  final String icon;
 
-  Riddle(this.text, this.acceptableAnswers, this.emoji);
+  Riddle(this.text, this.acceptableAnswers, this.icon);
 }
 
 class _ScavengerHuntGameState extends State<ScavengerHuntGame> {
@@ -38,10 +38,11 @@ class _ScavengerHuntGameState extends State<ScavengerHuntGame> {
   void initState() {
     super.initState();
     riddles = [
-      Riddle("I hold thousands of stories but have no voice. Where am I?", ["library", "main library", "the library"], "📚"),
-      Riddle("I'm where you go when you're broke but hungry for chapati.", ["mess", "student mess", "cafeteria", "canteen"], "🍽️"),
-      Riddle("I am the green heart of the campus where students sleep on the grass.", ["quad", "main quad", "park", "garden", "field"], "🌳"),
-      Riddle("I have beds but I'm not a hospital. I have rules but I'm not a jail.", ["dorm", "hostel", "dorms", "hostels"], "🛏️"),
+      Riddle('I hold all the books but I cannot read.', ['library', 'bookshelf'], '📚'),
+      Riddle('You go here when you want a hot coffee.', ['cafe', 'coffee shop', 'starbucks'], '☕'),
+      Riddle('Where students live on campus.', ['dorm', 'dormitory', 'hostel'], '🛏️'),
+      Riddle('A large place for sports and graduation.', ['stadium', 'gym', 'arena'], '🏟️'),
+      Riddle('You swipe me to eat food.', ['app', 'phone', 'swapeat', 'dishi'], '📱'),
     ];
   }
 
@@ -117,9 +118,10 @@ class _ScavengerHuntGameState extends State<ScavengerHuntGame> {
   Widget _buildHunt() {
     final riddle = riddles[currentIndex];
     
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -129,7 +131,7 @@ class _ScavengerHuntGameState extends State<ScavengerHuntGame> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 40),
-          Text(riddle.emoji, style: const TextStyle(fontSize: 80), textAlign: TextAlign.center),
+          Text(riddle.icon, style: TextStyle(fontSize: 80)),
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(24),
@@ -179,7 +181,8 @@ class _ScavengerHuntGameState extends State<ScavengerHuntGame> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildGameOver() {

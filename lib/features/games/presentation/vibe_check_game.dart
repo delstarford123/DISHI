@@ -15,11 +15,11 @@ class VibeCheckGame extends StatefulWidget {
 }
 
 class FoodCombo {
-  final String emoji1;
-  final String emoji2;
+  final String icon1;
+  final String icon2;
   final String name;
 
-  FoodCombo(this.emoji1, this.emoji2, this.name);
+  FoodCombo(this.icon1, this.icon2, this.name);
 }
 
 class _VibeCheckGameState extends State<VibeCheckGame> {
@@ -43,21 +43,16 @@ class _VibeCheckGameState extends State<VibeCheckGame> {
   }
 
   void _generateCombos() {
-    final all = [
-      FoodCombo('🍟', '🍦', 'Fries + Ice Cream'),
-      FoodCombo('🍕', '🍍', 'Pineapple Pizza'),
-      FoodCombo('🥑', '🍞', 'Avocado Toast'),
+    final List<FoodCombo> combos = [
+      FoodCombo('🍔', '📖', 'Classic Combo'),
+      FoodCombo('🍕', '🥬', 'Avocado Pizza'),
+      FoodCombo('🍎', '🍽️', 'Apple Taco'),
       FoodCombo('🍔', '🍩', 'Donut Burger'),
-      FoodCombo('🌮', '🍯', 'Taco + Honey'),
-      FoodCombo('🍉', '🧂', 'Watermelon + Salt'),
-      FoodCombo('🌭', '🍫', 'Hotdog + Chocolate'),
-      FoodCombo('🥗', '🍎', 'Apple Salad'),
-      FoodCombo('☕', '🧀', 'Coffee + Cheese'),
-      FoodCombo('🍝', '🍅', 'Pasta + Ketchup'),
+      FoodCombo('📖', '🍿', 'Salty Mix'),
     ];
-    all.shuffle();
+    combos.shuffle();
     setState(() {
-      combos = all;
+      this.combos = combos;
       currentIndex = 0;
       score = 0;
       isGameOver = false;
@@ -173,9 +168,9 @@ class _VibeCheckGameState extends State<VibeCheckGame> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(currentCombo.emoji1, style: const TextStyle(fontSize: 80)),
-                            const Text(' + ', style: TextStyle(color: Colors.white54, fontSize: 30)),
-                            Text(currentCombo.emoji2, style: const TextStyle(fontSize: 80)),
+                            Text(currentCombo.icon1, style: TextStyle(fontSize: 80)),
+                            const Text('+', style: TextStyle(color: Colors.white, fontSize: 40)),
+                            Text(currentCombo.icon2, style: TextStyle(fontSize: 80)),
                           ],
                         ),
                         const SizedBox(height: 30),
@@ -201,7 +196,7 @@ class _VibeCheckGameState extends State<VibeCheckGame> {
                 heroTag: 'btnTrash',
                 backgroundColor: Colors.grey.shade800,
                 onPressed: () => _handleSwipe(false),
-                child: const Icon(Icons.delete, color: Colors.white, size: 30),
+                child: const Text('🗑️', style: TextStyle(fontSize: 30)),
               ),
               FloatingActionButton(
                 heroTag: 'btnFire',

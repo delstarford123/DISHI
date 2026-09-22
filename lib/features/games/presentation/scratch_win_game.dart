@@ -20,8 +20,15 @@ class _ScratchWinGameState extends State<ScratchWinGame> {
   final Color _neonCyan = const Color(0xFF05D5AA);
   final Color _neonPink = const Color(0xFFF92B60);
 
-  final List<String> possiblePrizes = ['🪙', '🪙', '🪙', '🍒', '🍒', '🍉', '🍉', '💎'];
-  List<String> board = [];
+  final List<String> _items = [
+    '🍔',
+    '📖',
+    '🍕',
+    '💎',
+    '🍎',
+    '🍽️'
+  ];
+  List<String> grid = [];
   List<bool> revealed = [];
   bool isGameOver = false;
   int revealedCount = 0;
@@ -34,14 +41,10 @@ class _ScratchWinGameState extends State<ScratchWinGame> {
   }
 
   void _initGame() {
-    final rand = Random();
-    board = [];
+    final pool = List<String>.from(_items);
+    pool.shuffle();
     
-    // We want 9 tiles. 
-    // To ensure they can win sometimes, we randomly build the board.
-    for (int i = 0; i < 9; i++) {
-      board.add(possiblePrizes[rand.nextInt(possiblePrizes.length)]);
-    }
+    grid = List.generate(9, (index) => pool[Random().nextInt(pool.length)]);
 
     setState(() {
       revealed = List.filled(9, false);
@@ -68,7 +71,7 @@ class _ScratchWinGameState extends State<ScratchWinGame> {
       Map<String, int> counts = {};
       for (int i = 0; i < 9; i++) {
         if (revealed[i]) {
-          counts[board[i]] = (counts[board[i]] ?? 0) + 1;
+          counts[grid[i]] = (counts[grid[i]] ?? 0) + 1;
         }
       }
 
@@ -94,9 +97,11 @@ class _ScratchWinGameState extends State<ScratchWinGame> {
       revealed = List.filled(9, true);
       
       int coins = 0;
-      if (symbol == '🪙') coins = 50;
-      else if (symbol == '🍒') coins = 100;
-      else if (symbol == '🍉') coins = 250;
+      if (symbol == '🍔') coins = 50;
+      else if (symbol == '📖') coins = 100;
+      else if (symbol == '🍕') coins = 150;
+      else if (symbol == '🍎') coins = 200;
+      else if (symbol == '🍽️') coins = 250;
       else if (symbol == '💎') coins = 1000;
 
       winMessage = "JACKPOT! You won $coins Coins!";
@@ -134,7 +139,7 @@ class _ScratchWinGameState extends State<ScratchWinGame> {
             children: [
               const Text('Match 3 symbols to win a prize!', style: TextStyle(color: Colors.white70, fontSize: 18)),
               const SizedBox(height: 10),
-              const Text('💎 = 1000  |  🍉 = 250  |  🍒 = 100  |  🪙 = 50', style: TextStyle(color: Colors.white54, fontSize: 14)),
+              const Text('💎 = 1000  |  🍔 = 50  |  🍕 = 150  |  🍎 = 200', style: TextStyle(color: Colors.white54, fontSize: 14)),
               const SizedBox(height: 40),
               
               GridView.builder(
@@ -165,8 +170,8 @@ class _ScratchWinGameState extends State<ScratchWinGame> {
                       ),
                       child: Center(
                         child: revealed[index]
-                            ? Text(board[index], style: const TextStyle(fontSize: 40))
-                            : Icon(Icons.star, color: _neonCyan.withOpacity(0.5), size: 30),
+                            ? Text(grid[index], style: TextStyle(fontSize: 40))
+                            : const Text('✨', style: TextStyle(fontSize: 40)),
                       ),
                     ),
                   );

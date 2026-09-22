@@ -5,7 +5,6 @@ import '../../../core/models/user_model.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'coins_display.dart';
-import 'package:sensors_plus/sensors_plus.dart';
 
 enum Direction { up, down, left, right }
 
@@ -29,7 +28,7 @@ class _HungryFresherGameState extends State<HungryFresherGame> {
   bool isGameOver = false;
   int score = 0;
   Timer? gameTimer;
-  StreamSubscription<AccelerometerEvent>? _accelSubscription;
+
 
   final Color _bgColor = const Color(0xFF0C101B);
   final Color _neonCyan = const Color(0xFF05D5AA);
@@ -50,22 +49,7 @@ class _HungryFresherGameState extends State<HungryFresherGame> {
       direction = Direction.down;
     });
 
-    _accelSubscription?.cancel();
-    _accelSubscription = accelerometerEventStream().listen((AccelerometerEvent event) {
-      if (!isPlaying) return;
-      
-      const double threshold = 3.0; // Sensitivity
-      if (event.x > threshold && direction != Direction.right) {
-        direction = Direction.left;
-      } else if (event.x < -threshold && direction != Direction.left) {
-        direction = Direction.right;
-      } else if (event.y > threshold && direction != Direction.up) {
-        direction = Direction.down;
-      } else if (event.y < -threshold && direction != Direction.down) {
-        direction = Direction.up;
-      }
-    });
-    
+
     gameTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
       updateSnake();
       if (_checkGameOver()) {
@@ -151,7 +135,7 @@ class _HungryFresherGameState extends State<HungryFresherGame> {
   }
 
   void _showGameOverDialog() {
-    _accelSubscription?.cancel();
+
     setState(() {
       isPlaying = false;
       isGameOver = true;
@@ -192,7 +176,7 @@ class _HungryFresherGameState extends State<HungryFresherGame> {
   @override
   void dispose() {
     gameTimer?.cancel();
-    _accelSubscription?.cancel();
+
     super.dispose();
   }
 

@@ -47,7 +47,13 @@ def submit_score():
         else:
             user_stats_ref.set({f'best_{game_id}': score})
 
-        coins_earned = score // 100
+        # Determine scaling factor based on the game
+        scale_factors = {
+            'scratch_win': 100,
+        }
+        factor = scale_factors.get(game_id, 10) # default 1 coin per 10 points
+        
+        coins_earned = score // factor
         if coins_earned > 0:
             user_ref = db.collection('users').document(uid)
             user_ref.set({'dishi_coins': firestore.Increment(coins_earned)}, merge=True)
@@ -100,30 +106,7 @@ def daily_spin():
         print(f"Daily spin error: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
-@firestore.transactional
-def process_redemption(transaction, user_ref, cost, item_id):
-    snapshot = user_ref.get(transaction=transaction)
-    if not snapshot.exists:
-        return False, "User not found"
-        
-    current_coins = snapshot.to_dict().get('dishi_coins', 0)
-    if current_coins < cost:
-        return False, "Insufficient Dishi Coins"
-        
-    transaction.update(user_ref, {
-        'dishi_coins': current_coins - cost
-    })
-    
-    # Process reward delivery
-    if item_id == 'free_delivery':
-        user_stats_ref = db.collection('user_game_stats').document(user_ref.id)
-        transaction.set(user_stats_ref, {'free_deliveries': firestore.Increment(1)}, merge=True)
-    elif item_id == 'discount_10':
-        pass # Client handles the promo code UI, we just deduct
-    elif item_id == 'vip_badge':
-        transaction.update(user_ref, {'premium_badge': True})
-        
-    return True, "Success"
+
 
 @games_bp.route('/redeem', methods=['POST'])
 def redeem_store():
@@ -147,8 +130,25 @@ def redeem_store():
     
     try:
         user_ref = db.collection('users').document(uid)
+        user_stats_ref = db.collection('user_game_stats').document(uid)
+
+        @firestore.transactional
+        def _run_redeem(transaction, u_ref, stats_ref, deduct):
+            snapshot = u_ref.get(transaction=transaction)
+            if not snapshot.exists:
+                return False, "User not found"
+            current_coins = snapshot.to_dict().get('dishi_coins', 0)
+            if current_coins < deduct:
+                return False, "Insufficient Dishi Coins"
+            transaction.update(u_ref, {'dishi_coins': current_coins - deduct})
+            if item_id == 'free_delivery':
+                transaction.set(stats_ref, {'free_deliveries': firestore.Increment(1)}, merge=True)
+            elif item_id == 'vip_badge':
+                transaction.update(u_ref, {'premium_badge': True})
+            return True, "Success"
+
         transaction = db.transaction()
-        success, message = process_redemption(transaction, user_ref, cost, item_id)
+        success, message = _run_redeem(transaction, user_ref, user_stats_ref, cost)
         
         if not success:
             return jsonify({"error": message}), 400
@@ -157,3 +157,4 @@ def redeem_store():
     except Exception as e:
         print(f"Redeem error: {e}")
         return jsonify({"error": "Transaction failed"}), 500
+

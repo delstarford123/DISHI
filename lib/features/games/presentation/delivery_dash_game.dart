@@ -17,10 +17,10 @@ class DeliveryDashGame extends StatefulWidget {
 
 class Obstacle {
   double x;
-  final String emoji;
+  final String icon;
   final double size;
 
-  Obstacle(this.x, this.emoji, this.size);
+  Obstacle(this.x, this.icon, this.size);
 }
 
 class _DeliveryDashGameState extends State<DeliveryDashGame> {
@@ -43,7 +43,7 @@ class _DeliveryDashGameState extends State<DeliveryDashGame> {
   List<Obstacle> obstacles = [];
   double gameSpeed = 5.0;
 
-  final List<String> obstacleEmojis = ['🚧', '🕳️', '🚗', '🛑'];
+  final List<String> obstacleIcons = ['🚗', '🚧', '🐕', '🗑️', '🚲'];
 
   void startGame() {
     setState(() {
@@ -68,9 +68,9 @@ class _DeliveryDashGameState extends State<DeliveryDashGame> {
 
   void spawnObstacle() {
     final rand = Random();
-    final emoji = obstacleEmojis[rand.nextInt(obstacleEmojis.length)];
+    final icon = obstacleIcons[rand.nextInt(obstacleIcons.length)];
     setState(() {
-      obstacles.add(Obstacle(MediaQuery.of(context).size.width, emoji, 40));
+      obstacles.add(Obstacle(MediaQuery.of(context).size.width, icon, 40));
     });
   }
 
@@ -239,7 +239,7 @@ class _DeliveryDashGameState extends State<DeliveryDashGame> {
             ...obstacles.map((obs) => Positioned(
                   left: obs.x,
                   bottom: MediaQuery.of(context).size.height * 0.3,
-                  child: Text(obs.emoji, style: TextStyle(fontSize: obs.size)),
+                  child: Text(obs.icon, style: TextStyle(fontSize: 30)),
                 )),
 
             // HUD

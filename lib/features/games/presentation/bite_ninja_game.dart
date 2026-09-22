@@ -21,7 +21,7 @@ class FlyingObject {
   double vx;
   double vy;
   final bool isBomb;
-  final String emoji;
+  final String icon;
   bool isSliced = false;
 
   FlyingObject({
@@ -30,7 +30,7 @@ class FlyingObject {
     required this.vx,
     required this.vy,
     required this.isBomb,
-    required this.emoji,
+    required this.icon,
   });
 }
 
@@ -49,7 +49,7 @@ class _BiteNinjaGameState extends State<BiteNinjaGame> {
   final Color _neonCyan = const Color(0xFF05D5AA);
   final Color _neonPink = const Color(0xFFF92B60);
 
-  final List<String> foods = ['🍎', '🍉', '🍕', '🍔', '🥑', '🌮'];
+  final List<String> foods = ['🍎', '🍕', '🍔', '🥬', '🍽️'];
   final List<String> bombs = ['💣'];
 
   void startGame() {
@@ -79,7 +79,7 @@ class _BiteNinjaGameState extends State<BiteNinjaGame> {
       for (int i = 0; i < count; i++) {
         final isBomb = rand.nextDouble() > 0.85; // 15% chance for bomb
         final list = isBomb ? bombs : foods;
-        final emoji = list[rand.nextInt(list.length)];
+        final icon = foods[rand.nextInt(foods.length)];
         
         // Start near bottom
         double startX = rand.nextDouble() * 0.8 + 0.1;
@@ -95,7 +95,7 @@ class _BiteNinjaGameState extends State<BiteNinjaGame> {
           vx: vx,
           vy: vy,
           isBomb: isBomb,
-          emoji: emoji,
+          icon: isBomb ? '💣' : icon,
         ));
       }
     });
@@ -267,16 +267,28 @@ class _BiteNinjaGameState extends State<BiteNinjaGame> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(obj.emoji, style: const TextStyle(fontSize: 25)),
+                    ClipRect(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: 0.5,
+                        child: Text(obj.icon, style: TextStyle(fontSize: 45)),
+                      ),
+                    ),
                     const SizedBox(width: 5),
-                    Text(obj.emoji, style: const TextStyle(fontSize: 25)),
+                    ClipRect(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        widthFactor: 0.5,
+                        child: Text(obj.icon, style: TextStyle(fontSize: 45)),
+                      ),
+                    ),
                   ],
                 ),
               );
             }
             return Align(
               alignment: Alignment(obj.x * 2 - 1, obj.y * 2 - 1),
-              child: Text(obj.emoji, style: const TextStyle(fontSize: 45)),
+              child: Text(obj.icon, style: TextStyle(fontSize: 45)),
             );
           }),
 
@@ -292,11 +304,7 @@ class _BiteNinjaGameState extends State<BiteNinjaGame> {
                   Text('Score: $score', style: TextStyle(color: _neonCyan, fontSize: 24, fontWeight: FontWeight.bold)),
                   Row(
                     children: List.generate(7, (index) {
-                      return Icon(
-                        index < lives ? Icons.favorite : Icons.favorite_border,
-                        color: _neonPink,
-                        size: 28,
-                      );
+                      return Text(index < lives ? '❤️' : '🤍', style: TextStyle(fontSize: 28));
                     }),
                   )
                 ],

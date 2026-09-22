@@ -16,12 +16,12 @@ class DormTycoonGame extends StatefulWidget {
 
 class UpgradeItem {
   final String name;
-  final String emoji;
-  final int cps; // Cash per second
+  final String icon;
+  final int cps; // coins per second
   int cost;
   int count = 0;
 
-  UpgradeItem(this.name, this.emoji, this.cps, this.cost);
+  UpgradeItem(this.name, this.icon, this.cps, this.cost);
 }
 
 class _DormTycoonGameState extends State<DormTycoonGame> {
@@ -39,10 +39,11 @@ class _DormTycoonGameState extends State<DormTycoonGame> {
   void initState() {
     super.initState();
     upgrades = [
-      UpgradeItem("Kettle", "☕", 1, 50),
-      UpgradeItem("Mini Fridge", "🧊", 5, 250),
-      UpgradeItem("Better Wi-Fi", "📶", 15, 1000),
-      UpgradeItem("Snack Cart", "🛒", 50, 5000),
+      UpgradeItem('Better Bed', '🛏️', 1, 10),
+      UpgradeItem('Mini Fridge', '❄️', 5, 50),
+      UpgradeItem('Microwave', '♨️', 15, 100),
+      UpgradeItem('Gaming PC', '💻', 50, 500),
+      UpgradeItem('Room Maid', '🧹', 100, 1000),
     ];
 
     loopTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -107,7 +108,7 @@ class _DormTycoonGameState extends State<DormTycoonGame> {
         foregroundColor: Colors.white,
         actions: [CoinsDisplay(uid: widget.userModel.uid)],
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Text('⬅️', style: TextStyle(fontSize: 32)),
           onPressed: _saveAndExit,
         ),
       ),
@@ -197,7 +198,7 @@ class _DormTycoonGameState extends State<DormTycoonGame> {
                   ),
                   child: Row(
                     children: [
-                      Text(item.emoji, style: const TextStyle(fontSize: 30)),
+                      Text(item.icon, style: TextStyle(fontSize: 30)),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(

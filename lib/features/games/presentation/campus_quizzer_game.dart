@@ -95,6 +95,7 @@ class _CampusQuizzerGameState extends State<CampusQuizzerGame> with SingleTicker
   }
 
   void _nextQuestion() {
+    if (!mounted) return;
     if (currentQuestionIndex < questions.length - 1) {
       setState(() {
         currentQuestionIndex++;

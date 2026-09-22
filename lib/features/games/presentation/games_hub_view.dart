@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
-import '../../../core/theme/mpesa_theme.dart';
 import 'delivery_dash_game.dart';
 import 'hungry_fresher_game.dart';
 import 'swapeat_drop_game.dart';
@@ -37,7 +36,7 @@ class _GamesHubViewState extends State<GamesHubView> {
   @override
   void initState() {
     super.initState();
-    _dishiCoins = (widget.userModel.toJson()['dishi_coins'] ?? 0) as int;
+    _dishiCoins = ((widget.userModel.toJson()['dishi_coins'] ?? 0) as num).toInt();
   }
 
   @override
@@ -58,19 +57,22 @@ class _GamesHubViewState extends State<GamesHubView> {
           // Header / Wallet Info
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [_cardColor, _cardColor.withOpacity(0.8)],
+                    colors: [
+                      const Color(0xFF0D2A20),
+                      _cardColor,
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _neonCyan.withOpacity(0.3)),
+                  border: Border.all(color: _neonCyan.withOpacity(0.35)),
                   boxShadow: [
-                    BoxShadow(color: _neonCyan.withOpacity(0.1), blurRadius: 20, spreadRadius: -5),
+                    BoxShadow(color: _neonCyan.withOpacity(0.12), blurRadius: 24, spreadRadius: -4),
                   ],
                 ),
                 child: StreamBuilder<DocumentSnapshot>(
@@ -80,44 +82,98 @@ class _GamesHubViewState extends State<GamesHubView> {
                     if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
                       final data = snapshot.data!.data() as Map<String, dynamic>?;
                       if (data != null && data['dishi_coins'] != null) {
-                        currentCoins = data['dishi_coins'] as int;
+                        currentCoins = (data['dishi_coins'] as num).toInt();
                         _dishiCoins = currentCoins;
                       }
                     }
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Dishi Coins Balance', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                            const SizedBox(height: 8),
-                            Row(
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.monetization_on, color: Colors.amber, size: 28),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '$currentCoins',
-                                  style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                                Text('Dishi Coins Balance', style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 12, letterSpacing: 0.5)),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.monetization_on, color: Colors.amber, size: 30),
+                                    const SizedBox(width: 8),
+                                    AnimatedSwitcher(
+                                      duration: const Duration(milliseconds: 400),
+                                      transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: ScaleTransition(scale: anim, child: child)),
+                                      child: Text(
+                                        '$currentCoins',
+                                        key: ValueKey<int>(currentCoins),
+                                        style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Text('pts', style: TextStyle(color: Colors.amber, fontSize: 14, fontWeight: FontWeight.w600)),
+                                  ],
                                 ),
                               ],
                             ),
+                            InkWell(
+                              onTap: () {
+                                Navigator.push(context, MaterialPageRoute(builder: (context) => RedeemStoreView(userModel: widget.userModel)));
+                              },
+                              borderRadius: BorderRadius.circular(30),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(colors: [_neonCyan.withOpacity(0.25), _neonCyan.withOpacity(0.1)]),
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(color: _neonCyan),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.storefront_outlined, color: _neonCyan, size: 16),
+                                    const SizedBox(width: 6),
+                                    Text('Redeem', style: TextStyle(color: _neonCyan, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                        InkWell(
-                          onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => RedeemStoreView(userModel: widget.userModel)));
+                        const SizedBox(height: 16),
+                        // Stats row from user_game_stats
+                        StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance.collection('user_game_stats').doc(widget.userModel.uid).snapshots(),
+                          builder: (ctx, statsSnap) {
+                            int gamesPlayed = 0;
+                            int totalEarned = 0;
+                            bool canSpin = true;
+                            if (statsSnap.hasData && statsSnap.data!.exists) {
+                              final d = statsSnap.data!.data() as Map<String, dynamic>;
+                              // Count fields that look like best_<game_id>
+                              gamesPlayed = d.keys.where((k) => k.startsWith('best_')).length;
+                              // last_spin cooldown check
+                              final lastSpin = d['last_spin'];
+                              if (lastSpin != null) {
+                                final lastSpinDt = (lastSpin as dynamic).toDate() as DateTime;
+                                canSpin = DateTime.now().difference(lastSpinDt).inHours >= 24;
+                              }
+                            }
+                            return Row(
+                              children: [
+                                _statChip(Icons.sports_esports_outlined, '$gamesPlayed', 'Games'),
+                                const SizedBox(width: 10),
+                                _statChip(Icons.monetization_on_outlined, '$currentCoins', 'Total Coins'),
+                                const SizedBox(width: 10),
+                                _statChip(
+                                  canSpin ? Icons.casino_outlined : Icons.timer_outlined,
+                                  canSpin ? 'Ready' : '24h wait',
+                                  'Daily Spin',
+                                  color: canSpin ? Colors.greenAccent : Colors.orange,
+                                ),
+                              ],
+                            );
                           },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: _neonCyan.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(color: _neonCyan),
-                            ),
-                            child: const Text('Redeem', style: TextStyle(color: Color(0xFF05D5AA), fontWeight: FontWeight.bold)),
-                          ),
-                        )
+                        ),
                       ],
                     );
                   },
@@ -167,6 +223,29 @@ class _GamesHubViewState extends State<GamesHubView> {
           
           const SliverToBoxAdapter(child: SizedBox(height: 50)),
         ],
+      ),
+    );
+  }
+
+  Widget _statChip(IconData icon, String value, String label, {Color? color}) {
+    final chipColor = color ?? const Color(0xFF05D5AA);
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+        decoration: BoxDecoration(
+          color: chipColor.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: chipColor.withOpacity(0.25)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: chipColor, size: 18),
+            const SizedBox(height: 3),
+            Text(value, style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+            Text(label, style: TextStyle(color: chipColor.withOpacity(0.7), fontSize: 10)),
+          ],
+        ),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:animate_do/animate_do.dart';
 
 class CoinsDisplay extends StatelessWidget {
   final String uid;
@@ -15,22 +16,26 @@ class CoinsDisplay extends StatelessWidget {
         if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
           final data = snapshot.data!.data() as Map<String, dynamic>?;
           if (data != null && data['dishi_coins'] != null) {
-            currentCoins = data['dishi_coins'] as int;
+            currentCoins = (data['dishi_coins'] as num).toInt();
           }
         }
         return Padding(
           padding: const EdgeInsets.only(right: 16.0),
           child: Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.monetization_on, color: Colors.amber, size: 24),
-                const SizedBox(width: 6),
-                Text(
-                  '$currentCoins',
-                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ],
+            child: ElasticIn(
+              key: ValueKey<int>(currentCoins),
+              duration: const Duration(milliseconds: 800),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.monetization_on, color: Colors.amber, size: 24),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$currentCoins',
+                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
             ),
           ),
         );
