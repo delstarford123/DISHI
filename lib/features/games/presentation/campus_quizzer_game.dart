@@ -119,7 +119,7 @@ class _CampusQuizzerGameState extends State<CampusQuizzerGame> with SingleTicker
   Future<void> _submitScore() async {
     try {
       await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v1/games/score'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
         body: json.encode({'game_id': 'campus_quizzer', 'score': score}),
       ).timeout(const Duration(seconds: 15));

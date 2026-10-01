@@ -173,9 +173,9 @@ class _DeliveryDashGameState extends State<DeliveryDashGame> {
       int coinsEarned = (score / 100).floor(); // 1 coin per 100 meters
       if (coinsEarned > 0) {
         await http.post(
-          Uri.parse('https://swapeatbackend.vercel.app/api/v1/games/score'),
+          Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
           headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
-          body: json.encode({'game_id': 'delivery_dash', 'score': coinsEarned}),
+          body: json.encode({'game_id': 'delivery_dash', 'score': coinsEarned * 10}),
         ).timeout(const Duration(seconds: 15));
       }
     } catch (e) {
@@ -198,7 +198,7 @@ class _DeliveryDashGameState extends State<DeliveryDashGame> {
         title: const Text('Delivery Dash', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: _bgColor,
         foregroundColor: Colors.white,
-        actions: [CoinsDisplay(uid: widget.userModel.uid)],
+        actions: [CoinsDisplay(uid: widget.userModel.uid, sessionCoins: (score / 100).floor())],
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,

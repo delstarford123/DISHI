@@ -81,7 +81,7 @@ class _VibeCheckGameState extends State<VibeCheckGame> {
     try {
       if (score > 0) {
         await http.post(
-          Uri.parse('https://swapeatbackend.vercel.app/api/v1/games/score'),
+          Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
           headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
           body: json.encode({'game_id': 'vibe_check', 'score': score * 100}), // Scaled for backend coins
         ).timeout(const Duration(seconds: 15));

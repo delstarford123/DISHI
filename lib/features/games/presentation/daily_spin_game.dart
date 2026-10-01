@@ -50,7 +50,7 @@ class _DailySpinGameState extends State<DailySpinGame> with SingleTickerProvider
 
     try {
       final response = await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v1/games/spin'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/spin'),
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
       ).timeout(const Duration(seconds: 30));
 

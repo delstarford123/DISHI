@@ -17,7 +17,8 @@
     { "collectionGroup": "notifications", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "targetUserId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
     { "collectionGroup": "deliv_rides", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "driver_id", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "timestamp", "order": "DESCENDING" }] },
     { "collectionGroup": "deliv_rides", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "student_id", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "timestamp", "order": "DESCENDING" }] },
-    { "collectionGroup": "game_leaderboards", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "game_id", "order": "ASCENDING" }, { "fieldPath": "score", "order": "DESCENDING" }] }
+    { "collectionGroup": "game_leaderboards", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "game_id", "order": "ASCENDING" }, { "fieldPath": "score", "order": "DESCENDING" }] },
+    { "collectionGroup": "escrow_items", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] }
   ],
   "fieldOverrides": [
     { "collectionGroup": "campus_confessions", "fieldPath": "created_at", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }, { "order": "DESCENDING", "queryScope": "COLLECTION" }] },

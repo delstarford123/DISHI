@@ -112,9 +112,7 @@ service cloud.firestore {
     // In-app notifications (written server-side by Admin SDK)
     // Each notification has a targetUserId field — only that user can read it.
     match /notifications/{notificationId} {
-      allow read: if isAuth() && (
-        resource == null || resource.data.targetUserId == request.auth.uid
-      );
+      allow read: if isAuth();
       allow create: if false; // Written only by backend (Admin SDK bypasses rules)
       // Allow users to update their own notification (mark read, dismiss)
       allow update: if isAuth() && resource.data.targetUserId == request.auth.uid;
@@ -517,6 +515,8 @@ service cloud.firestore {
     // Safter Pin (also aliased as safety_pins for backwards compat)
     match /safter_pins/{pinId}           { allow read, write: if isAuth(); }
     match /safety_pins/{pinId}           { allow read, write: if isAuth(); }
+    match /safety_pins_locations/{docId} { allow read, write: if isAuth(); }
+    match /security_alerts/{docId}       { allow read, write: if isAuth(); }
     match /virtual_tours/{tourId}        { allow read: if isAuth(); allow write: if isAdmin(); }
     match /keja_cooking/{cookingId}      { allow read, write: if isAuth(); }
     match /keja_flex/{flexId}            { allow read, write: if isAuth(); }

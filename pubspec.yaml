@@ -87,6 +87,7 @@ dependencies:
   flutter_jailbreak_detection: ^1.10.0
   pin_code_fields: ^8.0.1
   sensors_plus: ^5.0.1
+  video_player: ^2.8.6
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -106,6 +107,7 @@ flutter:
   assets:
     - assets/img/
     - assets/sounds/
+    - assets/videos/
 
   fonts:
     - family: Outfit

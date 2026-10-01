@@ -97,7 +97,7 @@ class AllFeaturesView extends StatelessWidget {
           _buildStickyHeader('Marketplace & Commerce'),
           _buildSliverGrid([
             _FeatureItem(icon: Icons.storefront, label: 'Escrow Market', color: Colors.blueAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EscrowMarketView(user: userModel.toJson())))),
-            _FeatureItem(icon: Icons.sync_alt, label: 'Swipe Exchange', color: Colors.orangeAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SwipeExchangeView(user: userModel.toJson())))),
+            _FeatureItem(icon: Icons.sync_alt, label: 'Swipe Exchange', color: Colors.orangeAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SwipeExchangeView(userModel: userModel)))),
           ], cardColor),
 
           _buildStickyHeader('Social & Community'),

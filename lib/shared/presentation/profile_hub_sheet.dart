@@ -295,7 +295,8 @@ class _ProfileHubSheetState extends State<ProfileHubSheet> {
     final course = (_userData?['course'] ?? '').toString();
     final bio = (_userData?['bio'] ?? '').toString();
     final subtitle = course.isNotEmpty ? course : (bio.isNotEmpty ? bio : null);
-    final dishiId = widget.user['uid'].toString().substring(0, 8).toUpperCase();
+    final uidStr = widget.user['uid']?.toString() ?? 'GUEST000';
+    final dishiId = _userData?['dishiId']?.toString() ?? widget.user['dishiId']?.toString() ?? (uidStr.length >= 8 ? uidStr.substring(0, 8).toUpperCase() : uidStr.toUpperCase().padRight(8, '0'));
 
     return Column(
       children: [
@@ -353,18 +354,18 @@ class _ProfileHubSheetState extends State<ProfileHubSheet> {
         ],
         const SizedBox(height: 12),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            color: MPesaTheme.primaryGreen.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: MPesaTheme.primaryGreen.withOpacity(0.3)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.badge_outlined, size: 14, color: _textSecondary),
-              const SizedBox(width: 6),
-              Text('DISHI ID: $dishiId', style: TextStyle(color: _textSecondary, fontSize: 13, fontFamily: 'monospace')),
+              const Icon(Icons.qr_code_scanner, size: 16, color: MPesaTheme.primaryGreen),
+              const SizedBox(width: 8),
+              Text('DISHI ID: $dishiId', style: const TextStyle(color: MPesaTheme.primaryGreen, fontSize: 14, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
             ],
           ),
         ),

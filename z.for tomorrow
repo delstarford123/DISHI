@@ -83,7 +83,7 @@ A **DraggableScrollableSheet** that opens from the bottom when the user taps the
 
 ### Contents (scrollable top-to-bottom)
 
-```
+
 ┌─────────────────────────────────────┐
 │  [Large Avatar]  Name               │
 │  Role badge · Campus · Course       │
@@ -100,7 +100,7 @@ A **DraggableScrollableSheet** that opens from the bottom when the user taps the
 │  🚪  Logout                         │
 │  🗑️  Delete Account  (danger zone)  │
 └─────────────────────────────────────┘
-```
+
 
 ### Where it's triggered
 - Student dashboard: tapping the `CircleAvatar` in `_buildCustomAppBar()`

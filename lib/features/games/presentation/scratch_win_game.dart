@@ -112,7 +112,7 @@ class _ScratchWinGameState extends State<ScratchWinGame> {
   Future<void> _submitScore(int coins) async {
     try {
       await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v1/games/score'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
         body: json.encode({'game_id': 'scratch_win', 'score': coins * 100}), // Scale up
       ).timeout(const Duration(seconds: 15));

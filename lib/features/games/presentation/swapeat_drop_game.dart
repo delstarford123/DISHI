@@ -161,7 +161,7 @@ class _SwapEatDropGameState extends State<SwapEatDropGame> {
   Future<void> _submitScore() async {
     try {
       await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v1/games/score'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
         body: json.encode({'game_id': 'swapeat_drop', 'score': score}),
       ).timeout(const Duration(seconds: 15));
@@ -185,7 +185,7 @@ class _SwapEatDropGameState extends State<SwapEatDropGame> {
         title: const Text('DISHI Drop', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: _bgColor,
         foregroundColor: Colors.white,
-        actions: [CoinsDisplay(uid: widget.userModel.uid)],
+        actions: [CoinsDisplay(uid: widget.userModel.uid, sessionCoins: score > 0 ? (score / 10).floor() : 0)],
       ),
       body: Stack(
         children: [

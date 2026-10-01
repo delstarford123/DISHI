@@ -405,20 +405,45 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(_selectedCategory.toUpperCase(), style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                const Icon(Icons.local_fire_department, color: Colors.redAccent),
-              ],
-            ),
-            const Expanded(child: SizedBox()),
-            Text(_currentQuestion, textAlign: TextAlign.center, style: const TextStyle(color: Colors.black87, fontSize: 22, fontWeight: FontWeight.w600, height: 1.4)),
-            const Expanded(child: SizedBox()),
-            const Text('Will you answer or drink?', style: TextStyle(color: Colors.black54, fontStyle: FontStyle.italic)),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _selectedCategory.toUpperCase(),
+                              style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, letterSpacing: 1),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Icon(Icons.local_fire_department, color: Colors.redAccent),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _currentQuestion,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.black87, fontSize: 22, fontWeight: FontWeight.w600, height: 1.4),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Will you answer or drink?',
+                        style: TextStyle(color: Colors.black54, fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

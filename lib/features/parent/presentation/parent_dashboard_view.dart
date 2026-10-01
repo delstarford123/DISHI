@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui';
+import 'dart:io';
+import 'package:fl_chart/fl_chart.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -64,7 +67,7 @@ class ParentDashboardView extends StatefulWidget {
   State<ParentDashboardView> createState() => _ParentDashboardViewState();
 }
 
-class _ParentDashboardViewState extends State<ParentDashboardView> {
+class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   double _vaultBalance = 15400.0;
   List<Map<String, dynamic>> _linkedStudents = [];
@@ -73,9 +76,14 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
   int _unresolvedSosCount = 0; // Live count of unresolved SOS alerts
   StreamSubscription<QuerySnapshot>? _sosStreamSub;
 
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(_pulseController);
     _fetchParentData();
 
     // Initialize FCM so this parent gets push notifications
@@ -116,6 +124,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
   @override
   void dispose() {
     _sosStreamSub?.cancel();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -223,6 +232,31 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
             ],
           ),
           const SizedBox(height: 16),
+          // Embedded FlChart Sparkline
+          SizedBox(
+            height: 100,
+            child: LineChart(
+              LineChartData(
+                gridData: const FlGridData(show: false),
+                titlesData: const FlTitlesData(show: false),
+                borderData: FlBorderData(show: false),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: const [
+                      FlSpot(0, 3), FlSpot(1, 1), FlSpot(2, 4), FlSpot(3, 2), FlSpot(4, 5), FlSpot(5, 3), FlSpot(6, 4)
+                    ],
+                    isCurved: true,
+                    color: _neonCyan,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(show: true, color: _neonCyan.withOpacity(0.2)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -247,29 +281,43 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
   }
 
   Widget _buildCommunityFeedSnippet() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _neonBlue.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('community_posts').orderBy('createdAt', descending: true).limit(1).snapshots(),
+      builder: (context, snapshot) {
+        String content = '"How do you guys handle lunchbox limits? My kid keeps buying junk food!"';
+        String author = '- Sarah N., 15 mins ago';
+        
+        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+          final data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+          content = '"${data['content'] ?? content}"';
+          author = '- ${data['authorName'] ?? 'Parent'}, just now';
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _neonCyan.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.forum, color: _neonBlue),
-              SizedBox(width: 8),
-              Text('Parent Community', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const Row(
+                children: [
+                  Icon(Icons.forum, color: _neonCyan),
+                  SizedBox(width: 8),
+                  Text('Parent Community', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(content, style: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic)),
+              const SizedBox(height: 8),
+              Text(author, style: const TextStyle(color: _neonCyan, fontSize: 12)),
             ],
           ),
-          const SizedBox(height: 12),
-          const Text('"How do you guys handle lunchbox limits? My kid keeps buying junk food!"', style: TextStyle(color: Colors.white70, fontStyle: FontStyle.italic)),
-          const SizedBox(height: 8),
-          const Text('- Sarah N., 15 mins ago', style: TextStyle(color: _neonBlue, fontSize: 12)),
-        ],
-      ),
+        );
+      }
     );
   }
 
@@ -358,11 +406,8 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
         }
 
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFF161B29).withOpacity(0.8),
             borderRadius: BorderRadius.circular(40),
-            border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.2),
@@ -371,6 +416,17 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
               )
             ],
           ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(40),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF161B29).withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(40),
+                  border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+                ),
           child: Row(
             children: [
               Stack(
@@ -422,17 +478,138 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
               ),
               GestureDetector(
                 onTap: () => setState(() => _isSearching = true),
-                child: const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: Icon(Icons.search, color: Colors.white, size: 22),
-                ),
+                child: _buildIconContainer(Icons.search),
               ),
+              const SizedBox(width: 4),
+              _unresolvedSosCount > 0
+                  ? ScaleTransition(
+                      scale: _pulseAnimation,
+                      child: _buildParentNotificationBell(FirebaseAuth.instance.currentUser?.uid ?? ''),
+                    )
+                  : _buildParentNotificationBell(FirebaseAuth.instance.currentUser?.uid ?? ''),
+            ],
+          ),
+        ),
+      )));
+    });
+  }
+
+  Widget _buildIconContainer(IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(color: _surfaceLight, shape: BoxShape.circle),
+      child: Icon(icon, color: Colors.white, size: 20),
+    );
+  }
+
+  Widget _buildParentNotificationBell(String uid) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('notifications').orderBy('createdAt', descending: true).snapshots(),
+      builder: (context, snapshot) {
+        int unread = 0;
+        List<DocumentSnapshot> myNotes = [];
+        if (snapshot.hasData) {
+          for (var doc in snapshot.data!.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            final targetId = data['targetUserId'] as String?;
+            final dismissed = List<String>.from(data['dismissedBy'] ?? []);
+            if ((targetId == null || targetId == uid) && !dismissed.contains(uid)) {
+              myNotes.add(doc);
+              final readBy = List<String>.from(data['readBy'] ?? []);
+              if (!readBy.contains(uid)) unread++;
+            }
+          }
+        }
+        return GestureDetector(
+          onTap: () => _showParentNotificationsSheet(uid, myNotes),
+          child: Stack(
+            children: [
+              _buildIconContainer(Icons.notifications_none),
+              if (unread > 0)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(color: _neonPink, shape: BoxShape.circle),
+                    child: Text(unread > 9 ? '9+' : '$unread', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                  ),
+                ),
             ],
           ),
         );
-      }
+      },
     );
   }
+
+  void _showParentNotificationsSheet(String uid, List<DocumentSnapshot> notes) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        minChildSize: 0.3,
+        expand: false,
+        builder: (_, sc) => Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(child: Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2.5)))),
+              const SizedBox(height: 24),
+              const Text('Notifications', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Expanded(
+                child: notes.isEmpty
+                    ? const Center(child: Text('No notifications', style: TextStyle(color: _textSecondary)))
+                    : ListView.separated(
+                        controller: sc,
+                        itemCount: notes.length,
+                        separatorBuilder: (_, __) => const Divider(color: Colors.white12),
+                        itemBuilder: (_, i) {
+                          final doc = notes[i];
+                          final data = doc.data() as Map<String, dynamic>;
+                          final readBy = List<String>.from(data['readBy'] ?? []);
+                          final isRead = readBy.contains(uid);
+                          return Dismissible(
+                            key: Key(doc.id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 20), color: _neonPink, child: const Icon(Icons.delete, color: Colors.white)),
+                            onDismissed: (_) async {
+                              await FirebaseFirestore.instance.collection('notifications').doc(doc.id).update({'dismissedBy': FieldValue.arrayUnion([uid])});
+                            },
+                            child: ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Container(
+                                width: 44, height: 44,
+                                decoration: BoxDecoration(color: isRead ? _surfaceLight : _neonCyan.withOpacity(0.2), shape: BoxShape.circle),
+                                child: Icon(Icons.notifications, color: isRead ? _textSecondary : _neonCyan),
+                              ),
+                              title: Text(data['title'] ?? '', style: TextStyle(color: Colors.white, fontWeight: isRead ? FontWeight.normal : FontWeight.bold)),
+                              subtitle: Text(data['message'] ?? '', style: const TextStyle(color: _textSecondary)),
+                              onTap: () async {
+                                if (!isRead) {
+                                  await FirebaseFirestore.instance.collection('notifications').doc(doc.id).update({'readBy': FieldValue.arrayUnion([uid])});
+                                }
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Page controller for vault card swipe ──────────────────────────────────
+  final PageController _vaultPageController = PageController();
+  int _currentVaultPage = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -454,35 +631,93 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
                 children: tabs,
               ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: _bgColor,
-        selectedItemColor: _neonCyan,
-        unselectedItemColor: _textSecondary,
-        currentIndex: _selectedIndex,
-        type: BottomNavigationBarType.fixed,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_outline), label: 'Dependents'),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'Vault'),
-          BottomNavigationBarItem(icon: Icon(Icons.public), label: 'Community'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
-        ],
-      ),
+      bottomNavigationBar: _buildPremiumBottomNav(),
     );
   }
 
+  Widget _buildPremiumBottomNav() {
+    final items = [
+      (Icons.home_rounded, Icons.home_outlined, 'Home'),
+      (Icons.people_rounded, Icons.people_outline, 'Dependents'),
+      (Icons.account_balance_wallet_rounded, Icons.account_balance_wallet_outlined, 'Vault'),
+      (Icons.public_rounded, Icons.public_outlined, 'Community'),
+      (Icons.settings_rounded, Icons.settings_outlined, 'Settings'),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 20, offset: const Offset(0, -4)),
+        ],
+      ),
+      child: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E1421).withOpacity(0.75),
+              border: Border(top: BorderSide(color: Colors.white.withOpacity(0.07), width: 1)),
+            ),
+            child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+            children: List.generate(items.length, (i) {
+              final isSelected = _selectedIndex == i;
+              final item = items[i];
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedIndex = i),
+                  behavior: HitTestBehavior.opaque,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? _neonCyan.withOpacity(0.12) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isSelected ? item.$1 : item.$2,
+                          color: isSelected ? _neonCyan : _textSecondary,
+                          size: 22,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          item.$3,
+                          style: TextStyle(
+                            color: isSelected ? _neonCyan : _textSecondary,
+                            fontSize: 10,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+    ))));
+  }
+
   Widget _buildHomeTab() {
-    return CustomScrollView(
+    return RefreshIndicator(
+      color: _neonCyan,
+      backgroundColor: _cardColor,
+      onRefresh: _fetchParentData,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverAppBar(
           expandedHeight: 80,
           floating: true,
           pinned: false,
+          automaticallyImplyLeading: false,
           backgroundColor: _bgColor,
           elevation: 0,
           flexibleSpace: FlexibleSpaceBar(
@@ -493,91 +728,384 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 80.0),
+          padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 80.0),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              // —— SOS Banner (only when there are unresolved alerts) ———————————————
-              if (_unresolvedSosCount > 0)
-                _buildSosBanner(),
-              if (_unresolvedSosCount > 0)
-                const SizedBox(height: 16),
-              // High Level Overview
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: _cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _neonBlue.withOpacity(0.4), width: 1.5),
-                  boxShadow: [BoxShadow(color: _neonBlue.withOpacity(0.1), blurRadius: 20, spreadRadius: 2)]
-                ),
-                child: Column(
-                  children: [
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.shield, color: _neonBlue, size: 24),
-                        SizedBox(width: 8),
-                        Text('Shared Family Vault', style: TextStyle(color: _textSecondary, fontSize: 16)),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'KSH ${_vaultBalance.toStringAsFixed(2)}',
-                      style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => _showVaultTopUpModal(context),
-                            icon: const Icon(Icons.add_circle_outline),
-                            label: const Text('Top Up'),
-                            style: ElevatedButton.styleFrom(backgroundColor: _neonBlue, foregroundColor: Colors.white),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => _showBulkFundModal(context),
-                            icon: const Icon(Icons.account_balance_wallet),
-                            label: const Text('Fund Students'),
-                            style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-              const Text('Quick Access', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              // —— SOS Banner ——
+              if (_unresolvedSosCount > 0) ...[_buildSosBanner(), const SizedBox(height: 16)],
+
+              // —— Top Level Child Switcher ——
+              if (_linkedStudents.length > 1) _buildChildSwitcher(),
+              if (_linkedStudents.length > 1) const SizedBox(height: 16),
+
+              // —— Family Guardian Tier Banner ——
+              _buildGuardianBadge(),
               const SizedBox(height: 16),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                children: [
-                  _buildActionGridButton(Icons.security, 'Kill Switch', _neonPink, _showKillSwitchDialog),
-                  _buildActionGridButton(Icons.warning_amber_rounded, 'SOS Alerts', MPesaTheme.primaryRed, _showEmergencyAlerts, badge: _unresolvedSosCount),
-                  _buildActionGridButton(Icons.gavel, 'Disputes', _neonPink, _showDisputes),
-                  _buildActionGridButton(Icons.group_add, 'Co-Parent', _neonBlue, _showCoParenting),
-                  _buildActionGridButton(Icons.handshake, 'Savings Match', _neonCyan, _showSavingsMatcher),
-                  _buildActionGridButton(Icons.timeline, 'Live Tracker', Colors.orangeAccent, _showLiveTracking),
-                ],
-              ),
-              const SizedBox(height: 32),
+
+              // —— Swipeable Vault Cards ——
+              _buildVaultPageView(),
+              const SizedBox(height: 8),
+              _buildVaultPaginationDots(),
+              const SizedBox(height: 28),
+
+              // —— Smart Suggestions ——
+              _buildSmartSuggestions(),
+              const SizedBox(height: 28),
+
+              // —— Quick Actions (icon row, student-style) ——
+              _buildParentQuickActions(),
+              const SizedBox(height: 28),
+
+              // —— Behavioral Insights ——
               _buildBehaviorAnalyticsWidget(),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // —— Support Widget ——
               UniversalSupportWidget(userId: FirebaseAuth.instance.currentUser?.uid ?? 'unknown', userRole: 'parent'),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // —— Community Snippet ——
               _buildCommunityFeedSnippet(),
             ]),
           ),
         ),
       ],
+    ));
+  }
+
+  Widget _buildGuardianBadge() {
+    return InkWell(
+      onTap: () {},
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _neonCyan.withOpacity(0.3), width: 1.5),
+          boxShadow: [
+            BoxShadow(color: _neonCyan.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4)),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.shield_rounded, color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Family Guardian', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text('Full oversight · All features unlocked', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.7)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVaultPageView() {
+    // Build card list: vault overview + one per linked student
+    final cards = <Widget>[
+      _buildFamilyVaultCard(),
+      ..._linkedStudents.map((s) => _buildStudentVaultCard(s)),
+    ];
+    return SizedBox(
+      height: 220,
+      child: PageView(
+        controller: _vaultPageController,
+        onPageChanged: (i) => setState(() => _currentVaultPage = i),
+        children: cards,
+      ),
+    );
+  }
+
+  Widget _buildFamilyVaultCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _neonCyan.withOpacity(0.3), width: 1.5),
+        boxShadow: [BoxShadow(color: _neonCyan.withOpacity(0.15), blurRadius: 20, spreadRadius: 2)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.shield_rounded, color: _neonCyan, size: 18),
+              SizedBox(width: 8),
+              Text('Shared Family Vault', style: TextStyle(color: Colors.white70, fontSize: 13)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'KSH ${_vaultBalance.toStringAsFixed(2)}',
+            style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+          ),
+          const Spacer(),
+          // Progress bar (family allocation visual)
+          Stack(
+            children: [
+              Container(height: 6, width: double.infinity, decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(3))),
+              FractionallySizedBox(
+                widthFactor: (_linkedStudents.isEmpty || _vaultBalance == 0) ? 0.0 : ((_linkedStudents.fold(0.0, (sum, s) => sum + ((s['balance'] as double?) ?? 0.0))) / _vaultBalance).clamp(0.0, 1.0),
+                child: Container(
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: _neonCyan,
+                    borderRadius: BorderRadius.circular(3),
+                    boxShadow: [BoxShadow(color: _neonCyan.withOpacity(0.5), blurRadius: 6)],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _showVaultTopUpModal(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _neonCyan.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _neonCyan.withOpacity(0.5)),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text('Top Up', style: TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _showBulkFundModal(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _neonCyan,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text('Fund Students', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStudentVaultCard(Map<String, dynamic> student) {
+    final bool isActive = (student['status'] as String?) == 'Active';
+    final Color accent = isActive ? _neonCyan : _neonOrange;
+    final double bal = (student['balance'] as double?) ?? 0.0;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFF141E30), accent.withOpacity(0.25)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: accent.withOpacity(0.35), width: 1.5),
+        boxShadow: [BoxShadow(color: accent.withOpacity(0.12), blurRadius: 20, spreadRadius: 2)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(color: accent.withOpacity(0.15), shape: BoxShape.circle),
+                child: Icon(Icons.school_rounded, color: accent, size: 16),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: Text(student['name'] as String? ?? 'Student', style: const TextStyle(color: Colors.white70, fontSize: 13), overflow: TextOverflow.ellipsis)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: accent.withOpacity(0.4)),
+                ),
+                child: Text(isActive ? 'Active' : 'Low', style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'KSH ${bal.toStringAsFixed(2)}',
+            style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+          ),
+          const Spacer(),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _showTopUpModal(context, student['uid'] as String, student['name'] as String),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(color: accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10), border: Border.all(color: accent.withOpacity(0.5))),
+                    alignment: Alignment.center,
+                    child: Text('Fund', style: TextStyle(color: accent, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: GestureDetector(
+                  onTap: _showKillSwitchDialog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(color: _neonPink.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: _neonPink.withOpacity(0.5))),
+                    alignment: Alignment.center,
+                    child: const Text('Controls', style: TextStyle(color: _neonPink, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVaultPaginationDots() {
+    final total = 1 + _linkedStudents.length;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(total, (i) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: _currentVaultPage == i ? 20 : 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: _currentVaultPage == i ? _neonCyan : _surfaceLight,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildParentQuickActions() {
+    final actions = [
+      _buildParentActionIcon(Icons.security_rounded, 'Kill Switch', _neonPink, _showKillSwitchDialog),
+      _buildParentActionIcon(Icons.warning_amber_rounded, 'SOS Alerts', MPesaTheme.primaryRed, _showEmergencyAlerts, badge: _unresolvedSosCount),
+      _buildParentActionIcon(Icons.gavel_rounded, 'Disputes', const Color(0xFFF59E0B), _showDisputes),
+      _buildParentActionIcon(Icons.group_add_rounded, 'Co-Parent', _neonBlue, _showCoParenting),
+      _buildParentActionIcon(Icons.handshake_rounded, 'Savings Match', _neonCyan, _showSavingsMatcher),
+      _buildParentActionIcon(Icons.my_location_rounded, 'Live Track', Colors.orangeAccent, _showLiveTracking),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Quick Actions', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            GestureDetector(
+              onTap: () => setState(() => _selectedIndex = 1),
+              child: Text('Manage >', style: TextStyle(color: _neonCyan.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        SizedBox(
+          height: 90,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            children: actions.map((a) => Padding(padding: const EdgeInsets.only(right: 16), child: a)).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildParentActionIcon(
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap, {
+    int badge = 0,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [color.withOpacity(0.25), color.withOpacity(0.08)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: color.withOpacity(0.4), width: 1.5),
+                  boxShadow: [BoxShadow(color: color.withOpacity(0.2), blurRadius: 10, spreadRadius: 1)],
+                ),
+                child: Icon(icon, color: color, size: 26),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600, height: 1.2),
+                maxLines: 2,
+              ),
+            ],
+          ),
+          if (badge > 0)
+            Positioned(
+              top: -4,
+              right: -2,
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: Border.all(color: _bgColor, width: 1.5)),
+                child: Center(child: Text(badge > 9 ? '9+' : '$badge', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -2406,6 +2934,96 @@ class _ParentDashboardViewState extends State<ParentDashboardView> {
               ),
             ),
             const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+  Widget _buildChildSwitcher() {
+    return SizedBox(
+      height: 60,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: _linkedStudents.length,
+        itemBuilder: (context, index) {
+          final student = _linkedStudents[index];
+          final isSelected = student['uid'] == _globalSelectedStudentUid;
+          return GestureDetector(
+            onTap: () {
+              setState(() => _globalSelectedStudentUid = student['uid']);
+              if (_vaultPageController.hasClients) {
+                _vaultPageController.animateToPage(index + 1, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+              }
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: isSelected ? _neonCyan : Colors.transparent, width: 2),
+              ),
+              child: CircleAvatar(
+                radius: 22,
+                backgroundColor: _surfaceLight,
+                child: Text((student['name'] as String?)?.isNotEmpty == true ? (student['name'] as String)[0].toUpperCase() : 'S', style: TextStyle(color: isSelected ? _neonCyan : Colors.white)),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSmartSuggestions() {
+    if (_linkedStudents.isEmpty) return const SizedBox();
+    final List<Widget> suggestions = [];
+    for (var s in _linkedStudents) {
+      if ((s['balance'] as double? ?? 0) < 200) {
+        suggestions.add(_buildSuggestionCard(
+          icon: Icons.warning_amber_rounded,
+          color: _neonOrange,
+          text: "${s['name']}'s balance is below Ksh 200. Tap to fund.",
+          onTap: () => _showTopUpModal(context, s['uid'] as String, s['name'] as String)
+        ));
+      }
+    }
+    if (suggestions.isEmpty) {
+      suggestions.add(_buildSuggestionCard(
+        icon: Icons.check_circle_outline,
+        color: _neonCyan,
+        text: "All students are funded. Review chores to release rewards.",
+        onTap: () {} // Navigate to bounties/chores
+      ));
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Smart Suggestions', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        ...suggestions,
+      ],
+    );
+  }
+
+  Widget _buildSuggestionCard({required IconData icon, required Color color, required String text, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 12),
+            Expanded(child: Text(text, style: const TextStyle(color: Colors.white70, fontSize: 13))),
+            Icon(Icons.arrow_forward_ios, color: color.withOpacity(0.5), size: 14),
           ],
         ),
       ),

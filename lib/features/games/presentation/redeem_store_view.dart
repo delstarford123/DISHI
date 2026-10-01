@@ -61,7 +61,7 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v1/games/redeem'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/redeem'),
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
         body: json.encode({'item_id': itemId}),
       ).timeout(const Duration(seconds: 30));

@@ -79,9 +79,9 @@ class _DormTycoonGameState extends State<DormTycoonGame> {
       int earnedCoins = (tycoonCash / 100).floor();
       if (earnedCoins > 0) {
         await http.post(
-          Uri.parse('https://swapeatbackend.vercel.app/api/v1/games/score'),
+          Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
           headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
-          body: json.encode({'game_id': 'dorm_tycoon', 'score': earnedCoins}),
+          body: json.encode({'game_id': 'dorm_tycoon', 'score': earnedCoins * 10}),
         ).timeout(const Duration(seconds: 15));
       }
     } catch (e) {

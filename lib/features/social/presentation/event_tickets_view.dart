@@ -6,6 +6,10 @@ import 'create_event_view.dart';
 import 'event_dashboard_view.dart';
 import 'package:flutter/services.dart';
 import '../../match/presentation/match_chat_view.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'dart:async';
+import '../../../core/services/api_config.dart';
 import '../../community/presentation/ar_campus_map_view.dart';
 
 class EventTicketsView extends StatefulWidget {
@@ -39,56 +43,129 @@ class _EventTicketsViewState extends State<EventTicketsView> with SingleTickerPr
   void _buyTicket(Map<String, dynamic> event, String tier, int price) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF131A2A),
-        title: Text('Buy $tier Ticket?'),
-        content: Text('This will deduct KES $price from your DISHI Wallet.\n\n(A 5 KES system fee applies. Event Organizer receives KES ${price - 5})', style: const TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryGreen),
-            onPressed: () async {
-              Navigator.pop(context);
-              
-              // Add to My Tickets
-              await FirebaseFirestore.instance.collection('users').doc(currentUid).collection('my_tickets').add({
-                'eventId': event['id'],
-                'eventTitle': event['title'],
-                'tier': tier,
-                'price': price,
-                'purchaseDate': FieldValue.serverTimestamp(),
-                'used': false,
-              });
-
-              // Update Event Stats
-              final eventRef = FirebaseFirestore.instance.collection('events').doc(event['id']);
-              
-              String tierSoldField = 'regularSold';
-              if (tier == 'VIP') tierSoldField = 'vipSold';
-              if (tier == 'Early Bird') tierSoldField = 'earlyBirdSold';
-
-              await eventRef.update({
-                'ticketsSold': FieldValue.increment(1),
-                tierSoldField: FieldValue.increment(1),
-                'revenue': FieldValue.increment(price),
-                'attendees': FieldValue.arrayUnion([currentUid]),
-              });
-              
-              // Add to Mega Chat
-              final chatId = 'event_${event['id']}';
-              await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
-                'participants': FieldValue.arrayUnion([currentUid]),
-                'isGroup': true,
-                'groupName': '${event['title']} Hype Chat 🎉',
-              }, SetOptions(merge: true));
-              
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ticket purchased successfully! Check your Wallet tab.')));
-            },
-            child: const Text('Pay with DISHI', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          )
-        ],
-      )
+      builder: (_) {
+        final phoneController = TextEditingController();
+        return StatefulBuilder(
+          builder: (context, setState) {
+            bool useMpesa = false;
+            return AlertDialog(
+              backgroundColor: const Color(0xFF131A2A),
+              title: Text('Buy $tier Ticket?'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Price: KES $price', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text('(A 5 KES system fee applies. Event Organizer receives the rest)', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  const SizedBox(height: 20),
+                  SwitchListTile(
+                    title: const Text('Pay with M-PESA', style: TextStyle(color: Colors.white)),
+                    value: useMpesa,
+                    activeColor: MPesaTheme.primaryGreen,
+                    onChanged: (val) => setState(() => useMpesa = val),
+                  ),
+                  if (useMpesa) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'M-PESA Number (e.g. 2547XXXXXXXX)',
+                        labelStyle: const TextStyle(color: Colors.white54),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: MPesaTheme.neonCyan.withOpacity(0.5))),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: MPesaTheme.neonCyan)),
+                      ),
+                    ),
+                  ]
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryGreen),
+                  onPressed: () async {
+                    if (useMpesa) {
+                      final phone = phoneController.text.trim();
+                      if (phone.isEmpty) return;
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Initiating M-PESA prompt...'), backgroundColor: MPesaTheme.neonCyan));
+                      
+                      try {
+                        final response = await http.post(
+                          Uri.parse(ApiConfig.mpesaStkPush),
+                          headers: {'Content-Type': 'application/json'},
+                          body: jsonEncode({
+                            'phone_number': phone,
+                            'amount': price,
+                            'user_id': currentUid,
+                          }),
+                        ).timeout(const Duration(seconds: 30));
+                        
+                        if (response.statusCode == 200) {
+                          if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Check your phone for the M-PESA PIN prompt!'), backgroundColor: Colors.green));
+                          _grantTicketOffline(event, tier, price);
+                        } else {
+                          if (mounted) {
+                            String errMsg = 'Payment Failed';
+                            try { errMsg = jsonDecode(response.body)['error'] ?? errMsg; } catch (_) {}
+                            ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Failed: $errMsg'), backgroundColor: MPesaTheme.neonPink));
+                          }
+                        }
+                      } on TimeoutException {
+                        if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Request timed out. Try again.'), backgroundColor: MPesaTheme.neonPink));
+                      } catch (e) {
+                        if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: MPesaTheme.neonPink));
+                      }
+                    } else {
+                      Navigator.pop(context);
+                      _grantTicketOffline(event, tier, price);
+                    }
+                  },
+                  child: Text(useMpesa ? 'Pay with M-PESA' : 'Pay with DISHI', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                )
+              ],
+            );
+          },
+        );
+      }
     );
+  }
+
+  Future<void> _grantTicketOffline(Map<String, dynamic> event, String tier, int price) async {
+    // Add to My Tickets
+    await FirebaseFirestore.instance.collection('users').doc(currentUid).collection('my_tickets').add({
+      'eventId': event['id'],
+      'eventTitle': event['title'],
+      'tier': tier,
+      'price': price,
+      'purchaseDate': FieldValue.serverTimestamp(),
+      'used': false,
+    });
+
+    // Update Event Stats
+    final eventRef = FirebaseFirestore.instance.collection('events').doc(event['id']);
+    
+    String tierSoldField = 'regularSold';
+    if (tier == 'VIP') tierSoldField = 'vipSold';
+    if (tier == 'Early Bird') tierSoldField = 'earlyBirdSold';
+
+    await eventRef.update({
+      'ticketsSold': FieldValue.increment(1),
+      tierSoldField: FieldValue.increment(1),
+      'revenue': FieldValue.increment(price),
+      'attendees': FieldValue.arrayUnion([currentUid]),
+    });
+    
+    // Add to Mega Chat
+    final chatId = 'event_${event['id']}';
+    await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
+      'participants': FieldValue.arrayUnion([currentUid]),
+      'isGroup': true,
+      'groupName': '${event['title']} Hype Chat 🎉',
+    }, SetOptions(merge: true));
+    
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ticket purchased! Check your Wallet tab.')));
   }
 
   void _showTicketQR(String ticketId) {

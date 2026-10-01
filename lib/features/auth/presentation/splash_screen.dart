@@ -1,8 +1,12 @@
 import 'dart:math' as math;
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:video_player/video_player.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 class SplashScreen extends StatefulWidget {
   final VoidCallback onInitializationComplete;
@@ -31,11 +35,53 @@ class _SplashScreenState extends State<SplashScreen>
 
   // Golden arc rotation
   late AnimationController _arcController;
-  late Animation<double> _arcSweep;    // arc length grows in
-  late Animation<double> _arcRotation; // arc slowly rotates
-  late Animation<double> _arcGlow;     // arc glow pulses
+  late Animation<double> _arcSweep;
+  late Animation<double> _arcRotation;
+  late Animation<double> _arcGlow;
 
   bool _initialized = false;
+
+  // 1. Video Background
+  late VideoPlayerController _videoController;
+
+  // 2. Network Status
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
+  bool _hasInternet = true;
+
+  // 3. Dynamic Greetings
+  String _greeting = 'Welcome';
+
+  // 4. Parallax Effect
+  late StreamSubscription<AccelerometerEvent> _accelSubscription;
+  double _parallaxX = 0;
+  double _parallaxY = 0;
+
+  // 5. Progressive Loading Steps
+  int _loadingStep = 0;
+  final List<String> _loadingSteps = [
+    'Initialising...',
+    'Connecting to servers...',
+    'Warming up plates...',
+    'Getting ready...',
+  ];
+  late Timer _loadingTimer;
+
+  // 6. Interactive Mascot
+  late AnimationController _spinController;
+
+  // 7. Slide-in Tip of the Day
+  final List<String> _tips = [
+    'Did you know? Food tastes better when shared.',
+    'Pro Tip: Swipe right to save a meal.',
+    'Daily Hack: Check early for the best dishes.',
+  ];
+  late String _currentTip;
+
+  // 8. Particle System
+  late AnimationController _particleController;
+
+  // 9. App Version Display
+  final String _appVersion = "v1.0.0"; // 10. Lottie Placeholder is implemented as a shimmer box
 
   // ── Palette ────────────────────────────────────────────
   static const Color _bg        = Color(0xFF021A0D); // darkest forest green
@@ -55,6 +101,51 @@ class _SplashScreenState extends State<SplashScreen>
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ));
+
+    _setGreeting();
+    _currentTip = _tips[math.Random().nextInt(_tips.length)];
+
+    // Video Init
+    _videoController = VideoPlayerController.asset('assets/videos/splash_bg.mp4')
+      ..initialize().then((_) {
+        _videoController.setLooping(true);
+        _videoController.setVolume(0);
+        _videoController.play();
+        if (mounted) setState(() {});
+      });
+
+    // Connectivity Init
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> result) {
+      if (mounted) {
+        setState(() {
+          _hasInternet = !result.contains(ConnectivityResult.none);
+        });
+      }
+    });
+
+    // Parallax Init
+    _accelSubscription = accelerometerEvents.listen((AccelerometerEvent event) {
+      if (mounted) {
+        setState(() {
+          _parallaxX = event.x * -2.5;
+          _parallaxY = event.y * 2.5;
+        });
+      }
+    });
+
+    // Loading Steps Timer
+    _loadingTimer = Timer.periodic(const Duration(milliseconds: 800), (timer) {
+      if (mounted) {
+        setState(() {
+          if (_loadingStep < _loadingSteps.length - 1) {
+            _loadingStep++;
+          }
+        });
+      }
+    });
+
+    _spinController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _particleController = AnimationController(vsync: this, duration: const Duration(seconds: 15))..repeat();
 
     // Gentle floating bob
     _floatController = AnimationController(
@@ -92,7 +183,6 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 3600),
     )..repeat();
 
-    // Arc sweep angle: 0 → π (half circle) in the first 40 % of each cycle
     _arcSweep = TweenSequence<double>([
       TweenSequenceItem(
           tween: Tween<double>(begin: 0.0, end: math.pi)
@@ -102,11 +192,9 @@ class _SplashScreenState extends State<SplashScreen>
           tween: ConstantTween<double>(math.pi), weight: 60),
     ]).animate(_arcController);
 
-    // Slow 360° rotation over full cycle
     _arcRotation = Tween<double>(begin: 0.0, end: 2 * math.pi)
         .animate(CurvedAnimation(parent: _arcController, curve: Curves.linear));
 
-    // Glow opacity breathes 0.5 → 1.0 → 0.5
     _arcGlow = TweenSequence<double>([
       TweenSequenceItem(
           tween: Tween<double>(begin: 0.5, end: 1.0)
@@ -117,6 +205,17 @@ class _SplashScreenState extends State<SplashScreen>
               .chain(CurveTween(curve: Curves.easeOut)),
           weight: 50),
     ]).animate(_arcController);
+  }
+
+  void _setGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      _greeting = 'Good Morning';
+    } else if (hour < 17) {
+      _greeting = 'Good Afternoon';
+    } else {
+      _greeting = 'Good Evening';
+    }
   }
 
   @override
@@ -137,21 +236,33 @@ class _SplashScreenState extends State<SplashScreen>
             .catchError((_) {}),
         precacheImage(const AssetImage('assets/img/dishi_logo.png'), context)
             .catchError((_) {}),
-        Future.delayed(const Duration(milliseconds: 2800)),
+        Future.delayed(const Duration(milliseconds: 500)), // Reduced from 3200ms to make app load almost instantly
       ]);
     } catch (_) {
-      await Future.delayed(const Duration(milliseconds: 2800));
+      await Future.delayed(const Duration(milliseconds: 500));
     }
     if (mounted) widget.onInitializationComplete();
   }
 
   @override
   void dispose() {
+    _videoController.dispose();
+    _connectivitySubscription.cancel();
+    _accelSubscription.cancel();
+    _loadingTimer.cancel();
+    _spinController.dispose();
+    _particleController.dispose();
     _floatController.dispose();
     _pulseController.dispose();
     _shimmerController.dispose();
     _arcController.dispose();
     super.dispose();
+  }
+
+  void _onMascotTap() {
+    if (_spinController.isAnimating) return;
+    _spinController.forward(from: 0.0);
+    HapticFeedback.lightImpact();
   }
 
   @override
@@ -165,20 +276,50 @@ class _SplashScreenState extends State<SplashScreen>
         fit: StackFit.expand,
         children: [
 
-          // ── Background: deep green radial ───────────────────────────
-          Container(
-            decoration: const BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(0.0, -0.15),
-                radius: 0.90,
-                colors: [
-                  _green1,   // deep green core
-                  Color(0xFF031A0C), // very dark green mid
-                  _bg,       // near-black green edge
-                ],
-                stops: [0.0, 0.50, 1.0],
+          // 1. Video Background (with Gradient fallback/overlay)
+          if (_videoController.value.isInitialized)
+            Opacity(
+              opacity: 0.25, // Blend video subtly with the background
+              child: SizedBox.expand(
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: _videoController.value.size.width,
+                    height: _videoController.value.size.height,
+                    child: VideoPlayer(_videoController),
+                  ),
+                ),
               ),
             ),
+
+          // ── Background: deep green radial ───────────────────────────
+          Container(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.0, -0.15),
+                radius: 0.90,
+                colors: [
+                  _green1.withOpacity(0.8),   // deep green core
+                  const Color(0xFF031A0C).withOpacity(0.9), // very dark green mid
+                  _bg,       // near-black green edge
+                ],
+                stops: const [0.0, 0.50, 1.0],
+              ),
+            ),
+          ),
+
+          // 2. Particle Animation System
+          AnimatedBuilder(
+            animation: _particleController,
+            builder: (context, child) {
+              return CustomPaint(
+                painter: _ParticlePainter(
+                  progress: _particleController.value,
+                  particleColor: _gold2.withOpacity(0.3),
+                ),
+                size: size,
+              );
+            },
           ),
 
           // ── Top-left green corner glow ───────────────────────────────
@@ -213,218 +354,292 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
 
-          // ── Main content ─────────────────────────────────────────────
-          SafeArea(
-            child: Column(
-              children: [
-                SizedBox(height: size.height * 0.13),
+          // ── Main content with Parallax ───────────────────────────────
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 100),
+            left: _parallaxX,
+            top: _parallaxY,
+            right: -_parallaxX,
+            bottom: -_parallaxY,
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // 3. Dynamic Greetings
+                  FadeInDown(
+                    delay: const Duration(milliseconds: 300),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 20.0),
+                      child: Text(
+                        _greeting,
+                        style: TextStyle(
+                          fontFamily: 'Outfit',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.5,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                      ),
+                    ),
+                  ),
 
-                // ── Pulsing ring + floating logo ──────────────────────
-                SizedBox(
-                  width: 220,
-                  height: 220,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Outer pulse ring
-                      AnimatedBuilder(
-                        animation: _pulseController,
-                        builder: (_, __) => Transform.scale(
-                          scale: _pulseScale.value,
-                          child: Opacity(
-                            opacity: _pulseOpacity.value,
-                            child: Container(
-                              width: 172,
-                              height: 172,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: _greenBrt,
-                                  width: 2.5,
+                  SizedBox(height: size.height * 0.08),
+
+                  // ── Pulsing ring + floating/interactive logo ──────────
+                  GestureDetector(
+                    onTap: _onMascotTap,
+                    child: SizedBox(
+                      width: 220,
+                      height: 220,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Outer pulse ring
+                          AnimatedBuilder(
+                            animation: _pulseController,
+                            builder: (_, __) => Transform.scale(
+                              scale: _pulseScale.value,
+                              child: Opacity(
+                                opacity: _pulseOpacity.value,
+                                child: Container(
+                                  width: 172,
+                                  height: 172,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: _greenBrt,
+                                      width: 2.5,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
 
-                      // Inner glow ring
-                      Container(
-                        width: 154,
-                        height: 154,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              _green1.withOpacity(0.7),
-                              _bg.withOpacity(0.9),
-                            ],
-                          ),
-                          border: Border.all(
-                            color: _greenBrt.withOpacity(0.40),
-                            width: 1.8,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _greenBrt.withOpacity(0.28),
-                              blurRadius: 36,
-                              spreadRadius: 5,
+                          // Inner glow ring
+                          Container(
+                            width: 154,
+                            height: 154,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(
+                                colors: [
+                                  _green1.withOpacity(0.7),
+                                  _bg.withOpacity(0.9),
+                                ],
+                              ),
+                              border: Border.all(
+                                color: _greenBrt.withOpacity(0.40),
+                                width: 1.8,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _greenBrt.withOpacity(0.28),
+                                  blurRadius: 36,
+                                  spreadRadius: 5,
+                                ),
+                                BoxShadow(
+                                  color: _gold1.withOpacity(0.12),
+                                  blurRadius: 20,
+                                  spreadRadius: 1,
+                                ),
+                              ],
                             ),
-                            BoxShadow(
-                              color: _gold1.withOpacity(0.12),
-                              blurRadius: 20,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                      ),
+                          ),
 
-                      // Floating mascot
-                      ElasticIn(
-                        duration: const Duration(milliseconds: 1100),
-                        child: AnimatedBuilder(
-                          animation: _floatAnimation,
-                          builder: (_, child) => Transform.translate(
-                            offset: Offset(0, _floatAnimation.value),
-                            child: child,
-                          ),
-                          child: Image.asset(
-                            'assets/img/dishi_mascot_transparent.png',
-                            width: 122,
-                            height: 122,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => Image.asset(
-                              'assets/img/dishi_logo.png',
-                              width: 110,
-                              height: 110,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Icon(
-                                Icons.restaurant_menu_rounded,
-                                size: 80,
-                                color: _greenBrt,
+                          // Floating & Spinning mascot
+                          ElasticIn(
+                            duration: const Duration(milliseconds: 1100),
+                            child: AnimatedBuilder(
+                              animation: Listenable.merge([_floatAnimation, _spinController]),
+                              builder: (_, child) => Transform.translate(
+                                offset: Offset(0, _floatAnimation.value),
+                                child: Transform.rotate(
+                                  angle: _spinController.value * 2 * math.pi,
+                                  child: child,
+                                ),
+                              ),
+                              child: Image.asset(
+                                'assets/img/dishi_mascot_transparent.png',
+                                width: 122,
+                                height: 122,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Image.asset(
+                                  'assets/img/dishi_logo.png',
+                                  width: 110,
+                                  height: 110,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.restaurant_menu_rounded,
+                                    size: 80,
+                                    color: _greenBrt,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 38),
-
-                // ── DISHI — green→gold shimmer title ─────────────────
-                FadeInUp(
-                  delay: const Duration(milliseconds: 350),
-                  duration: const Duration(milliseconds: 700),
-                  child: AnimatedBuilder(
-                    animation: _shimmerAnim,
-                    builder: (_, child) => ShaderMask(
-                      shaderCallback: (bounds) => LinearGradient(
-                        begin: Alignment(_shimmerAnim.value - 0.6, 0),
-                        end: Alignment(_shimmerAnim.value + 0.6, 0),
-                        colors: const [
-                          _greenLit,  // bright green
-                          _goldLit,   // light gold
-                          _gold2,     // golden yellow
-                          _greenLit,  // bright green
                         ],
-                        stops: const [0.0, 0.35, 0.65, 1.0],
-                      ).createShader(bounds),
-                      child: child,
-                    ),
-                    child: const Text(
-                      'D I S H I',
-                      style: TextStyle(
-                        fontFamily: 'Outfit',
-                        fontSize: 40,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 10.0,
-                        color: Colors.white,
-                        height: 1.0,
                       ),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 10),
+                  const SizedBox(height: 38),
 
-                // ── Tagline ───────────────────────────────────────────
-                FadeIn(
-                  delay: const Duration(milliseconds: 550),
-                  duration: const Duration(milliseconds: 700),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 28,
-                        height: 1,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [
-                            Colors.transparent,
-                            _gold2.withOpacity(0.6),
-                          ]),
-                        ),
+                  // ── DISHI — green→gold shimmer title ─────────────────
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 350),
+                    duration: const Duration(milliseconds: 700),
+                    child: AnimatedBuilder(
+                      animation: _shimmerAnim,
+                      builder: (_, child) => ShaderMask(
+                        shaderCallback: (bounds) => LinearGradient(
+                          begin: Alignment(_shimmerAnim.value - 0.6, 0),
+                          end: Alignment(_shimmerAnim.value + 0.6, 0),
+                          colors: const [
+                            _greenLit,  // bright green
+                            _goldLit,   // light gold
+                            _gold2,     // golden yellow
+                            _greenLit,  // bright green
+                          ],
+                          stops: const [0.0, 0.35, 0.65, 1.0],
+                        ).createShader(bounds),
+                        child: child,
                       ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Smart Living',
+                      child: const Text(
+                        'D I S H I',
                         style: TextStyle(
                           fontFamily: 'Outfit',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 4.5,
-                          color: _gold2.withOpacity(0.80),
+                          fontSize: 40,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 10.0,
+                          color: Colors.white,
+                          height: 1.0,
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Container(
-                        width: 28,
-                        height: 1,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [
-                            _gold2.withOpacity(0.6),
-                            Colors.transparent,
-                          ]),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 50),
+                  const SizedBox(height: 10),
 
-                // ── Loader ────────────────────────────────────────────
-                FadeIn(
-                  delay: const Duration(milliseconds: 900),
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: 130,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: LinearProgressIndicator(
-                            color: _gold2,
-                            backgroundColor: _greenBrt.withOpacity(0.18),
-                            minHeight: 3,
+                  // ── Tagline ───────────────────────────────────────────
+                  FadeIn(
+                    delay: const Duration(milliseconds: 550),
+                    duration: const Duration(milliseconds: 700),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 1,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [
+                              Colors.transparent,
+                              _gold2.withOpacity(0.6),
+                            ]),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Initialising...',
+                        const SizedBox(width: 10),
+                        Text(
+                          'Smart Living',
+                          style: TextStyle(
+                            fontFamily: 'Outfit',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 4.5,
+                            color: _gold2.withOpacity(0.80),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          width: 28,
+                          height: 1,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [
+                              _gold2.withOpacity(0.6),
+                              Colors.transparent,
+                            ]),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 50),
+
+                  // ── Loader & Network Status ─────────────────────────
+                  FadeIn(
+                    delay: const Duration(milliseconds: 900),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          width: 130,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: LinearProgressIndicator(
+                              color: _hasInternet ? _gold2 : Colors.redAccent,
+                              backgroundColor: _greenBrt.withOpacity(0.18),
+                              minHeight: 3,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        // Progressive Loading Text
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 400),
+                          child: Text(
+                            !_hasInternet ? 'Waiting for Network...' : _loadingSteps[_loadingStep],
+                            key: ValueKey<String>(_hasInternet ? _loadingSteps[_loadingStep] : 'offline'),
+                            style: TextStyle(
+                              fontFamily: 'Outfit',
+                              fontSize: 11,
+                              letterSpacing: 2.2,
+                              color: _hasInternet ? Colors.white.withOpacity(0.5) : Colors.redAccent.withOpacity(0.8),
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const Spacer(),
+                  
+                  // 7. Slide-in Tip of the day
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 1000),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 15.0),
+                      child: Text(
+                        _currentTip,
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontFamily: 'Outfit',
-                          fontSize: 11,
-                          letterSpacing: 2.2,
-                          color: Colors.white.withOpacity(0.28),
-                          fontWeight: FontWeight.w400,
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.6),
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                  
+                  // 9. App Version
+                  FadeIn(
+                    delay: const Duration(milliseconds: 1200),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 10.0),
+                      child: Text(
+                        _appVersion,
+                        style: TextStyle(
+                          fontFamily: 'Outfit',
+                          fontSize: 10,
+                          color: Colors.white.withOpacity(0.3),
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -591,8 +806,6 @@ class _GoldenArcPainter extends CustomPainter {
 
     final rect = Rect.fromCircle(center: center, radius: radius);
 
-    // Start angle: rotation drives the half-circle spinning slowly
-    // π is the starting angle (pointing left from center = bottom-right corner)
     final startAngle = math.pi + rotation;
 
     canvas.drawArc(rect, startAngle, sweepAngle, false, paint);
@@ -603,4 +816,36 @@ class _GoldenArcPainter extends CustomPainter {
       old.sweepAngle != sweepAngle ||
       old.rotation != rotation ||
       old.glowOpacity != glowOpacity;
+}
+
+// Particle System Painter
+class _ParticlePainter extends CustomPainter {
+  final double progress;
+  final Color particleColor;
+
+  _ParticlePainter({required this.progress, required this.particleColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = particleColor;
+    final random = math.Random(42); // fixed seed for stable paths
+
+    for (int i = 0; i < 30; i++) {
+      // Create random particles floating upwards
+      final startX = random.nextDouble() * size.width;
+      final startY = random.nextDouble() * size.height;
+      final speed = 0.2 + random.nextDouble() * 0.8;
+      
+      final currentY = (startY - (progress * size.height * speed)) % size.height;
+      final currentX = startX + math.sin(progress * math.pi * 2 + i) * 20;
+
+      // Wrap around correctly
+      final renderY = currentY < 0 ? currentY + size.height : currentY;
+
+      canvas.drawCircle(Offset(currentX, renderY), 1.5 + random.nextDouble() * 2, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ParticlePainter old) => old.progress != progress;
 }

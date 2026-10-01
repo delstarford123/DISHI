@@ -77,7 +77,7 @@ class _TasteMatchGameState extends State<TasteMatchGame> {
     // For now, we just submit a score to give them Dishi coins for playing.
     try {
       await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v1/games/score'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
         body: json.encode({'game_id': 'taste_match', 'score': score}),
       ).timeout(const Duration(seconds: 15));

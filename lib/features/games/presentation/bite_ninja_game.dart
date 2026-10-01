@@ -220,9 +220,9 @@ class _BiteNinjaGameState extends State<BiteNinjaGame> {
   Future<void> _submitScore() async {
     try {
       await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v1/games/score'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
-        body: json.encode({'game_id': 'bite_ninja', 'score': score}),
+        body: json.encode({'game_id': 'bite_ninja', 'score': score * 10}),
       ).timeout(const Duration(seconds: 15));
     } catch (e) {
       print("Error submitting score: \$e");

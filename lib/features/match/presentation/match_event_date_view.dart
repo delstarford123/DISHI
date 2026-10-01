@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'match_chat_view.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
@@ -84,7 +85,11 @@ class _MatchEventDateViewState extends State<MatchEventDateView> with SingleTick
             style: ElevatedButton.styleFrom(backgroundColor: _neonPink),
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Matched! Opening Chat...')));
+              Navigator.push(context, MaterialPageRoute(builder: (_) => MatchChatView(
+                chatId: 'date_${event['id']}_$currentUid',
+                myUid: currentUid,
+                matchName: 'Event Date Match',
+              )));
             },
             child: const Text('Say Hi', style: TextStyle(color: Colors.white)),
           )
@@ -93,8 +98,23 @@ class _MatchEventDateViewState extends State<MatchEventDateView> with SingleTick
     );
   }
 
-  void _joinEventGroupChat(Map<String, dynamic> event) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Joined ${event['title']} Group Chat!')));
+  void _joinEventGroupChat(Map<String, dynamic> event) async {
+    final chatId = 'event_${event['id']}';
+    
+    // Ensure the chat document exists
+    await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
+      'participants': FieldValue.arrayUnion([currentUid]),
+      'isGroup': true,
+      'groupName': '${event['title']} Hype Chat 🎉',
+    }, SetOptions(merge: true));
+
+    if (mounted) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => MatchChatView(
+        chatId: chatId,
+        myUid: currentUid,
+        matchName: '${event['title']} Group Chat',
+      )));
+    }
   }
 
   void _openOutfitBoard(Map<String, dynamic> event) {
@@ -347,6 +367,8 @@ class _MatchEventDateViewState extends State<MatchEventDateView> with SingleTick
     );
   }
 
+  bool _surveyAnswered = false;
+
   Widget _buildMyDatesTab() {
     return Center(
       child: Column(
@@ -359,28 +381,41 @@ class _MatchEventDateViewState extends State<MatchEventDateView> with SingleTick
           const Text('Hit "FIND A DATE" on an event to start matching!', style: TextStyle(color: Colors.white54)),
           const SizedBox(height: 32),
           
-          // Feature 17: Post-event prompt mockup
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: _neonPurple.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: _neonPurple.withOpacity(0.5))),
-            child: Column(
-              children: [
-                const Text('Post-Event Question', style: TextStyle(color: _neonPurple, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                const Text('Did you meet anyone at the Freshers Bash last night?', style: TextStyle(color: Colors.white), textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ElevatedButton(onPressed: (){}, style: ElevatedButton.styleFrom(backgroundColor: _neonCyan), child: const Text('Yes! 💖', style: TextStyle(color: Colors.black))),
-                    const SizedBox(width: 16),
-                    OutlinedButton(onPressed: (){}, child: const Text('No 😔', style: TextStyle(color: Colors.white))),
-                  ],
-                )
-              ],
-            ),
-          )
+          if (!_surveyAnswered)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: _neonPurple.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: _neonPurple.withOpacity(0.5))),
+              child: Column(
+                children: [
+                  const Text('Post-Event Question', style: TextStyle(color: _neonPurple, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text('Did you meet anyone at the Freshers Bash last night?', style: TextStyle(color: Colors.white), textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() => _surveyAnswered = true);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Awesome! We hope you had fun! 💖'), backgroundColor: _neonPurple));
+                        }, 
+                        style: ElevatedButton.styleFrom(backgroundColor: _neonCyan), 
+                        child: const Text('Yes! 💖', style: TextStyle(color: Colors.black))
+                      ),
+                      const SizedBox(width: 16),
+                      OutlinedButton(
+                        onPressed: () {
+                          setState(() => _surveyAnswered = true);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('There is always next time! 🚀'), backgroundColor: _surfaceLight));
+                        }, 
+                        child: const Text('No 😔', style: TextStyle(color: Colors.white))
+                      ),
+                    ],
+                  )
+                ],
+              ),
+            )
         ],
       ),
     );

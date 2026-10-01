@@ -189,10 +189,10 @@ class _GamesHubViewState extends State<GamesHubView> {
             ),
           ),
           _buildGamesGrid([
-            _GameItem(title: 'Delivery Dash', icon: Icons.two_wheeler, color: Colors.orange, isReady: true, routeBuilder: (context) => DeliveryDashGame(userModel: widget.userModel)),
-            _GameItem(title: 'DISHI Drop', icon: Icons.fastfood, color: Colors.greenAccent, isReady: true, routeBuilder: (context) => SwapEatDropGame(userModel: widget.userModel)),
-            _GameItem(title: 'Hungry Fresher', icon: Icons.gesture, color: _neonCyan, isReady: true, routeBuilder: (context) => HungryFresherGame(userModel: widget.userModel)),
-            _GameItem(title: 'Bite Ninja', icon: Icons.content_cut, color: Colors.redAccent, isReady: true, routeBuilder: (context) => BiteNinjaGame(userModel: widget.userModel)),
+            _GameItem(title: 'Delivery Dash', icon: Icons.two_wheeler, color: Colors.orange, isReady: true, imagePath: 'assets/img/game_bg_delivery_dash_1790106266034.jpg', routeBuilder: (context) => DeliveryDashGame(userModel: widget.userModel)),
+            _GameItem(title: 'DISHI Drop', icon: Icons.fastfood, color: Colors.greenAccent, isReady: true, imagePath: 'assets/img/game_bg_dishi_drop_1790106402294.jpg', routeBuilder: (context) => SwapEatDropGame(userModel: widget.userModel)),
+            _GameItem(title: 'Hungry Fresher', icon: Icons.gesture, color: _neonCyan, isReady: true, imagePath: 'assets/img/game_bg_hungry_fresher_1790106457208.jpg', routeBuilder: (context) => HungryFresherGame(userModel: widget.userModel)),
+            _GameItem(title: 'Bite Ninja', icon: Icons.content_cut, color: Colors.redAccent, isReady: true, imagePath: 'assets/img/game_bg_bite_ninja_1790106469828.jpg', routeBuilder: (context) => BiteNinjaGame(userModel: widget.userModel)),
           ]),
 
           const SliverPadding(
@@ -202,10 +202,10 @@ class _GamesHubViewState extends State<GamesHubView> {
             ),
           ),
           _buildGamesGrid([
-            _GameItem(title: 'Taste Match', icon: Icons.favorite, color: _neonPink, isReady: true, routeBuilder: (context) => TasteMatchGame(userModel: widget.userModel)),
-            _GameItem(title: 'Vibe Check', icon: Icons.local_fire_department, color: Colors.orangeAccent, isReady: true, routeBuilder: (context) => VibeCheckGame(userModel: widget.userModel)),
-            _GameItem(title: 'Campus Quizzer', icon: Icons.quiz, color: Colors.purpleAccent, isReady: true, routeBuilder: (context) => CampusQuizzerGame(userModel: widget.userModel)),
-            _GameItem(title: 'Memory Match', icon: Icons.grid_view, color: Colors.blueAccent, isReady: true, routeBuilder: (context) => MemoryMatchGame(userModel: widget.userModel)),
+            _GameItem(title: 'Taste Match', icon: Icons.favorite, color: _neonPink, isReady: true, imagePath: 'assets/img/game_bg_taste_match_1790106482123.jpg', routeBuilder: (context) => TasteMatchGame(userModel: widget.userModel)),
+            _GameItem(title: 'Vibe Check', icon: Icons.local_fire_department, color: Colors.orangeAccent, isReady: true, imagePath: 'assets/img/game_bg_vibe_check_1790106492811.jpg', routeBuilder: (context) => VibeCheckGame(userModel: widget.userModel)),
+            _GameItem(title: 'Campus Quizzer', icon: Icons.quiz, color: Colors.purpleAccent, isReady: true, imagePath: 'assets/img/game_bg_campus_quizzer_1790106560687.jpg', routeBuilder: (context) => CampusQuizzerGame(userModel: widget.userModel)),
+            _GameItem(title: 'Memory Match', icon: Icons.grid_view, color: Colors.blueAccent, isReady: true, imagePath: 'assets/img/game_bg_memory_match_1790106573115.jpg', routeBuilder: (context) => MemoryMatchGame(userModel: widget.userModel)),
           ]),
 
           const SliverPadding(
@@ -215,10 +215,10 @@ class _GamesHubViewState extends State<GamesHubView> {
             ),
           ),
           _buildGamesGrid([
-            _GameItem(title: 'Daily Spin', icon: Icons.casino, color: Colors.yellowAccent, isReady: true, routeBuilder: (context) => DailySpinGame(userModel: widget.userModel)),
-            _GameItem(title: 'Scratch & Win', icon: Icons.receipt, color: Colors.cyanAccent, isReady: true, routeBuilder: (context) => ScratchWinGame(userModel: widget.userModel)),
-            _GameItem(title: 'Dorm Tycoon', icon: Icons.store, color: Colors.tealAccent, isReady: true, routeBuilder: (context) => DormTycoonGame(userModel: widget.userModel)),
-            _GameItem(title: 'Scavenger Hunt', icon: Icons.map, color: Colors.lightGreenAccent, isReady: true, routeBuilder: (context) => ScavengerHuntGame(userModel: widget.userModel)),
+            _GameItem(title: 'Daily Spin', icon: Icons.casino, color: Colors.yellowAccent, isReady: true, imagePath: 'assets/img/game_bg_daily_spin_1790106586127.jpg', routeBuilder: (context) => DailySpinGame(userModel: widget.userModel)),
+            _GameItem(title: 'Scratch & Win', icon: Icons.receipt, color: Colors.cyanAccent, isReady: true, imagePath: 'assets/img/game_bg_scratch_win_1790106598873.jpg', routeBuilder: (context) => ScratchWinGame(userModel: widget.userModel)),
+            _GameItem(title: 'Dorm Tycoon', icon: Icons.store, color: Colors.tealAccent, isReady: true, imagePath: 'assets/img/game_bg_dorm_tycoon_1790106611964.jpg', routeBuilder: (context) => DormTycoonGame(userModel: widget.userModel)),
+            _GameItem(title: 'Scavenger Hunt', icon: Icons.map, color: Colors.lightGreenAccent, isReady: true, imagePath: 'assets/img/game_bg_scavenger_hunt_1790106624202.jpg', routeBuilder: (context) => ScavengerHuntGame(userModel: widget.userModel)),
           ]),
           
           const SliverToBoxAdapter(child: SizedBox(height: 50)),
@@ -279,6 +279,16 @@ class _GamesHubViewState extends State<GamesHubView> {
                   color: _cardColor,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  image: game.imagePath != null
+                      ? DecorationImage(
+                          image: AssetImage(game.imagePath!),
+                          fit: BoxFit.cover,
+                          colorFilter: ColorFilter.mode(
+                            Colors.black.withOpacity(0.65), // Dark overlay for text readability
+                            BlendMode.darken,
+                          ),
+                        )
+                      : null,
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -336,6 +346,7 @@ class _GameItem {
   final IconData icon;
   final Color color;
   final bool isReady;
+  final String? imagePath;
   final WidgetBuilder? routeBuilder;
 
   _GameItem({
@@ -343,6 +354,7 @@ class _GameItem {
     required this.icon,
     required this.color,
     this.isReady = false,
+    this.imagePath,
     this.routeBuilder,
   });
 }

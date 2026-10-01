@@ -56,9 +56,11 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
     try {
       final doc = await FirebaseFirestore.instance.collection('users').doc(_studentId).get();
       if (doc.exists) {
-        setState(() {
-          _currentStreak = doc.data()?['flashcardStreak'] ?? 0;
-        });
+        if (mounted) {
+          setState(() {
+            _currentStreak = doc.data()?['flashcardStreak'] ?? 0;
+          });
+        }
       }
     } catch (_) {}
   }
@@ -74,10 +76,12 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
         final data = jsonDecode(response.body);
         final cards = data['flashcards'] as List? ?? [];
         if (cards.isNotEmpty) {
-          setState(() {
-            _allCards = cards;
-            _filterCards();
-          });
+          if (mounted) {
+            setState(() {
+              _allCards = cards;
+              _filterCards();
+            });
+          }
           return; // backend worked — done
         }
       }
@@ -94,16 +98,20 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
           .orderBy('createdAt', descending: true)
           .limit(100)
           .get();
-      setState(() {
-        _allCards = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-        _filterCards();
-      });
+      if (mounted) {
+        setState(() {
+          _allCards = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+          _filterCards();
+        });
+      }
     } catch (e) {
       // Firestore also failed — show empty state gracefully
-      setState(() {
-        _allCards = [];
-        _filteredCards = [];
-      });
+      if (mounted) {
+        setState(() {
+          _allCards = [];
+          _filteredCards = [];
+        });
+      }
     } finally {
       if (mounted) setState(() { _isLoading = false; });
     }

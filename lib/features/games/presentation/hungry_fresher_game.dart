@@ -120,7 +120,7 @@ class _HungryFresherGameState extends State<HungryFresherGame> {
   Future<void> _submitScore() async {
     try {
       final response = await http.post(
-        Uri.parse('https://swapeatbackend.vercel.app/api/v1/games/score'),
+        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
         body: json.encode({'game_id': 'hungry_fresher', 'score': score}),
       ).timeout(const Duration(seconds: 15));
@@ -189,7 +189,7 @@ class _HungryFresherGameState extends State<HungryFresherGame> {
         backgroundColor: _bgColor,
         foregroundColor: Colors.white,
         actions: [
-          CoinsDisplay(uid: widget.userModel.uid),
+          CoinsDisplay(uid: widget.userModel.uid, sessionCoins: (score / 10).floor()),
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0),

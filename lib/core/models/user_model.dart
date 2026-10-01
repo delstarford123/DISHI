@@ -59,6 +59,9 @@ class UserModel {
   // Virtual Card
   final Map<String, dynamic>? virtualCard;
 
+  // Meal Swipes
+  final int diningSwipes;
+
   UserModel({
     required this.uid,
     required this.displayName,
@@ -105,6 +108,7 @@ class UserModel {
     this.tempPin,
     this.studentImageUrl,
     this.virtualCard,
+    this.diningSwipes = 0,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json, String documentId) {
@@ -155,6 +159,7 @@ class UserModel {
       tempPin: json['tempPin'],
       studentImageUrl: json['studentImageUrl'],
       virtualCard: json['virtualCard'] != null ? Map<String, dynamic>.from(json['virtualCard']) : null,
+      diningSwipes: json['diningSwipes'] ?? 0,
     );
   }
 
@@ -203,6 +208,7 @@ class UserModel {
       'tempPin': tempPin,
       'studentImageUrl': studentImageUrl,
       'virtualCard': virtualCard,
+      'diningSwipes': diningSwipes,
       // Note: createdAt is usually handled by the FirestoreService when adding a document
     };
   }
