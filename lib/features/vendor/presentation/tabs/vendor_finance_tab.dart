@@ -373,7 +373,7 @@ class _VendorFinanceTabViewState extends State<VendorFinanceTabView> {
         _buildSectionHeader('Dishi Agent Portal', Icons.storefront, _neonCyan),
         const SizedBox(height: 8),
         const Text(
-          'Accept physical cash from students and transfer E-Float directly to their wallets. You earn a 0.5% commission on every deposit.',
+          'Accept physical cash from students and transfer E-Float directly to their wallets. You earn commission on every deposit (0.5% + 7 KSh).',
           style: TextStyle(color: _textSecondary, fontSize: 13),
         ),
         const SizedBox(height: 16),

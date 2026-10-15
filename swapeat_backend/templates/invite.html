@@ -3,401 +3,456 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Join DISHI - Smart Campus Meals & Finance</title>
-    <meta name="description" content="You've been invited to join DISHI — the smart campus meals and finance app for students.">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <title>Join DISHI | Smart Campus Meals & Digital Finance</title>
+    <meta name="description" content="You've been invited to join DISHI — the next-generation smart campus meals, NFC offline tech, and student financial ecosystem.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/dishi_logo.png') }}">
+    <meta property="og:title" content="Join DISHI - Smart Campus Meals & Finance" />
+    <meta property="og:description" content="You've been invited to join DISHI — the smart campus meals and finance app for students in Kenya." />
+    <meta property="og:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
+
     <style>
         :root {
-            --primary: #43B02A;
-            --primary-glow: rgba(67, 176, 42, 0.4);
-            --dark: #0f172a;
-            --dark-card: #1e293b;
-            --dark-inset: #0f172a;
-            --text-light: #f8fafc;
-            --text-gray: #94a3b8;
-            --purple: #A855F7;
-            --purple-glow: rgba(168, 85, 247, 0.3);
+            --bg: #080D18;
+            --card-bg: #101726;
+            --card-elevated: #162033;
+            --border: rgba(255, 255, 255, 0.08);
+            --neon-mint: #05D5AA;
+            --neon-mint-dim: rgba(5, 213, 170, 0.12);
+            --neon-pink: #FF2A6D;
+            --neon-cyan: #00F0FF;
+            --text-main: #FFFFFF;
+            --text-sub: #94A3B8;
+            --text-muted: #64748B;
+            --radius-lg: 28px;
+            --radius-md: 16px;
+            --radius-sm: 10px;
+            --shadow-card: 0 30px 60px -15px rgba(0, 0, 0, 0.7);
         }
 
-        * {
+        *, *::before, *::after {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
         }
 
         body {
-            background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
-            color: var(--text-light);
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px;
-            background-image:
-                radial-gradient(circle at 15% 30%, rgba(67, 176, 42, 0.06), transparent 30%),
-                radial-gradient(circle at 85% 70%, rgba(168, 85, 247, 0.06), transparent 30%);
+            padding: 24px 16px 40px;
+            background-image: 
+                radial-gradient(ellipse 70% 50% at 50% -10%, rgba(5, 213, 170, 0.14), transparent 70%),
+                radial-gradient(ellipse 50% 40% at 85% 90%, rgba(255, 42, 109, 0.08), transparent 70%);
+            background-attachment: fixed;
         }
 
-        .container {
-            background: var(--dark-card);
-            border-radius: 28px;
-            padding: 36px 28px;
-            max-width: 420px;
-            width: 100%;
-            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.07);
-        }
-
-        /* Logo area */
-        .logo-wrap {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 24px;
-            gap: 12px;
-        }
-
-        .logo-icon {
-            width: 56px;
-            height: 56px;
-            background: linear-gradient(135deg, var(--primary), #06B6D4);
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 26px;
-            font-weight: 800;
-            color: white;
-            box-shadow: 0 8px 20px var(--primary-glow);
-            flex-shrink: 0;
-        }
-
-        .logo-text {
-            font-size: 28px;
-            font-weight: 800;
-            background: linear-gradient(135deg, #ffffff, var(--primary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: 2px;
-        }
-
-        h1 {
-            font-size: 22px;
-            font-weight: 800;
-            margin-bottom: 10px;
-            text-align: center;
-            line-height: 1.3;
-        }
-
-        .subtitle {
-            color: var(--text-gray);
-            font-size: 14px;
-            margin-bottom: 28px;
-            text-align: center;
-            line-height: 1.6;
-        }
-
-        /* Download Section */
-        .download-card {
-            background: linear-gradient(135deg, rgba(168, 85, 247, 0.12), rgba(67, 176, 42, 0.08));
-            border: 1px solid rgba(168, 85, 247, 0.3);
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 24px;
-        }
-
-        .download-label {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            color: var(--purple);
-            text-transform: uppercase;
-            margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .download-label::before {
-            content: '';
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: var(--purple);
-            border-radius: 50%;
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.3); }
-        }
-
-        .download-btn {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            background: linear-gradient(135deg, var(--primary), #059669);
-            color: white;
-            padding: 16px 20px;
-            border-radius: 14px;
-            text-decoration: none;
-            font-weight: 700;
-            font-size: 15px;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 20px var(--primary-glow);
-            margin-bottom: 10px;
-        }
-
-        .download-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 28px var(--primary-glow);
-        }
-
-        .download-btn .btn-icon {
-            width: 40px;
-            height: 40px;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            flex-shrink: 0;
-        }
-
-        .download-btn .btn-content {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .download-btn .btn-title {
-            font-size: 15px;
-            font-weight: 800;
-        }
-
-        .download-btn .btn-sub {
-            font-size: 11px;
-            opacity: 0.8;
-            font-weight: 400;
-        }
-
-        .download-note {
-            font-size: 11px;
-            color: var(--text-gray);
-            text-align: center;
-        }
-
-        /* Divider */
-        .divider {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 20px 0;
-        }
-
-        .divider::before, .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .divider span {
-            font-size: 12px;
-            color: var(--text-gray);
-            white-space: nowrap;
-        }
-
-        /* Features */
-        .features {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 24px;
-        }
-
-        .feature-item {
-            background: var(--dark-inset);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 14px;
-            padding: 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .feature-item .fi-icon {
-            font-size: 22px;
-        }
-
-        .feature-item .fi-title {
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--text-light);
-        }
-
-        .feature-item .fi-desc {
-            font-size: 11px;
-            color: var(--text-gray);
-            line-height: 1.4;
-        }
-
-        /* Referral badge */
-        .ref-badge {
-            background: rgba(67, 176, 42, 0.08);
-            border: 1px solid rgba(67, 176, 42, 0.2);
-            border-radius: 14px;
-            padding: 14px 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 4px;
-        }
-
-        .ref-badge .ref-icon {
-            font-size: 24px;
-        }
-
-        .ref-badge .ref-text {
-            font-size: 12px;
-            color: var(--text-gray);
-            line-height: 1.5;
-        }
-
-        .ref-badge .ref-code {
-            font-size: 14px;
-            font-weight: 800;
-            color: var(--primary);
-            letter-spacing: 1.5px;
-        }
-
-        /* Footer */
-        .footer {
-            margin-top: 28px;
-            text-align: center;
-            font-size: 11px;
-            color: var(--text-gray);
-            line-height: 1.8;
-        }
-
-        .footer a {
-            color: var(--primary);
-            text-decoration: underline;
-            font-weight: 700;
-        }
-
-        .footer a:hover {
-            color: #4cd430;
-        }
-
-        /* Background Watermark */
         .bg-watermark {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 90vw;
-            height: 90vh;
-            max-width: 800px;
+            width: 80vw;
+            max-width: 650px;
+            height: 80vh;
             background-image: url("{{ url_for('static', filename='img/dishi_logo.png') }}");
             background-repeat: no-repeat;
             background-position: center;
             background-size: contain;
-            opacity: 0.05;
+            opacity: 0.03;
             pointer-events: none;
             z-index: 0;
         }
-        
-        .container {
-            position: relative;
-            z-index: 1; /* Keep content above watermark */
 
+        .page-container {
+            width: 100%;
+            max-width: 440px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Header Bar ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 0 4px;
+        }
+
+        .brand-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .brand-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            border: 1.5px solid rgba(5, 213, 170, 0.4);
+            box-shadow: 0 0 15px rgba(5, 213, 170, 0.25);
+            object-fit: cover;
+        }
+
+        .brand-name {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+
+        .pill-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(5, 213, 170, 0.1);
+            border: 1px solid rgba(5, 213, 170, 0.3);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--neon-mint);
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 32px 24px;
+            box-shadow: var(--shadow-card);
+            backdrop-filter: blur(16px);
+            text-align: center;
+        }
+
+        .invite-icon-wrap {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--neon-mint), #00A389);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin: 0 auto 18px;
+            box-shadow: 0 0 25px rgba(5, 213, 170, 0.35);
+        }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+
+        .card-desc {
+            font-size: 14px;
+            color: var(--text-sub);
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        /* Phone UI Simulation */
+        .phone-mockup {
+            background: #0B111E;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 16px;
+            margin: 0 auto 24px;
+            text-align: left;
+            position: relative;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .mockup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .mockup-wallet {
+            background: linear-gradient(135deg, #162033, #0B111E);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 10px;
+        }
+
+        .wallet-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .wallet-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--neon-mint);
+            margin-top: 2px;
+        }
+
+        .mockup-pills {
+            display: flex;
+            gap: 6px;
+        }
+
+        .mock-pill {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            font-size: 11px;
+            color: #cbd5e1;
+            font-weight: 600;
+        }
+
+        /* Referral Card */
+        {% if referrer_id and referrer_id != '' %}
+        .ref-card {
+            background: rgba(5, 213, 170, 0.08);
+            border: 1px solid rgba(5, 213, 170, 0.25);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: left;
+        }
+
+        .ref-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .ref-text {
+            font-size: 12px;
+            color: var(--text-sub);
+            line-height: 1.4;
+        }
+
+        .ref-code {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--neon-mint);
+            letter-spacing: 1px;
+        }
+        {% endif %}
+
+        /* Download Button */
+        .btn-download {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            background: linear-gradient(135deg, #05D5AA 0%, #00B48A 100%);
+            color: #080D18;
+            padding: 16px 20px;
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            box-shadow: 0 10px 25px rgba(5, 213, 170, 0.35);
+            transition: all 0.25s ease;
+            margin-bottom: 12px;
+        }
+
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 32px rgba(5, 213, 170, 0.5);
+            filter: brightness(1.08);
+        }
+
+        .btn-secondary {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            background: var(--card-elevated);
+            border: 1px solid var(--border);
+            color: #e2e8f0;
+            padding: 14px;
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 700;
+            transition: all 0.2s ease;
+            margin-bottom: 24px;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--neon-mint);
+            color: #fff;
+        }
+
+        /* Features Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+
+        .feature-box {
+            background: #0B111E;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+        }
+
+        .feature-icon {
+            font-size: 20px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .feature-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+
+        .feature-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Footer */
+        .footer-note {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .footer-note a {
+            color: var(--neon-mint);
+            text-decoration: none;
+            font-weight: 600;
+        }
     </style>
-    <meta property="og:title" content="Join DISHI - Smart Campus Meals & Finance" />
-    <meta property="og:description" content="You've been invited to join DISHI — the smart campus meals and finance app for students." />
-    <meta property="og:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
 </head>
 <body>
     <div class="bg-watermark"></div>
-    <div class="container">
-        <!-- Logo -->
-        <div class="logo-wrap">
-            <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="D" class="logo-icon" style="object-fit: cover;">
-            <span class="logo-text">DISHI</span>
-        </div>
 
-        <h1>You've been invited! 🎉</h1>
-        <p class="subtitle">Join the smart campus meals & finance app used by students across Kenya. Download now and get started instantly.</p>
-
-        <!-- Interactive App Preview -->
-        <div class="app-preview-container" style="text-align: center; margin: 30px 0;">
-            <div class="device-mockup" style="position: relative; width: 240px; height: 500px; margin: 0 auto; background: #000; border-radius: 36px; border: 10px solid #1e293b; box-shadow: 0 15px 40px rgba(0,0,0,0.6), inset 0 0 10px rgba(255,255,255,0.1); overflow: hidden;">
-                <div class="device-notch" style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 100px; height: 20px; background: #1e293b; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; z-index: 10;"></div>
-                <video autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;">
-                    <source src="{{ url_for('static', filename='video/app_preview.mp4') }}" type="video/mp4">
-                    <div style="width: 100%; height: 100%; background: linear-gradient(135deg, var(--purple), var(--primary)); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">App Preview Loading...</div>
-                </video>
-            </div>
-        </div>
-
-        <!-- Download section -->
-        <div class="download-card">
-            <div class="download-label">Get the app</div>
-            <a class="download-btn" href="https://drive.google.com/file/d/1YbjePyQYrAxqfWLV8WPddXlZrLX-olgc/view?usp=sharing" target="_blank" rel="noopener" id="downloadBtn">
-                <div class="btn-icon">📱</div>
-                <div class="btn-content">
-                    <span class="btn-title">Download DISHI</span>
-                    <span class="btn-sub">Android APK — Free to install</span>
-                </div>
+    <div class="page-container">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <a href="{{ url_for('index') }}" class="brand-link">
+                <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI" class="brand-logo">
+                <span class="brand-name">DISHI</span>
             </a>
-            <p class="download-note">⚠️ Enable "Install from unknown sources" in your phone settings before installing.</p>
-        </div>
-
-        <!-- Features grid -->
-        <div class="divider"><span>What you get</span></div>
-        <div class="features">
-            <div class="feature-item">
-                <span class="fi-icon">🍽️</span>
-                <span class="fi-title">Campus Meals</span>
-                <span class="fi-desc">Order & pay for food across campus vendors</span>
-            </div>
-            <div class="feature-item">
-                <span class="fi-icon">💰</span>
-                <span class="fi-title">Smart Wallet</span>
-                <span class="fi-desc">Fund via M-PESA, track every shilling</span>
-            </div>
-            <div class="feature-item">
-                <span class="fi-icon">📦</span>
-                <span class="fi-title">Pre-orders</span>
-                <span class="fi-desc">Skip the queue, order ahead</span>
-            </div>
-            <div class="feature-item">
-                <span class="fi-icon">🏆</span>
-                <span class="fi-title">Earn Rewards</span>
-                <span class="fi-desc">Get DISHI tokens for every activity</span>
+            <div class="pill-badge">
+                <span>⚡</span> Exclusive Invitation
             </div>
         </div>
 
-        <!-- Referral badge -->
-        {% if referrer_id and referrer_id != '' %}
-        <div class="ref-badge">
-            <span class="ref-icon">🔗</span>
-            <div>
-                <div class="ref-text">Referred by a friend. Your referral code:</div>
-                <div class="ref-code">{{ referrer_id }}</div>
-            </div>
-        </div>
-        {% endif %}
+        <!-- Main Invite Card -->
+        <div class="card">
+            <div class="invite-icon-wrap">🎉</div>
+            <h1 class="card-title">You're Invited to DISHI!</h1>
+            <p class="card-desc">
+                Experience Kenya's first student smart meal & digital finance platform with offline NFC card pay, 0% Harambee crowdfunding, and instant vendor deposits.
+            </p>
 
-        <div class="footer">
-            Secure payments powered by Safaricom M-PESA.<br>
-            System Developed By <a href="https://www.delstarfordworks.co.ke" target="_blank" rel="noopener">DELSTARFORD WORKS</a>
+            <!-- Simulated Phone App UI -->
+            <div class="phone-mockup">
+                <div class="mockup-header">
+                    <span>DISHI Campus • Live</span>
+                    <span>NFC Active 🟢</span>
+                </div>
+                <div class="mockup-wallet">
+                    <div class="wallet-label">Student Meal Wallet</div>
+                    <div class="wallet-val">KES 2,450.00</div>
+                </div>
+                <div class="mockup-pills">
+                    <div class="mock-pill">☕ Cafeteria Order</div>
+                    <div class="mock-pill">🤝 Harambee</div>
+                    <div class="mock-pill">🎮 Games Hub</div>
+                </div>
+            </div>
+
+            {% if referrer_id and referrer_id != '' %}
+            <div class="ref-card">
+                <span class="ref-icon">🎁</span>
+                <div>
+                    <div class="ref-text">Invited by a campus classmate! Referral bonus code:</div>
+                    <div class="ref-code">{{ referrer_id }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Download Button -->
+            <a href="https://drive.google.com/file/d/1YbjePyQYrAxqfWLV8WPddXlZrLX-olgc/view?usp=sharing" target="_blank" rel="noopener" class="btn-download">
+                <span style="font-size: 20px;">📱</span>
+                <span>Download DISHI for Android</span>
+            </a>
+
+            <!-- Web Portal Button -->
+            <a href="{{ url_for('index') }}" class="btn-secondary">
+                <span>🌐</span>
+                <span>Explore DISHI Web Ecosystem</span>
+            </a>
+
+            <!-- Features Highlights -->
+            <div class="features-grid">
+                <div class="feature-box">
+                    <span class="feature-icon">🍽️</span>
+                    <div class="feature-title">Smart Ordering</div>
+                    <div class="feature-desc">Order campus food ahead and skip long lunch lines.</div>
+                </div>
+                <div class="feature-box">
+                    <span class="feature-icon">📶</span>
+                    <div class="feature-title">Offline NFC Pay</div>
+                    <div class="feature-desc">Tap & eat even when campus internet is down.</div>
+                </div>
+                <div class="feature-box">
+                    <span class="feature-icon">🤝</span>
+                    <div class="feature-title">Campus Harambee</div>
+                    <div class="feature-desc">Fund student causes with 0% platform deductions.</div>
+                </div>
+                <div class="feature-box">
+                    <span class="feature-icon">🎮</span>
+                    <div class="feature-title">Games & Rewards</div>
+                    <div class="feature-desc">Earn DISHI points and redeem for hot meals.</div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <p class="footer-note">
+                Official DISHI Ecosystem • Delstarford Works Ltd.<br>
+                For institutional onboarding or partnership: <a href="mailto:dishi@delstarfordworks.co.ke">dishi@delstarfordworks.co.ke</a>
+            </p>
         </div>
     </div>
 </body>

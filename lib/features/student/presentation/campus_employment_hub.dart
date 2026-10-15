@@ -3,8 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/services/location_service.dart';
+import '../../../core/services/api_config.dart';
 import '../../match/presentation/match_chat_view.dart';
 import 'dart:convert';
+import 'dart:async';
 import '../../../core/theme/mpesa_theme.dart';
 
 class CampusEmploymentHubView extends StatefulWidget {
@@ -148,7 +150,7 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
       }
       
       final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v6/campus_gigs/register'),
+        Uri.parse('${ApiConfig.baseUrl}/api/v6/campus_gigs/register'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'user_id': user.uid,
@@ -169,8 +171,20 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
           )
         );
       } else {
-        throw Exception(json.decode(response.body)['error'] ?? 'Unknown error');
+        String errMsg = 'Registration failed';
+        try {
+          final resData = json.decode(response.body);
+          if (resData is Map && resData.containsKey('error')) {
+            errMsg = resData['error'].toString();
+          }
+        } catch (_) {}
+        throw Exception(errMsg);
       }
+    } on TimeoutException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Registration timed out. Please check your network.'), backgroundColor: Colors.red),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -309,7 +323,7 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
       }
       
       final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v6/campus_gigs/request'),
+        Uri.parse('${ApiConfig.baseUrl}/api/v6/campus_gigs/request'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'requester_id': user.uid,
@@ -330,12 +344,72 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
           )
         );
       } else {
-        throw Exception(json.decode(response.body)['error'] ?? 'Unknown error');
+        String errMsg = 'Failed to post request';
+        try {
+          final resData = json.decode(response.body);
+          if (resData is Map && resData.containsKey('error')) {
+            errMsg = resData['error'].toString();
+          }
+        } catch (_) {}
+        throw Exception(errMsg);
       }
+    } on TimeoutException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Request timed out. Please check network.'), backgroundColor: Colors.red),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to post: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _payEscrow(String requestId, double price) async {
+    setState(() => _isLoading = true);
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+      
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/v6/campus_gigs/pay_escrow'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'request_id': requestId,
+          'requester_id': user.uid,
+        }),
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Escrow locked for KSH ${price.toStringAsFixed(0)}! Worker notified.'),
+            backgroundColor: MPesaTheme.neonGreen,
+          ),
+        );
+      } else {
+        String errMsg = 'Failed to lock escrow';
+        try {
+          final resData = json.decode(response.body);
+          if (resData is Map && resData.containsKey('error')) {
+            errMsg = resData['error'].toString();
+          }
+        } catch (_) {}
+        throw Exception(errMsg);
+      }
+    } on TimeoutException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Escrow payment timed out. Please check network.'), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Escrow payment failed: $e'), backgroundColor: Colors.red),
       );
     } finally {
       setState(() => _isLoading = false);
@@ -476,7 +550,7 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
           ))
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: MPesaTheme.neonGreen));
         
         // Filter out completed gigs so they don't clutter the active list
         final docs = snapshot.data!.docs.where((doc) {
@@ -484,34 +558,184 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
           return data['status'] != 'completed';
         }).toList();
         
-        if (docs.isEmpty) return const Center(child: Text("No active gigs right now.", style: TextStyle(color: Colors.grey)));
+        if (docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.work_history_outlined, size: 56, color: Colors.grey.withOpacity(0.5)),
+                const SizedBox(height: 12),
+                const Text("No active campus gigs right now.", style: TextStyle(color: Colors.grey, fontSize: 15)),
+              ],
+            ),
+          );
+        }
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: docs.length,
           itemBuilder: (context, index) {
             final data = docs[index].data() as Map<String, dynamic>;
-            final status = data['status'] ?? '';
-            final escrowStatus = data['escrow_status'] ?? '';
-            final price = data['price_offer'] ?? 0;
-            final category = data['category'] ?? '';
+            final status = data['status'] ?? 'pending';
+            final escrowStatus = data['escrow_status'] ?? 'PENDING';
+            final price = (data['price_offer'] as num?)?.toDouble() ?? 0.0;
+            final category = data['category'] ?? 'Campus Gig';
+            final bool amIRequester = data['requester_id'] == user.uid;
             
-              return Card(
-                color: MPesaTheme.surfaceColor,
-                margin: const EdgeInsets.only(bottom: 16),
-                child: ListTile(
-                  title: Text('$category Gig', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: Text('Status: $status | Escrow: $escrowStatus\nPrice: KSH $price', style: const TextStyle(color: Colors.grey)),
-                  onTap: () => _showGigDetails(docs[index]),
-                  trailing: (escrowStatus == 'HELD' && data['requester_id'] == user.uid)
-                    ? ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.neonGreen),
-                        onPressed: () => _showPinDialog(docs[index].id),
-                        child: const Text('Complete', style: TextStyle(color: Colors.black)),
-                      )
-                    : null,
+            return Card(
+              color: MPesaTheme.surfaceColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: escrowStatus == 'HELD'
+                      ? MPesaTheme.neonGreen.withOpacity(0.5)
+                      : Colors.white12,
                 ),
-              );
+              ),
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: amIRequester ? Colors.blue.withOpacity(0.2) : MPesaTheme.neonGreen.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                amIRequester ? 'CLIENT' : 'PROVIDER',
+                                style: TextStyle(
+                                  color: amIRequester ? Colors.blue : MPesaTheme.neonGreen,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              category,
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'KSH ${price.toStringAsFixed(0)}',
+                          style: const TextStyle(color: MPesaTheme.neonGreen, fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      data['details'] ?? 'No details provided',
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: status == 'accepted' ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            status.toUpperCase(),
+                            style: TextStyle(
+                              color: status == 'accepted' ? Colors.green : Colors.orange,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: escrowStatus == 'HELD' ? MPesaTheme.neonGreen.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'ESCROW: $escrowStatus',
+                            style: TextStyle(
+                              color: escrowStatus == 'HELD' ? MPesaTheme.neonGreen : Colors.grey,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Action Buttons depending on role and escrow state
+                    if (amIRequester && status == 'accepted' && escrowStatus != 'HELD')
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: MPesaTheme.neonGreen,
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          icon: const Icon(Icons.lock, size: 18),
+                          label: Text('Deposit Escrow (KSH ${price.toStringAsFixed(0)})', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          onPressed: () => _payEscrow(docs[index].id, price),
+                        ),
+                      )
+                    else if (amIRequester && escrowStatus == 'HELD')
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: MPesaTheme.neonGreen,
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          icon: const Icon(Icons.check_circle_outline, size: 18),
+                          label: const Text('Complete & Release Funds', style: TextStyle(fontWeight: FontWeight.bold)),
+                          onPressed: () => _showPinDialog(docs[index].id),
+                        ),
+                      )
+                    else if (!amIRequester && escrowStatus == 'HELD')
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.black38,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: MPesaTheme.neonGreen.withOpacity(0.5)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Completion PIN:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                            Text(
+                              data['completion_pin'] ?? '----',
+                              style: const TextStyle(color: MPesaTheme.neonGreen, fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 4),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.info_outline, size: 16, color: MPesaTheme.neonGreen),
+                        label: const Text('View Full Details & Chat', style: TextStyle(color: MPesaTheme.neonGreen, fontSize: 12)),
+                        onPressed: () => _showGigDetails(docs[index]),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
           },
         );
       }
@@ -525,6 +749,10 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
     
     final bool amIRequester = data['requester_id'] == user.uid;
     final otherUserId = amIRequester ? data['worker_id'] : data['requester_id'];
+    final price = (data['price_offer'] as num?)?.toDouble() ?? 0.0;
+    final status = data['status'] ?? 'pending';
+    final escrowStatus = data['escrow_status'] ?? 'PENDING';
+    final pin = data['completion_pin']?.toString() ?? '----';
     
     String otherUserName = "Awaiting Provider";
     String? otherUserAvatar;
@@ -557,14 +785,137 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${data['category']} Gig Details', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text('${data['category']} Gig Details', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+                Text('KSH ${price.toStringAsFixed(0)}', style: const TextStyle(color: MPesaTheme.neonGreen, fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text('Details: ${data['details'] ?? 'N/A'}', style: const TextStyle(color: Colors.white70, fontSize: 14)),
             const SizedBox(height: 16),
-            Text('Status: ${data['status']}', style: const TextStyle(color: Colors.grey)),
-            Text('Price Offer: KSH ${data['price_offer']}', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text('Details: ${data['details'] ?? 'N/A'}', style: const TextStyle(color: Colors.white70)),
-            const SizedBox(height: 24),
             
+            // Escrow Status Indicator
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: escrowStatus == 'HELD' ? MPesaTheme.neonGreen.withOpacity(0.4) : Colors.white12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    escrowStatus == 'HELD' ? Icons.security : Icons.hourglass_top,
+                    color: escrowStatus == 'HELD' ? MPesaTheme.neonGreen : Colors.orange,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          escrowStatus == 'HELD' ? 'Escrow Protected' : 'Escrow Pending',
+                          style: TextStyle(
+                            color: escrowStatus == 'HELD' ? MPesaTheme.neonGreen : Colors.orange,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          escrowStatus == 'HELD'
+                              ? 'Funds are safely held by DISHI until service is completed.'
+                              : 'Escrow must be deposited before work starts.',
+                          style: const TextStyle(color: Colors.white54, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Worker PIN card if worker
+            if (!amIRequester && escrowStatus == 'HELD')
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: MPesaTheme.neonGreen.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: MPesaTheme.neonGreen),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Your Completion PIN', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          pin,
+                          style: const TextStyle(color: MPesaTheme.neonGreen, fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 6),
+                        ),
+                        const Icon(Icons.verified, color: MPesaTheme.neonGreen),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text('Share this PIN with the client once you finish the work to release your payout.', style: TextStyle(color: Colors.white60, fontSize: 11)),
+                  ],
+                ),
+              ),
+
+            // Requester deposit or release buttons
+            if (amIRequester && status == 'accepted' && escrowStatus != 'HELD')
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: MPesaTheme.neonGreen,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.lock),
+                    label: Text('Deposit & Lock Escrow (KSH ${price.toStringAsFixed(0)})', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _payEscrow(gigDoc.id, price);
+                    },
+                  ),
+                ),
+              )
+            else if (amIRequester && escrowStatus == 'HELD')
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: MPesaTheme.neonGreen,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.check_circle),
+                    label: const Text('Enter Worker PIN to Complete & Pay', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _showPinDialog(gigDoc.id);
+                    },
+                  ),
+                ),
+              ),
+            
+            // Chat Partner Info
             if (otherUserId != null)
               Container(
                 padding: const EdgeInsets.all(12),
@@ -597,7 +948,7 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       ),
                       onPressed: () {
-                        Navigator.pop(context); // Close bottom sheet
+                        Navigator.pop(context);
                         final chatId = 'gig_${gigDoc.id}';
                         Navigator.push(
                           context,
@@ -635,7 +986,7 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
                 ),
               ),
               
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -648,27 +999,42 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: MPesaTheme.surfaceColor,
-        title: const Text('Complete Gig', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: pinController,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'Enter 4-digit Worker PIN',
-            hintStyle: TextStyle(color: Colors.grey),
-            filled: true,
-            fillColor: Colors.black26,
-          ),
-          keyboardType: TextInputType.number,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Release Escrow Payment', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter the 4-digit PIN provided by the worker to confirm work completion and release payment.',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: pinController,
+              style: const TextStyle(color: Colors.white, fontSize: 20, letterSpacing: 6),
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                hintText: '• • • •',
+                hintStyle: const TextStyle(color: Colors.grey, letterSpacing: 6),
+                filled: true,
+                fillColor: Colors.black26,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: MPesaTheme.neonGreen)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: MPesaTheme.neonGreen, width: 2)),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _releaseEscrow(requestId, pinController.text);
+              _releaseEscrow(requestId, pinController.text.trim());
             },
             style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.neonGreen),
-            child: const Text('Release Funds', style: TextStyle(color: Colors.black)),
+            child: const Text('Release Funds', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           )
         ],
       ),
@@ -676,13 +1042,17 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
   }
 
   Future<void> _releaseEscrow(String requestId, String pin) async {
+    if (pin.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter the 4-digit PIN.')));
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final user = _auth.currentUser;
       if (user == null) return;
       
       final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v6/campus_gigs/release_escrow'),
+        Uri.parse('${ApiConfig.baseUrl}/api/v6/campus_gigs/release_escrow'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'requester_id': user.uid,
@@ -693,10 +1063,24 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
       
       if (response.statusCode == 200) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Funds released!'), backgroundColor: MPesaTheme.neonGreen));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Funds released to worker successfully!'), backgroundColor: MPesaTheme.neonGreen),
+        );
       } else {
-        throw Exception(json.decode(response.body)['error'] ?? 'Unknown error');
+        String errMsg = 'Release failed';
+        try {
+          final resData = json.decode(response.body);
+          if (resData is Map && resData.containsKey('error')) {
+            errMsg = resData['error'].toString();
+          }
+        } catch (_) {}
+        throw Exception(errMsg);
       }
+    } on TimeoutException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Release request timed out. Please check network connection.'), backgroundColor: Colors.red),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));

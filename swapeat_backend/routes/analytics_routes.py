@@ -173,7 +173,7 @@ def email_semester_summary(student_id):
         subj, html_body = semester_summary_email(student_name, student_id)
         msg = Message(
             subj,
-            sender="info@delstarfordworks.co.ke",
+            sender=current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'),
             recipients=[recipient_email],
             html=html_body,
             body=f"Hi {student_name}, here is your DISHI end-of-semester summary. Open the app to see your Financial Wrapped.",

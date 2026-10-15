@@ -6,8 +6,8 @@ cred = credentials.Certificate('../ServiceAccountKey.json')
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-email = 'info@delstarfordworks.co.ke'
-password = 'AdminPassword123!'
+email = 'dishi@delstarfordworks.co.ke'
+password = 'dishi@delstarfordworks.co.ke'
 
 try:
     # Try to get existing user

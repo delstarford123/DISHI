@@ -13,12 +13,13 @@ const Color _neonCyan = Color(0xFF05D5AA);
 const Color _neonOrange = Color(0xFFFF6F00);
 const Color _neonPink = Color(0xFFF92B60);
 
-// 5 Fundi categories
+// Fundi categories with dedicated My Gigs tab
 const List<Map<String, dynamic>> _categories = [
+  {'label': 'My Gigs', 'icon': Icons.assignment_turned_in, 'color': _neonCyan},
   {'label': 'Academic Support', 'icon': Icons.school, 'color': Color(0xFF3B82F6)},
   {'label': 'Tech & Digital', 'icon': Icons.computer, 'color': Color(0xFF10B981)},
-  {'label': 'Daily Errands', 'icon': Icons.shopping_bag, 'color': Color(0xFFFF6F00)},
-  {'label': 'Lifestyle & Grooming', 'icon': Icons.spa, 'color': Color(0xFFF92B60)},
+  {'label': 'Daily Errands', 'icon': Icons.shopping_bag, 'color': _neonOrange},
+  {'label': 'Lifestyle & Grooming', 'icon': Icons.spa, 'color': _neonPink},
   {'label': 'Trending Fundi', 'icon': Icons.trending_up, 'color': Color(0xFF9C27B0)},
 ];
 
@@ -77,13 +78,27 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
   }
 
   Future<void> _launchWhatsApp(String phone) async {
-    final url = Uri.parse('https://wa.me/$phone');
+    final clean = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    final url = Uri.parse('https://wa.me/$clean');
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Could not launch WhatsApp')));
+      }
+    }
+  }
+
+  Future<void> _callPhone(String phone) async {
+    final clean = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    final url = Uri.parse('tel:$clean');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open phone dialer')));
       }
     }
   }
@@ -96,7 +111,7 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Job accepted! Await escrow deposit before starting work.'),
+            content: Text('Job accepted! Check My Gigs to communicate with client.'),
             backgroundColor: _neonCyan),
       );
     }
@@ -111,6 +126,31 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Job rejected.'), backgroundColor: _neonPink),
       );
+    }
+  }
+
+  Future<void> _markJobComplete(String jobId, double amount) async {
+    try {
+      await FirebaseFirestore.instance.collection('fundi_jobs').doc(jobId).update({
+        'status': 'completed',
+        'completedAt': FieldValue.serverTimestamp(),
+      });
+      // Increment fundi profile stats
+      await FirebaseFirestore.instance.collection('fundi_profiles').doc(_currentUid).set({
+        'completedJobs': FieldValue.increment(1),
+        'totalEarnings': FieldValue.increment(amount),
+      }, SetOptions(merge: true));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Job marked completed! Great work.'), backgroundColor: _neonCyan),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update job: $e')),
+        );
+      }
     }
   }
 
@@ -300,6 +340,9 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
                   controller: _tabController,
                   children: _categories.map((cat) {
                     final label = cat['label'] as String;
+                    if (label == 'My Gigs') {
+                      return _buildMyGigsList();
+                    }
                     if (label == 'Trending Fundi') {
                       return _buildTrendingFundi();
                     }
@@ -311,6 +354,192 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
           ),
         ),
       ),
+    );
+  }
+
+  /// My Gigs tab: shows all gigs assigned to or accepted by the current fundi
+  Widget _buildMyGigsList() {
+    if (_currentUid.isEmpty) {
+      return const Center(child: Text('Not logged in', style: TextStyle(color: Colors.white)));
+    }
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('fundi_jobs')
+          .where('fundi_id', isEqualTo: _currentUid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: _neonCyan));
+        }
+        final docs = snapshot.data?.docs ?? [];
+        final sortedDocs = docs.toList()
+          ..sort((a, b) {
+            final aT = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+            final bT = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+            if (aT == null || bT == null) return 0;
+            return bT.compareTo(aT);
+          });
+
+        if (sortedDocs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.assignment_outlined, size: 56, color: _textSecondary.withOpacity(0.5)),
+                const SizedBox(height: 12),
+                const Text('No gigs assigned yet.', style: TextStyle(color: _textSecondary, fontSize: 15)),
+                const SizedBox(height: 6),
+                const Text('When clients hire you, your gigs will appear here.', style: TextStyle(color: Colors.white38, fontSize: 13)),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: sortedDocs.length,
+          itemBuilder: (context, index) {
+            final doc = sortedDocs[index];
+            final job = doc.data() as Map<String, dynamic>;
+            final jobId = doc.id;
+            final status = job['status'] ?? 'open';
+            final amount = (job['amount'] as num?)?.toDouble() ?? 0.0;
+            final phone = job['phone']?.toString() ?? '';
+            final clientName = job['payer_name'] ?? job['poster_name'] ?? 'Client';
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: status == 'accepted'
+                      ? _neonCyan.withOpacity(0.5)
+                      : (status == 'completed' ? Colors.amber.withOpacity(0.5) : Colors.white12),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          job['title'] ?? 'Gig Request',
+                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      Text(
+                        'KES ${amount.toStringAsFixed(0)}',
+                        style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  if ((job['description'] ?? '').isNotEmpty)
+                    Text(
+                      job['description'] ?? '',
+                      style: const TextStyle(color: _textSecondary, fontSize: 13),
+                    ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _statusColor(status).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          status.toUpperCase(),
+                          style: TextStyle(color: _statusColor(status), fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('Client: $clientName', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  if (status == 'open')
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => _rejectJob(jobId),
+                            style: OutlinedButton.styleFrom(side: const BorderSide(color: _textSecondary)),
+                            child: const Text('Decline', style: TextStyle(color: _textSecondary)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => _acceptJob(jobId),
+                            style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
+                            child: const Text('Accept Gig', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    )
+                  else if (status == 'accepted')
+                    Column(
+                      children: [
+                        if (phone.isNotEmpty)
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.phone, size: 16, color: _neonCyan),
+                                  label: const Text('Call Client', style: TextStyle(color: _neonCyan)),
+                                  style: OutlinedButton.styleFrom(side: const BorderSide(color: _neonCyan)),
+                                  onPressed: () => _callPhone(phone),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.chat, size: 16, color: Colors.white),
+                                  label: const Text('WhatsApp', style: TextStyle(color: Colors.white)),
+                                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366)),
+                                  onPressed: () => _launchWhatsApp(phone),
+                                ),
+                              ),
+                            ],
+                          ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.check_circle_outline, color: Colors.black),
+                            label: const Text('Mark Work as Completed', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
+                            onPressed: () => _markJobComplete(jobId, amount),
+                          ),
+                        ),
+                      ],
+                    )
+                  else if (status == 'completed')
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.stars, color: Colors.amber, size: 18),
+                          SizedBox(width: 8),
+                          Text('Completed & Payment Credited to Profile', style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -671,6 +900,7 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
                   'payer_name': widget.user['name'] ??
                       widget.user['displayName'] ??
                       'Client',
+                  'phone': widget.user['phoneNumber'] ?? widget.user['phone'] ?? '',
                   'createdAt': FieldValue.serverTimestamp(),
                 });
                 if (ctx.mounted) Navigator.pop(ctx);

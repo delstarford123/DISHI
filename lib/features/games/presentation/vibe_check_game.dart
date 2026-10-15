@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../../../core/services/game_reward_service.dart';
 import 'coins_display.dart';
 import 'dart:math';
 
@@ -25,7 +24,6 @@ class FoodCombo {
 class _VibeCheckGameState extends State<VibeCheckGame> {
   final Color _bgColor = const Color(0xFF0C101B);
   final Color _neonCyan = const Color(0xFF05D5AA);
-  final Color _neonPink = const Color(0xFFF92B60);
   final Color _cardColor = const Color(0xFF131A2A);
 
   List<FoodCombo> combos = [];
@@ -78,17 +76,30 @@ class _VibeCheckGameState extends State<VibeCheckGame> {
   }
 
   Future<void> _submitScore() async {
-    try {
-      if (score > 0) {
-        await http.post(
-          Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
-          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
-          body: json.encode({'game_id': 'vibe_check', 'score': score * 100}), // Scaled for backend coins
-        ).timeout(const Duration(seconds: 15));
-      }
-    } catch (e) {
-      print("Error submitting vibe check score: \$e");
-    }
+    final res = await GameRewardService.submitScore(
+      uid: widget.userModel.uid,
+      gameId: 'vibe_check',
+      score: score * 10,
+    );
+
+    if (!mounted) return;
+
+    GameRewardService.showArcadeGameOverDialog(
+      context: context,
+      userModel: widget.userModel,
+      gameTitle: 'VIBE CHECK',
+      score: score,
+      scoreLabel: 'FOOD COMBOS RATED',
+      coinsEarned: res.coinsEarned,
+      isVictory: true,
+      onPlayAgain: () {
+        setState(() {
+          currentIndex = 0;
+          score = 0;
+          isGameOver = false;
+        });
+      },
+    );
   }
 
   @override

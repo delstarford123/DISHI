@@ -2,20 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../../../core/services/api_config.dart';
 import '../../../core/widgets/high_friction_action.dart';
 import 'deliv_active_route_view.dart';
 import 'driver_scanner_view.dart';
-import '../../auth/presentation/login_view.dart';
-import '../../../shared/presentation/universal_support_widget.dart';
 import '../../../shared/presentation/profile_hub_sheet.dart';
-import 'dart:math';
 
 // -- CUSTOM DESIGN COLORS --
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
-const Color _surfaceLight = Color(0xFF1A2235);
 const Color _neonCyan = Color(0xFF05D5AA);
 const Color _neonBlue = Color(0xFF3B82F6);
 const Color _neonOrange = Color(0xFFFF6F00);
@@ -228,13 +225,23 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
           'method': 'M-PESA Number',
           'destination': widget.user['phoneNumber'] ?? '0700000000'
         }),
-      );
+      ).timeout(const Duration(seconds: 30));
+
       if (response.statusCode == 200) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cash out successful! Check M-PESA.')));
         setState(() => _earnings = 0);
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Cash out failed: ${response.body}')));
+        String errMsg = 'Cash out failed';
+        try {
+          final resData = jsonDecode(response.body);
+          if (resData is Map && resData.containsKey('error')) {
+            errMsg = resData['error'].toString();
+          }
+        } catch (_) {}
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errMsg)));
       }
+    } on TimeoutException {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Withdrawal request timed out. Please check your network connection.')));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
@@ -249,9 +256,21 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
         'driverId': uid,
         'acceptedAt': FieldValue.serverTimestamp(),
       });
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gig Accepted!')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gig Accepted! Opening Google Maps navigation...'),
+            backgroundColor: _neonCyan,
+          ),
+        );
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => DelivActiveRouteView(rideId: gigId),
+          ),
+        );
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to accept gig: $e')));
     }
   }
 
@@ -432,6 +451,146 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> {
                     ),
                     const SizedBox(height: 24),
                     
+                    // --- ACTIVE DELIVERY IN PROGRESS BANNER ---
+                    StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('deliv_requests')
+                          .where('driverId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                          .where('status', whereIn: ['accepted', 'picking_up', 'in_transit', 'arrived'])
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        final activeDoc = snapshot.data!.docs.first;
+                        final activeData = activeDoc.data() as Map<String, dynamic>;
+                        final catInfo = gigCategories.firstWhere(
+                          (g) => g['name'] == activeData['type'],
+                          orElse: () => gigCategories.last,
+                        );
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 24),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                _neonCyan.withValues(alpha: 0.15),
+                                _neonBlue.withValues(alpha: 0.15),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: _neonCyan, width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _neonCyan.withValues(alpha: 0.2),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: _neonCyan,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.directions_bike, size: 14, color: Colors.black),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'ACTIVE GIG IN PROGRESS',
+                                          style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    activeData['pay']?.toString() ?? 'KES -',
+                                    style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Text(catInfo['icon'], style: const TextStyle(fontSize: 20)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      activeData['type'] ?? 'Delivery',
+                                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Icon(Icons.storefront, size: 14, color: _textSecondary),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'From: ${activeData['pickup'] ?? 'Campus'}',
+                                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.location_on, size: 14, color: _neonRed),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'To: ${activeData['dropoff'] ?? 'Dorm'}',
+                                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: _neonCyan,
+                                    foregroundColor: Colors.black,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  icon: const Icon(Icons.map, size: 20),
+                                  label: const Text(
+                                    'Resume Google Maps Route & Tracking',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => DelivActiveRouteView(rideId: activeDoc.id),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+
                     // --- AVAILABLE GIGS FEED ---
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

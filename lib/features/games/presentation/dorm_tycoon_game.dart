@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../../../core/services/game_reward_service.dart';
 import 'coins_display.dart';
 
 class DormTycoonGame extends StatefulWidget {
@@ -74,22 +73,32 @@ class _DormTycoonGameState extends State<DormTycoonGame> {
 
   Future<void> _saveAndExit() async {
     loopTimer?.cancel();
-    try {
-      // We convert Tycoon cash to Dishi coins (e.g. 100 Tycoon cash = 1 Dishi Coin)
-      int earnedCoins = (tycoonCash / 100).floor();
-      if (earnedCoins > 0) {
-        await http.post(
-          Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
-          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
-          body: json.encode({'game_id': 'dorm_tycoon', 'score': earnedCoins * 10}),
-        ).timeout(const Duration(seconds: 15));
-      }
-    } catch (e) {
-      print("Error saving tycoon score: \$e");
-    }
-    if (mounted) {
-      Navigator.pop(context);
-    }
+    int earnedCoins = (tycoonCash / 100).floor();
+
+    final res = await GameRewardService.submitScore(
+      uid: widget.userModel.uid,
+      gameId: 'dorm_tycoon',
+      score: earnedCoins * 10,
+    );
+
+    if (!mounted) return;
+
+    GameRewardService.showArcadeGameOverDialog(
+      context: context,
+      userModel: widget.userModel,
+      gameTitle: 'DORM TYCOON',
+      score: tycoonCash,
+      scoreLabel: 'TYCOON CASH CASHED OUT',
+      coinsEarned: res.coinsEarned,
+      isVictory: true,
+      onPlayAgain: () {
+        setState(() {
+          tycoonCash = 0;
+          cps = 0;
+        });
+        _startLoop();
+      },
+    );
   }
 
   @override

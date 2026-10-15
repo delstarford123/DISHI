@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
+import '../../../core/services/api_config.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -22,35 +23,56 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
 
   final List<Map<String, dynamic>> storeItems = [
     {
+      'id': 'cash_50',
+      'title': 'KES 50 DISHI Wallet Cash',
+      'desc': 'Convert 1,000 coins directly into KES 50 usable anywhere on DISHI!',
+      'icon': Icons.account_balance_wallet,
+      'cost': 1000,
+      'color': Colors.greenAccent,
+      'badge': 'MOST POPULAR 🔥',
+    },
+    {
+      'id': 'cash_100',
+      'title': 'KES 100 DISHI Wallet Cash',
+      'desc': 'Convert 2,000 coins into KES 100 real wallet balance for meals or delivery.',
+      'icon': Icons.monetization_on,
+      'cost': 2000,
+      'color': Colors.amberAccent,
+      'badge': 'BEST VALUE 💎',
+    },
+    {
       'id': 'free_delivery',
-      'title': 'Free Peer Delivery',
-      'desc': 'Get your next campus delivery entirely free!',
+      'title': 'Free Peer Delivery Pass',
+      'desc': 'Waives delivery fee completely on your next campus order.',
       'icon': Icons.two_wheeler,
       'cost': 500,
-      'color': Colors.orange,
+      'color': Colors.orangeAccent,
+      'badge': 'INSTANT',
     },
     {
       'id': 'discount_10',
-      'title': '10% Vendor Discount',
-      'desc': 'Unlock a 10% promo code for any food vendor.',
+      'title': '10% Meal Discount Voucher',
+      'desc': 'Save 10% on your next vendor order at any campus cafeteria.',
       'icon': Icons.local_offer,
-      'cost': 1000,
-      'color': Colors.greenAccent,
+      'cost': 750,
+      'color': Colors.cyanAccent,
+      'badge': 'CAMPUS EATS',
     },
     {
       'id': 'vip_badge',
-      'title': 'VIP Campus Badge',
-      'desc': 'A shiny premium badge next to your name on the platform.',
+      'title': 'VIP Gold Platform Badge',
+      'desc': 'Exclusive gold VIP crest shown on your campus profile and leaderboard.',
       'icon': Icons.workspace_premium,
       'cost': 2500,
-      'color': Colors.amber,
+      'color': Colors.purpleAccent,
+      'badge': 'STATUS 👑',
     },
   ];
 
-  Future<void> _purchaseItem(String itemId, int cost, int currentCoins) async {
+  Future<void> _purchaseItem(String itemId, String itemTitle, int cost, int currentCoins) async {
     if (currentCoins < cost) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Not enough Dishi Coins!'), backgroundColor: Colors.redAccent),
+        const SnackBar(content: Text('Not enough Dishi Coins! Play games to earn more.'), backgroundColor: Colors.redAccent),
       );
       return;
     }
@@ -60,40 +82,112 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
     });
 
     try {
-      final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/redeem'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
-        body: json.encode({'item_id': itemId}),
-      ).timeout(const Duration(seconds: 30));
+      bool redeemedSuccessfully = false;
 
-      final data = json.decode(response.body);
+      // 1. Try Backend Endpoint
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConfig.gamesRedeem),
+          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
+          body: json.encode({'item_id': itemId}),
+        ).timeout(const Duration(seconds: 15));
 
-      if (response.statusCode == 200) {
-        if (!mounted) return;
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: _cardColor,
-            title: const Text('Success! 🎉', style: TextStyle(color: Colors.white)),
-            content: Text('You successfully redeemed: \$itemId!', style: const TextStyle(color: Colors.white70)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK', style: TextStyle(color: Color(0xFF05D5AA))),
-              )
+        if (response.statusCode == 200) {
+          redeemedSuccessfully = true;
+        }
+      } catch (_) {
+        // Fallback to client-side transaction
+      }
+
+      // 2. Direct atomic Firestore transaction fallback
+      if (!redeemedSuccessfully) {
+        final userRef = FirebaseFirestore.instance.collection('users').doc(widget.userModel.uid);
+        final statsRef = FirebaseFirestore.instance.collection('user_game_stats').doc(widget.userModel.uid);
+
+        await FirebaseFirestore.instance.runTransaction((tx) async {
+          final snap = await tx.get(userRef);
+          final coins = (snap.data()?['dishi_coins'] ?? 0) as int;
+          if (coins < cost) throw Exception('Insufficient Dishi Coins');
+
+          final Map<String, dynamic> userUpdates = {
+            'dishi_coins': coins - cost,
+          };
+
+          if (itemId == 'cash_50') {
+            userUpdates['walletBalance'] = FieldValue.increment(50.0);
+          } else if (itemId == 'cash_100') {
+            userUpdates['walletBalance'] = FieldValue.increment(100.0);
+          } else if (itemId == 'vip_badge') {
+            userUpdates['premium_badge'] = true;
+            userUpdates['isVipBadge'] = true;
+          }
+
+          tx.update(userRef, userUpdates);
+
+          if (itemId == 'free_delivery') {
+            tx.set(statsRef, {'free_deliveries': FieldValue.increment(1)}, SetOptions(merge: true));
+          } else if (itemId == 'discount_10') {
+            tx.set(statsRef, {'discount_vouchers': FieldValue.increment(1)}, SetOptions(merge: true));
+          }
+
+          final txDoc = FirebaseFirestore.instance.collection('transactions').doc();
+          tx.set(txDoc, {
+            'studentId': widget.userModel.uid,
+            'type': 'game_coin_redemption',
+            'rewardId': itemId,
+            'rewardTitle': itemTitle,
+            'coinsDeducted': cost,
+            'timestamp': FieldValue.serverTimestamp(),
+            'status': 'completed',
+          });
+        });
+        redeemedSuccessfully = true;
+      }
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: _cardColor,
+          title: const Row(
+            children: [
+              Icon(Icons.stars, color: Colors.amber, size: 28),
+              SizedBox(width: 8),
+              Text('Redeemed! 🎉', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ],
           ),
-        );
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['error'] ?? 'Purchase failed'), backgroundColor: Colors.redAccent),
-        );
-      }
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('You successfully redeemed:\n$itemTitle', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: _neonCyan.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                child: Text(
+                  itemId.startsWith('cash_')
+                      ? 'Funds credited directly to your DISHI Wallet balance!'
+                      : 'Reward active on your account! Check your dashboard/vouchers.',
+                  style: TextStyle(color: _neonCyan, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Awesome!', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            )
+          ],
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Network error. Try again later.'), backgroundColor: Colors.redAccent),
+        SnackBar(content: Text('Redemption error: $e'), backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) {
@@ -200,7 +294,7 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
                                   foregroundColor: canAfford ? Colors.black : Colors.white54,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                 ),
-                                onPressed: (_isProcessing || !canAfford) ? null : () => _purchaseItem(item['id'] as String, item['cost'] as int, currentCoins),
+                                onPressed: (_isProcessing || !canAfford) ? null : () => _purchaseItem(item['id'] as String, item['title'] as String, item['cost'] as int, currentCoins),
                                 child: _isProcessing ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('BUY'),
                               )
                             ],

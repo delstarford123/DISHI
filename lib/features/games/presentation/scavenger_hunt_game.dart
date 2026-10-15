@@ -1,8 +1,7 @@
-import 'dart:convert';
-import 'coins_display.dart';
 import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
-import 'package:http/http.dart' as http;
+import '../../../core/services/game_reward_service.dart';
+import 'coins_display.dart';
 
 class ScavengerHuntGame extends StatefulWidget {
   final UserModel userModel;
@@ -76,23 +75,36 @@ class _ScavengerHuntGameState extends State<ScavengerHuntGame> {
     }
   }
 
-  void _showGameOver() {
+  Future<void> _showGameOver() async {
     setState(() {
       isGameOver = true;
     });
-    _submitScore();
-  }
 
-  Future<void> _submitScore() async {
-    try {
-      await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
-        body: json.encode({'game_id': 'scavenger_hunt', 'score': score}),
-      ).timeout(const Duration(seconds: 15));
-    } catch (e) {
-      print("Error submitting scavenger hunt score: \$e");
-    }
+    final res = await GameRewardService.submitScore(
+      uid: widget.userModel.uid,
+      gameId: 'scavenger_hunt',
+      score: score,
+    );
+
+    if (!mounted) return;
+
+    GameRewardService.showArcadeGameOverDialog(
+      context: context,
+      userModel: widget.userModel,
+      gameTitle: 'SCAVENGER HUNT',
+      score: score,
+      scoreLabel: 'CAMPUS CLUES SOLVED',
+      coinsEarned: res.coinsEarned,
+      isVictory: true,
+      onPlayAgain: () {
+        setState(() {
+          currentIndex = 0;
+          score = 0;
+          isGameOver = false;
+          _feedback = "";
+        });
+      },
+    );
   }
 
   @override

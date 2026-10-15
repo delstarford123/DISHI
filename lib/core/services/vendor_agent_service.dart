@@ -1,16 +1,13 @@
 
 class VendorAgentService {
-  static const double _maxDailyCommission = 500.0;
+  static const double maxDailyCommission = 1000.0;
 
   /// Calculates the commission a Vendor earns for topping up a student.
-  /// Rules: Under 100 KES = Flat 2 KES. 100 KES and above = 0.5%.
+  /// Rules: 0.5% commission only (no extra money for vendor).
   static double calculateTopUpCommission(double amount) {
     if (amount <= 0) return 0.0;
-    if (amount < 100) {
-      return 2.0; // Flat 2 KES
-    } else {
-      return amount * 0.005; // 0.5%
-    }
+    final comm = amount * 0.005; // 0.5% only
+    return double.parse(comm.toStringAsFixed(2));
   }
 
   /// Verifies if a Vendor is eligible for commission based on the strict Anti-Fraud rules.
@@ -22,7 +19,7 @@ class VendorAgentService {
   }) {
     // 1. Daily Cap Check (Cannot exceed 500 KES per day)
     final pendingCommission = calculateTopUpCommission(topUpAmount);
-    if ((commissionsEarnedToday + pendingCommission) > _maxDailyCommission) {
+    if ((commissionsEarnedToday + pendingCommission) > maxDailyCommission) {
       return false; 
     }
 

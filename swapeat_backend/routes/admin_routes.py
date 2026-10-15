@@ -702,8 +702,8 @@ def approve_all_housing():
             try:
                 from flask_mail import Mail, Message
                 from flask import current_app
-                mail = Mail(current_app)
-                msg = Message("Admin Action: Bulk Housing Approval", sender="info@delstarfordworks.co.ke", recipients=["info@delstarfordworks.co.ke"])
+                admin_email = current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke')
+                msg = Message("Admin Action: Bulk Housing Approval", sender=admin_email, recipients=[admin_email])
                 msg.body = f"{count} housing properties were approved by admin {admin_id}."
                 mail.send(msg)
             except Exception as e:

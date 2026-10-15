@@ -247,7 +247,7 @@ class _CreateEventViewState extends State<CreateEventView> {
 
                     const Text('Payout Configuration', style: TextStyle(color: MPesaTheme.neonCyan, fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    const Text('A 5 KES commission applies per ticket. The rest is routed to your selected destination.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                    const Text('A 12 KES commission applies per ticket. The rest is routed to your selected destination.', style: TextStyle(color: Colors.white54, fontSize: 12)),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       initialValue: _payoutType,

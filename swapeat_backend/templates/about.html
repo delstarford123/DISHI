@@ -3,297 +3,863 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DISHI - Professional Pitch</title>
+    <title>About DISHI — Executive Pitch, Youth Employment & Architecture</title>
+    <meta name="description" content="Discover DISHI's African campus ecosystem: Smart meal logistics, 0.5% vendor commission, campus food delivery by comrade couriers, verified Fundi artisan services, and offline NFC smart cards.">
+
+    <!-- Canonical & Favicons -->
+    <link rel="canonical" href="https://dishi.delstarfordworks.co.ke/about">
+    <link rel="icon" type="image/png" href="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+    <link rel="shortcut icon" type="image/png" href="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+    <link rel="apple-touch-icon" href="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+
+    <!-- Open Graph / WhatsApp / Facebook / LinkedIn / Telegram -->
+    <meta property="og:site_name" content="DISHI">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://dishi.delstarfordworks.co.ke/about">
+    <meta property="og:title" content="About DISHI — Executive Pitch, Youth Employment & Architecture">
+    <meta property="og:description" content="Discover DISHI's African campus ecosystem: Smart meal logistics, 0.5% vendor commission, campus food delivery by comrade couriers, verified Fundi artisan services, and offline NFC smart cards.">
+    <meta property="og:image" content="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+    <meta property="og:image:secure_url" content="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:image:alt" content="DISHI Official Logo">
+
+    <!-- Twitter Card / X -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:site" content="@DishiAfrica">
+    <meta name="twitter:title" content="About DISHI — Executive Pitch, Youth Employment & Architecture">
+    <meta name="twitter:description" content="Discover DISHI's African campus ecosystem: Smart meal logistics, 0.5% vendor commission, campus food delivery by comrade couriers, verified Fundi artisan services, and offline NFC smart cards.">
+    <meta name="twitter:image" content="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+    <meta name="twitter:image:alt" content="DISHI Official Logo">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0C101B;
-            --card-color: #131A2A;
-            --neon-pink: #FF2A6D;
-            --neon-purple: #9C27B0;
+            --bg: #090E1A;
+            --bg-card: #111827;
+            --bg-card-hover: #172238;
+            --mint: #05D5AA;
+            --mint-glow: rgba(5, 213, 170, 0.3);
+            --pink: #FF2A6D;
+            --purple: #9D4EDD;
+            --gold: #FFB703;
+            --blue: #2563EB;
             --text-main: #FFFFFF;
-            --text-secondary: #8B9BB4;
-            --accent-blue: #05D5FA;
+            --text-muted: #94A3B8;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-accent: rgba(5, 213, 170, 0.3);
+            --radius-lg: 24px;
+            --radius-md: 16px;
         }
-        
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            line-height: 1.6;
+
+        *, *::before, *::after {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding-bottom: 60px;
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(5, 213, 170, 0.07), transparent 40%),
+                radial-gradient(circle at 90% 60%, rgba(255, 42, 109, 0.06), transparent 40%);
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1040px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: 40px 24px;
         }
 
-        header {
-            text-align: center;
-            margin-bottom: 60px;
+        /* ─── HEADER ────────────────────────────────────────── */
+        .header-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
         }
-
-        h1 {
-            font-size: 3rem;
-            background: linear-gradient(90deg, var(--neon-pink), var(--neon-purple), var(--accent-blue));
+        .brand-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: #fff;
+        }
+        .brand-logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 2px solid var(--mint);
+            box-shadow: 0 0 16px var(--mint-glow);
+        }
+        .brand-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #fff 40%, var(--mint) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
         }
-
-        h2 {
-            color: var(--neon-pink);
-            font-size: 1.8rem;
-            margin-top: 0;
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--card-color);
-            padding-bottom: 10px;
-        }
-
-        .section {
-            background-color: var(--card-color);
-            border-radius: 16px;
-            padding: 30px;
-            margin-bottom: 30px;
-            border-left: 4px solid var(--neon-purple);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            transition: transform 0.3s ease;
-        }
-
-        .section:hover {
-            transform: translateY(-5px);
-            border-left-color: var(--accent-blue);
-        }
-
-        .highlight {
-            color: var(--accent-blue);
-            font-weight: bold;
-        }
-
-        ul {
-            list-style-type: none;
-            padding-left: 0;
-        }
-
-        ul li {
-            position: relative;
-            padding-left: 25px;
-            margin-bottom: 10px;
-            color: var(--text-secondary);
-        }
-
-        ul li::before {
-            content: "▹";
-            position: absolute;
-            left: 0;
-            color: var(--neon-pink);
-            font-weight: bold;
-        }
-
-        .metric {
-            display: inline-block;
-            background: rgba(255, 42, 109, 0.1);
-            color: var(--neon-pink);
-            padding: 5px 12px;
+        .nav-back {
+            color: var(--mint);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
             border-radius: 20px;
-            font-weight: bold;
-            font-size: 0.9rem;
+            background: rgba(5, 213, 170, 0.1);
+            border: 1px solid var(--border-accent);
+            transition: all 0.2s;
+        }
+        .nav-back:hover {
+            background: var(--mint);
+            color: #000;
+        }
+
+        /* ─── PITCH HERO ─────────────────────────────────────── */
+        .pitch-hero {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+        .pitch-badge {
+            display: inline-block;
+            background: rgba(5, 213, 170, 0.15);
+            color: var(--mint);
+            border: 1px solid var(--border-accent);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+        .pitch-hero h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.8rem;
+            line-height: 1.2;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        .pitch-hero p.subtitle {
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            max-width: 760px;
+            margin: 0 auto;
+        }
+
+        /* ─── IMPACT COUNTERS ────────────────────────────────── */
+        .impact-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            margin-bottom: 48px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-number {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--mint);
+            margin-bottom: 4px;
+        }
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ─── CONTENT SECTIONS ───────────────────────────────── */
+        .pitch-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 36px;
+            margin-bottom: 28px;
+            transition: transform 0.25s, border-color 0.25s;
+            position: relative;
+        }
+        .pitch-section:hover {
+            border-color: rgba(5, 213, 170, 0.4);
+            transform: translateY(-2px);
+        }
+        .section-tag {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--mint);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+            display: block;
+        }
+        .pitch-section h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.6rem;
+            margin-bottom: 16px;
+            color: #fff;
+        }
+        .pitch-section p {
+            color: var(--text-muted);
+            font-size: 15px;
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+        .pitch-section p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* ─── BULLET LISTS & METRICS ─────────────────────────── */
+        .pillar-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 20px;
+        }
+        .pillar-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px 20px;
+        }
+        .pillar-item h4 {
+            font-size: 15px;
+            color: #fff;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .pillar-item p {
+            font-size: 13px;
+            margin: 0;
+            color: var(--text-muted);
+        }
+
+        .metric-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(5, 213, 170, 0.1);
+            color: var(--mint);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 13px;
             margin-right: 10px;
             margin-bottom: 10px;
-            border: 1px solid rgba(255, 42, 109, 0.3);
+            border: 1px solid var(--border-accent);
         }
-    </style>
-    <meta property="og:title" content="DISHI - Professional Pitch" />
-    <meta property="og:description" content="Learn more about DISHI, the ultimate app for campus life." />
-    <meta property="og:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
-    <style>
-        /* Background Watermark */
-        .bg-watermark {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90vw;
-            height: 90vh;
-            max-width: 800px;
-            background-image: url("{{ url_for('static', filename='img/dishi_logo.png') }}");
-            background-repeat: no-repeat;
-            background-position: center;
-            background-size: contain;
-            opacity: 0.05;
-            pointer-events: none;
-            z-index: 0;
+
+        /* ─── VENDOR FLOAT BOX ───────────────────────────────── */
+        .float-callout {
+            background: linear-gradient(135deg, rgba(255, 183, 3, 0.08), rgba(5, 213, 170, 0.08));
+            border: 1px solid rgba(255, 183, 3, 0.3);
+            border-radius: 18px;
+            padding: 24px;
+            margin-top: 20px;
         }
-        
-        .container {
+        .float-callout h4 {
+            color: var(--gold);
+            font-size: 16px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .float-callout ol {
+            padding-left: 20px;
+            color: var(--text-muted);
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        /* ─── PARTNER CTA CARD ───────────────────────────────── */
+        .partner-cta-card {
+            background: linear-gradient(135deg, #101726, #142035);
+            border: 2px solid var(--mint);
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            text-align: center;
+            margin-top: 48px;
+            box-shadow: 0 10px 40px var(--mint-glow);
+        }
+        .partner-cta-card h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2rem;
+            margin-bottom: 12px;
+        }
+        .partner-cta-card p {
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 24px;
+            font-size: 15px;
+        }
+        .email-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--mint);
+            color: #000;
+            padding: 16px 36px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 16px;
+            text-decoration: none;
+            box-shadow: 0 4px 20px var(--mint-glow);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .email-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(5, 213, 170, 0.6);
+        }
+
+        /* ─── VISION & INCLUSION GALLERY ───────────────────── */
+        .vision-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-top: 24px;
+        }
+        .vision-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+        .vision-card:hover {
+            border-color: rgba(5, 213, 170, 0.4);
+            transform: translateY(-4px);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+        }
+        .vision-img-wrap {
+            width: 100%;
+            height: 240px;
+            overflow: hidden;
             position: relative;
-            z-index: 1;
+            background: #000;
+        }
+        .vision-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+        .vision-card:hover .vision-img {
+            transform: scale(1.05);
+        }
+        .vision-badge {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            background: rgba(8, 13, 24, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--border);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+        .vision-card-body {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+        .vision-card-body h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.25rem;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        .vision-card-body p {
+            color: var(--text-muted);
+            font-size: 13.5px;
+            line-height: 1.65;
+            margin-bottom: 16px;
+            flex: 1;
+        }
+        .vision-tags-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .vision-micro-tag {
+            background: rgba(5, 213, 170, 0.08);
+            border: 1px solid rgba(5, 213, 170, 0.25);
+            color: var(--mint);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 10px;
+        }
+        .manifesto-callout {
+            background: linear-gradient(135deg, rgba(5, 213, 170, 0.08), rgba(255, 42, 109, 0.06));
+            border: 1px solid rgba(5, 213, 170, 0.3);
+            border-radius: var(--radius-md);
+            padding: 28px;
+            margin-top: 24px;
+        }
+        .manifesto-callout h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.35rem;
+            color: #fff;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .manifesto-callout p {
+            color: #E2E8F0;
+            font-size: 14.5px;
+            line-height: 1.7;
+            margin-bottom: 12px;
+        }
+        .manifesto-callout p:last-child {
+            margin-bottom: 0;
+        }
+
+        @media (max-width: 768px) {
+            .impact-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .pillar-grid {
+                grid-template-columns: 1fr;
+            }
+            .vision-grid {
+                grid-template-columns: 1fr;
+            }
+            .pitch-hero h1 {
+                font-size: 2.1rem;
+            }
+            .pitch-section {
+                padding: 24px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 16px 12px 40px;
+            }
+            .header-wrap {
+                margin-bottom: 24px;
+            }
+            .pitch-hero h1 {
+                font-size: 1.65rem;
+            }
+            .pitch-section {
+                padding: 18px 14px;
+                border-radius: 16px;
+            }
+            .impact-stats {
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+                padding: 16px 12px;
+            }
+            .stat-number {
+                font-size: 1.8rem;
+            }
+            .partner-cta-card {
+                padding: 24px 14px;
+            }
+            .email-btn {
+                width: 100%;
+                justify-content: center;
+                box-sizing: border-box;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="bg-watermark"></div>
 
 <div class="container">
-    <header>
-        <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 10px;">
-            <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI Logo" style="width: 48px; height: 48px; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 10px rgba(5, 213, 170, 0.5);">
-            <h1 style="margin: 0;">DISHI</h1>
+    <!-- TOP HEADER -->
+    <header class="header-wrap">
+        <a href="/" class="brand-link">
+            <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI Logo" class="brand-logo">
+            <span class="brand-text">DISHI</span>
+        </a>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <a href="/events" class="nav-back" style="border-color: rgba(5, 213, 170, 0.4); color: var(--mint);">🎉 Campus Events</a>
+            <a href="/" class="nav-back">← Back to Portal</a>
         </div>
-        <p style="color: var(--text-secondary); font-size: 1.2rem;">The Ultimate AI-Powered Campus Ecosystem</p>
     </header>
 
-    <!-- Interactive App Preview -->
-    <div class="app-preview-container" style="text-align: center; margin: 40px 0;">
-        <div class="device-mockup" style="position: relative; width: 280px; height: 580px; margin: 0 auto; background: #000; border-radius: 40px; border: 12px solid #1e293b; box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.1); overflow: hidden;">
-            <div class="device-notch" style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 120px; height: 25px; background: #1e293b; border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; z-index: 10;"></div>
-            <video autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;">
-                <source src="{{ url_for('static', filename='video/app_preview.mp4') }}" type="video/mp4">
-                <!-- Fallback gradient -->
-                <div style="width: 100%; height: 100%; background: linear-gradient(135deg, var(--neon-purple), var(--accent-blue)); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">App Preview Loading...</div>
-            </video>
+    <!-- PITCH HERO -->
+    <div class="pitch-hero">
+        <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+            <span class="pitch-badge" style="background: rgba(5, 213, 170, 0.15); color: var(--mint); border-color: rgba(5, 213, 170, 0.4);">🌍 African Startup • Created in Africa</span>
+            <span class="pitch-badge">Official Platform Architecture</span>
+        </div>
+        <h1>The African Vision: Designed & Created in Africa for What the World Needs</h1>
+        <p class="subtitle">
+            DISHI is an African startup built from the ground up to solve campus hunger, digital exclusion, and cafeteria inefficiencies. We believe true innovation must be rooted in radical empathy and universal access for everyone—especially students gifted differently.
+        </p>
+    </div>
+
+    <!-- STATS COUNTER -->
+    <div class="impact-stats">
+        <div class="stat-item">
+            <div class="stat-number">50,000+</div>
+            <div class="stat-label">Meals Funded</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">120+</div>
+            <div class="stat-label">Campus Vendor Agents</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">0 Sec</div>
+            <div class="stat-label">NFC Tap Latency</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">0.5%</div>
+            <div class="stat-label">Guaranteed Commission</div>
         </div>
     </div>
 
-    <!-- Dynamic Impact Stats Counter -->
-    <div class="impact-stats" style="display: flex; justify-content: space-around; flex-wrap: wrap; margin: 40px 0; background: var(--card-color); padding: 30px; border-radius: 16px; border-top: 4px solid var(--accent-blue); box-shadow: 0 10px 30px rgba(0,0,0,0.4);">
-        <div class="stat-box" style="text-align: center; margin: 10px;">
-            <div class="stat-number" data-target="10000" style="font-size: 3rem; font-weight: 800; color: var(--accent-blue); text-shadow: 0 0 10px rgba(5, 213, 250, 0.4);">0</div>
-            <div class="stat-label" style="color: var(--text-secondary); text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1.5px; font-weight: 600; margin-top: 5px;">Meals Funded</div>
+    <!-- SECTION 0: OUR AFRICAN STORY & WHAT THE WORLD NEEDS -->
+    <section class="pitch-section">
+        <span class="section-tag">01 • The African Renaissance</span>
+        <h2>What the World Needs: Technology with Empathy & Universal Inclusion</h2>
+        <p>
+            Across university campuses in Africa, thousands of brilliant minds gather daily to build the future. Yet behind lecture halls, students confront acute daily friction: unstable campus cellular data, long cafeteria queues, hunger when pocket money runs out, and a near-total absence of accommodations for students with disabilities.
+        </p>
+        <p>
+            <strong>DISHI is designed and created in Africa</strong> to answer this calling. We did not build another generic food delivery app. We engineered a complete, inclusive socio-economic ecosystem that dignifies every student, transforms campus vendors into prosperous cash-in agents, and ensures no student goes hungry.
+        </p>
+
+        <!-- MANIFESTO CALLOUT -->
+        <div class="manifesto-callout">
+            <h3>❤️ Community Love & Universal Accessibility</h3>
+            <p>
+                True technology is only as great as who it includes. At DISHI, universal design is not an afterthought or a compliance checkbox; it is our heartbeat. We are dedicated to supporting members of our campus community gifted differently—ensuring that blind students, deaf students, and students with mobility challenges experience equal independence, joy, and nourishment.
+            </p>
         </div>
-        <div class="stat-box" style="text-align: center; margin: 10px;">
-            <div class="stat-number" data-target="50" style="font-size: 3rem; font-weight: 800; color: var(--neon-pink); text-shadow: 0 0 10px rgba(255, 42, 109, 0.4);">0</div>
-            <div class="stat-label" style="color: var(--text-secondary); text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1.5px; font-weight: 600; margin-top: 5px;">Campus Vendors</div>
+
+        <!-- 6 EDITORIAL CARDS -->
+        <div class="vision-grid">
+            <!-- 1: Blind Students -->
+            <div class="vision-card">
+                <div class="vision-img-wrap">
+                    <img src="{{ url_for('static', filename='img/dishi_blind_student.jpg') }}" alt="DISHI Blind Student Audio & Tactile Access" class="vision-img">
+                    <span class="vision-badge" style="color: var(--mint); border-color: rgba(5, 213, 170, 0.4);">Blind Student Dignity</span>
+                </div>
+                <div class="vision-card-body">
+                    <h3>Voice Navigation & Tactile Dining</h3>
+                    <p>
+                        Visually impaired students often face stressful campus dining halls. DISHI integrates audio menu descriptions, screen-reader optimized order flows, tactile NFC student passes, and cafeteria staff audio cues, giving blind students total confidence and autonomy.
+                    </p>
+                    <div class="vision-tags-row">
+                        <span class="vision-micro-tag">🎙️ Audio Menu Prompts</span>
+                        <span class="vision-micro-tag">📳 Tactile NFC Tap</span>
+                        <span class="vision-micro-tag">🛡️ Braille Compatible</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2: Deaf Students -->
+            <div class="vision-card">
+                <div class="vision-img-wrap">
+                    <img src="{{ url_for('static', filename='img/dishi_deaf_student.jpg') }}" alt="DISHI Deaf Student Visual & Haptic Alerts" class="vision-img">
+                    <span class="vision-badge" style="color: var(--pink); border-color: rgba(255, 42, 109, 0.4);">Deaf Student Access</span>
+                </div>
+                <div class="vision-card-body">
+                    <h3>Visual Queues & Haptic Meal Alerts</h3>
+                    <p>
+                        Deaf and hard-of-hearing students no longer have to worry about missing loud order name callouts in noisy dining halls. DISHI provides high-contrast visual status displays and synchronized haptic phone/watch vibrations when food is plated.
+                    </p>
+                    <div class="vision-tags-row">
+                        <span class="vision-micro-tag">👁️ Visual Order Boards</span>
+                        <span class="vision-micro-tag">📳 Wrist Haptic Alerts</span>
+                        <span class="vision-micro-tag">🤝 Silent Peer Gifting</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3: Wheelchair Students -->
+            <div class="vision-card">
+                <div class="vision-img-wrap">
+                    <img src="{{ url_for('static', filename='img/dishi_wheelchair_student.jpg') }}" alt="DISHI Wheelchair Student Campus Meal Dispatch" class="vision-img">
+                    <span class="vision-badge" style="color: #60A5FA; border-color: rgba(37, 99, 235, 0.4);">Mobility Care</span>
+                </div>
+                <div class="vision-card-body">
+                    <h3>Barrier-Free Meals & Dorm Dispatch</h3>
+                    <p>
+                        Many African campuses lack full wheelchair ramps to cafeteria halls. DISHI deploys dedicated peer student runners who deliver hot cafeteria meals directly to accessible hostel entrances, paired with wheelchair-accessible vendor counters.
+                    </p>
+                    <div class="vision-tags-row">
+                        <span class="vision-micro-tag">🚪 Direct Dorm Dispatch</span>
+                        <span class="vision-micro-tag">♿ Lowered Counter POS</span>
+                        <span class="vision-micro-tag">⚡ Zero Stairs Barrier</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4: IoT Hardware -->
+            <div class="vision-card">
+                <div class="vision-img-wrap">
+                    <img src="{{ url_for('static', filename='img/dishi_iot_design.jpg') }}" alt="DISHI IoT Terminal Hardware Design" class="vision-img">
+                    <span class="vision-badge" style="color: var(--gold); border-color: rgba(255, 183, 3, 0.4);">African Hardware</span>
+                </div>
+                <div class="vision-card-body">
+                    <h3>Homegrown African Hardware & IoT</h3>
+                    <p>
+                        Rather than importing brittle overseas terminals, we designed the DISHI IoT Terminal specifically for the electrical and networking conditions of African universities. 100% offline-ready, low-power, and ruggedized with solar backup capabilities.
+                    </p>
+                    <div class="vision-tags-row">
+                        <span class="vision-micro-tag">📶 100% Offline Capable</span>
+                        <span class="vision-micro-tag">⚡ Sub-300ms Encrypted Tap</span>
+                        <span class="vision-micro-tag">🔋 Solar-Ready</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5: DISHI Watch -->
+            <div class="vision-card">
+                <div class="vision-img-wrap">
+                    <img src="{{ url_for('static', filename='img/dishi_watch.jpg') }}" alt="DISHI Smart Wearable Watch" class="vision-img">
+                    <span class="vision-badge" style="color: var(--purple); border-color: rgba(157, 78, 221, 0.4);">Wearable Innovation</span>
+                </div>
+                <div class="vision-card-body">
+                    <h3>Contactless Smart Food Pass on Your Wrist</h3>
+                    <p>
+                        The DISHI Watch gives students a water-resistant, durable, and battery-independent wearable food pass. Students tap their wrist at any cafeteria station to authenticate, dine, and track balanced nutrition without needing a phone.
+                    </p>
+                    <div class="vision-tags-row">
+                        <span class="vision-micro-tag">⌚ Wearable Food Pass</span>
+                        <span class="vision-micro-tag">💧 Water Resistant</span>
+                        <span class="vision-micro-tag">🔒 Parent Safety Guard</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6: Shirts & Caps -->
+            <div class="vision-card">
+                <div class="vision-img-wrap">
+                    <img src="{{ url_for('static', filename='img/dishi_shirts_caps.jpg') }}" alt="DISHI Community Movement Shirts and Caps" class="vision-img">
+                    <span class="vision-badge" style="color: var(--mint); border-color: rgba(5, 213, 170, 0.4);">Community Identity</span>
+                </div>
+                <div class="vision-card-body">
+                    <h3>Campus Movement, Unity & Student Dignity</h3>
+                    <p>
+                        Our iconic DISHI branded apparel unites certified student agents, delivery volunteers, and campus champions. Wearing DISHI signifies a commitment to mutual aid, African technological self-reliance, and eradicating student hunger.
+                    </p>
+                    <div class="vision-tags-row">
+                        <span class="vision-micro-tag">👕 Student Ambassador Gear</span>
+                        <span class="vision-micro-tag">💼 Campus Youth Jobs</span>
+                        <span class="vision-micro-tag">🌍 African Startup Pride</span>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="stat-box" style="text-align: center; margin: 10px;">
-            <div class="stat-number" data-target="0" style="font-size: 3rem; font-weight: 800; color: var(--neon-purple); text-shadow: 0 0 10px rgba(156, 39, 176, 0.4);">0</div>
-            <div class="stat-label" style="color: var(--text-secondary); text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1.5px; font-weight: 600; margin-top: 5px;">Transaction Delays</div>
+    </section>
+
+    <!-- SECTION 1: PROBLEM -->
+    <section class="pitch-section">
+        <span class="section-tag">02 • Problem Analysis</span>
+        <h2>The Status Quo: Campus Food Insecurity & Financial Exclusion</h2>
+        <p>
+            University students navigate high financial friction daily. Distant ATMs, predatory cash withdrawal fees, spotty campus mobile data, and long cafeteria queues force students to skip meals or spend money outside of safe campus parameters.
+        </p>
+        <div class="pillar-grid">
+            <div class="pillar-item">
+                <h4>🔴 Financial Exclusion</h4>
+                <p>Students without smartphones or internet connection are locked out of digital campus food services and wallet allowances.</p>
+            </div>
+            <div class="pillar-item">
+                <h4>🔴 Vendor Inefficiencies</h4>
+                <p>Vendors waste 2+ hours daily verifying manual M-PESA SMS receipts and managing coin change shortages during lunch rush.</p>
+            </div>
+            <div class="pillar-item">
+                <h4>🔴 Student Hunger</h4>
+                <p>Over 35% of Kenyan university students experience temporary food insecurity when pocket money runs low before end of semester.</p>
+            </div>
+            <div class="pillar-item">
+                <h4>🔴 Lack of Parent Assurance</h4>
+                <p>Parents sending money via general mobile money lack transparency into whether funds are spent on hot meals or diverted elsewhere.</p>
+            </div>
         </div>
-    </div>
+    </section>
 
-    <!-- 1. The Hook & Problem -->
-    <div class="section">
-        <h2>The Hook & Problem: Campus Life Is Broken</h2>
-        <p>We open by directly attacking the status quo: <strong>Student Finance and Social Connection are fundamentally broken.</strong></p>
-        <p>We isolate three critical pain points establishing an immediate need for intervention:</p>
-        <ul>
-            <li><strong>High Financial Friction:</strong> Students struggle with managing pocket money, unreliable network connections for payments, and predatory fees.</li>
-            <li><strong>Intense Social Isolation:</strong> Despite being on crowded campuses, students face severe social anxiety, ghosting, and unsafe late-night commutes.</li>
-            <li><strong>Poor Operational Efficiency:</strong> Campus vendors lose hours daily manually verifying transactions and managing crowds, leading to lost revenue.</li>
-        </ul>
-    </div>
+    <!-- SECTION 3: THE DISHI SOLUTION -->
+    <section class="pitch-section">
+        <span class="section-tag">03 • The Unified Solution</span>
+        <h2>A Unified Campus Operating System</h2>
+        <p>
+            DISHI integrates digital food ordering, campus agency banking, physical NFC smart cards, and communal crowdfunding into a single frictionless ecosystem.
+        </p>
+        <div class="pillar-grid">
+            <div class="pillar-item">
+                <h4>💳 DISHI Digital & NFC Wallet</h4>
+                <p>Dual-mode ledger supporting both online smartphone app payments and tap-to-pay physical NFC student cards with offline PIN encryption.</p>
+            </div>
+            <div class="pillar-item">
+                <h4>🏪 Certified DISHI Cash-In Agents</h4>
+                <p>Campus vendors double as cash deposit agents. Students deposit cash directly into their student accounts; vendors earn a 0.5% commission.</p>
+            </div>
+            <div class="pillar-item">
+                <h4>🤝 Campus Harambee Campaigns</h4>
+                <p>Communal crowdfunding platform enabling students in emergency need to receive verified micro-donations directly into their meal balances.</p>
+            </div>
+            <div class="pillar-item">
+                <h4>🎮 Gamified Rewards Hub</h4>
+                <p>12 custom arcade games where earned coins convert directly into KES 50 and KES 100 wallet balance and cafeteria meal vouchers.</p>
+            </div>
+        </div>
+    </section>
 
-    <!-- 2. Global Alignment -->
-    <div class="section">
-        <h2>Global Alignment</h2>
-        <p>DISHI connects local campus problems to macroeconomic <strong>United Nations Sustainable Development Goals (SDGs)</strong>. This positions the platform as a movement for economic empowerment and safety rather than just a commercial app.</p>
-        <ul>
-            <li><strong>SDG 8 (Decent Work & Economic Growth):</strong> Empowering campus vendors (DISHI Agents) with seamless digital ledgers and offline transaction capabilities.</li>
-            <li><strong>SDG 9 (Industry, Innovation & Infrastructure):</strong> Building robust offline NFC payment bridges and low-latency WebRTC communications.</li>
-            <li><strong>SDG 11 (Sustainable Cities & Communities):</strong> Creating safer campus environments through our real-time Safe Walk GPS tracking.</li>
-        </ul>
-    </div>
+    <!-- SECTION 4: CAMPUS YOUTH EMPLOYMENT & GIGS (DELIV & FUNDI) -->
+    <section class="pitch-section">
+        <span class="section-tag">04 • Campus Youth Employment & Gigs</span>
+        <h2>Creating Dignified Jobs: Food Delivery (DeLiv) & The Fundi Marketplace</h2>
+        <p>
+            Youth unemployment across Africa requires practical, homegrown interventions. African universities are bustling mini-cities where tens of thousands of meals, repairs, and skilled errands take place every day.
+        </p>
+        <p>
+            DISHI harnesses this density to create a thriving student gig economy. By powering on-demand food delivery and a peer-to-peer artisan directory with <strong>100% Escrow Protection</strong>, comrades earn meaningful income between lectures while local community artisans gain dignified access to the university market.
+        </p>
 
-    <!-- 3. The Solution -->
-    <div class="section">
-        <h2>The Solution</h2>
-        <p>DISHI is a <strong>100% self-managing, AI-powered smart ecosystem</strong>. We break down the tech stack into digestible pillars:</p>
-        <ul>
-            <li><strong>The DISHI Wallet:</strong> Proprietary offline NFC capabilities allowing transactions without internet, automatically syncing to Firebase upon reconnection.</li>
-            <li><strong>DISHI Match Interactive:</strong> A real-time social hub featuring WebRTC live video/audio dating, Icebreaker mini-games, and Ghost-busting TTL Whisper Messages.</li>
-            <li><strong>Campus Integrations:</strong> A physical-world bridge offering Safe Walk live-tracking, Academic Study Buddy modes, and dynamic Partner Venue QR discounts.</li>
-        </ul>
-    </div>
+        <div class="pillar-grid">
+            <div class="pillar-item" style="border-color: rgba(56, 189, 248, 0.35);">
+                <h4>🛵 Food Delivery by Comrades (DeLiv)</h4>
+                <p>Comrades with bicycles, bodas, or on foot earn KSh 40 – 150+ per delivery drop from dining halls directly to hostel rooms, classrooms, and bedsitters with complete schedule flexibility.</p>
+            </div>
+            <div class="pillar-item" style="border-color: rgba(168, 85, 247, 0.35);">
+                <h4>🛠️ Skilled Campus & Community Fundis</h4>
+                <p>Verified student and town technicians offer laptop/phone repairs, hostel barbering & styling, plumbing, electrical fixes, and academic tutoring with guaranteed escrow payouts.</p>
+            </div>
+            <div class="pillar-item" style="border-color: rgba(5, 213, 170, 0.35);">
+                <h4>🛡️ 100% Escrow Protection</h4>
+                <p>Client funds are safely locked in the DISHI Escrow vault before delivery or repair commences. Upon satisfactory completion, funds release immediately with zero risk of default.</p>
+            </div>
+            <div class="pillar-item" style="border-color: rgba(255, 183, 3, 0.35);">
+                <h4>🤝 Grassroots Community Inclusion</h4>
+                <p>DISHI integrates local bodabodas, mama mbogas, and town artisans into an organized, digital network—advancing Kenya's Bottom-Up Economic Transformation Agenda (BETA).</p>
+            </div>
+        </div>
 
-    <!-- 4. Value Proposition & Edge -->
-    <div class="section">
-        <h2>Value Proposition & Edge</h2>
-        <p>We use hard metrics to prove superiority:</p>
+        <div class="float-callout" style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(168, 85, 247, 0.08)); border-color: rgba(56, 189, 248, 0.3); margin-top: 24px;">
+            <h4 style="color: #38BDF8;">💡 How Campus Gigs & Escrow Work in Practice:</h4>
+            <ol>
+                <li><strong>Order or Gig Request:</strong> A student orders cafeteria food for dorm delivery or requests a Fundi (e.g. laptop repair, room plumbing, haircut).</li>
+                <li><strong>Atomic Escrow Lock:</strong> Client funds are locked in the DISHI Escrow vault (plus flat KSh 3 or 1.5% fee). The worker receives instant confirmation that payment is held safely.</li>
+                <li><strong>Doorstep Delivery / Skill Execution:</strong> The student courier delivers the hot meal, or the Fundi performs the repair or grooming service.</li>
+                <li><strong>Inspection & Release:</strong> The client verifies the job and taps <em>"Release Escrow"</em> in the DISHI app.</li>
+                <li><strong>Instant Wallet Credit:</strong> The courier or Fundi's wallet is credited instantly, available for campus dining or direct Safaricom M-PESA cashout.</li>
+            </ol>
+        </div>
+    </section>
+
+    <!-- SECTION 5: VENDOR AGENT FLOAT SYSTEM -->
+    <section class="pitch-section">
+        <span class="section-tag">05 • Agent Float Architecture</span>
+        <h2>How Vendors Work as DISHI Cash-In Agents & Manage Float</h2>
+        <p>
+            To empower campus vendors as licensed DISHI Agents, we implemented an institutional agency banking model similar to Safaricom M-PESA or Equity Agency Banking.
+        </p>
+
+        <div class="float-callout">
+            <h4>💡 The Exact Float Lifecycle:</h4>
+            <ol>
+                <li><strong>Float Acquisition:</strong> The vendor tops up their agent digital float (E-Float) instantly through an automated M-PESA STK Push prompt on their vendor terminal or accumulates digital float through daily food sales revenues.</li>
+                <li><strong>Cash Acceptance:</strong> When an online or offline student hands physical cash (e.g. KSh 500) to the vendor, the vendor enters the amount on their POS numpad.</li>
+                <li><strong>PIN Security Check:</strong> The student enters their 4-digit Wallet PIN or Offline Card PIN on the vendor terminal. No deposit can occur without student authentication.</li>
+                <li><strong>Instant Atomic Settlement:</strong> The vendor's digital float is debited by KSh 500, the student's wallet is credited KSh 500, and the vendor's wallet is credited a <strong>0.5% commission (KSh 2.50)</strong>.</li>
+                <li><strong>Automated Parent Notification:</strong> The student's parent receives an instantaneous SMS and push receipt alert with deposit amount, agent name, and child's updated balance.</li>
+            </ol>
+        </div>
+    </section>
+
+    <!-- SECTION 6: GLOBAL ALIGNMENT (SDGs) -->
+    <section class="pitch-section">
+        <span class="section-tag">06 • Macroeconomic Impact</span>
+        <h2>Alignment with United Nations Sustainable Development Goals</h2>
         <div>
-            <span class="metric">0% Offline Transaction Failure</span>
-            <span class="metric">100% Secure Location Sharing</span>
-            <span class="metric">Scalable to 1M+ Students</span>
+            <span class="metric-badge">SDG 2: Zero Hunger</span>
+            <span class="metric-badge">SDG 8: Decent Work & Economic Growth</span>
+            <span class="metric-badge">SDG 9: Industry, Innovation & Infrastructure</span>
+            <span class="metric-badge">SDG 10: Reduced Inequalities</span>
         </div>
-        <p>Our competitive edge defends the moat by highlighting <strong>low-cost IoT integration</strong> (NFC cards), <strong>social innovation</strong> (Dishi Date 50/50 split bill proposals), and <strong>self-cleaning adaptability</strong> (automated Anti-Ghosting nudges via our backend cron engine).</p>
-    </div>
+        <p>
+            By digitalizing campus micro-vendors, creating flexible delivery and artisan jobs for comrades, giving unbanked students access to digital food security, and allowing peer Harambee funding, DISHI actively advances Kenya's National Bottom-Up Economic Transformation Agenda (BETA) and global sustainability goals.
+        </p>
+    </section>
 
-    <!-- 5. Business Model -->
-    <div class="section">
-        <h2>Business Model</h2>
-        <p>DISHI outlines diversified revenue streams to guarantee financial viability:</p>
-        <ul>
-            <li><strong>Parent Funding Fees:</strong> A 2 KSH micro-commission on every STK push deposit into a student wallet.</li>
-            <li><strong>Crowdfunding/Harambee Fees:</strong> A 3 KSH commission charged to the contributor for every donation to a student's "Fund Me" or campaign link.</li>
-            <li><strong>Vendor/Driver Withdrawal Fees:</strong> A 4 KSH system commission whenever vendors or drivers cash out their earnings to M-PESA or Bank.</li>
-            <li><strong>Match Premium Gifting:</strong> A 10 KSH commission taken on any peer-to-peer "Find Your Match" gift exceeding 100 KSH.</li>
-            <li><strong>Vendor Transaction Fees:</strong> A micro 0.5% fee on high-volume, automated vendor transactions.</li>
-            <li><strong>DISHI Match Premium:</strong> Direct SaaS revenue via a KSh 200/month subscription unlocking voice notes and unlimited swipes.</li>
-            <li><strong>A la Carte Micro-Transactions:</strong> KSh 50 profile boosts billed directly to the DISHI Wallet via seamless M-PESA STK push integrations.</li>
-            <li><strong>Partner Venue Lead Gen:</strong> Commission generated when couples redeem exclusive DISHI QR codes at campus cafes.</li>
-        </ul>
-    </div>
+    <!-- SECTION 7: BUSINESS MODEL & REVENUE -->
+    <section class="pitch-section">
+        <span class="section-tag">07 • Unit Economics</span>
+        <h2>Diversified Revenue Architecture</h2>
+        <p>DISHI features multi-stream, recurring revenue that scales with campus enrollment and cafeteria transactions:</p>
+        <div class="pillar-grid">
+            <div class="pillar-item">
+                <h4>Parent M-PESA Deposit Fee</h4>
+                <p>Flat KSh 9.00 micro-commission on parental M-PESA top-ups.</p>
+            </div>
+            <div class="pillar-item">
+                <h4>Agent Cash-In Commission Share</h4>
+                <p>Institutional margin share on student cash deposits at vendor agents.</p>
+            </div>
+            <div class="pillar-item">
+                <h4>Harambee Contributor Fee</h4>
+                <p>Flat KSh 3.00 transaction fee on crowdfunding campaign contributions.</p>
+            </div>
+            <div class="pillar-item">
+                <h4>Vendor Instant Cashout Fee</h4>
+                <p>Tiered B2C withdrawal fee when vendors disburse profits to M-PESA or bank.</p>
+            </div>
+        </div>
+    </section>
 
-    <!-- 6. Investment Readiness -->
-    <div class="section">
-        <h2>Investment Readiness</h2>
-        <p>DISHI demonstrates a rapid return on investment. The ecosystem creates a self-sustaining micro-economy: parents fund the wallet (generating flat fees), students spend at campus vendors (generating B2B volume), and vendors cash out (generating withdrawal commissions). The initial setup pays for itself quickly through massive user retention and zero customer acquisition cost driven by the viral "Find Your Match" social features.</p>
-    </div>
-
-    <!-- 7. Team, IP & Risk -->
-    <div class="section">
-        <h2>Team, IP & Risk</h2>
-        <p>We build credibility by highlighting our concrete IP strategies: patenting the <strong>Offline-to-Online Transaction Syncing Algorithm</strong> and our proprietary <strong>WebRTC Video Matching Infrastructure</strong>. The risk is heavily mitigated by integrating natively with Safaricom Daraja M-PESA APIs and securing all user data within Google Cloud Firebase.</p>
-    </div>
-
-    <!-- 8. Vision & Impact -->
-    <div class="section">
-        <h2>Vision & Impact</h2>
-        <p>In closing, DISHI transforms the macro-level landscape of student life. We are driving digital adoption for the unbanked youth, completely removing the friction of campus dining, and supporting Kenya's <span class="highlight">Bottom-Up Economic Agenda</span> by turning local campus vendors into high-efficiency digital enterprises.</p>
+    <!-- PARTNER CONTACT CARD -->
+    <div class="partner-cta-card">
+        <span class="pitch-badge">Collaborate With Us</span>
+        <h2>Partner with DISHI Today</h2>
+        <p>
+            We are actively partnering with Universities, Higher Education Boards, Cafeteria Caterers, NGOs, and Corporate Sponsors. Connect with our partnership desk directly:
+        </p>
+        <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
+            <a href="https://play.google.com/store/apps/details?id=com.delstarfordworks.dishi" target="_blank" rel="noopener" class="email-btn" style="background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03)); border: 1.5px solid var(--mint); color: #fff;">
+                <span>📲 Download DISHI App (Play Store)</span>
+            </a>
+            <a href="/#support" class="email-btn" style="background: linear-gradient(135deg, #05D5AA, #028A6E); color: #000;">
+                <span>Support Our Community via M-PESA 📲</span>
+            </a>
+            <a href="mailto:dishi@delstarfordworks.co.ke?subject=DISHI%20Partnership%20Proposal" class="email-btn" style="background: rgba(255, 255, 255, 0.08); color: #fff; border: 1px solid var(--border);">
+                <span>✉️</span>
+                <span>dishi@delstarfordworks.co.ke</span>
+            </a>
+        </div>
     </div>
 
 </div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const counters = document.querySelectorAll('.stat-number');
-        const speed = 100; // lower is slower
-
-        counters.forEach(counter => {
-            const updateCount = () => {
-                const target = +counter.getAttribute('data-target');
-                const count = +counter.innerText.replace(/\D/g, ''); // ignore +
-                
-                if (target === 0) {
-                    counter.innerText = '0';
-                    return;
-                }
-
-                const inc = target / speed;
-
-                if (count < target) {
-                    counter.innerText = Math.ceil(count + inc);
-                    setTimeout(updateCount, 15);
-                } else {
-                    counter.innerText = target.toLocaleString() + '+';
-                }
-            };
-            
-            // Intersection Observer to start counting when visible
-            const observer = new IntersectionObserver((entries) => {
-                if(entries[0].isIntersecting) {
-                    updateCount();
-                    observer.disconnect();
-                }
-            });
-            observer.observe(counter);
-        });
-    });
-</script>
 
 </body>
 </html>

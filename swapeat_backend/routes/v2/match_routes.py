@@ -477,8 +477,8 @@ def match_sos():
                 subj, html_body = sos_alert_email(user_id, sos_student_name)
                 msg = Message(
                     subj,
-                    sender=current_app.config.get('MAIL_USERNAME', 'admin@swapeat.com'),
-                    recipients=['info@delstarfordworks.co.ke']
+                    sender=current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'),
+                    recipients=[current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke')]
                 )
                 msg.html = html_body
                 msg.body = f"URGENT: SOS alert triggered by {sos_student_name} (ID: {user_id}). Check admin dashboard immediately."
@@ -704,10 +704,9 @@ def send_birthday_gift():
 
         recipient_name = recipient_doc.to_dict().get('name', 'Recipient')
 
-        # ── SENDER COMMISSION RULE ──
-        # Sender pays (Gift Amount + KSh 20 platform commission) for gifts > KSh 100
-        commission = 20 if gift_amount > 100 else 0
-        charged_amount = gift_amount + commission  # e.g. 200 + 20 = 220 KSh charged to sender
+        # ── SENDER COMMISSION RULE (Raised by 7 KSh: 27 if > 100 else 7) ──
+        commission = 27 if gift_amount > 100 else 7
+        charged_amount = gift_amount + commission  # Gift + Commission charged to sender
         credit_amount = gift_amount                 # e.g. 200 KSh (100%) credited to recipient
 
         # 3. Import M-PESA helper functions

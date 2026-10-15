@@ -1,10 +1,25 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/models/user_model.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../../../core/services/game_reward_service.dart';
 import 'coins_display.dart';
+
+class MemoryCard {
+  final int id;
+  final String icon;
+  final String name;
+  bool isFlipped;
+  bool isMatched;
+
+  MemoryCard({
+    required this.id,
+    required this.icon,
+    required this.name,
+    this.isFlipped = false,
+    this.isMatched = false,
+  });
+}
 
 class MemoryMatchGame extends StatefulWidget {
   final UserModel userModel;
@@ -15,150 +30,154 @@ class MemoryMatchGame extends StatefulWidget {
   State<MemoryMatchGame> createState() => _MemoryMatchGameState();
 }
 
-class MemoryCard {
-  final String icon;
-  bool isFlipped;
-  bool isMatched;
-
-  MemoryCard(this.icon, {this.isFlipped = false, this.isMatched = false});
-}
-
 class _MemoryMatchGameState extends State<MemoryMatchGame> {
   final Color _bgColor = const Color(0xFF0C101B);
-  final Color _neonCyan = const Color(0xFF05D5AA);
   final Color _cardColor = const Color(0xFF131A2A);
+  final Color _neonCyan = const Color(0xFF05D5AA);
+  final Color _neonPink = const Color(0xFFF92B60);
 
-  List<MemoryCard> cards = [];
-  int? firstSelectedIndex;
-  bool isProcessing = false;
-  int score = 0;
-  int matchesFound = 0;
-  bool isGameOver = false;
-  
-  Timer? _timer;
-  int timeLeft = 60;
-
-  final List<String> _iconPool = [
-    '🍔', '📖', '🍕', '🍎', 
-    '🍽️', '🍩', '🥬', '🍿',
-    '🍔', '🍱', '🍢', '🍜',
-    '☕', '🍦'
+  final List<Map<String, String>> _cardTypes = [
+    {'icon': '🍕', 'name': 'Pizza'},
+    {'icon': '🍔', 'name': 'Burger'},
+    {'icon': '🍟', 'name': 'Fries'},
+    {'icon': '🌮', 'name': 'Taco'},
+    {'icon': '🥑', 'name': 'Avocado'},
+    {'icon': '🍎', 'name': 'Apple'},
+    {'icon': '🥪', 'name': 'Sandwich'},
+    {'icon': '🥤', 'name': 'Soda'},
   ];
 
+  List<MemoryCard> _cards = [];
+  int? _firstSelectedIndex;
+  bool _isProcessing = false;
+  int _score = 0;
+  int _matchesFound = 0;
+  int _timeLeft = 60;
+  int _streak = 0;
+  Timer? _countdownTimer;
+
+  bool _isPlaying = false;
+  bool _isGameOver = false;
+
   @override
-  void initState() {
-    super.initState();
-    _initGame();
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
   }
 
-  void _initGame() {
-    _timer?.cancel();
-    List<String> deck = [];
-    for (var icon in _iconPool) {
-      deck.add(icon);
-      deck.add(icon); // Add pairs
+  void _startGame() {
+    List<MemoryCard> pool = [];
+    int idCounter = 0;
+    for (var ct in _cardTypes) {
+      pool.add(MemoryCard(id: idCounter++, icon: ct['icon']!, name: ct['name']!));
+      pool.add(MemoryCard(id: idCounter++, icon: ct['icon']!, name: ct['name']!));
     }
-    deck.shuffle(Random()); // Ensure totally random shuffle every time
+    pool.shuffle();
 
     setState(() {
-      cards = deck.map((e) => MemoryCard(e)).toList();
-      score = 0;
-      matchesFound = 0;
-      isGameOver = false;
-      firstSelectedIndex = null;
-      isProcessing = false;
-      timeLeft = 60;
+      _cards = pool;
+      _firstSelectedIndex = null;
+      _isProcessing = false;
+      _score = 0;
+      _matchesFound = 0;
+      _streak = 0;
+      _timeLeft = 60;
+      _isPlaying = true;
+      _isGameOver = false;
     });
 
-    _startTimer();
-  }
-
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (timeLeft > 0 && !isGameOver) {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_timeLeft > 0) {
         setState(() {
-          timeLeft--;
+          _timeLeft--;
         });
       } else {
-        _timer?.cancel();
-        if (!isGameOver) {
-          _showGameOver(timeout: true);
-        }
+        timer.cancel();
+        _triggerGameOver(timeout: true);
       }
     });
   }
 
-  void _onCardTap(int index) {
-    if (isProcessing || cards[index].isFlipped || cards[index].isMatched) return;
-
-    setState(() {
-      cards[index].isFlipped = true;
-    });
-
-    if (firstSelectedIndex == null) {
-      firstSelectedIndex = index;
-    } else {
-      _checkForMatch(firstSelectedIndex!, index);
+  void _onCardTapped(int index) {
+    if (!_isPlaying || _isProcessing || _cards[index].isFlipped || _cards[index].isMatched) {
+      return;
     }
-  }
 
-  void _checkForMatch(int index1, int index2) async {
+    HapticFeedback.lightImpact();
+
     setState(() {
-      isProcessing = true;
+      _cards[index].isFlipped = true;
     });
 
-    if (cards[index1].icon == cards[index2].icon) {
-      // Match found
-      setState(() {
-        cards[index1].isMatched = true;
-        cards[index2].isMatched = true;
-        score += 20;
-        matchesFound++;
-        firstSelectedIndex = null;
-        isProcessing = false;
-        if (matchesFound == _iconPool.length) {
-          _timer?.cancel();
-          // Add remaining time as bonus score
-          score += (timeLeft * 5);
-          _showGameOver(timeout: false);
+    if (_firstSelectedIndex == null) {
+      _firstSelectedIndex = index;
+    } else {
+      _isProcessing = true;
+      final int firstIdx = _firstSelectedIndex!;
+
+      if (_cards[firstIdx].icon == _cards[index].icon) {
+        // Matched!
+        _streak++;
+        int earned = 20 + (_streak * 5);
+        _score += earned;
+        _matchesFound++;
+        HapticFeedback.mediumImpact();
+
+        setState(() {
+          _cards[firstIdx].isMatched = true;
+          _cards[index].isMatched = true;
+          _firstSelectedIndex = null;
+          _isProcessing = false;
+        });
+
+        if (_matchesFound == _cardTypes.length) {
+          // All matched! Bonus time points
+          _score += (_timeLeft * 5);
+          _countdownTimer?.cancel();
+          _triggerGameOver(timeout: false);
         }
-      });
-    } else {
-      // No match
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted) return;
-      setState(() {
-        cards[index1].isFlipped = false;
-        cards[index2].isFlipped = false;
-        firstSelectedIndex = null;
-        isProcessing = false;
-      });
+      } else {
+        // Mismatch
+        _streak = 0;
+        Future.delayed(const Duration(milliseconds: 700), () {
+          if (!mounted) return;
+          setState(() {
+            _cards[firstIdx].isFlipped = false;
+            _cards[index].isFlipped = false;
+            _firstSelectedIndex = null;
+            _isProcessing = false;
+          });
+        });
+      }
     }
   }
 
-  void _showGameOver({required bool timeout}) {
+  Future<void> _triggerGameOver({required bool timeout}) async {
+    _countdownTimer?.cancel();
+
     setState(() {
-      isGameOver = true;
+      _isPlaying = false;
+      _isGameOver = true;
     });
-    _submitScore();
-  }
 
-  Future<void> _submitScore() async {
-    try {
-      await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
-        body: json.encode({'game_id': 'memory_match', 'score': score}),
-      ).timeout(const Duration(seconds: 15));
-    } catch (e) {
-      print("Error submitting memory score: \$e");
-    }
-  }
+    final res = await GameRewardService.submitScore(
+      uid: widget.userModel.uid,
+      gameId: 'memory_match',
+      score: _score,
+    );
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
+    if (!mounted) return;
+
+    GameRewardService.showArcadeGameOverDialog(
+      context: context,
+      userModel: widget.userModel,
+      gameTitle: 'MEMORY MATCH',
+      score: _score,
+      coinsEarned: res.coinsEarned,
+      isVictory: !timeout,
+      onPlayAgain: _startGame,
+    );
   }
 
   @override
@@ -169,152 +188,147 @@ class _MemoryMatchGameState extends State<MemoryMatchGame> {
         title: const Text('Memory Match', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: _bgColor,
         foregroundColor: Colors.white,
-        actions: [
-          CoinsDisplay(uid: widget.userModel.uid),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Center(child: Text('Score: $score', style: TextStyle(color: _neonCyan, fontSize: 18, fontWeight: FontWeight.bold))),
-          )
-        ],
+        elevation: 0,
+        actions: [CoinsDisplay(uid: widget.userModel.uid)],
       ),
-      body: isGameOver ? _buildGameOver() : _buildGrid(),
-    );
-  }
-
-  Widget _buildGrid() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Find all pairs!',
-                  style: const TextStyle(color: Colors.white70, fontSize: 16),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: timeLeft <= 10 ? Colors.redAccent.withOpacity(0.2) : _neonCyan.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: timeLeft <= 10 ? Colors.redAccent : _neonCyan),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // HUD
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: _neonCyan.withOpacity(0.4)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.bolt, color: Colors.amber, size: 20),
+                        const SizedBox(width: 6),
+                        Text('$_score pts', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.timer, color: timeLeft <= 10 ? Colors.redAccent : _neonCyan, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        '00:${timeLeft.toString().padLeft(2, '0')}',
-                        style: TextStyle(
-                          color: timeLeft <= 10 ? Colors.redAccent : Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: _timeLeft < 15 ? _neonPink : Colors.orangeAccent),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.timer, color: _timeLeft < 15 ? _neonPink : Colors.orangeAccent, size: 20),
+                        const SizedBox(width: 6),
+                        Text('${_timeLeft}s', style: TextStyle(color: _timeLeft < 15 ? _neonPink : Colors.orangeAccent, fontSize: 18, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // 4x4 Grid of Cards
+              if (_isPlaying || _isGameOver)
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _cards.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 0.9,
+                  ),
+                  itemBuilder: (context, index) {
+                    final card = _cards[index];
+                    final isRevealed = card.isFlipped || card.isMatched;
+
+                    return InkWell(
+                      onTap: () => _onCardTapped(index),
+                      borderRadius: BorderRadius.circular(14),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        decoration: BoxDecoration(
+                          gradient: isRevealed
+                              ? LinearGradient(
+                                  colors: card.isMatched
+                                      ? [const Color(0xFF05D5AA).withOpacity(0.3), const Color(0xFF036952)]
+                                      : [const Color(0xFF1E293B), const Color(0xFF0F172A)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                )
+                              : const LinearGradient(
+                                  colors: [Color(0xFF1B2336), Color(0xFF111728)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: card.isMatched
+                                ? _neonCyan
+                                : (isRevealed ? Colors.white38 : _neonCyan.withOpacity(0.3)),
+                            width: card.isMatched ? 2 : 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (card.isMatched ? _neonCyan : Colors.black).withOpacity(0.2),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: isRevealed
+                              ? Text(card.icon, style: const TextStyle(fontSize: 34))
+                              : Icon(Icons.question_mark_rounded, color: _neonCyan.withOpacity(0.5), size: 28),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: GridView.builder(
-              physics: const BouncingScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: cards.length,
-              itemBuilder: (context, index) {
-                final card = cards[index];
-                final isFaceUp = card.isFlipped || card.isMatched;
-
-                return GestureDetector(
-                  onTap: () => _onCardTap(index),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
+                    );
+                  },
+                )
+              else
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(28),
                     decoration: BoxDecoration(
-                      color: isFaceUp ? Colors.white : _cardColor,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: card.isMatched ? _neonCyan : Colors.white.withOpacity(0.1),
-                        width: card.isMatched ? 3 : 1,
-                      ),
-                      boxShadow: card.isMatched
-                          ? [BoxShadow(color: _neonCyan.withOpacity(0.5), blurRadius: 10)]
-                          : [],
+                      color: _cardColor,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: _neonCyan.withOpacity(0.3)),
                     ),
-                    child: Center(
-                      child: isFaceUp
-                          ? Text(card.icon, style: TextStyle(fontSize: 40))
-                          : Icon(Icons.help_outline, color: _neonCyan.withOpacity(0.5), size: 30),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('🧠 CAMPUS MEMORY MATCH 🥪', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Flip and match pairs of campus food in under 60 seconds!\n\nStreak combos give massive score multipliers!\nLeftover time turns into bonus Dishi Coins!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _neonCyan,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          ),
+                          onPressed: _startGame,
+                          child: const Text('START GAME', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
                     ),
                   ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGameOver() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('⭐', style: TextStyle(fontSize: 100)),
-          const SizedBox(height: 20),
-          Text(
-            timeLeft > 0 ? 'YOU WIN' : 'YOU LOSE',
-            style: TextStyle(
-              color: timeLeft > 0 ? Colors.greenAccent : Colors.redAccent,
-              fontSize: 32,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 2.0,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            timeLeft > 0 ? 'All Paired Up!' : 'Time\'s Up!',
-            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Final Score: $score',
-            style: TextStyle(color: _neonCyan, fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 40),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _cardColor,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                 ),
-                onPressed: () => Navigator.pop(context),
-                child: const Text('QUIT', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _neonCyan,
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                ),
-                onPressed: _initGame,
-                child: const Text('PLAY AGAIN', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }

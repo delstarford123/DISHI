@@ -36,8 +36,9 @@ def agent_deposit():
             if v_balance < amount:
                 return False, "Insufficient E-Float"
 
-            commission = amount * 0.005 # 0.5%
-            student_receives = amount - commission
+            # 0.5% commission only (no extra money for vendor)
+            commission = round(amount * 0.005, 2)
+            student_receives = max(0.0, amount - commission)
             
             # Vendor float deduction: they lose the 'amount' but gain the 'commission' back immediately
             # Effectively: walletBalance - amount + commission = walletBalance - student_receives

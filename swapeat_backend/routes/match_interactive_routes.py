@@ -134,7 +134,8 @@ def send_gift():
 
     db = firestore.client()
     
-    commission = 10.0 if amount_float > 100 else 0.0
+    # Commission raised by 7 KSh (10 -> 17 if > 100 else 7)
+    commission = 17.0 if amount_float > 100 else 7.0
     total_deduct = amount_float + commission
 
     transaction = db.transaction()

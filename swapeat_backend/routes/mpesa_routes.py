@@ -118,9 +118,15 @@ def trigger_stk_push():
 
     try:
         action = metadata.get('action')
-        commission = 3 if action in ['harambee_donate', 'fund_student'] else 2
-        amount_int = int(float(str(amount))) + commission
-        credit_int = int(float(str(credit_amount)))
+        is_community_support = action in ['support_dishi', 'community_donate'] or destination in ['support', 'community']
+        if is_community_support:
+            amount_int = int(float(str(amount)))
+            credit_int = amount_int
+        else:
+            # Commission raised by 7 KSh
+            commission = 10 if action in ['harambee_donate', 'fund_student'] else 9
+            amount_int = int(float(str(amount))) + commission
+            credit_int = int(float(str(credit_amount)))
     except (ValueError, TypeError):
         return jsonify({"error": "Invalid amount value — must be a number."}), 400
 
@@ -158,7 +164,7 @@ def trigger_stk_push():
                     return jsonify({"error": "Please wait 30 seconds before trying again."}), 429
                     
         user_doc = db.collection('users').document(user_id).get()
-        if not user_doc.exists and action != 'harambee_donate':
+        if not user_doc.exists and not is_community_support and action != 'harambee_donate':
             return jsonify({"error": f"No user found with ID '{user_id}'. Please check the student ID."}), 404
     except Exception as e:
         print(f"Firestore lookup error: {e}")
@@ -183,7 +189,11 @@ def trigger_stk_push():
     base_url = "https://api.safaricom.co.ke" if env == 'production' else "https://sandbox.safaricom.co.ke"
     api_url  = f"{base_url}/mpesa/stkpush/v1/processrequest"
 
-    user_name = user_doc.to_dict().get('displayName') or user_doc.to_dict().get('name') or 'Child'
+    user_name = 'DISHI Supporter'
+    if user_doc.exists and user_doc.to_dict():
+        user_name = user_doc.to_dict().get('displayName') or user_doc.to_dict().get('name') or 'Child'
+    elif metadata.get('donor_name'):
+        user_name = metadata.get('donor_name')
 
     acc_ref = account_reference if account_reference else "DISHI"
     # Ensure AccountReference is alphanumeric and <= 12 chars to avoid STK Push rejection
@@ -390,7 +400,7 @@ def mpesa_callback():
                             subj, html_body = harambee_thank_you_email(user_name, campaign_title, credit_amt)
                             msg = Message(
                                 subject=subj,
-                                sender=current_app.config.get('MAIL_USERNAME', 'info@delstarfordworks.co.ke'),
+                                sender=current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'),
                                 recipients=[donor_email],
                                 html=html_body,
                                 body=f"Thank you for donating KES {credit_amt} to {user_name}'s campaign!"
@@ -459,7 +469,7 @@ def mpesa_callback():
                                         subj, html_body = event_ticket_email(e_data.get('title', 'Event'), tier, credit_amt, ticket_id)
                                         msg = Message(
                                             subject=subj,
-                                            sender=current_app.config.get('MAIL_USERNAME', 'info@delstarfordworks.co.ke'),
+                                            sender=current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'),
                                             recipients=[buyer_email],
                                             html=html_body,
                                             body=f"Your {tier} ticket for {e_data.get('title', 'Event')} has been purchased! ID: {ticket_id}"
@@ -470,6 +480,53 @@ def mpesa_callback():
                                     
                     except Exception as e:
                         print(f"Failed to process event ticket: {e}")
+                        
+            elif action in ['support_dishi', 'community_donate'] or destination in ['support', 'community']:
+                donor_name = metadata.get('donor_name') or tx_info.get('user_name', 'Generous Supporter')
+                donor_phone = tx_info.get('phone', '')
+                donor_email = metadata.get('donor_email')
+                cause = metadata.get('cause', 'Universal Inclusion & Students Gifted Differently')
+                
+                try:
+                    db.collection('community_contributions').add({
+                        'donor_name': donor_name,
+                        'phone': donor_phone,
+                        'email': donor_email,
+                        'amount': credit_amt,
+                        'cause': cause,
+                        'checkout_id': checkout_id,
+                        'timestamp': firestore.SERVER_TIMESTAMP,
+                        'status': 'completed'
+                    })
+                    
+                    db.collection('admin_finances').document('dishi_community_pool').set({
+                        'total_donations': firestore.Increment(credit_amt),
+                        'contributions_count': firestore.Increment(1),
+                        'last_updated': firestore.SERVER_TIMESTAMP
+                    }, merge=True)
+                    print(f"❤️ DISHI Community Support received: KES {credit_amt} from {donor_name} ({donor_phone}) for '{cause}'")
+                    
+                    # Notify admin/donor
+                    try:
+                        from flask import current_app
+                        from flask_mail import Message
+                        from app import mail
+                        target_email = donor_email if donor_email else current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke')
+                        if mail is not None and target_email:
+                            from routes.email_utils import harambee_receipt_email
+                            subj, html_body = harambee_receipt_email(cause, credit_amt, donor_name)
+                            msg = Message(
+                                subject=f"Thank You for Supporting DISHI — KES {credit_amt:.0f}",
+                                sender=current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'),
+                                recipients=[target_email],
+                                html=html_body,
+                                body=f"Thank you {donor_name} for supporting DISHI with KES {credit_amt} towards {cause}."
+                            )
+                            mail.send(msg)
+                    except Exception as em:
+                        print(f"Failed to send support email: {em}")
+                except Exception as e:
+                    print(f"Error handling community donation: {e}")
                     
             elif action == 'pay_rent':
                 app_id = metadata.get('application_id')
@@ -580,7 +637,8 @@ def mpesa_callback():
                             'revenue': firestore.Increment(credit_amt)
                         })
                         
-                        payout_amount = max(0, credit_amt - 5)
+                        # Ticket commission raised by 7 KSh (5 -> 12 KSh)
+                        payout_amount = max(0, credit_amt - 12)
                         creator_id = event_data.get('creatorId')
                         
                         db.collection('pending_payouts').add({
@@ -595,7 +653,7 @@ def mpesa_callback():
                         
                         try:
                             db.collection('admin_finances').document('dishi_events_pool').set({
-                                'commission_pool': firestore.Increment(5),
+                                'commission_pool': firestore.Increment(12),
                                 'updated_at': firestore.SERVER_TIMESTAMP
                             }, merge=True)
                         except Exception:
@@ -693,7 +751,7 @@ def mpesa_callback():
                     if mail is not None:
                         msg = Message(
                             subject="DISHI Deposit Receipt",
-                            sender=current_app.config.get('MAIL_USERNAME', 'info@delstarfordworks.co.ke'),
+                            sender=current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'),
                             recipients=[user_email],
                             html=f"<h3>Deposit Successful</h3><p>You have deposited <b>KES {credit_amt}</b> into your DISHI wallet.</p><p>New Balance: <b>KES {new_balance}</b></p><p>Transaction ID: {checkout_id}</p>",
                             body=f"Deposit of KES {credit_amt} successful. New Balance: KES {new_balance}. ID: {checkout_id}"

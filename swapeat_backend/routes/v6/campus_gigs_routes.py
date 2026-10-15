@@ -99,7 +99,7 @@ def request_gig():
             from routes.email_utils import campus_gig_alert_email
             from flask import current_app
             
-            admin_email = current_app.config.get('MAIL_USERNAME', 'info@delstarfordworks.co.ke')
+            admin_email = current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke')
             
             workers = db.collection('campus_gig_workers').where('category', '==', category).where('is_available', '==', True).stream()
             
@@ -229,7 +229,7 @@ def accept_gig():
             )
             
             if req_email and mail:
-                admin_email = current_app.config.get('MAIL_USERNAME', 'info@delstarfordworks.co.ke')
+                admin_email = current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke')
                 subject, html_body = campus_gig_accepted_email(req_name, w_name, category)
                 msg = Message(subject=subject, sender=admin_email, recipients=[req_email], html=html_body)
                 mail.send(msg)

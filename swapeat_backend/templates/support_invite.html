@@ -3,91 +3,694 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Support {{ student_name }} | DISHI</title>
-    <meta name="description" content="Support this student securely via Safaricom M-PESA.">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Support {{ student_name }}'s Campus Meals | DISHI</title>
+    <meta name="description" content="Support {{ student_name }}'s education and campus nutrition on DISHI. Safe, instant Safaricom M-PESA funding.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/dishi_logo.png') }}">
+    <meta property="og:title" content="Support {{ student_name }} | DISHI" />
+    <meta property="og:description" content="You've been invited by {{ parent_name }} to help fund {{ student_name }}'s campus meals on DISHI." />
+    <meta property="og:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
+    <meta property="og:type" content="website" />
+
     <style>
         :root {
-            var(--bg): #0B0F19;
-            var(--text): #F8FAFC;
+            --bg: #080D18;
+            --card-bg: #101726;
+            --card-elevated: #162033;
+            --border: rgba(255, 255, 255, 0.08);
+            --neon-mint: #05D5AA;
+            --neon-mint-dim: rgba(5, 213, 170, 0.12);
+            --neon-pink: #FF2A6D;
+            --text-main: #FFFFFF;
+            --text-sub: #94A3B8;
+            --text-muted: #64748B;
+            --danger: #FF4757;
+            --radius-lg: 24px;
+            --radius-md: 14px;
+            --radius-sm: 8px;
+            --shadow-card: 0 25px 60px -15px rgba(0, 0, 0, 0.7);
         }
-        body { font-family: 'Inter', sans-serif; background: #0B0F19; color: #F8FAFC; padding: 20px; text-align: center; }
-        .card { max-width: 480px; margin: 0 auto; background: #131A2A; padding: 24px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
-        .hero { background: rgba(37,99,235,0.1); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-        .title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
-        .subtitle { color: #94A3B8; font-size: 14px; margin-bottom: 20px; line-height: 1.5; }
-        .input-group { margin-bottom: 16px; text-align: left; }
-        .label { font-size: 12px; font-weight: bold; color: #94A3B8; margin-bottom: 8px; display: block; }
-        .input { width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #3B82F6; background: #fff; color: #000; font-size: 16px; }
-        .btn { width: 100%; padding: 16px; background: #3B82F6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn:hover { background: #2563EB; }
-        
-        #state-waiting, #state-success, #state-error { display: none; margin-top: 20px; }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px 40px;
+            background-image: 
+                radial-gradient(ellipse 70% 50% at 50% -10%, rgba(5, 213, 170, 0.12), transparent 70%),
+                radial-gradient(ellipse 50% 40% at 85% 90%, rgba(255, 42, 109, 0.07), transparent 70%);
+            background-attachment: fixed;
+        }
+
+        .bg-watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80vw;
+            max-width: 650px;
+            height: 80vh;
+            background-image: url("{{ url_for('static', filename='img/dishi_logo.png') }}");
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .page-container {
+            width: 100%;
+            max-width: 480px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Header Bar ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 0 4px;
+        }
+
+        .brand-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .brand-logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1.5px solid rgba(5, 213, 170, 0.4);
+            box-shadow: 0 0 15px rgba(5, 213, 170, 0.25);
+            object-fit: cover;
+        }
+
+        .brand-name {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+
+        .ssl-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(5, 213, 170, 0.08);
+            border: 1px solid rgba(5, 213, 170, 0.25);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--neon-mint);
+        }
+
+        /* ── Main Card ── */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-card);
+            backdrop-filter: blur(16px);
+        }
+
+        /* ── Hero Section ── */
+        .hero {
+            background: linear-gradient(180deg, rgba(5, 213, 170, 0.08) 0%, rgba(16, 23, 38, 0) 100%);
+            padding: 30px 24px 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .avatar-wrap {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 16px;
+        }
+
+        .avatar-ring {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--neon-mint), #00A389);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Outfit', sans-serif;
+            font-size: 32px;
+            font-weight: 800;
+            color: #080D18;
+            box-shadow: 0 0 25px rgba(5, 213, 170, 0.4);
+        }
+
+        .avatar-badge {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            background: #080D18;
+            border: 2px solid var(--card-bg);
+            border-radius: 50%;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+        }
+
+        .student-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+
+        .parent-invite-banner {
+            background: rgba(5, 213, 170, 0.08);
+            border: 1px solid rgba(5, 213, 170, 0.25);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #cbd5e1;
+            line-height: 1.5;
+            margin-top: 12px;
+            text-align: left;
+        }
+
+        .parent-invite-banner strong {
+            color: var(--neon-mint);
+        }
+
+        /* ── Form Section ── */
+        .form-section {
+            padding: 20px 24px 28px;
+        }
+
+        .input-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .quick-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .quick-pill {
+            background: var(--card-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 4px;
+            color: #e2e8f0;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .quick-pill:hover, .quick-pill.active {
+            border-color: var(--neon-mint);
+            background: var(--neon-mint-dim);
+            color: var(--neon-mint);
+            font-weight: 700;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-sub);
+            margin-bottom: 6px;
+        }
+
+        .field-wrap {
+            display: flex;
+            align-items: center;
+            background: #0B111E;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            transition: all 0.25s ease;
+        }
+
+        .field-wrap:focus-within {
+            border-color: var(--neon-mint);
+            box-shadow: 0 0 0 3px rgba(5, 213, 170, 0.15);
+        }
+
+        .field-prefix {
+            padding: 13px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--neon-mint);
+            background: rgba(255, 255, 255, 0.03);
+            border-right: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        .field-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            padding: 13px 14px;
+            color: #FFFFFF;
+            font-size: 15px;
+            font-family: inherit;
+            font-weight: 600;
+        }
+
+        .field-input::placeholder {
+            color: #475569;
+            font-weight: 400;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, #05D5AA 0%, #00B48A 100%);
+            color: #080D18;
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 16px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 10px 25px rgba(5, 213, 170, 0.35);
+            transition: all 0.25s ease;
+            margin-top: 8px;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 32px rgba(5, 213, 170, 0.5);
+            filter: brightness(1.08);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .fee-toggle {
+            display: block;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 14px;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        /* ── States ── */
+        #state-waiting, #state-success, #state-error {
+            display: none;
+            padding: 36px 24px;
+            text-align: center;
+        }
+
+        .pulse-phone {
+            width: 80px;
+            height: 80px;
+            background: var(--neon-mint-dim);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin: 0 auto 20px;
+            animation: pulse-ring 1.8s ease-in-out infinite;
+        }
+
+        @keyframes pulse-ring {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(5, 213, 170, 0.4); transform: scale(1); }
+            50% { box-shadow: 0 0 0 20px rgba(5, 213, 170, 0); transform: scale(1.05); }
+        }
+
+        .state-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .state-desc {
+            font-size: 14px;
+            color: var(--text-sub);
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .state-desc strong {
+            color: var(--neon-mint);
+        }
+
+        .progress-bar-wrap {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--neon-mint);
+            animation: sweep 90s linear forwards;
+        }
+
+        @keyframes sweep {
+            from { width: 0%; }
+            to { width: 100%; }
+        }
+
+        .waiting-timer {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-sub);
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-cancel:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .success-badge {
+            width: 80px;
+            height: 80px;
+            background: var(--neon-mint-dim);
+            border: 2px solid var(--neon-mint);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 38px;
+            margin: 0 auto 20px;
+            box-shadow: 0 0 30px rgba(5, 213, 170, 0.35);
+        }
+
+        .error-badge {
+            width: 72px;
+            height: 72px;
+            background: rgba(255, 71, 87, 0.15);
+            border: 2px solid var(--danger);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin: 0 auto 16px;
+        }
+
+        .error-reason {
+            background: rgba(255, 71, 87, 0.1);
+            border: 1px solid rgba(255, 71, 87, 0.3);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #ff9f9f;
+            margin-bottom: 20px;
+        }
+
+        .btn-retry {
+            background: var(--card-elevated);
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 12px 28px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn-retry:hover {
+            border-color: var(--neon-mint);
+            color: var(--neon-mint);
+        }
+
+        /* ── Card Footer ── */
+        .card-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.25);
+            text-align: center;
+        }
+
+        .footer-note {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .footer-note a {
+            color: var(--neon-mint);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 16px 12px 32px; }
+            .hero { padding: 24px 18px 16px; }
+            .form-section { padding: 18px 18px 24px; }
+        }
     </style>
 </head>
 <body>
-    <div class="card">
-        {% if error %}
-            <div class="title" style="color: #EF4444;">Oops!</div>
-            <div class="subtitle">{{ error }}</div>
-        {% else %}
+    <div class="bg-watermark"></div>
+
+    <div class="page-container">
+        <!-- Top Header -->
+        <div class="top-bar">
+            <a href="{{ url_for('index') }}" class="brand-link">
+                <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI" class="brand-logo">
+                <span class="brand-name">DISHI</span>
+            </a>
+            <div class="ssl-pill">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Secure Sponsor Portal
+            </div>
+        </div>
+
+        <!-- Main Card -->
+        <div class="card">
+            {% if error %}
+            <div style="padding: 48px 24px; text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 12px;">⚠️</div>
+                <h2 style="font-family:'Outfit'; font-size:22px; color:var(--danger); margin-bottom:8px;">Invitation Error</h2>
+                <p style="font-size: 14px; color: var(--text-sub); line-height: 1.6; margin-bottom: 24px;">{{ error }}</p>
+                <a href="{{ url_for('index') }}" class="btn-submit" style="text-decoration:none; display:inline-flex; width:auto; padding:12px 24px;">Return to DISHI Home</a>
+            </div>
+
+            {% else %}
+            <!-- STATE 1: FORM -->
             <div id="state-form">
                 <div class="hero">
-                    <div class="title">Support {{ student_name }}</div>
-                    <div class="subtitle">You've been invited by <strong>{{ parent_name }}</strong> to help fund {{ student_name }}'s campus meals on DISHI.</div>
+                    <div class="avatar-wrap">
+                        <div class="avatar-ring">{{ student_name[0]|upper }}</div>
+                        <div class="avatar-badge">🎓</div>
+                    </div>
+                    <h1 class="student-title">Support {{ student_name }}</h1>
+
+                    <div class="parent-invite-banner">
+                        <span>💌</span> You've been invited by <strong>{{ parent_name }}</strong> to help fund {{ student_name }}'s campus cafeteria meals on DISHI.
+                    </div>
                 </div>
 
-                <div class="input-group">
-                    <label class="label">Amount (KSH)</label>
-                    <input type="number" id="amountInput" class="input" placeholder="Enter amount" min="10">
-                </div>
+                <!-- Form Controls -->
+                <div class="form-section">
+                    <span class="input-title">Select Amount (KES)</span>
+                    <div class="quick-grid">
+                        <button type="button" class="quick-pill" data-amount="200">200</button>
+                        <button type="button" class="quick-pill" data-amount="500">500</button>
+                        <button type="button" class="quick-pill" data-amount="1000">1,000</button>
+                        <button type="button" class="quick-pill" data-amount="2000">2,000</button>
+                        <button type="button" class="quick-pill" data-amount="3000">3,000</button>
+                        <button type="button" class="quick-pill" data-amount="5000">5,000</button>
+                        <button type="button" class="quick-pill" data-amount="10000">10,000</button>
+                        <button type="button" class="quick-pill" data-amount="0" id="customBtn">Other</button>
+                    </div>
 
-                <div class="input-group">
-                    <label class="label">Your Safaricom M-PESA Number</label>
-                    <input type="tel" id="phoneInput" class="input" placeholder="2547XX..." maxlength="12">
-                </div>
+                    <div class="input-group">
+                        <label class="input-label" for="amountInput">Contribution Amount</label>
+                        <div class="field-wrap">
+                            <span class="field-prefix">KES</span>
+                            <input type="number" id="amountInput" class="field-input" placeholder="e.g. 500" min="10" max="150000">
+                        </div>
+                    </div>
 
-                <button class="btn" id="fundBtn">Fund via M-PESA</button>
+                    <div class="input-group">
+                        <label class="input-label" for="phoneInput">Your Safaricom M-PESA Number</label>
+                        <div class="field-wrap">
+                            <span class="field-prefix">+254</span>
+                            <input type="tel" id="phoneInput" class="field-input" placeholder="7XX XXX XXX" maxlength="12" inputmode="tel">
+                        </div>
+                    </div>
+
+                    <button class="btn-submit" id="fundBtn" type="button">
+                        <span>💚</span>
+                        <span id="btnLabel">Fund {{ student_name }} via M-PESA</span>
+                    </button>
+                </div>
             </div>
-            
+
+            <!-- STATE 2: WAITING FOR PIN -->
             <div id="state-waiting">
-                <div class="title">Check your phone</div>
-                <div class="subtitle">An M-PESA prompt has been sent. Please enter your PIN.</div>
+                <div class="pulse-phone">📱</div>
+                <h2 class="state-title">Check Your Phone</h2>
+                <p class="state-desc">
+                    An M-PESA authorization prompt has been sent to your handset. Please enter your secret PIN to authorize the student meal credit.
+                </p>
+
+                <div class="progress-bar-wrap">
+                    <div class="progress-bar-fill"></div>
+                </div>
+                <div class="waiting-timer" id="timerText">Waiting for confirmation… (90s)</div>
+                <button type="button" class="btn-cancel" onclick="showState('state-form')">Cancel / Change Number</button>
             </div>
-            
+
+            <!-- STATE 3: SUCCESS -->
             <div id="state-success">
-                <div class="title" style="color: #22C55E;">Payment Confirmed!</div>
-                <div class="subtitle">Thank you for supporting {{ student_name }}.</div>
+                <div class="success-badge">✅</div>
+                <h2 class="state-title">Payment Confirmed!</h2>
+                <p class="state-desc">
+                    Thank you! {{ student_name }}'s DISHI wallet has been credited instantly. They have received an in-app and SMS alert.
+                </p>
+                <a href="{{ url_for('index') }}" class="btn-submit" style="text-decoration:none; display:inline-flex; width:auto; padding:12px 24px;">
+                    Explore DISHI
+                </a>
             </div>
-            
+
+            <!-- STATE 4: ERROR -->
             <div id="state-error">
-                <div class="title" style="color: #EF4444;">Payment Failed</div>
-                <div class="subtitle" id="errorMsg">Please try again.</div>
+                <div class="error-badge">⚠️</div>
+                <h2 class="state-title">Payment Not Completed</h2>
+                <div class="error-reason" id="errorMsg">Payment request was cancelled or timed out.</div>
+                <button type="button" class="btn-retry" onclick="showState('state-form')">Try Again</button>
             </div>
-        {% endif %}
+            {% endif %}
+
+            <!-- Footer -->
+            <div class="card-footer">
+                <p class="footer-note">
+                    Official DISHI Smart Campus Sponsor Desk • Safaricom Daraja M-PESA<br>
+                    Need assistance? Email <a href="mailto:dishi@delstarfordworks.co.ke">dishi@delstarfordworks.co.ke</a>
+                </p>
+            </div>
+        </div>
     </div>
-    
+
     {% if not error %}
     <script>
         const USER_ID = "{{ user_id }}";
+        const STUDENT_NAME = "{{ student_name }}";
         const fundBtn = document.getElementById('fundBtn');
-        
+        const amountInput = document.getElementById('amountInput');
+        const phoneInput = document.getElementById('phoneInput');
+
+        // Quick Pick
+        document.querySelectorAll('.quick-pill').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const amt = this.dataset.amount;
+                if (amt === '0') {
+                    amountInput.value = '';
+                    amountInput.focus();
+                } else {
+                    amountInput.value = amt;
+                }
+                document.querySelectorAll('.quick-pill').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
         function showState(id) {
             ['state-form', 'state-waiting', 'state-success', 'state-error'].forEach(s => {
-                document.getElementById(s).style.display = (s === id) ? 'block' : 'none';
+                const el = document.getElementById(s);
+                if (el) el.style.display = (s === id) ? 'block' : 'none';
             });
         }
-        
+
+        function normalisePhone(raw) {
+            let p = raw.replace(/[\s\-\(\)\+]/g, '');
+            if (p.startsWith('0') && p.length === 10) return '254' + p.substring(1);
+            if (p.length === 9) return '254' + p;
+            if (p.startsWith('254') && p.length === 12) return p;
+            return p;
+        }
+
         fundBtn.addEventListener('click', async () => {
-            const amount = parseInt(document.getElementById('amountInput').value);
-            let phone = document.getElementById('phoneInput').value.trim();
-            
-            if (phone.startsWith('0')) phone = '254' + phone.substring(1);
-            if (!phone.startsWith('254') || phone.length !== 12 || isNaN(amount)) return;
-            
+            const amount = parseInt(amountInput.value, 10);
+            let phone = normalisePhone(phoneInput.value.trim());
+
+            if (isNaN(amount) || amount < 10) {
+                amountInput.closest('.field-wrap').style.borderColor = 'var(--danger)';
+                setTimeout(() => amountInput.closest('.field-wrap').style.borderColor = '', 1500);
+                return;
+            }
+
+            if (!phone.startsWith('254') || phone.length !== 12) {
+                phoneInput.closest('.field-wrap').style.borderColor = 'var(--danger)';
+                setTimeout(() => phoneInput.closest('.field-wrap').style.borderColor = '', 1500);
+                return;
+            }
+
             showState('state-waiting');
             fundBtn.disabled = true;
-            
+
             try {
                 const resp = await fetch('/api/v1/mpesa/stkpush', {
                     method: 'POST',
@@ -98,11 +701,16 @@
                         credit_amount: amount,
                         user_id: USER_ID,
                         destination: 'walletBalance',
-                        metadata: { action: 'fund_student', funder_phone: phone, student_name: "{{ student_name }}" }
+                        metadata: {
+                            action: 'fund_student',
+                            funder_phone: phone,
+                            student_name: STUDENT_NAME
+                        }
                     })
                 });
+
                 const data = await resp.json();
-                
+
                 if (resp.ok && data.ResponseCode === '0' && data.CheckoutRequestID) {
                     let attempts = 0;
                     const interval = setInterval(async () => {
@@ -113,20 +721,22 @@
                             if (checkData.status === 'completed') {
                                 clearInterval(interval);
                                 showState('state-success');
-                            } else if (checkData.status === 'failed' || attempts > 20) {
+                            } else if (checkData.status === 'failed' || attempts > 22) {
                                 clearInterval(interval);
-                                document.getElementById('errorMsg').textContent = checkData.result_desc || 'Payment failed.';
+                                document.getElementById('errorMsg').textContent = checkData.result_desc || 'Payment failed or timed out.';
                                 showState('state-error');
                             }
                         } catch (e) {}
                     }, 4000);
                 } else {
-                    document.getElementById('errorMsg').textContent = data.error || 'Request failed';
+                    document.getElementById('errorMsg').textContent = data.error || data.errorMessage || 'M-PESA request could not be completed.';
                     showState('state-error');
                 }
             } catch (e) {
-                document.getElementById('errorMsg').textContent = 'Network error';
+                document.getElementById('errorMsg').textContent = 'Network connection error. Please try again.';
                 showState('state-error');
+            } finally {
+                fundBtn.disabled = false;
             }
         });
     </script>

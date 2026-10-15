@@ -47,7 +47,7 @@ def _get_mail():
 def _send_html_email(to: str, subject: str, html_body: str, plain_body: str):
     """Sends an HTML email using Flask-Mail. Raises on failure."""
     from flask_mail import Message
-    admin_email = current_app.config.get('MAIL_USERNAME', 'info@delstarfordworks.co.ke')
+    admin_email = current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke')
     msg = Message(
         subject=subject,
         sender=admin_email,

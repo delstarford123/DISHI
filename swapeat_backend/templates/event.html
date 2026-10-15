@@ -3,502 +3,842 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ event.title if event else 'Event Ticket' }} | DISHI Web</title>
+    <title>{{ event.title if event else 'Campus Event Pass' }} | DISHI</title>
+    <meta name="description" content="Get instant digital tickets for {{ event.title if event else 'campus events' }} via DISHI. Instant Safaricom M-PESA checkout.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+    <link rel="shortcut icon" type="image/png" href="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+    <link rel="apple-touch-icon" href="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+
+    <meta property="og:site_name" content="DISHI" />
+    <meta property="og:title" content="{{ event.title if event else 'Event Ticket' }} | DISHI" />
+    <meta property="og:description" content="Secure your ticket instantly on DISHI." />
+    <meta property="og:image" content="{{ event.imageUrl if event and event.imageUrl else 'https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png' }}" />
+    <meta property="og:image:secure_url" content="{{ event.imageUrl if event and event.imageUrl else 'https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png' }}" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="{{ event.title if event else 'Event Ticket' }} | DISHI" />
+    <meta name="twitter:description" content="Secure your ticket instantly on DISHI." />
+    <meta name="twitter:image" content="{{ event.imageUrl if event and event.imageUrl else 'https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png' }}" />
+
     <style>
         :root {
-            --bg-dark: #0C101B;
-            --card-bg: #131A2A;
+            --bg: #080D18;
+            --card-bg: #101726;
+            --card-elevated: #162033;
+            --border: rgba(255, 255, 255, 0.08);
             --neon-cyan: #05D5AA;
+            --neon-cyan-glow: rgba(5, 213, 170, 0.35);
+            --neon-pink: #FF2A6D;
             --text-main: #FFFFFF;
-            --text-secondary: #8B9BB4;
-            --error-red: #FF3B30;
+            --text-sub: #94A3B8;
+            --text-muted: #64748B;
+            --danger: #FF4757;
+            --radius-lg: 24px;
+            --radius-md: 14px;
+            --radius-sm: 8px;
+            --shadow-card: 0 25px 60px -15px rgba(0, 0, 0, 0.7);
         }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .container {
-            background-color: var(--card-bg);
-            border-radius: 16px;
-            padding: 30px;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            border: 1px solid rgba(5, 213, 170, 0.2);
-            text-align: center;
-        }
-        .logo {
-            width: 80px;
-            height: 80px;
-            background-color: var(--bg-dark);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            border: 2px solid var(--neon-cyan);
-            color: var(--neon-cyan);
-            font-size: 32px;
-            font-weight: bold;
-        }
-        h1 {
-            font-size: 24px;
-            margin: 0 0 10px;
-        }
-        .organizer {
-            color: var(--neon-cyan);
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-        .desc {
-            color: var(--text-secondary);
-            font-size: 14px;
-            margin-bottom: 30px;
-            line-height: 1.5;
-        }
-        .form-group {
-            text-align: left;
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-        input, select {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 2px solid #94A3B8;
-            background-color: #F8FAFC;
-            color: #0F172A;
-            font-size: 16px;
+
+        *, *::before, *::after {
             box-sizing: border-box;
-            transition: all 0.25s ease;
+            margin: 0;
+            padding: 0;
         }
-        input:focus, select:focus {
-            outline: none;
-            border-color: #2563EB;
-            box-shadow: 0 0 0 3px rgba(37,99,235,0.25);
-            background-color: #ffffff;
+
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px 40px;
+            background-image: 
+                radial-gradient(ellipse 70% 50% at 50% -10%, rgba(5, 213, 170, 0.12), transparent 70%),
+                radial-gradient(ellipse 50% 40% at 85% 90%, rgba(255, 42, 109, 0.08), transparent 70%);
+            background-attachment: fixed;
         }
-                .btn-fund, .btn-submit, .btn-primary, .btn {
-            width: 100%; margin-top: 8px;
-            background: #1D4ED8; /* Solid dark blue color */
-            color: #fff; border: none;
-            padding: 16px; border-radius: var(--radius-sm);
-            font-size: 16px; font-weight: 700;
-            cursor: pointer; position: relative; overflow: hidden;
-            box-shadow: 0 8px 24px rgba(29, 78, 216, 0.4);
-            transition: all 0.25s ease;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 32px rgba(30, 64, 175, 0.6);
-        }
-        .error {
-            color: var(--error-red);
-            background-color: rgba(255, 59, 48, 0.1);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255, 59, 48, 0.3);
-        }
-        .ticket-info {
-            background-color: var(--bg-dark);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            text-align: left;
-            border: 1px dashed var(--neon-cyan);
-        }
-        .ticket-info p {
-            margin: 5px 0;
-            font-size: 14px;
-        }
-        .ticket-info strong {
-            color: var(--neon-cyan);
-        }
-        #status-msg {
-            margin-top: 15px;
-            font-size: 14px;
-            display: none;
-        }
-        /* Background Watermark */
+
         .bg-watermark {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 90vw;
-            height: 90vh;
-            max-width: 800px;
+            width: 80vw;
+            max-width: 650px;
+            height: 80vh;
             background-image: url("{{ url_for('static', filename='img/dishi_logo.png') }}");
             background-repeat: no-repeat;
             background-position: center;
             background-size: contain;
-            opacity: 0.05;
+            opacity: 0.03;
             pointer-events: none;
             z-index: 0;
         }
-        
-        .container {
+
+        .page-container {
+            width: 100%;
+            max-width: 480px;
             position: relative;
             z-index: 1;
         }
 
-        /* Verified Chip */
-        .verified-chip {
-            display: inline-flex; align-items: center; gap: 5px;
-            background: rgba(5, 213, 170, 0.1); border: 1px solid rgba(5, 213, 170, 0.3);
-            border-radius: 20px; padding: 4px 10px;
-            font-size: 11px; font-weight: 600; color: var(--neon-cyan);
+        /* ── Header Bar ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 0 4px;
+        }
+
+        .brand-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .brand-logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1.5px solid rgba(5, 213, 170, 0.4);
+            box-shadow: 0 0 15px rgba(5, 213, 170, 0.25);
+            object-fit: cover;
+        }
+
+        .brand-name {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+
+        .ticket-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(5, 213, 170, 0.1);
+            border: 1px solid rgba(5, 213, 170, 0.3);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--neon-cyan);
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-card);
+            backdrop-filter: blur(16px);
+        }
+
+        /* ── Event Poster Banner ── */
+        .event-banner-wrap {
+            position: relative;
+            width: 100%;
+            height: 260px;
+            overflow: hidden;
+            background: #040711;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+        }
+        .event-banner-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            display: block;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .event-banner-wrap:hover .event-banner-img {
+            transform: scale(1.05);
+        }
+        .event-banner-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(8, 13, 24, 0.05) 0%, rgba(8, 13, 24, 0.4) 50%, rgba(16, 23, 38, 0.95) 100%);
+            pointer-events: none;
+        }
+        .event-banner-badges {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            right: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .badge-cat {
+            background: rgba(8, 13, 24, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(5, 213, 170, 0.4);
+            color: var(--neon-cyan);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 5px 12px;
+            border-radius: 20px;
+        }
+        .badge-zoom {
+            background: rgba(8, 13, 24, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--border);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 5px 12px;
+            border-radius: 20px;
+        }
+        @media (max-width: 480px) {
+            .event-banner-wrap {
+                height: 200px;
+            }
+        }
+
+        /* ── Event Hero ── */
+        .hero {
+            background: linear-gradient(180deg, rgba(5, 213, 170, 0.1) 0%, rgba(16, 23, 38, 0) 100%);
+            padding: 30px 24px 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            position: relative;
+        }
+
+        .event-badge-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--neon-cyan), #00A389);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin: 0 auto 16px;
+            box-shadow: 0 0 25px var(--neon-cyan-glow);
+        }
+
+        .event-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 6px;
+            line-height: 1.3;
+        }
+
+        .verified-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(5, 213, 170, 0.12);
+            border: 1px solid rgba(5, 213, 170, 0.3);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--neon-cyan);
             margin-bottom: 14px;
         }
 
-        /* Tooltip */
-        [data-tooltip] {
-            position: relative;
-            cursor: pointer;
+        .event-desc {
+            font-size: 13px;
+            color: var(--text-sub);
+            line-height: 1.6;
+            margin-bottom: 16px;
+            text-align: left;
+            background: var(--card-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
         }
-        [data-tooltip]::before {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: 120%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: max-content;
-            max-width: 250px;
-            padding: 8px 12px;
-            background: #1E293B;
-            color: #F8FAFC;
-            font-size: 11px;
-            border-radius: 6px;
-            text-align: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s;
-            z-index: 100;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            line-height: 1.4;
-        }
-        [data-tooltip]:hover::before { opacity: 1; }
 
-        /* Fee Modal */
-        .fee-modal-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.6);
-            display: none; align-items: center; justify-content: center;
-            z-index: 1000; padding: 20px;
-        }
-        .fee-modal-content {
-            background: var(--card-bg);
-            border: 1px solid rgba(5, 213, 170, 0.2);
-            border-radius: 16px;
-            padding: 24px; max-width: 400px; width: 100%;
-            position: relative;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        /* Ticket Stub Preview */
+        .ticket-stub {
+            background: #0B111E;
+            border: 1px dashed rgba(5, 213, 170, 0.4);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            margin-bottom: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
             text-align: left;
         }
-        .fee-link {
-            display: block; text-align: center; font-size: 11px; color: var(--text-secondary);
-            margin-top: 10px; text-decoration: underline; cursor: pointer;
-        }
-        .close-modal {
-            position: absolute; top: 16px; right: 16px;
-            font-size: 20px; cursor: pointer; color: var(--text-secondary);
+
+        .stub-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
         }
 
-        /* Live Ticker */
+        .stub-label {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .stub-val {
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .stub-val.highlight {
+            color: var(--neon-cyan);
+        }
+
+        /* ── Action Bar ── */
+        .action-row {
+            display: flex;
+            gap: 8px;
+            padding: 14px 24px 0;
+            justify-content: center;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--card-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: #e2e8f0;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            border-color: var(--neon-cyan);
+            background: rgba(5, 213, 170, 0.1);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        /* ── Form Section ── */
+        .form-section {
+            padding: 20px 24px 28px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-sub);
+            margin-bottom: 6px;
+        }
+
+        .field-wrap {
+            display: flex;
+            align-items: center;
+            background: #0B111E;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            transition: all 0.25s ease;
+        }
+
+        .field-wrap:focus-within {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 0 3px rgba(5, 213, 170, 0.2);
+        }
+
+        .field-prefix {
+            padding: 13px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--neon-cyan);
+            background: rgba(255, 255, 255, 0.03);
+            border-right: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        .field-input, .field-select {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            padding: 13px 14px;
+            color: #FFFFFF;
+            font-size: 15px;
+            font-family: inherit;
+            font-weight: 600;
+            width: 100%;
+        }
+
+        .field-select {
+            cursor: pointer;
+            background: #0B111E;
+        }
+
+        .field-select option {
+            background: #101726;
+            color: #fff;
+            padding: 8px;
+        }
+
+        .field-input::placeholder {
+            color: #475569;
+            font-weight: 400;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, #05D5AA 0%, #00B48A 100%);
+            color: #080D18;
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 16px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 10px 25px rgba(5, 213, 170, 0.35);
+            transition: all 0.25s ease;
+            margin-top: 8px;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 32px rgba(5, 213, 170, 0.5);
+            filter: brightness(1.08);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .fee-toggle {
+            display: block;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 14px;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        #status-msg {
+            margin-top: 16px;
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            line-height: 1.5;
+            display: none;
+            text-align: center;
+        }
+
+        /* ── Card Footer ── */
+        .card-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.25);
+            text-align: center;
+        }
+
+        .footer-note {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .footer-note a {
+            color: var(--neon-cyan);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* ── Live Ticker ── */
         .live-ticker {
-            margin-top: 20px; padding: 10px; font-size: 11px; color: var(--text-secondary);
-            text-align: center; background: rgba(0,0,0,0.2);
-            border-top: 1px solid rgba(5, 213, 170, 0.2);
-            border-radius: 8px;
-            overflow: hidden; height: 36px;
-            display: flex; align-items: center; justify-content: center;
+            padding: 10px 16px;
+            font-size: 11px;
+            color: var(--text-sub);
+            text-align: center;
+            background: #080D18;
+            border-top: 1px solid var(--border);
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .ticker-item {
-            animation: fade-up 4s infinite;
+
+        /* ── Modals ── */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
         }
-        @keyframes fade-up {
-            0% { opacity: 0; transform: translateY(10px); }
-            10% { opacity: 1; transform: translateY(0); }
-            90% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-10px); }
+
+        .modal-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            max-width: 400px;
+            width: 100%;
+            position: relative;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 18px;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-muted);
+            line-height: 1;
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 16px 12px 32px; }
+            .hero { padding: 24px 18px 18px; }
+            .form-section { padding: 18px 18px 24px; }
         }
     </style>
-    <meta property="og:title" content="{{ event.title if event else 'Event Ticket' }} | DISHI Web" />
-    <meta property="og:description" content="Get your event tickets on DISHI." />
-    <meta property="og:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="{{ url_for('static', filename='img/dishi_logo.png', _external=True) }}" />
 </head>
 <body>
     <div class="bg-watermark"></div>
 
-<div class="container">
-    <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI" class="logo" style="object-fit: cover;">
-    
-    {% if error %}
-        <div class="error">{{ error }}</div>
-        <p style="color: var(--text-secondary)">Please ask the organizer for a valid ticket link.</p>
-    {% elif event %}
-        <h1>{{ event.title }}</h1>
-        <div class="verified-chip" data-tooltip="This organizer has been securely vetted by DISHI. Your ticket is 100% guaranteed.">
-            <span>✅</span> Verified Organizer
-        </div>
-        <div class="organizer">by {{ event.creatorName }}</div>
-        
-        <div class="desc">{{ event.description }}</div>
-        
-        <div class="ticket-info">
-            <p><strong>Date:</strong> {{ event.date }} @ {{ event.time }}</p>
-            <p><strong>Location:</strong> {{ event.location }}</p>
-            <p><strong>Regular Price:</strong> KES {{ event.price }}</p>
-            {% if event.vipPrice %}
-            <p><strong>VIP Price:</strong> KES {{ event.vipPrice }}</p>
-            {% endif %}
-            {% if event.earlyBirdPrice %}
-            <p><strong>Early Bird:</strong> KES {{ event.earlyBirdPrice }}</p>
-            {% endif %}
-        </div>
-
-        <!-- Action Bar: Deep link, WhatsApp, QR -->
-        <div class="action-bar" style="display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; justify-content: center;">
-            <a href="dishi://event?id={{ event.id }}" class="action-btn" style="flex: 1; min-width: 100px; background: rgba(5, 213, 170, 0.1); color: var(--neon-cyan); border: 1px solid rgba(5, 213, 170, 0.3); padding: 10px; border-radius: 8px; text-align: center; text-decoration: none; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;">
-                <span style="font-size: 16px;">📱</span> App Pay
+    <div class="page-container">
+        <!-- Top Header -->
+        <div class="top-bar">
+            <a href="{{ url_for('index') }}" class="brand-link">
+                <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI" class="brand-logo">
+                <span class="brand-name">DISHI</span>
             </a>
-            <a href="https://wa.me/?text={{ 'Get tickets to this amazing event via DISHI! 🎟️ Fast, secure, and instant. Click here: ' | urlencode }}{{ request.url | urlencode }}" target="_blank" class="action-btn" style="flex: 1; min-width: 100px; background: rgba(37, 211, 102, 0.1); color: #25D366; border: 1px solid rgba(37, 211, 102, 0.3); padding: 10px; border-radius: 8px; text-align: center; text-decoration: none; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;">
-                <span style="font-size: 16px;">💬</span> Share
+            <div class="ticket-pill">
+                <span>🎟️</span> Event Pass Portal
+            </div>
+        </div>
+
+        <!-- Main Card -->
+        <div class="card">
+            {% if error %}
+            <div style="padding: 48px 24px; text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 12px;">🎟️</div>
+                <h2 style="font-family:'Outfit'; font-size:22px; color:var(--danger); margin-bottom:8px;">Ticket Link Unavailable</h2>
+                <p style="font-size: 14px; color: var(--text-sub); line-height: 1.6; margin-bottom: 24px;">{{ error }}</p>
+                <a href="{{ url_for('index') }}" class="btn-submit" style="text-decoration:none; display:inline-flex; width:auto; padding:12px 24px;">Return to DISHI Home</a>
+            </div>
+
+            {% elif event %}
+            {% if event.imageUrl %}
+            <!-- Event Poster Banner -->
+            <div class="event-banner-wrap" onclick="document.getElementById('posterModal').style.display='flex'" title="Click to view full poster">
+                <img src="{{ event.imageUrl }}" alt="{{ event.title }} Official Poster" class="event-banner-img" loading="eager" onerror="this.onerror=null; this.parentElement.style.display='none';">
+                <div class="event-banner-overlay"></div>
+                <div class="event-banner-badges">
+                    <span class="badge-cat">🎟️ {{ event.category if event.category else 'Official Event Poster' }}</span>
+                    <span class="badge-zoom">🔍 Full Poster</span>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="hero">
+                {% if not event.imageUrl %}
+                <div class="event-badge-icon">🎟️</div>
+                {% endif %}
+                <h1 class="event-title">{{ event.title }}</h1>
+                <div class="verified-badge">
+                    <span>🛡️</span> Organized by {{ event.creatorName }}
+                </div>
+
+                <div class="event-desc">
+                    {{ event.description }}
+                </div>
+
+                <!-- Digital Ticket Stub -->
+                <div class="ticket-stub">
+                    <div class="stub-row">
+                        <span class="stub-label">📅 Date & Time</span>
+                        <span class="stub-val">{{ event.date }} @ {{ event.time }}</span>
+                    </div>
+                    <div class="stub-row">
+                        <span class="stub-label">📍 Venue</span>
+                        <span class="stub-val">{{ event.location }}</span>
+                    </div>
+                    <div class="stub-row">
+                        <span class="stub-label">💵 Regular Ticket</span>
+                        <span class="stub-val highlight">KES {{ event.price }}</span>
+                    </div>
+                    {% if event.vipPrice %}
+                    <div class="stub-row">
+                        <span class="stub-label">⭐ VIP Pass</span>
+                        <span class="stub-val highlight">KES {{ event.vipPrice }}</span>
+                    </div>
+                    {% endif %}
+                    {% if event.earlyBirdPrice %}
+                    <div class="stub-row">
+                        <span class="stub-label">⚡ Early Bird</span>
+                        <span class="stub-val highlight">KES {{ event.earlyBirdPrice }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="action-row">
+                <a href="dishi://event?id={{ event.id }}" class="action-btn">
+                    <span>📱</span> App Pay
+                </a>
+                <a href="https://wa.me/?text={{ 'Get tickets to this campus event via DISHI! Fast and verified: ' | urlencode }}{{ request.url | urlencode }}" target="_blank" class="action-btn">
+                    <span>💬</span> Share
+                </a>
+                <button type="button" onclick="document.getElementById('qrModal').style.display='flex'" class="action-btn">
+                    <span>📷</span> Event QR
+                </button>
+            </div>
+
+            <!-- Ticket Purchase Form -->
+            <div class="form-section">
+                <div class="form-group">
+                    <label class="form-label" for="ticketType">Choose Ticket Tier</label>
+                    <div class="field-wrap">
+                        <span class="field-prefix">🎟️</span>
+                        <select id="ticketType" class="field-select" onchange="updatePrice()">
+                            <option value="Regular|{{ event.price }}">Regular Ticket - KES {{ event.price }}</option>
+                            {% if event.vipPrice %}
+                            <option value="VIP|{{ event.vipPrice }}">VIP Pass - KES {{ event.vipPrice }}</option>
+                            {% endif %}
+                            {% if event.earlyBirdPrice %}
+                            <option value="Early Bird|{{ event.earlyBirdPrice }}">Early Bird Pass - KES {{ event.earlyBirdPrice }}</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address (For your QR Entry Pass)</label>
+                    <div class="field-wrap">
+                        <span class="field-prefix">✉️</span>
+                        <input type="email" id="email" class="field-input" placeholder="student@university.ac.ke" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="phone">Safaricom M-PESA Phone Number</label>
+                    <div class="field-wrap">
+                        <span class="field-prefix">+254</span>
+                        <input type="tel" id="phone" class="field-input" placeholder="7XX XXX XXX" maxlength="12" required>
+                    </div>
+                </div>
+
+                <button class="btn-submit" id="payBtn" onclick="initiatePayment()">
+                    <span>💚</span>
+                    <span>Pay KES <span id="btnPrice">{{ event.price }}</span> via M-PESA</span>
+                </button>
+                <a class="fee-toggle" onclick="document.getElementById('feeModal').style.display='flex'">0% platform ticket fee • Safe digital checkout</a>
+
+                <div id="status-msg"></div>
+            </div>
+            {% endif %}
+
+            <!-- Footer -->
+            <div class="card-footer">
+                <p class="footer-note">
+                    Official DISHI Smart Campus Ticketing • Powered by Safaricom M-PESA<br>
+                    Event inquiries or partnership? Email <a href="mailto:dishi@delstarfordworks.co.ke">dishi@delstarfordworks.co.ke</a>
+                </p>
+            </div>
+
+            <!-- Live Ticker -->
+            <div class="live-ticker">
+                <span id="tickerText">🎟️ Sarah just secured a ticket!</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Modal -->
+    <div class="modal-overlay" id="feeModal">
+        <div class="modal-card">
+            <span class="modal-close" onclick="document.getElementById('feeModal').style.display='none'">&times;</span>
+            <h3 style="font-family:'Outfit'; font-size:18px; margin-bottom:12px; color:#fff;">Event Ticket Transparency</h3>
+            <p style="font-size:13px; color:var(--text-sub); line-height:1.6; margin-bottom:12px;">
+                At DISHI, we don't believe in surprise checkout fees.
+            </p>
+            <ul style="font-size:13px; color:#cbd5e1; line-height:1.7; padding-left:20px; margin-bottom:16px;">
+                <li><strong>Ticketing Platform Cut:</strong> 0% fee to students.</li>
+                <li><strong>Instant Delivery:</strong> Your unique QR ticket pass will be emailed immediately.</li>
+                <li><strong>Door Verification:</strong> Scanned seamlessly at the venue using DISHI scanner app.</li>
+            </ul>
+            <p style="font-size:12px; color:var(--neon-cyan); font-weight:700;">See you at the event! 🎟️</p>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div class="modal-overlay" id="qrModal">
+        <div class="modal-card" style="text-align: center;">
+            <span class="modal-close" onclick="document.getElementById('qrModal').style.display='none'">&times;</span>
+            <h3 style="font-family:'Outfit'; font-size:18px; margin-bottom:8px; color:#fff;">Event Pass QR</h3>
+            <p style="font-size:13px; color:var(--text-sub); margin-bottom:16px;">Share with friends to grab their passes</p>
+            <div style="background:#fff; padding:14px; border-radius:12px; display:inline-block; margin-bottom:16px;">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={{ request.url | urlencode }}" alt="QR" style="width:180px; height:180px; display:block;">
+            </div>
+            <br>
+            <a href="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data={{ request.url | urlencode }}" download="Event_Pass_QR.png" target="_blank" class="btn-submit" style="text-decoration:none; display:inline-flex; width:auto; padding:12px 24px; font-size:14px;">
+                Download QR Code
             </a>
-            <button onclick="document.getElementById('qrModal').style.display='flex'" class="action-btn" style="flex: 1; min-width: 100px; background: rgba(168, 85, 247, 0.1); color: var(--neon-purple, #A855F7); border: 1px solid rgba(168, 85, 247, 0.3); padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;">
-                <span style="font-size: 16px;">📷</span> QR Code
-            </button>
         </div>
+    </div>
 
-        <div class="form-group">
-            <label for="ticketType">Select Ticket</label>
-            <select id="ticketType" onchange="updatePrice()">
-                <option value="Regular|{{ event.price }}">Regular - KES {{ event.price }}</option>
-                {% if event.vipPrice %}
-                <option value="VIP|{{ event.vipPrice }}">VIP - KES {{ event.vipPrice }}</option>
-                {% endif %}
-                {% if event.earlyBirdPrice %}
-                <option value="Early Bird|{{ event.earlyBirdPrice }}">Early Bird - KES {{ event.earlyBirdPrice }}</option>
-                {% endif %}
-            </select>
+    {% if event and event.imageUrl %}
+    <!-- Event Poster Full Preview Modal -->
+    <div class="modal-overlay" id="posterModal" onclick="document.getElementById('posterModal').style.display='none'" style="display:none; cursor: zoom-out;">
+        <div class="modal-card" style="max-width: 540px; padding: 18px; text-align: center;" onclick="event.stopPropagation();">
+            <span class="modal-close" onclick="document.getElementById('posterModal').style.display='none'">&times;</span>
+            <h3 style="font-family:'Outfit'; font-size:18px; margin-bottom:12px; color:#fff;">🎟️ {{ event.title }} Poster</h3>
+            <img src="{{ event.imageUrl }}" alt="{{ event.title }} Poster" style="width: 100%; max-height: 70vh; object-fit: contain; border-radius: 12px; display: block; border: 1px solid var(--border);">
+            <div style="margin-top: 14px;">
+                <a href="{{ event.imageUrl }}" target="_blank" rel="noopener" class="btn-submit" style="text-decoration:none; display:inline-flex; width:auto; padding:8px 18px; font-size:13px;">
+                    Open Full Resolution ↗
+                </a>
+            </div>
         </div>
-
-        <div class="form-group">
-            <label for="email">Email Address (To receive your QR Ticket)</label>
-            <input type="email" id="email" placeholder="student@university.ac.ke" required>
-        </div>
-        
-        <div class="form-group">
-            <label for="phone">M-PESA Phone Number</label>
-            <input type="tel" id="phone" placeholder="07XX XXX XXX" required>
-        </div>
-        
-        <button class="btn" id="payBtn" onclick="initiatePayment()">Pay KES <span id="btnPrice">{{ event.price }}</span></button>
-        <a class="fee-link" onclick="document.getElementById('feeModal').style.display='flex'; return false;">No hidden fees. See breakdown.</a>
-        <div id="status-msg"></div>
-
-        <div class="live-ticker">
-            <div class="ticker-item" id="tickerText">🎟️ Sarah just bought a ticket!</div>
-        </div>
+    </div>
     {% endif %}
-</div>
 
-<!-- Fee Breakdown Modal -->
-<div class="fee-modal-overlay" id="feeModal">
-    <div class="fee-modal-content">
-        <span class="close-modal" onclick="document.getElementById('feeModal').style.display='none';">&times;</span>
-        <h3 style="margin-bottom: 12px; margin-top: 0; color: var(--text-main);">Transparent Fee Breakdown</h3>
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
-            At DISHI, we want you to enjoy the event without worrying about hidden costs.
-        </p>
-        <ul style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; padding-left: 20px; margin-bottom: 16px;">
-            <li><strong>Platform Ticket Fee:</strong> 0% (DISHI takes no cut)</li>
-            <li><strong>M-PESA Fee:</strong> Standard Safaricom STK Push limits and charges apply as per your carrier's rate card.</li>
-        </ul>
-        <p style="font-size: 13px; color: var(--neon-cyan); font-weight: 600; margin-bottom: 0;">
-            See you at the event! 🎟️
-        </p>
-    </div>
-</div>
-
-<!-- QR Code Modal -->
-<div class="fee-modal-overlay" id="qrModal" style="display: none;">
-    <div class="fee-modal-content" style="text-align: center;">
-        <span class="close-modal" onclick="document.getElementById('qrModal').style.display='none';">&times;</span>
-        <h3 style="margin-bottom: 12px; color: var(--text-main);">Event QR Code</h3>
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">Scan to instantly access this ticket link</p>
-        <div style="background: white; padding: 16px; border-radius: 12px; display: inline-block; margin-bottom: 16px;">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ request.url | urlencode }}" alt="QR Code" style="width: 200px; height: 200px;">
-        </div>
-        <br>
-        <a href="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data={{ request.url | urlencode }}" download="DISHI_QR.png" target="_blank" style="display: inline-block; background: var(--neon-cyan); color: #0C101B; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 14px;">Download & Share</a>
-    </div>
-</div>
-
-<script>
-    // ── Live Ticker Logic ─────────────────────────────────────────
-    const tickerMessages = [
-        "🎟️ Sarah just bought a ticket!",
-        "✨ John secured an Early Bird ticket",
-        "⚡ Instant ticket delivery via email",
-        "🔥 Tickets are selling out fast!"
-    ];
-    let tickerIdx = 0;
-    setInterval(() => {
-        const el = document.getElementById('tickerText');
-        if (el) {
-            tickerIdx = (tickerIdx + 1) % tickerMessages.length;
-            el.style.animation = 'none';
-            void el.offsetWidth; // trigger reflow
-            el.textContent = tickerMessages[tickerIdx];
-            el.style.animation = 'fade-up 4s infinite';
-        }
-    }, 4000);
-
-    let currentAmount = {{ event.price if event else 0 }};
-    let currentTier = 'Regular';
-    
-    function updatePrice() {
-        const val = document.getElementById('ticketType').value;
-        const parts = val.split('|');
-        currentTier = parts[0];
-        currentAmount = parts[1];
-        document.getElementById('btnPrice').innerText = currentAmount;
-    }
-
-    function normalizePhone(raw) {
-        let p = raw.replace(/[\s\-\(\)\+]/g, '');
-        if (p.startsWith('0') && p.length === 10) return '254' + p.substring(1);
-        if (p.length === 9) return '254' + p;
-        if (p.startsWith('254') && p.length === 12) return p;
-        return p;
-    }
-
-    async function initiatePayment() {
-        let phoneRaw = document.getElementById('phone').value;
-        const phone = normalizePhone(phoneRaw);
-        const email = document.getElementById('email').value;
-        const btn = document.getElementById('payBtn');
-        const statusMsg = document.getElementById('status-msg');
-        
-        if (!phone || !phone.startsWith('254') || phone.length !== 12) {
-            statusMsg.style.display = 'block';
-            statusMsg.style.color = 'var(--error-red)';
-            statusMsg.innerText = 'Please enter a valid M-PESA number (e.g. 0712345678)';
-            return;
-        }
-        if (!email || !email.includes('@')) {
-            statusMsg.style.display = 'block';
-            statusMsg.style.color = 'var(--error-red)';
-            statusMsg.innerText = 'Please enter a valid email address.';
-            return;
-        }
-        
-        btn.disabled = true;
-        btn.innerText = 'Processing...';
-        statusMsg.style.display = 'block';
-        statusMsg.style.color = 'var(--text-secondary)';
-        statusMsg.innerText = 'Initiating M-PESA STK Push... Check your phone.';
-        
-        try {
-            const res = await fetch('/api/v1/mpesa/stkpush', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    phone_number: phone,
-                    amount: currentAmount,
-                    user_id: 'web_event_ticket',
-                    reason: 'Event Ticket',
-                    metadata: {
-                        type: 'event_ticket',
-                        eventId: '{{ event.id if event else "" }}',
-                        tier: currentTier,
-                        email: email
-                    }
-                })
-            });
-            
-            const data = await res.json();
-            
-            if (res.ok) {
-                statusMsg.style.color = 'var(--neon-cyan)';
-                statusMsg.innerText = 'Enter your M-PESA PIN to complete the purchase. Your ticket will be emailed to you shortly!';
-            } else {
-                statusMsg.style.color = 'var(--error-red)';
-                statusMsg.innerText = data.error || 'Failed to initiate payment.';
-                btn.disabled = false;
-                btn.innerText = `Pay KES ${currentAmount}`;
+    <script>
+        const tickerMessages = [
+            "🎟️ Sarah just bought a ticket!",
+            "✨ John secured an Early Bird pass",
+            "⚡ Instant QR delivery straight to your email",
+            "🔥 Passes are selling quickly!"
+        ];
+        let tIdx = 0;
+        setInterval(() => {
+            const el = document.getElementById('tickerText');
+            if (el) {
+                tIdx = (tIdx + 1) % tickerMessages.length;
+                el.textContent = tickerMessages[tIdx];
             }
-        } catch (e) {
-            statusMsg.style.color = 'var(--error-red)';
-            statusMsg.innerText = 'Network error. Please try again.';
-            btn.disabled = false;
-            btn.innerText = `Pay KES ${currentAmount}`;
+        }, 4000);
+
+        let currentAmount = {{ event.price if event else 0 }};
+        let currentTier = 'Regular';
+
+        function updatePrice() {
+            const val = document.getElementById('ticketType').value;
+            const parts = val.split('|');
+            currentTier = parts[0];
+            currentAmount = parts[1];
+            document.getElementById('btnPrice').innerText = currentAmount;
         }
-    }
-</script>
 
-<!-- Powered by DISHI FAB -->
-<style>
-    .dishi-fab {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        background: linear-gradient(135deg, #FF2A6D, #05D5FA);
-        color: white;
-        padding: 12px 20px;
-        border-radius: 30px;
-        font-family: 'Inter', sans-serif;
-        font-weight: 700;
-        font-size: 14px;
-        text-decoration: none;
-        box-shadow: 0 10px 25px rgba(255, 42, 109, 0.4);
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        z-index: 1000;
-    }
-    .dishi-fab:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 14px 30px rgba(255, 42, 109, 0.6);
-        color: white;
-    }
-    .dishi-fab img {
-        width: 24px;
-        height: 24px;
-        border-radius: 6px;
-    }
-    .fab-text { display: inline; }
-    .fab-short { display: none; }
-    @media (max-width: 600px) {
-        .dishi-fab { bottom: 16px; right: 16px; padding: 10px 16px; }
-        .fab-text { display: none; }
-        .fab-short { display: inline; }
-    }
-</style>
-<a href="{{ url_for('about') }}" class="dishi-fab">
-    <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI">
-    <span class="fab-text">Want to launch your own campaign? Get DISHI</span>
-    <span class="fab-short">Get DISHI</span>
-</a>
+        function normalizePhone(raw) {
+            let p = raw.replace(/[\s\-\(\)\+]/g, '');
+            if (p.startsWith('0') && p.length === 10) return '254' + p.substring(1);
+            if (p.length === 9) return '254' + p;
+            if (p.startsWith('254') && p.length === 12) return p;
+            return p;
+        }
 
+        async function initiatePayment() {
+            let phoneRaw = document.getElementById('phone').value;
+            const phone = normalizePhone(phoneRaw);
+            const email = document.getElementById('email').value.trim();
+            const btn = document.getElementById('payBtn');
+            const statusMsg = document.getElementById('status-msg');
+
+            if (!phone || !phone.startsWith('254') || phone.length !== 12) {
+                statusMsg.style.display = 'block';
+                statusMsg.style.background = 'rgba(255, 71, 87, 0.15)';
+                statusMsg.style.color = '#ff808b';
+                statusMsg.innerText = 'Please enter a valid Safaricom number (e.g. 0712345678)';
+                return;
+            }
+            if (!email || !email.includes('@')) {
+                statusMsg.style.display = 'block';
+                statusMsg.style.background = 'rgba(255, 71, 87, 0.15)';
+                statusMsg.style.color = '#ff808b';
+                statusMsg.innerText = 'Please enter a valid email to receive your QR entry ticket.';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳</span><span>Sending M-PESA Prompt...</span>';
+            statusMsg.style.display = 'block';
+            statusMsg.style.background = 'rgba(5, 213, 170, 0.1)';
+            statusMsg.style.color = 'var(--neon-cyan)';
+            statusMsg.innerText = 'Initiating M-PESA STK Push... Please check your handset.';
+
+            try {
+                const res = await fetch('/api/v1/mpesa/stkpush', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone_number: phone,
+                        amount: currentAmount,
+                        user_id: 'web_event_ticket',
+                        reason: 'Event Ticket',
+                        metadata: {
+                            type: 'event_ticket',
+                            eventId: '{{ event.id if event else "" }}',
+                            tier: currentTier,
+                            email: email
+                        }
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    statusMsg.style.background = 'rgba(5, 213, 170, 0.15)';
+                    statusMsg.style.color = 'var(--neon-cyan)';
+                    statusMsg.innerText = 'Prompt sent! Enter your M-PESA PIN to complete payment. Your QR pass will be emailed immediately.';
+                } else {
+                    statusMsg.style.background = 'rgba(255, 71, 87, 0.15)';
+                    statusMsg.style.color = '#ff808b';
+                    statusMsg.innerText = data.error || 'Failed to initiate M-PESA request.';
+                    btn.disabled = false;
+                    btn.innerHTML = `<span>💚</span><span>Pay KES ${currentAmount} via M-PESA</span>`;
+                }
+            } catch (e) {
+                statusMsg.style.background = 'rgba(255, 71, 87, 0.15)';
+                statusMsg.style.color = '#ff808b';
+                statusMsg.innerText = 'Network error. Please check your internet connection.';
+                btn.disabled = false;
+                btn.innerHTML = `<span>💚</span><span>Pay KES ${currentAmount} via M-PESA</span>`;
+            }
+        }
+    </script>
 </body>
 </html>

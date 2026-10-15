@@ -86,7 +86,7 @@ class _GiftMealDialogState extends State<GiftMealDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Enter their DISHI ID and amount. Gifts over 100 KSH include a 10 KSH commission.', style: TextStyle(color: Colors.white70, fontSize: 12)),
+          const Text('Enter their DISHI ID and amount. Gifts over 100 KSH include a 17 KSH commission.', style: TextStyle(color: Colors.white70, fontSize: 12)),
           const SizedBox(height: 16),
           if (_errorMessage != null)
             Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 12))),

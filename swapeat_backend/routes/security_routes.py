@@ -99,7 +99,7 @@ def compromised_credential_alert(student_id):
         mail = current_app.extensions.get('mail')
         if mail:
             msg = Message("CRITICAL: Compromised Credential Alert",
-                          sender="info@delstarfordworks.co.ke",
+                          sender=current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'),
                           recipients=["parent@example.com"])
             msg.body = f"URGENT: Multiple failed PIN attempts for {student_id}. Please review dashboard."
             mail.send(msg)

@@ -394,10 +394,22 @@ class _FundiMarketplaceViewState extends State<FundiMarketplaceView> {
                   'worker_id': workerId,
                   'created_at': FieldValue.serverTimestamp(),
                 });
+                await FirebaseFirestore.instance.collection('fundi_jobs').add({
+                  'title': '$category Service',
+                  'description': details,
+                  'amount': price,
+                  'category': category,
+                  'poster_id': widget.userModel.uid,
+                  'fundi_id': workerId,
+                  'status': 'open',
+                  'payer_name': widget.userModel.displayName,
+                  'phone': widget.userModel.phoneNumber ?? '',
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
                 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Gig Request sent successfully! Escrow pending.'))
+                    const SnackBar(content: Text('Offer sent to Fundi! Check Campus Gigs for updates & escrow.'))
                   );
                 }
               } catch (e) {

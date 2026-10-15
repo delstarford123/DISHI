@@ -48,7 +48,8 @@ def donate_harambee():
     donor_ref = db.collection('users').document(donor_id)
     campaign_ref = db.collection('harambee_campaigns').document(campaign_id)
     
-    commission = 3.0
+    # Commission raised by 7 KSh (3.0 -> 10.0)
+    commission = 10.0
     total_deduct = amount + commission
 
     @firestore.transactional

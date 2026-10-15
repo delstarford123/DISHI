@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/mpesa_theme.dart';
-import '../../../core/services/vendor_agent_service.dart';
 import '../../../core/widgets/offline_image_widget.dart';
 import '../../../core/widgets/high_friction_action.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -52,6 +51,11 @@ class _VendorTopupViewState extends State<VendorTopupView> with SingleTickerProv
   String _depositDisplay = "0";
   double _calculatedCommission = 0.0;
   DateTime? _lastTransactionTime;
+  bool _isOfflineStudent = false;
+  String? _parentName;
+  String? _parentPhone;
+  double _studentCurrentBalance = 0.0;
+  String _dishiId = '';
 
   @override
   void initState() {
@@ -82,11 +86,15 @@ class _VendorTopupViewState extends State<VendorTopupView> with SingleTickerProv
 
       final doc = await FirebaseFirestore.instance.collection('users').doc(widget.studentUid).get();
       if (doc.exists) {
+        final data = doc.data()!;
         setState(() {
-          _studentName = doc.data()?['displayName'] ?? 'Unknown Student';
-          _studentImageUrl = doc.data()?['studentImageUrl'];
-          if (doc.data()!.containsKey('allergens')) {
-            final al = doc.data()!['allergens'];
+          _studentName = data['displayName'] ?? 'Unknown Student';
+          _studentImageUrl = data['studentImageUrl'];
+          _isOfflineStudent = (data['isOfflineChild'] == true || data['isOffline'] == true);
+          _studentCurrentBalance = double.tryParse('${data['walletBalance'] ?? 0.0}') ?? 0.0;
+          _dishiId = data['dishiId'] ?? (widget.studentUid.length > 8 ? widget.studentUid.substring(0, 8) : widget.studentUid);
+          if (data.containsKey('allergens')) {
+            final al = data['allergens'];
             if (al is List) {
               _studentAllergens = al.map((e) => e.toString()).toList();
             } else if (al is String) {
@@ -94,6 +102,23 @@ class _VendorTopupViewState extends State<VendorTopupView> with SingleTickerProv
             }
           }
         });
+
+        // Load linked parent details for connection & reassurance
+        final linkedParents = data['linkedParents'] as List?;
+        final pUid = (linkedParents != null && linkedParents.isNotEmpty)
+            ? linkedParents.first.toString()
+            : (data['parentUid'] as String?);
+
+        if (pUid != null && pUid.isNotEmpty) {
+          FirebaseFirestore.instance.collection('users').doc(pUid).get().then((pDoc) {
+            if (pDoc.exists && mounted) {
+              setState(() {
+                _parentName = pDoc.data()?['displayName'] ?? 'Parent Connected';
+                _parentPhone = pDoc.data()?['phoneNumber'] ?? pDoc.data()?['phone'];
+              });
+            }
+          });
+        }
         
         if (_studentAllergens.isNotEmpty && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -167,41 +192,168 @@ class _VendorTopupViewState extends State<VendorTopupView> with SingleTickerProv
     }
     final amount = double.tryParse(value) ?? 0.0;
     setState(() {
-      _calculatedCommission = VendorAgentService.calculateTopUpCommission(amount);
+      _calculatedCommission = amount > 0 ? (amount < 100 ? 10.0 : ((amount * 0.015) + 7.0).roundToDouble()) : 0.0;
     });
   }
 
-  void _processAgentDeposit() async {
+  void _processAgentDeposit() {
     final amount = double.tryParse(_depositDisplay) ?? 0.0;
     if (amount <= 0) return;
 
-    if (VendorAgentService.isWashTradingSuspected()) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('FRAUD ALERT: Wash Trading Suspected. Deposit Locked.'), backgroundColor: Colors.red));
-      return;
-    }
+    final pinCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF131A2A),
+        title: Row(
+          children: [
+            const Icon(Icons.security, color: MPesaTheme.primaryGreen),
+            const SizedBox(width: 8),
+            Text(_isOfflineStudent ? 'Child Offline PIN' : 'Student PIN / Token', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Depositing KES ${amount.toStringAsFixed(0)} to $_studentName.',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _isOfflineStudent
+                  ? 'Ask student for their 4-digit card PIN to authorize.'
+                  : 'Enter student wallet PIN or Daily Auth Token.',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: pinCtrl,
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              maxLength: 4,
+              style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 8),
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(
+                hintText: '••••',
+                hintStyle: TextStyle(color: Colors.white24, letterSpacing: 8),
+                filled: true,
+                fillColor: Colors.black26,
+              ),
+            ),
+            if (_parentName != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.verified_user, color: Colors.blueAccent, size: 14),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text('Parent $_parentName will receive instant confirmation alert.', style: const TextStyle(color: Colors.blueAccent, fontSize: 11)),
+                  ),
+                ],
+              ),
+            ]
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryGreen),
+            onPressed: () {
+              final pin = pinCtrl.text.trim();
+              if (pin.isEmpty) return;
+              Navigator.pop(context);
+              _submitDepositWithAuth(amount, pin);
+            },
+            child: const Text('Authorize & Deposit', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          )
+        ],
+      ),
+    );
+  }
 
+  Future<void> _submitDepositWithAuth(double amount, String authCode) async {
+    setState(() => _isFulfilling = true);
     try {
       final vendorId = FirebaseAuth.instance.currentUser!.uid;
+      final idempotencyKey = 'agent-dep-${DateTime.now().millisecondsSinceEpoch}-${widget.studentUid}';
+
       final response = await http.post(
-        Uri.parse(ApiConfig.transactionTopup),
+        Uri.parse(ApiConfig.vendorAgentTopup),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'uid': widget.studentUid,
           'amount': amount,
+          'studentToken': widget.studentUid,
+          'idempotencyKey': idempotencyKey,
           'vendorId': vendorId,
+          'authCode': authCode,
         }),
       ).timeout(const Duration(seconds: 30));
 
-      if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deposit Successful!'), backgroundColor: Colors.green));
-          Navigator.pop(context);
-        }
+      final resData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && resData['success'] == true) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            backgroundColor: const Color(0xFF131A2A),
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle, color: MPesaTheme.primaryGreen, size: 28),
+                SizedBox(width: 8),
+                Text('Deposit Successful!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Credited KES ${amount.toStringAsFixed(0)} to $_studentName\'s wallet.', style: const TextStyle(color: Colors.white70)),
+                const SizedBox(height: 8),
+                Text('New Student Balance: KES ${resData['newBalance'] ?? ""}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.green.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.monetization_on, color: Colors.greenAccent, size: 20),
+                      const SizedBox(width: 8),
+                      Text('Agent Commission: +KES ${(resData['commissionEarned'] ?? 0).toStringAsFixed(2)}', style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                if (_parentName != null) ...[
+                  const SizedBox(height: 10),
+                  Text('Parent Receipt sent to $_parentName', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                ],
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryGreen),
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                child: const Text('Done', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              )
+            ],
+          ),
+        );
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${response.body}'), backgroundColor: MPesaTheme.primaryRed));
+        if (!mounted) return;
+        final errorMsg = resData['error'] ?? 'Deposit failed. Please check agent float balance & PIN.';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg), backgroundColor: MPesaTheme.primaryRed));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: MPesaTheme.primaryRed));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Deposit error: $e'), backgroundColor: MPesaTheme.primaryRed));
+      }
+    } finally {
+      if (mounted) setState(() => _isFulfilling = false);
     }
   }
 
@@ -802,64 +954,124 @@ class _VendorTopupViewState extends State<VendorTopupView> with SingleTickerProv
   }
 
   Widget _buildAgentDepositTab() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20.0),
       child: Column(
         children: [
-          _buildStudentHeader(),
+          // Agent Terminal Header Card
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF0F2B1D), Color(0xFF131A2A)]),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: MPesaTheme.primaryGreen.withOpacity(0.4)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: MPesaTheme.primaryGreen.withOpacity(0.2), shape: BoxShape.circle),
+                  child: const Icon(Icons.store, color: MPesaTheme.primaryGreen, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('DISHI Agent Cash-In Terminal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: _isOfflineStudent ? Colors.blue.withOpacity(0.2) : Colors.green.withOpacity(0.2), borderRadius: BorderRadius.circular(6)),
+                            child: Text(
+                              _isOfflineStudent ? 'Offline Pocket Card' : 'Online Account',
+                              style: TextStyle(color: _isOfflineStudent ? Colors.lightBlueAccent : MPesaTheme.primaryGreen, fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('ID: $_dishiId', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          if (_parentName != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.blue.withOpacity(0.3))),
+              child: Row(
+                children: [
+                  const Icon(Icons.family_restroom, color: Colors.blueAccent, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('Parent: $_parentName will receive instant confirmation & receipt', style: const TextStyle(color: Colors.blueAccent, fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: 16),
-          const Text('Enter Cash Amount to Deposit', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
+          const Text('Enter Cash Deposited by Student', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white70)),
+          const SizedBox(height: 8),
           Text(
             'Ksh $_depositDisplay',
-            style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: MPesaTheme.primaryGreen),
+            style: const TextStyle(fontSize: 42, fontWeight: FontWeight.bold, color: MPesaTheme.primaryGreen),
           ),
           if (_calculatedCommission > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
+            Container(
+              margin: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(color: Colors.green.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
               child: Text(
-                'You will earn Ksh ${_calculatedCommission.toStringAsFixed(2)} commission',
-                style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                '💰 Agent Commission: +Ksh ${_calculatedCommission.toStringAsFixed(2)}',
+                style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),
-          const SizedBox(height: 32),
-          Expanded(
-            child: SizedBox(
-              width: 300,
-              child: PosNumpad(
-                onKeyPressed: (val) {
-                  setState(() {
-                    if (_depositDisplay == "0") _depositDisplay = val;
-                    else _depositDisplay += val;
-                    _calculateProfit(_depositDisplay);
-                  });
-                },
-                onClear: () {
-                  setState(() {
+          const SizedBox(height: 16),
+          SizedBox(
+            width: 280,
+            height: 220,
+            child: PosNumpad(
+              onKeyPressed: (val) {
+                setState(() {
+                  if (_depositDisplay == "0") _depositDisplay = val;
+                  else _depositDisplay += val;
+                  _calculateProfit(_depositDisplay);
+                });
+              },
+              onClear: () {
+                setState(() {
+                  _depositDisplay = "0";
+                  _calculateProfit("0");
+                });
+              },
+              onBackspace: () {
+                setState(() {
+                  if (_depositDisplay.length > 1) {
+                    _depositDisplay = _depositDisplay.substring(0, _depositDisplay.length - 1);
+                  } else {
                     _depositDisplay = "0";
-                    _calculateProfit("0");
-                  });
-                },
-                onBackspace: () {
-                  setState(() {
-                    if (_depositDisplay.length > 1) {
-                      _depositDisplay = _depositDisplay.substring(0, _depositDisplay.length - 1);
-                    } else {
-                      _depositDisplay = "0";
-                    }
-                    _calculateProfit(_depositDisplay);
-                  });
-                },
-              ),
+                  }
+                  _calculateProfit(_depositDisplay);
+                });
+              },
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 20),
           HighFrictionAction(
-            label: 'Slide to Deposit to Student Wallet',
+            label: 'Slide to Deposit Ksh $_depositDisplay',
             onActionCompleted: _processAgentDeposit,
             baseColor: MPesaTheme.primaryGreen,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../../../core/services/game_reward_service.dart';
 import 'coins_display.dart';
 
 class TasteMatchGame extends StatefulWidget {
@@ -65,25 +64,35 @@ class _TasteMatchGameState extends State<TasteMatchGame> {
     }
   }
 
-  void _showGameOver() {
+  Future<void> _showGameOver() async {
     setState(() {
       isGameOver = true;
     });
-    _submitProfile();
-  }
 
-  Future<void> _submitProfile() async {
-    // In a real app, this sends the taste profile to the backend to match students.
-    // For now, we just submit a score to give them Dishi coins for playing.
-    try {
-      await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
-        body: json.encode({'game_id': 'taste_match', 'score': score}),
-      ).timeout(const Duration(seconds: 15));
-    } catch (e) {
-      print("Error submitting taste match: \$e");
-    }
+    final res = await GameRewardService.submitScore(
+      uid: widget.userModel.uid,
+      gameId: 'taste_match',
+      score: score,
+    );
+
+    if (!mounted) return;
+
+    GameRewardService.showArcadeGameOverDialog(
+      context: context,
+      userModel: widget.userModel,
+      gameTitle: 'TASTE MATCH',
+      score: score,
+      scoreLabel: 'TASTE PROFILE MATCHES',
+      coinsEarned: res.coinsEarned,
+      isVictory: true,
+      onPlayAgain: () {
+        setState(() {
+          currentIndex = 0;
+          score = 0;
+          isGameOver = false;
+        });
+      },
+    );
   }
 
   @override

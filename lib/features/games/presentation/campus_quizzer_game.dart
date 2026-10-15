@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/models/user_model.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../../../core/services/game_reward_service.dart';
 import 'coins_display.dart';
 
 class CampusQuizzerGame extends StatefulWidget {
@@ -109,23 +108,38 @@ class _CampusQuizzerGameState extends State<CampusQuizzerGame> with SingleTicker
     }
   }
 
-  void _showGameOver() {
+  Future<void> _showGameOver() async {
     setState(() {
       isGameOver = true;
     });
-    _submitScore();
-  }
 
-  Future<void> _submitScore() async {
-    try {
-      await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
-        body: json.encode({'game_id': 'campus_quizzer', 'score': score}),
-      ).timeout(const Duration(seconds: 15));
-    } catch (e) {
-      print("Error submitting quiz score: \$e");
-    }
+    final res = await GameRewardService.submitScore(
+      uid: widget.userModel.uid,
+      gameId: 'campus_quizzer',
+      score: score,
+    );
+
+    if (!mounted) return;
+
+    GameRewardService.showArcadeGameOverDialog(
+      context: context,
+      userModel: widget.userModel,
+      gameTitle: 'CAMPUS QUIZZER',
+      score: score,
+      coinsEarned: res.coinsEarned,
+      isVictory: score >= 60,
+      onPlayAgain: () {
+        setState(() {
+          currentQuestionIndex = 0;
+          score = 0;
+          isGameOver = false;
+          isAnswered = false;
+          selectedAnswer = null;
+        });
+        _timerController.reset();
+        _timerController.forward();
+      },
+    );
   }
 
   @override

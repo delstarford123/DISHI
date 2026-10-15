@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
-import '../../../core/models/user_model.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'coins_display.dart';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../../core/models/user_model.dart';
+import '../../../core/services/game_reward_service.dart';
+import 'coins_display.dart';
 
 class ScratchWinGame extends StatefulWidget {
   final UserModel userModel;
@@ -18,106 +18,161 @@ class _ScratchWinGameState extends State<ScratchWinGame> {
   final Color _bgColor = const Color(0xFF0C101B);
   final Color _cardColor = const Color(0xFF131A2A);
   final Color _neonCyan = const Color(0xFF05D5AA);
-  final Color _neonPink = const Color(0xFFF92B60);
 
-  final List<String> _items = [
-    '🍔',
-    '📖',
-    '🍕',
-    '💎',
-    '🍎',
-    '🍽️'
+  final List<Map<String, dynamic>> _symbols = [
+    {'icon': '💎', 'coins': 1000, 'name': 'DIAMOND JACKPOT'},
+    {'icon': '🍕', 'coins': 150, 'name': 'HOT PIZZA'},
+    {'icon': '🍔', 'coins': 100, 'name': 'BIG BURGER'},
+    {'icon': '🥑', 'coins': 75, 'name': 'FRESH AVOCADO'},
+    {'icon': '🍎', 'coins': 50, 'name': 'CRUNCHY APPLE'},
+    {'icon': '🥤', 'coins': 25, 'name': 'COLD SODA'},
   ];
-  List<String> grid = [];
-  List<bool> revealed = [];
-  bool isGameOver = false;
-  int revealedCount = 0;
-  String? winMessage;
+
+  List<String> _grid = [];
+  List<bool> _revealed = [];
+  bool _isGameOver = false;
+  int _revealedCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _initGame();
+    _newCard();
   }
 
-  void _initGame() {
-    final pool = List<String>.from(_items);
-    pool.shuffle();
-    
-    grid = List.generate(9, (index) => pool[Random().nextInt(pool.length)]);
+  void _newCard() {
+    final rand = Random();
+    // 50% chance the card has a 3-of-a-kind winner
+    final willWin = rand.nextDouble() < 0.55;
 
-    setState(() {
-      revealed = List.filled(9, false);
-      revealedCount = 0;
-      isGameOver = false;
-      winMessage = null;
-    });
-  }
+    List<String> items = [];
 
-  void _revealTile(int index) {
-    if (isGameOver || revealed[index]) return;
-
-    setState(() {
-      revealed[index] = true;
-      revealedCount++;
-    });
-
-    _checkWin();
-  }
-
-  void _checkWin() {
-    if (revealedCount < 9) {
-      // Check if they already hit 3 of a kind among revealed ones
-      Map<String, int> counts = {};
-      for (int i = 0; i < 9; i++) {
-        if (revealed[i]) {
-          counts[grid[i]] = (counts[grid[i]] ?? 0) + 1;
-        }
-      }
-
-      for (var entry in counts.entries) {
-        if (entry.value >= 3) {
-          _triggerWin(entry.key);
-          return;
-        }
+    if (willWin) {
+      // Pick winning symbol
+      final winSymbol = _symbols[rand.nextInt(_symbols.length)]['icon'] as String;
+      items = [winSymbol, winSymbol, winSymbol];
+      while (items.length < 9) {
+        final other = _symbols[rand.nextInt(_symbols.length)]['icon'] as String;
+        items.add(other);
       }
     } else {
-      // Game over, all revealed, no win
+      // Random symbols without guaranteed 3 of any
+      while (items.length < 9) {
+        final sym = _symbols[rand.nextInt(_symbols.length)]['icon'] as String;
+        if (items.where((s) => s == sym).length < 2) {
+          items.add(sym);
+        } else {
+          items.add(_symbols[rand.nextInt(_symbols.length)]['icon'] as String);
+        }
+      }
+    }
+
+    items.shuffle();
+
+    setState(() {
+      _grid = items;
+      _revealed = List.filled(9, false);
+      _revealedCount = 0;
+      _isGameOver = false;
+    });
+  }
+
+  void _scratchTile(int index) {
+    if (_isGameOver || _revealed[index]) return;
+
+    HapticFeedback.lightImpact();
+
+    setState(() {
+      _revealed[index] = true;
+      _revealedCount++;
+    });
+
+    _checkWinState();
+  }
+
+  void _checkWinState() {
+    // Check if 3 matching symbols are currently revealed
+    final Map<String, int> counts = {};
+    for (int i = 0; i < 9; i++) {
+      if (_revealed[i]) {
+        counts[_grid[i]] = (counts[_grid[i]] ?? 0) + 1;
+      }
+    }
+
+    for (var entry in counts.entries) {
+      if (entry.value >= 3) {
+        _handleWin(entry.key);
+        return;
+      }
+    }
+
+    // If all 9 revealed with no 3-of-a-kind
+    if (_revealedCount == 9) {
       setState(() {
-        isGameOver = true;
-        winMessage = "Better luck next time!";
+        _isGameOver = true;
       });
+      _handleNoWin();
     }
   }
 
-  void _triggerWin(String symbol) {
-    setState(() {
-      isGameOver = true;
-      // Reveal the rest
-      revealed = List.filled(9, true);
-      
-      int coins = 0;
-      if (symbol == '🍔') coins = 50;
-      else if (symbol == '📖') coins = 100;
-      else if (symbol == '🍕') coins = 150;
-      else if (symbol == '🍎') coins = 200;
-      else if (symbol == '🍽️') coins = 250;
-      else if (symbol == '💎') coins = 1000;
+  Future<void> _handleWin(String symbol) async {
+    final match = _symbols.firstWhere((s) => s['icon'] == symbol);
+    final int prizeCoins = match['coins'] as int;
 
-      winMessage = "JACKPOT! You won $coins Coins!";
-      _submitScore(coins);
+    HapticFeedback.heavyImpact();
+
+    setState(() {
+      _isGameOver = true;
+      // Reveal entire ticket
+      _revealed = List.filled(9, true);
     });
+
+    final res = await GameRewardService.submitScore(
+      uid: widget.userModel.uid,
+      gameId: 'scratch_win',
+      score: prizeCoins * 100,
+      overrideCoins: prizeCoins,
+    );
+
+    if (!mounted) return;
+
+    GameRewardService.showArcadeGameOverDialog(
+      context: context,
+      userModel: widget.userModel,
+      gameTitle: 'SCRATCH & WIN',
+      score: prizeCoins,
+      scoreLabel: 'PRIZE MATCH',
+      coinsEarned: res.coinsEarned,
+      isVictory: true,
+      onPlayAgain: _newCard,
+    );
   }
 
-  Future<void> _submitScore(int coins) async {
-    try {
-      await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
-        body: json.encode({'game_id': 'scratch_win', 'score': coins * 100}), // Scale up
-      ).timeout(const Duration(seconds: 15));
-    } catch (e) {
-      print("Error submitting scratch score: \$e");
+  Future<void> _handleNoWin() async {
+    HapticFeedback.mediumImpact();
+    // Submit 1 coin for attempting
+    final res = await GameRewardService.submitScore(
+      uid: widget.userModel.uid,
+      gameId: 'scratch_win',
+      score: 10,
+      overrideCoins: 1,
+    );
+
+    if (!mounted) return;
+
+    GameRewardService.showArcadeGameOverDialog(
+      context: context,
+      userModel: widget.userModel,
+      gameTitle: 'SCRATCH & WIN',
+      score: 0,
+      scoreLabel: 'NO MATCH THIS TIME',
+      coinsEarned: res.coinsEarned,
+      onPlayAgain: _newCard,
+    );
+  }
+
+  void _scratchAll() {
+    for (int i = 0; i < 9; i++) {
+      _scratchTile(i);
     }
   }
 
@@ -129,85 +184,192 @@ class _ScratchWinGameState extends State<ScratchWinGame> {
         title: const Text('Scratch & Win', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: _bgColor,
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [CoinsDisplay(uid: widget.userModel.uid)],
       ),
-      body: Center(
+      body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Match 3 symbols to win a prize!', style: TextStyle(color: Colors.white70, fontSize: 18)),
-              const SizedBox(height: 10),
-              const Text('💎 = 1000  |  🍔 = 50  |  🍕 = 150  |  🍎 = 200', style: TextStyle(color: Colors.white54, fontSize: 14)),
-              const SizedBox(height: 40),
-              
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
+              // Lottery Card Outer Frame
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1E283D), Color(0xFF111728)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.amber, width: 2),
+                  boxShadow: [
+                    BoxShadow(color: Colors.amber.withOpacity(0.18), blurRadius: 28),
+                  ],
                 ),
-                itemCount: 9,
-                itemBuilder: (context, index) {
-                  return GestureDetector(
-                    onTap: () => _revealTile(index),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeOut,
-                      decoration: BoxDecoration(
-                        color: revealed[index] ? Colors.white : _cardColor,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: revealed[index] ? Colors.white : _neonCyan.withOpacity(0.3),
-                          width: revealed[index] ? 0 : 2,
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('GOLDEN DISHI LOTTO', style: TextStyle(color: Colors.amber, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.2)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.amber),
+                          ),
+                          child: const Text('MATCH 3 TO WIN', style: TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold)),
                         ),
-                        boxShadow: revealed[index] ? [
-                          BoxShadow(color: _neonCyan.withOpacity(0.5), blurRadius: 10)
-                        ] : [],
-                      ),
-                      child: Center(
-                        child: revealed[index]
-                            ? Text(grid[index], style: TextStyle(fontSize: 40))
-                            : const Text('✨', style: TextStyle(fontSize: 40)),
-                      ),
+                      ],
                     ),
-                  );
-                },
+                    const SizedBox(height: 20),
+
+                    // 3x3 Scratch Grid
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: 9,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 1.0,
+                      ),
+                      itemBuilder: (context, index) {
+                        final isRevealed = _revealed[index];
+
+                        return InkWell(
+                          onTap: () => _scratchTile(index),
+                          borderRadius: BorderRadius.circular(16),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            decoration: BoxDecoration(
+                              gradient: isRevealed
+                                  ? const LinearGradient(
+                                      colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    )
+                                  : const LinearGradient(
+                                      colors: [Color(0xFFFFD54F), Color(0xFFFFA000)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isRevealed ? _neonCyan.withOpacity(0.5) : Colors.white70,
+                                width: isRevealed ? 2 : 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (isRevealed ? _neonCyan : Colors.amber).withOpacity(0.2),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: isRevealed
+                                  ? Text(
+                                      _grid[index],
+                                      style: const TextStyle(fontSize: 40),
+                                    )
+                                  : Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.touch_app, color: Colors.brown[900], size: 24),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'SCRATCH',
+                                          style: TextStyle(
+                                            color: Colors.brown[900],
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 20),
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              side: const BorderSide(color: Colors.white24),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            onPressed: _scratchAll,
+                            child: const Text('REVEAL ALL'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.amber,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            onPressed: _newCard,
+                            child: const Text('NEW TICKET 🎟️', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
 
-              const SizedBox(height: 40),
-
-              if (winMessage != null) ...[
-                Text(
-                  winMessage!.contains('JACKPOT') ? 'YOU WIN' : 'YOU LOSE',
-                  style: TextStyle(
-                    color: winMessage!.contains('JACKPOT') ? Colors.greenAccent : Colors.redAccent,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2.0,
-                  ),
-                  textAlign: TextAlign.center,
+              const SizedBox(height: 24),
+              // Prize Legend
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white12),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  winMessage!,
-                  style: const TextStyle(color: Colors.white70, fontSize: 18),
-                  textAlign: TextAlign.center,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('PRIZE PAYOUT LEGEND', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 10,
+                      children: _symbols.map((s) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.04),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(s['icon'] as String, style: const TextStyle(fontSize: 18)),
+                              const SizedBox(width: 6),
+                              Text('x3 = ${s['coins']} 🪙', style: const TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _neonCyan,
-                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                  ),
-                  onPressed: _initGame,
-                  child: const Text('PLAY AGAIN', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                ),
-              ]
+              ),
             ],
           ),
         ),

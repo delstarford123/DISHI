@@ -1,10 +1,30 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/models/user_model.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../../../core/services/game_reward_service.dart';
 import 'coins_display.dart';
+
+class FallingSnack {
+  double x;
+  double y;
+  final String icon;
+  final bool isHazard;
+  final bool isGolden;
+  final int points;
+  final double speed;
+
+  FallingSnack({
+    required this.x,
+    required this.y,
+    required this.icon,
+    required this.isHazard,
+    required this.isGolden,
+    required this.points,
+    required this.speed,
+  });
+}
 
 class SwapEatDropGame extends StatefulWidget {
   final UserModel userModel;
@@ -15,264 +35,341 @@ class SwapEatDropGame extends StatefulWidget {
   State<SwapEatDropGame> createState() => _SwapEatDropGameState();
 }
 
-class FallingObject {
-  double x;
-  double y;
-  final bool isBad;
-  final String icon;
-
-  FallingObject({required this.x, required this.y, required this.isBad, required this.icon});
-}
-
 class _SwapEatDropGameState extends State<SwapEatDropGame> {
-  double basketX = 0.5; // 0.0 to 1.0
-  List<FallingObject> objects = [];
-  bool isPlaying = false;
-  bool isGameOver = false;
-  int score = 0;
-  int lives = 3;
-  Timer? gameTimer;
-  Timer? spawnTimer;
-
   final Color _bgColor = const Color(0xFF0C101B);
   final Color _neonCyan = const Color(0xFF05D5AA);
   final Color _neonPink = const Color(0xFFF92B60);
 
-  final List<String> goodFoods = ['🍔', '📖', '🍕', '🍎', '🍽️'];
-  final List<String> badItems = ['📚', '🐛', '🗑️'];
+  double _basketX = 0.5; // 0.0 to 1.0 (screen width ratio)
+  final List<FallingSnack> _snacks = [];
 
-  void startGame() {
+  bool _isPlaying = false;
+  bool _isGameOver = false;
+  int _score = 0;
+  int _lives = 4;
+  int _streak = 0;
+
+  Timer? _gameTimer;
+  Timer? _spawnTimer;
+
+  final List<Map<String, dynamic>> _goodSnacks = [
+    {'icon': '🍔', 'points': 15},
+    {'icon': '🍕', 'points': 20},
+    {'icon': '🍟', 'points': 10},
+    {'icon': '🌮', 'points': 25},
+    {'icon': '🥤', 'points': 10},
+    {'icon': '🥑', 'points': 20},
+  ];
+
+  final List<String> _hazardItems = ['💣', '🐛', '🕳️'];
+
+  @override
+  void dispose() {
+    _gameTimer?.cancel();
+    _spawnTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startGame() {
     setState(() {
-      isPlaying = true;
-      isGameOver = false;
-      score = 0;
-      lives = 3;
-      basketX = 0.5;
-      objects.clear();
+      _isPlaying = true;
+      _isGameOver = false;
+      _score = 0;
+      _lives = 4;
+      _streak = 0;
+      _basketX = 0.5;
+      _snacks.clear();
     });
 
-    gameTimer = Timer.periodic(const Duration(milliseconds: 30), (timer) {
-      updateGame();
+    _gameTimer = Timer.periodic(const Duration(milliseconds: 25), (timer) {
+      _updateGame();
     });
 
-    spawnTimer = Timer.periodic(const Duration(milliseconds: 800), (timer) {
-      if (isPlaying) {
-        spawnObject();
-      }
+    _spawnTimer = Timer.periodic(const Duration(milliseconds: 700), (timer) {
+      if (_isPlaying) _spawnSnack();
     });
   }
 
-  void spawnObject() {
+  void _spawnSnack() {
     final rand = Random();
-    final isBad = rand.nextDouble() > 0.7; // 30% chance to be bad
-    final list = isBad ? badItems : goodFoods;
-    final icon = list[rand.nextInt(list.length)];
-    
+    final isHazard = rand.nextDouble() < 0.22; // 22% hazard
+    final isGolden = !isHazard && rand.nextDouble() < 0.15; // 15% golden snack
+
+    String icon = '🍔';
+    int points = 15;
+
+    if (isHazard) {
+      icon = _hazardItems[rand.nextInt(_hazardItems.length)];
+      points = 0;
+    } else if (isGolden) {
+      icon = '👑';
+      points = 50;
+    } else {
+      final s = _goodSnacks[rand.nextInt(_goodSnacks.length)];
+      icon = s['icon'];
+      points = s['points'];
+    }
+
+    final double speed = rand.nextDouble() * 0.006 + 0.012 + (_score * 0.00002);
+
     setState(() {
-      objects.add(FallingObject(
-        x: rand.nextDouble() * 0.8 + 0.1, // keep within screen bounds
-        y: -0.1,
-        isBad: isBad,
+      _snacks.add(FallingSnack(
+        x: rand.nextDouble() * 0.8 + 0.1,
+        y: -0.08,
         icon: icon,
+        isHazard: isHazard,
+        isGolden: isGolden,
+        points: points,
+        speed: speed,
       ));
     });
   }
 
-  void updateGame() {
-    if (!isPlaying) return;
-    
-    setState(() {
-      List<FallingObject> toRemove = [];
-      for (var obj in objects) {
-        // Increase speed slightly over time or based on score (currently constant speed)
-        obj.y += 0.015 + (score * 0.0001); 
+  void _updateGame() {
+    if (!_isPlaying) return;
 
-        // Check collision (basket is around y = 0.85 to 0.9)
-        if (obj.y > 0.85 && obj.y < 0.95) {
-          // Basket width is about 0.2 (0.1 each side)
-          if ((obj.x - basketX).abs() < 0.15) {
-            if (obj.isBad) {
-              score -= 10;
-              if (score < 0) score = 0;
-              lives -= 1;
-              if (lives <= 0) {
-                gameOver();
+    setState(() {
+      final List<FallingSnack> toRemove = [];
+
+      for (var s in _snacks) {
+        s.y += s.speed;
+
+        // Catch check at bottom (y between 0.82 and 0.90)
+        if (s.y >= 0.82 && s.y <= 0.90) {
+          if ((s.x - _basketX).abs() < 0.14) {
+            // Caught in basket!
+            if (s.isHazard) {
+              _lives--;
+              _streak = 0;
+              HapticFeedback.heavyImpact();
+              if (_lives <= 0) {
+                _triggerGameOver();
+                return;
               }
             } else {
-              score += 10;
+              _streak++;
+              int bonus = _streak >= 5 ? 2 : 1;
+              _score += s.points * bonus;
+              HapticFeedback.lightImpact();
             }
-            toRemove.add(obj);
+            toRemove.add(s);
+            continue;
           }
         }
-        
-        // Missed object
-        if (obj.y > 1.0) {
-          if (!obj.isBad) {
-            // Missed good food? Maybe lose a life if we want to make it hard
-            // For now, no penalty for missing
+
+        // Drop below screen
+        if (s.y > 1.05) {
+          if (!s.isHazard) {
+            _streak = 0; // Missed good food breaks streak
           }
-          toRemove.add(obj);
+          toRemove.add(s);
         }
       }
 
       for (var r in toRemove) {
-        objects.remove(r);
+        _snacks.remove(r);
       }
     });
   }
 
-  void gameOver() {
-    gameTimer?.cancel();
-    spawnTimer?.cancel();
+  Future<void> _triggerGameOver() async {
+    _gameTimer?.cancel();
+    _spawnTimer?.cancel();
+
     setState(() {
-      isPlaying = false;
-      isGameOver = true;
+      _isPlaying = false;
+      _isGameOver = true;
     });
-    _submitScore();
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF131A2A),
-        title: const Center(child: Text('YOU LOSE', style: TextStyle(color: Colors.redAccent, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 2.0))),
-        content: Text('You scored: $score', style: const TextStyle(color: Colors.white70, fontSize: 18)),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop();
-            },
-            child: const Text('Quit', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
-            onPressed: () {
-              Navigator.of(context).pop();
-              startGame();
-            },
-            child: const Text('Play Again', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+
+    final res = await GameRewardService.submitScore(
+      uid: widget.userModel.uid,
+      gameId: 'swapeat_drop',
+      score: _score,
     );
-  }
 
-  Future<void> _submitScore() async {
-    try {
-      await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/games/score'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${widget.userModel.uid}'},
-        body: json.encode({'game_id': 'swapeat_drop', 'score': score}),
-      ).timeout(const Duration(seconds: 15));
-    } catch (e) {
-      print("Error submitting score: \$e");
-    }
-  }
+    if (!mounted) return;
 
-  @override
-  void dispose() {
-    gameTimer?.cancel();
-    spawnTimer?.cancel();
-    super.dispose();
+    GameRewardService.showArcadeGameOverDialog(
+      context: context,
+      userModel: widget.userModel,
+      gameTitle: 'DISHI DROP',
+      score: _score,
+      coinsEarned: res.coinsEarned,
+      onPlayAgain: _startGame,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
         title: const Text('DISHI Drop', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: _bgColor,
         foregroundColor: Colors.white,
-        actions: [CoinsDisplay(uid: widget.userModel.uid, sessionCoins: score > 0 ? (score / 10).floor() : 0)],
+        elevation: 0,
+        actions: [CoinsDisplay(uid: widget.userModel.uid)],
       ),
-      body: Stack(
-        children: [
-          // Background/Play Area
-          GestureDetector(
-            onPanUpdate: (details) {
-              if (!isPlaying) return;
-              setState(() {
-                // Approximate mapping of delta to percentage
-                basketX += details.delta.dx / MediaQuery.of(context).size.width;
-                if (basketX < 0.1) basketX = 0.1;
-                if (basketX > 0.9) basketX = 0.9;
-              });
-            },
-            child: Container(
-              color: Colors.transparent,
-              width: double.infinity,
-              height: double.infinity,
-            ),
-          ),
-          
-          // Falling Objects
-          ...objects.map((obj) {
-            return Align(
-              alignment: Alignment(obj.x * 2 - 1, obj.y * 2 - 1),
-              child: Text(obj.icon, style: TextStyle(fontSize: 40)),
-            );
-          }),
-
-          // Basket
-          if (isPlaying || isGameOver)
-            Align(
-              alignment: Alignment(basketX * 2 - 1, 0.9), // y is around 0.9
+      body: GestureDetector(
+        onHorizontalDragUpdate: (details) {
+          if (!_isPlaying) return;
+          setState(() {
+            _basketX = (details.localPosition.dx / size.width).clamp(0.1, 0.9);
+          });
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Stack(
+          children: [
+            // Ambient neon cafeteria backdrop
+            Positioned.fill(
               child: Container(
-                width: 80,
-                height: 40,
                 decoration: const BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF091322), Color(0xFF131A2A), Color(0xFF0C101B)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                   ),
                 ),
-                child: const Center(child: Text('🛒', style: TextStyle(fontSize: 24))),
               ),
             ),
 
-          // HUD
-          if (isPlaying || isGameOver)
+            // Falling Snacks
+            ..._snacks.map((s) {
+              return Positioned(
+                left: s.x * size.width - 24,
+                top: s.y * size.height,
+                child: Container(
+                  decoration: s.isGolden
+                      ? BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(color: Colors.amber.withOpacity(0.8), blurRadius: 18, spreadRadius: 4),
+                          ],
+                        )
+                      : null,
+                  child: Text(s.icon, style: const TextStyle(fontSize: 44)),
+                ),
+              );
+            }),
+
+            // Player Catch Basket
             Positioned(
-              top: 10,
-              left: 20,
-              right: 20,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Score: $score', style: TextStyle(color: _neonCyan, fontSize: 24, fontWeight: FontWeight.bold)),
-                  Row(
-                    children: List.generate(3, (index) {
-                      return Text(index < lives ? '❤️' : '🤍', style: TextStyle(fontSize: 28));
-                    }),
-                  )
-                ],
+              left: _basketX * size.width - 55,
+              top: size.height * 0.82,
+              child: Container(
+                width: 110,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_neonCyan, const Color(0xFF028A6E)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(color: _neonCyan.withOpacity(0.4), blurRadius: 18, spreadRadius: 2),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.shopping_basket, color: Colors.black, size: 28),
+                    SizedBox(width: 6),
+                    Text('CATCH', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 13)),
+                  ],
+                ),
               ),
             ),
 
-          // Start Screen
-          if (!isPlaying && !isGameOver)
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Catch the food 🍔\nDodge the books 📚', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 18)),
-                  const SizedBox(height: 30),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _neonCyan,
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            // HUD
+            if (_isPlaying)
+              Positioned(
+                top: 16,
+                left: 20,
+                right: 20,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF131A2A),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: _neonCyan.withOpacity(0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 20),
+                          const SizedBox(width: 6),
+                          Text('$_score', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                          if (_streak >= 5) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(color: _neonPink, borderRadius: BorderRadius.circular(8)),
+                              child: const Text('2X 🔥', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                    onPressed: startGame,
-                    child: const Text('START GAME', style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold)),
-                  ),
-                ],
+                    Row(
+                      children: List.generate(4, (index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 4.0),
+                          child: Icon(
+                            Icons.favorite,
+                            color: index < _lives ? _neonPink : Colors.white24,
+                            size: 26,
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
               ),
-            )
-        ],
+
+            // Start Screen Overlay
+            if (!_isPlaying && !_isGameOver)
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.all(28),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF131A2A),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: _neonCyan.withOpacity(0.3)),
+                    boxShadow: [
+                      BoxShadow(color: _neonCyan.withOpacity(0.15), blurRadius: 24),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('🧺 DISHI DROP 🍔', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Drag the basket left and right to catch delicious snacks!\n\nCatch 5 in a row for 2X COMBO! 🔥\nGolden crowns 👑 yield 50 points!\nWatch out for bombs 💣 & bugs 🐛!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _neonCyan,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        ),
+                        onPressed: _startGame,
+                        child: const Text('START CATCHING', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

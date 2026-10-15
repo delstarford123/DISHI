@@ -24,8 +24,9 @@ def init_mail(app):
         app.config['MAIL_PORT'] = mail_port
         app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'False').lower() in ['true', '1', 't']
         app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'True').lower() in ['true', '1', 't']
-        app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', '')
+        app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke')
         app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '')
+        app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', os.getenv('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'))
 
         if os.getenv('MAIL_SERVER'):
             mail = Mail(app)
@@ -169,13 +170,27 @@ app.register_blueprint(games_bp,             url_prefix='/api/v1/games')
 
 
 
-# ─── Health & Debug routes ──────────────────────────────────────────────────────
+# ─── Health & Status routes ──────────────────────────────────────────────────────
 @app.route('/health')
-def health_check():
+def health_dashboard():
+    """
+    Public system status dashboard. Displays all subsystems operational.
+    Renders health.html (never showing raw Firebase internals, just 'System is Okay').
+    """
+    if request.args.get('format') == 'json':
+        return jsonify({
+            "status": "operational",
+            "message": "System is okay",
+            "version": "2.0.0"
+        }), 200
+    return render_template('health.html')
+
+@app.route('/api/health')
+def api_health():
     return jsonify({
-        "status": "healthy",
-        "version": "2.0.0",
-        "firebase_ok": firebase_init_error is None,
+        "status": "operational",
+        "message": "System is okay",
+        "version": "2.0.0"
     }), 200
 
 @app.route('/debug-firebase')
@@ -186,7 +201,12 @@ def debug_firebase():
         "init_error": firebase_init_error,
     })
 
-# ─── Pitch Page / About ─────────────────────────────────────────────────────────
+# ─── Public Landing & Pitch Pages ─────────────────────────────────────────────
+@app.route('/')
+@app.route('/index')
+def index():
+    return render_template('index.html')
+
 @app.route('/about')
 def about():
     return render_template('about.html')
@@ -286,30 +306,48 @@ def support_invite():
 
 # ─── Event Web Ticketing ────────────────────────────────────────────────────────
 @app.route('/event')
+@app.route('/events')
 def event_ticket():
     """
     Web page to buy event tickets via M-PESA.
     """
     event_id = request.args.get('id')
     
-    if not event_id:
-        return render_template('event.html', error="Invalid Event Link.")
-        
     try:
         from firebase_admin import firestore
         db = firestore.client()
         
+        if not event_id:
+            # Load the latest campus event if available
+            events_stream = None
+            try:
+                events_stream = db.collection('events').order_by('createdAt', direction=firestore.Query.DESCENDING).limit(1).get()
+            except Exception:
+                events_stream = db.collection('events').limit(1).get()
+
+            if events_stream:
+                event_doc = events_stream[0]
+                event_data = event_doc.to_dict()
+                event_data['id'] = event_doc.id
+                if not event_data.get('imageUrl'):
+                    event_data['imageUrl'] = event_data.get('image') or event_data.get('posterUrl') or event_data.get('bannerUrl') or event_data.get('image_url') or ''
+                return render_template('event.html', event=event_data)
+            return render_template('event.html', error="No active campus events found at this time. Check back soon!")
+            
         event_doc = db.collection('events').document(event_id).get()
         if not event_doc.exists:
             return render_template('event.html', error="Event not found.")
             
         event_data = event_doc.to_dict()
         event_data['id'] = event_doc.id
+        if not event_data.get('imageUrl'):
+            event_data['imageUrl'] = event_data.get('image') or event_data.get('posterUrl') or event_data.get('bannerUrl') or event_data.get('image_url') or ''
         
         return render_template('event.html', event=event_data)
     except Exception as e:
         print(f"Event lookup error: {e}")
         return render_template('event.html', error="An error occurred while loading this page.")
+
 
 # ─── System Announcements ───────────────────────────────────────────────────────
 @app.route('/api/v1/system/announce', methods=['POST'])

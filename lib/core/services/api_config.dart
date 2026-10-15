@@ -22,4 +22,10 @@ class ApiConfig {
   static const String transactionSos = '$baseUrl/api/v1/transaction/sos';
   static const String transactionCashout = '$baseUrl/api/v1/transaction/cashout';
   static const String transactionTopup = '$baseUrl/api/v1/transaction/topup';
+  static const String vendorAgentTopup = '$baseUrl/api/v4/vendor/topup';
+  
+  // Games Hub endpoints
+  static const String gamesScore = '$baseUrl/api/v1/games/score';
+  static const String gamesSpin = '$baseUrl/api/v1/games/spin';
+  static const String gamesRedeem = '$baseUrl/api/v1/games/redeem';
 }

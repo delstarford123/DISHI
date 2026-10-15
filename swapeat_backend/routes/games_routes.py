@@ -119,12 +119,14 @@ def redeem_store():
     
     costs = {
         'free_delivery': 500,
-        'discount_10': 1000,
+        'discount_10': 750,
+        'cash_50': 1000,
+        'cash_100': 2000,
         'vip_badge': 2500
     }
     
     if item_id not in costs:
-        return jsonify({"error": "Invalid item"}), 400
+        return jsonify({"error": "Invalid redemption item"}), 400
         
     cost = costs[item_id]
     
@@ -139,12 +141,19 @@ def redeem_store():
                 return False, "User not found"
             current_coins = snapshot.to_dict().get('dishi_coins', 0)
             if current_coins < deduct:
-                return False, "Insufficient Dishi Coins"
+                return False, "Insufficient Dishi Coins balance"
             transaction.update(u_ref, {'dishi_coins': current_coins - deduct})
+            
             if item_id == 'free_delivery':
                 transaction.set(stats_ref, {'free_deliveries': firestore.Increment(1)}, merge=True)
+            elif item_id == 'discount_10':
+                transaction.set(stats_ref, {'discount_vouchers': firestore.Increment(1)}, merge=True)
+            elif item_id == 'cash_50':
+                transaction.update(u_ref, {'walletBalance': firestore.Increment(50.0)})
+            elif item_id == 'cash_100':
+                transaction.update(u_ref, {'walletBalance': firestore.Increment(100.0)})
             elif item_id == 'vip_badge':
-                transaction.update(u_ref, {'premium_badge': True})
+                transaction.update(u_ref, {'premium_badge': True, 'isVipBadge': True})
             return True, "Success"
 
         transaction = db.transaction()

@@ -1,0 +1,2794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DISHI — Campus Meals, Agency Banking & Youth Employment Hub</title>
+    <meta name="description" content="African startup transforming campus life: Smart meal ordering, 0.5% vendor agent commission, campus food delivery by student couriers, certified comrade & community Fundis, and offline NFC dignity.">
+
+    <!-- Canonical & Favicons -->
+    <link rel="canonical" href="https://dishi.delstarfordworks.co.ke/">
+    <link rel="icon" type="image/png" href="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+    <link rel="shortcut icon" type="image/png" href="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+    <link rel="apple-touch-icon" href="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+
+    <!-- Open Graph / WhatsApp / Facebook / LinkedIn / Telegram -->
+    <meta property="og:site_name" content="DISHI">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://dishi.delstarfordworks.co.ke/">
+    <meta property="og:title" content="DISHI — Campus Meals, Agency Banking & Youth Employment Hub">
+    <meta property="og:description" content="African startup transforming campus life: Smart meal ordering, 0.5% vendor agent commission, campus food delivery by student couriers, certified comrade & community Fundis, and offline NFC dignity.">
+    <meta property="og:image" content="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+    <meta property="og:image:secure_url" content="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:image:alt" content="DISHI Official Logo">
+
+    <!-- Twitter Card / X -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:site" content="@DishiAfrica">
+    <meta name="twitter:title" content="DISHI — Campus Meals, Agency Banking & Youth Employment Hub">
+    <meta name="twitter:description" content="African startup transforming campus life: Smart meal ordering, 0.5% vendor agent commission, campus food delivery by student couriers, certified comrade & community Fundis, and offline NFC dignity.">
+    <meta name="twitter:image" content="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+    <meta name="twitter:image:alt" content="DISHI Official Logo">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #080D18;
+            --bg-card: #101726;
+            --bg-card-hover: #162035;
+            --mint: #05D5AA;
+            --mint-glow: rgba(5, 213, 170, 0.35);
+            --pink: #FF2A6D;
+            --pink-glow: rgba(255, 42, 109, 0.35);
+            --purple: #9D4EDD;
+            --gold: #FFB703;
+            --blue: #2563EB;
+            --text-main: #FFFFFF;
+            --text-muted: #94A3B8;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(5, 213, 170, 0.3);
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --radius-sm: 10px;
+        }
+
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(ellipse 70% 50% at 20% 0%, rgba(5, 213, 170, 0.08), transparent 70%),
+                radial-gradient(ellipse 60% 50% at 80% 30%, rgba(255, 42, 109, 0.06), transparent 70%),
+                radial-gradient(ellipse 80% 60% at 50% 100%, rgba(157, 78, 221, 0.08), transparent 70%);
+        }
+
+        /* ─── NAV BAR ────────────────────────────────────────── */
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            background: rgba(8, 13, 24, 0.85);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+        }
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: #fff;
+        }
+        .brand-logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 2px solid var(--mint);
+            box-shadow: 0 0 16px var(--mint-glow);
+        }
+        .brand-name {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            background: linear-gradient(135deg, #fff 40%, var(--mint) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            list-style: none;
+        }
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: color 0.2s ease;
+        }
+        .nav-links a:hover {
+            color: var(--mint);
+        }
+        .btn-nav {
+            background: linear-gradient(135deg, var(--mint), #028A6E);
+            color: #000 !important;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: 700 !important;
+            box-shadow: 0 4px 15px var(--mint-glow);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-nav:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(5, 213, 170, 0.5);
+        }
+        .btn-playstore {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: #0B111F;
+            border: 1.5px solid rgba(5, 213, 170, 0.45);
+            padding: 10px 22px;
+            border-radius: 14px;
+            text-decoration: none;
+            color: #fff;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 16px rgba(5, 213, 170, 0.15);
+        }
+        .btn-playstore:hover {
+            transform: translateY(-3px);
+            border-color: var(--mint);
+            background: #111A30;
+            box-shadow: 0 8px 30px rgba(5, 213, 170, 0.45);
+        }
+        .btn-playstore .play-icon {
+            flex-shrink: 0;
+        }
+        .btn-playstore .play-text {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            line-height: 1.15;
+        }
+        .btn-playstore .play-sub {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        .btn-playstore .play-main {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.3px;
+        }
+
+        /* ─── HERO SECTION ───────────────────────────────────── */
+        .hero {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 80px 24px 60px;
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 48px;
+            align-items: center;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: rgba(5, 213, 170, 0.1);
+            border: 1px solid var(--border-glow);
+            border-radius: 20px;
+            color: var(--mint);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+        .hero-badge::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--mint);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--mint);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.7; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.7; }
+        }
+        .hero h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 3.2rem;
+            line-height: 1.15;
+            font-weight: 700;
+            margin-bottom: 24px;
+            letter-spacing: -1px;
+        }
+        .hero h1 span.gradient {
+            background: linear-gradient(135deg, var(--mint) 0%, #38BDF8 50%, var(--pink) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p.lead {
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            line-height: 1.7;
+        }
+        .hero-ctas {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--mint);
+            color: #000;
+            padding: 16px 28px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 15px;
+            text-decoration: none;
+            box-shadow: 0 6px 24px var(--mint-glow);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(5, 213, 170, 0.5);
+        }
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            padding: 16px 28px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 15px;
+            text-decoration: none;
+            border: 1px solid var(--border);
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* ─── PHONE MOCKUP PREVIEW ───────────────────────────── */
+        .mockup-container {
+            display: flex;
+            justify-content: center;
+            position: relative;
+        }
+        .phone-frame {
+            width: 320px;
+            height: 640px;
+            background: #020617;
+            border-radius: 46px;
+            border: 8px solid #1E293B;
+            box-shadow:
+                0 25px 60px -15px rgba(0, 0, 0, 0.8),
+                0 0 50px -10px var(--mint-glow);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .phone-notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 140px;
+            height: 24px;
+            background: #1E293B;
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
+            z-index: 10;
+        }
+        .mock-screen {
+            flex: 1;
+            padding: 40px 18px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+        }
+        .mock-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .mock-wallet {
+            background: linear-gradient(135deg, #064E3B, #0F172A);
+            border: 1px solid var(--mint);
+            border-radius: 18px;
+            padding: 16px;
+        }
+        .mock-tag {
+            font-size: 10px;
+            color: var(--mint);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .mock-balance {
+            font-size: 26px;
+            font-weight: 800;
+            color: #fff;
+            margin: 4px 0;
+        }
+        .mock-agent-badge {
+            display: inline-block;
+            background: rgba(255, 183, 3, 0.15);
+            color: var(--gold);
+            border: 1px solid rgba(255, 183, 3, 0.4);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+        .mock-pill-row {
+            display: flex;
+            gap: 8px;
+        }
+        .mock-pill {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            padding: 8px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .mock-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* ─── STATS BAR ──────────────────────────────────────── */
+        .stats-bar {
+            max-width: 1200px;
+            margin: 0 auto 60px;
+            padding: 0 24px;
+        }
+        .stats-grid {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        .stat-item {
+            text-align: center;
+            border-right: 1px solid var(--border);
+        }
+        .stat-item:last-child {
+            border-right: none;
+        }
+        .stat-num {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: var(--mint);
+            margin-bottom: 4px;
+        }
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ─── SECTION COMMON ─────────────────────────────────── */
+        .section-wrap {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+        .section-header {
+            text-align: center;
+            max-width: 700px;
+            margin: 0 auto 50px;
+        }
+        .section-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 14px;
+            letter-spacing: -0.5px;
+        }
+        .section-desc {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+        }
+
+        /* ─── WHAT DISHI HAS GRID ────────────────────────────── */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .feature-card:hover {
+            transform: translateY(-6px);
+            border-color: var(--mint);
+            box-shadow: 0 12px 30px rgba(5, 213, 170, 0.15);
+        }
+        .feature-icon-wrap {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+        .feature-card h3 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .feature-card p {
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* ─── VENDOR FLOAT ARCHITECTURE SECTION ──────────────── */
+        .float-deepdive {
+            background: linear-gradient(180deg, #101726 0%, #0C121E 100%);
+            border: 1px solid var(--mint-glow);
+            border-radius: 32px;
+            padding: 48px;
+            margin-top: 30px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+        .float-steps-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            margin-top: 36px;
+        }
+        .float-step {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 20px 16px;
+            position: relative;
+        }
+        .step-badge {
+            display: inline-block;
+            background: var(--mint);
+            color: #000;
+            font-size: 12px;
+            font-weight: 900;
+            width: 28px;
+            height: 28px;
+            line-height: 28px;
+            text-align: center;
+            border-radius: 50%;
+            margin-bottom: 12px;
+        }
+        .float-step h4 {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+        .float-step p {
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        /* ─── COMRADE EMPLOYMENT & FUNDI SECTION ─────────────── */
+        .employment-box {
+            background: linear-gradient(180deg, rgba(16, 23, 38, 0.95) 0%, rgba(10, 15, 26, 0.98) 100%);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 32px;
+            padding: 48px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(56, 189, 248, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+        .employment-box::before {
+            content: '';
+            position: absolute;
+            top: -100px;
+            right: -100px;
+            width: 320px;
+            height: 320px;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.15), transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .employment-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+            margin-top: 36px;
+        }
+        .employment-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 32px 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+            position: relative;
+        }
+        .employment-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(56, 189, 248, 0.5);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 0 25px rgba(56, 189, 248, 0.15);
+        }
+        .employment-card-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+        .employment-card-icon {
+            width: 54px;
+            height: 54px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            background: rgba(56, 189, 248, 0.12);
+            color: #38BDF8;
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            flex-shrink: 0;
+        }
+        .employment-card-title h3 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+        .employment-card-tag {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #38BDF8;
+        }
+        .employment-card p.intro {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .employment-modes {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 22px;
+        }
+        .employment-mode-item {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 12px;
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .mode-ico {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        .mode-info {
+            font-size: 12px;
+        }
+        .mode-title {
+            font-weight: 700;
+            color: #fff;
+            display: block;
+        }
+        .mode-sub {
+            color: var(--text-muted);
+            font-size: 11px;
+            line-height: 1.3;
+        }
+        .escrow-flow-strip {
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px dashed rgba(5, 213, 170, 0.4);
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: auto;
+        }
+        .escrow-flow-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--mint);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .escrow-steps {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            text-align: center;
+        }
+        .escrow-step-item {
+            position: relative;
+        }
+        .escrow-step-num {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(5, 213, 170, 0.2);
+            color: var(--mint);
+            border: 1px solid var(--mint);
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 20px;
+            margin: 0 auto 5px;
+        }
+        .escrow-step-txt {
+            font-size: 10.5px;
+            color: #E2E8F0;
+            line-height: 1.3;
+        }
+        .employment-metrics-strip {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-top: 36px;
+            padding-top: 28px;
+            border-top: 1px solid var(--border);
+        }
+        .emp-stat {
+            text-align: center;
+        }
+        .emp-stat-num {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #38BDF8;
+            margin-bottom: 4px;
+        }
+        .emp-stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+        .emp-cta-row {
+            margin-top: 28px;
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: 20px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .emp-cta-text h4 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .emp-cta-text p {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* ─── CONTACT PARTNER SECTION ────────────────────────── */
+        .contact-box {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(5, 213, 170, 0.1) 100%);
+            border: 1px solid rgba(5, 213, 170, 0.3);
+            border-radius: 32px;
+            padding: 56px 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 48px;
+            align-items: center;
+        }
+        .contact-info h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2rem;
+            margin-bottom: 16px;
+        }
+        .contact-info p {
+            color: var(--text-muted);
+            margin-bottom: 24px;
+            line-height: 1.7;
+        }
+        .partner-email-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-glow);
+            padding: 14px 24px;
+            border-radius: 30px;
+            color: var(--mint);
+            font-weight: 700;
+            text-decoration: none;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        .partner-email-link:hover {
+            background: var(--mint);
+            color: #000;
+            box-shadow: 0 0 20px var(--mint-glow);
+        }
+        .contact-form {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            background: #0B111D;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--mint);
+        }
+        .btn-submit {
+            background: var(--mint);
+            color: #000;
+            border: none;
+            padding: 14px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 15px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px var(--mint-glow);
+            transition: transform 0.2s;
+        }
+        .btn-submit:hover {
+            transform: translateY(-2px);
+        }
+
+        /* ─── FOOTER ─────────────────────────────────────────── */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 48px 24px;
+            background: #050811;
+        }
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+        .footer-links {
+            display: flex;
+            gap: 20px;
+            list-style: none;
+        }
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+        .footer-links a:hover {
+            color: var(--mint);
+        }
+        .copy {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* ─── INCLUSION & AFRICAN VISION ────────────────────── */
+        .inclusion-header {
+            text-align: center;
+            max-width: 840px;
+            margin: 0 auto 48px;
+        }
+        .inclusion-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+        .inclusion-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+        }
+        .inclusion-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(5, 213, 170, 0.45);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(5, 213, 170, 0.12);
+        }
+        .inclusion-img-wrap {
+            position: relative;
+            width: 100%;
+            height: 220px;
+            overflow: hidden;
+            background: #000;
+        }
+        .inclusion-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .inclusion-card:hover .inclusion-img {
+            transform: scale(1.06);
+        }
+        .inclusion-overlay-badge {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            background: rgba(8, 13, 24, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--border);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+        .inclusion-body {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+        .inclusion-body h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 10px;
+            line-height: 1.35;
+        }
+        .inclusion-body p {
+            color: var(--text-muted);
+            font-size: 13.5px;
+            line-height: 1.65;
+            margin-bottom: 18px;
+            flex: 1;
+        }
+        .inclusion-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .inclusion-tag {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--mint);
+        }
+
+        /* ─── SUPPORT DISHI STK SECTION ─────────────────────── */
+        .support-box {
+            background: linear-gradient(135deg, rgba(5, 213, 170, 0.06), rgba(16, 23, 38, 0.95) 50%, rgba(255, 42, 109, 0.04));
+            border: 1.5px solid rgba(5, 213, 170, 0.35);
+            border-radius: var(--radius-lg);
+            padding: 48px;
+            display: grid;
+            grid-template-columns: 1fr 1.15fr;
+            gap: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(5, 213, 170, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .support-box::before {
+            content: '';
+            position: absolute;
+            top: -120px;
+            right: -120px;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(5, 213, 170, 0.15), transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .support-info h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            line-height: 1.25;
+            margin-bottom: 16px;
+        }
+        .support-info p {
+            color: var(--text-muted);
+            font-size: 15px;
+            line-height: 1.7;
+            margin-bottom: 24px;
+        }
+        .support-impact-pill {
+            background: rgba(5, 213, 170, 0.08);
+            border: 1px solid rgba(5, 213, 170, 0.25);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        .support-impact-pill h4 {
+            color: var(--mint);
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .support-impact-pill p {
+            color: #E2E8F0;
+            font-size: 13px;
+            margin: 0;
+            line-height: 1.5;
+        }
+        .mpesa-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #0B1710;
+            border: 1px solid #10B981;
+            padding: 6px 14px;
+            border-radius: 20px;
+            color: #34D399;
+            font-weight: 700;
+            font-size: 12px;
+        }
+        .support-form-card {
+            background: rgba(8, 13, 24, 0.7);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            backdrop-filter: blur(10px);
+        }
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .preset-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 12px 6px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .preset-btn:hover {
+            border-color: var(--mint);
+            background: rgba(5, 213, 170, 0.08);
+        }
+        .preset-btn.active {
+            background: var(--mint);
+            color: #000;
+            border-color: var(--mint);
+            box-shadow: 0 0 16px var(--mint-glow);
+        }
+        .phone-input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .phone-prefix {
+            position: absolute;
+            left: 14px;
+            font-weight: 700;
+            color: #34D399;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            pointer-events: none;
+        }
+        .phone-input {
+            width: 100%;
+            background: #0B111D;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 16px 12px 68px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .phone-input:focus {
+            border-color: #10B981;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+        }
+        .btn-stk-submit {
+            background: linear-gradient(135deg, #05D5AA, #028A6E);
+            color: #000;
+            border: none;
+            padding: 16px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px var(--mint-glow);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .btn-stk-submit:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(5, 213, 170, 0.6);
+        }
+        .btn-stk-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* ─── STK MODAL OVERLAY ─────────────────────────────── */
+        .stk-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(8, 13, 24, 0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .stk-modal-backdrop.show {
+            display: flex;
+        }
+        .stk-modal-card {
+            background: #101726;
+            border: 1.5px solid var(--mint);
+            border-radius: var(--radius-lg);
+            max-width: 440px;
+            width: 100%;
+            padding: 36px 28px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 40px var(--mint-glow);
+            animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+        @keyframes modalPop {
+            from { transform: scale(0.92); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .stk-pulse-ring {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(5, 213, 170, 0.15);
+            border: 2px solid var(--mint);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 32px;
+            animation: pulseGlow 1.8s infinite;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(5, 213, 170, 0.4); }
+            50% { transform: scale(1.08); box-shadow: 0 0 0 16px rgba(5, 213, 170, 0); }
+        }
+
+        /* ─── THREE BARS HAMBURGER BUTTON ──────────────────── */
+        .hamburger-btn {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            width: 44px;
+            height: 44px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1.5px solid rgba(5, 213, 170, 0.4);
+            border-radius: 12px;
+            cursor: pointer;
+            z-index: 2005;
+            transition: all 0.25s ease;
+        }
+        .hamburger-btn:hover {
+            background: rgba(5, 213, 170, 0.15);
+            border-color: var(--mint);
+            box-shadow: 0 0 12px var(--mint-glow);
+        }
+        .hamburger-btn .bar {
+            width: 22px;
+            height: 2.5px;
+            background-color: #fff;
+            border-radius: 4px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: center;
+        }
+        .hamburger-btn.active .bar-1 {
+            transform: translateY(7.5px) rotate(45deg);
+            background-color: var(--mint);
+        }
+        .hamburger-btn.active .bar-2 {
+            opacity: 0;
+            transform: scaleX(0);
+        }
+        .hamburger-btn.active .bar-3 {
+            transform: translateY(-7.5px) rotate(-45deg);
+            background-color: var(--mint);
+        }
+
+        /* ─── MOBILE DRAWER (SLIDES FROM LEFT TO RIGHT) ───── */
+        .mobile-nav-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(4, 8, 16, 0.8);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 2100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .mobile-nav-backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .mobile-nav-drawer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 86%;
+            max-width: 340px;
+            height: 100vh;
+            height: 100dvh;
+            background: #090F1C;
+            border-right: 1.5px solid rgba(5, 213, 170, 0.35);
+            z-index: 2200;
+            transform: translateX(-100%);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 20px 0 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(5, 213, 170, 0.15);
+            overflow: hidden;
+        }
+        .mobile-nav-drawer.open {
+            transform: translateX(0);
+        }
+        .drawer-header {
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            background: rgba(8, 13, 24, 0.95);
+        }
+        .drawer-close-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border);
+            color: #fff;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .drawer-close-btn:hover {
+            background: rgba(255, 42, 109, 0.2);
+            border-color: var(--pink);
+            color: var(--pink);
+        }
+        .drawer-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .drawer-section-title {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 0 4px;
+        }
+        .drawer-links {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .drawer-links li a {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            color: #E2E8F0;
+            text-decoration: none;
+            font-size: 14.5px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .drawer-links li a:hover, .drawer-links li a:active {
+            background: rgba(5, 213, 170, 0.1);
+            border-color: rgba(5, 213, 170, 0.3);
+            color: #fff;
+            transform: translateX(4px);
+        }
+        .drawer-links li a .nav-ico {
+            font-size: 18px;
+            width: 24px;
+            display: inline-flex;
+            justify-content: center;
+        }
+        .drawer-links li a.highlight-link {
+            color: var(--mint);
+            border-color: rgba(5, 213, 170, 0.25);
+            background: rgba(5, 213, 170, 0.05);
+        }
+        .drawer-links li a.support-link {
+            color: #34D399;
+            border-color: rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.08);
+        }
+        .drawer-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
+        }
+        .drawer-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .drawer-email-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: #fff;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            transition: all 0.2s;
+            word-break: break-all;
+        }
+        .drawer-email-btn:hover {
+            background: rgba(5, 213, 170, 0.15);
+            border-color: var(--mint);
+            color: var(--mint);
+        }
+        .drawer-footer-note {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: auto;
+            padding-top: 12px;
+        }
+
+        /* ─── GOOGLE PLAY STORE BUTTON & APP CALLOUT ──────── */
+        .btn-playstore {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+            border: 1.5px solid rgba(5, 213, 170, 0.5);
+            border-radius: 14px;
+            padding: 10px 20px;
+            color: #fff;
+            text-decoration: none;
+            box-shadow: 0 4px 20px rgba(5, 213, 170, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-playstore:hover {
+            transform: translateY(-3px) scale(1.02);
+            border-color: var(--mint);
+            background: linear-gradient(135deg, rgba(5, 213, 170, 0.25), rgba(255, 255, 255, 0.06));
+            box-shadow: 0 8px 30px rgba(5, 213, 170, 0.45);
+        }
+        .playstore-icon {
+            width: 28px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+        .playstore-text {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            line-height: 1.15;
+        }
+        .playstore-text .sub {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94A3B8;
+            font-weight: 600;
+        }
+        .playstore-text .main {
+            font-size: 15px;
+            font-weight: 800;
+            color: #fff;
+            font-family: 'Space Grotesk', sans-serif;
+            letter-spacing: 0.3px;
+        }
+        .app-download-banner {
+            background: linear-gradient(135deg, rgba(5, 213, 170, 0.12), rgba(16, 23, 38, 0.95));
+            border: 1.5px solid rgba(5, 213, 170, 0.35);
+            border-radius: var(--radius-lg);
+            padding: 36px 32px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(5, 213, 170, 0.12);
+        }
+        .app-download-banner h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: #fff;
+            margin: 12px 0 8px;
+        }
+        .app-download-banner p {
+            color: var(--text-muted);
+            font-size: 14.5px;
+            max-width: 650px;
+            line-height: 1.6;
+        }
+
+        /* ─── RESPONSIVE SYSTEM (ALL SCREEN SIZES) ────────── */
+        @media (max-width: 992px) {
+            .hamburger-btn {
+                display: flex;
+            }
+            .nav-links {
+                display: none !important;
+            }
+            .hero {
+                grid-template-columns: 1fr;
+                text-align: center;
+                padding-top: 40px;
+                padding-bottom: 40px;
+                gap: 36px;
+            }
+            .hero-ctas {
+                justify-content: center;
+            }
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .inclusion-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .support-box {
+                grid-template-columns: 1fr;
+                padding: 32px 24px;
+            }
+            .float-steps-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .contact-box {
+                grid-template-columns: 1fr;
+                padding: 36px 24px;
+                gap: 32px;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 12px 18px;
+            }
+            .brand-name {
+                font-size: 20px;
+            }
+            .brand-logo {
+                width: 38px;
+                height: 38px;
+            }
+            footer {
+                padding: 36px 18px;
+            }
+            .footer-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 20px;
+            }
+            .footer-links {
+                flex-direction: column;
+                gap: 12px;
+                width: 100%;
+            }
+            .footer-links li a {
+                display: inline-block;
+                font-size: 13.5px;
+                word-break: break-all;
+            }
+            .copy {
+                font-size: 12px;
+                line-height: 1.5;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .section-wrap {
+                padding: 36px 16px;
+                max-width: 100%;
+            }
+            .hero {
+                padding: 24px 16px 20px;
+                gap: 28px;
+            }
+            .hero h1 {
+                font-size: clamp(1.75rem, 6.5vw, 2.3rem);
+                line-height: 1.2;
+                letter-spacing: -0.5px;
+            }
+            .hero p.lead {
+                font-size: 13.5px;
+                line-height: 1.6;
+                margin-bottom: 22px;
+            }
+            .hero-ctas {
+                flex-direction: column;
+                width: 100%;
+                gap: 10px;
+            }
+            .hero-ctas a {
+                width: 100%;
+                justify-content: center;
+                text-align: center;
+                padding: 13px 20px;
+                font-size: 14px;
+            }
+            .mockup-container {
+                width: 100%;
+                max-width: 100%;
+                overflow: hidden;
+            }
+            .phone-frame {
+                width: 100%;
+                max-width: 295px;
+                height: 560px;
+                border-width: 6px;
+                border-radius: 36px;
+            }
+            .features-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            .feature-card {
+                padding: 22px 16px;
+            }
+            .inclusion-grid {
+                grid-template-columns: 1fr;
+                gap: 18px;
+            }
+            .inclusion-img-wrap {
+                height: 185px;
+            }
+            .inclusion-body {
+                padding: 18px 16px;
+            }
+            .float-deepdive {
+                padding: 24px 14px;
+                border-radius: 20px;
+            }
+            .float-deepdive h2 {
+                font-size: 1.5rem !important;
+            }
+            .float-steps-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            .float-step {
+                padding: 16px;
+            }
+            .employment-box {
+                padding: 24px 14px;
+                border-radius: 20px;
+            }
+            .employment-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            .employment-card {
+                padding: 22px 16px;
+            }
+            .employment-modes {
+                grid-template-columns: 1fr;
+            }
+            .escrow-steps {
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+            .employment-metrics-strip {
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+            }
+            .support-box {
+                padding: 24px 14px;
+                border-radius: 20px;
+            }
+            .preset-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 6px;
+            }
+            .preset-btn {
+                padding: 10px 4px;
+                font-size: 12.5px;
+            }
+            .phone-input-wrap {
+                position: relative;
+                width: 100%;
+            }
+            .phone-input {
+                font-size: 14px;
+                padding: 11px 12px 11px 68px;
+            }
+            .stats-bar {
+                padding: 0 12px;
+                margin-top: -20px;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 14px;
+                padding: 18px 12px;
+            }
+            .stat-item {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                padding-bottom: 12px;
+            }
+            .stat-num {
+                font-size: 1.8rem;
+            }
+            .contact-box {
+                padding: 24px 14px;
+                border-radius: 20px;
+                gap: 20px;
+            }
+            .contact-info h3 {
+                font-size: 1.45rem;
+            }
+            .partner-email-link {
+                font-size: 13px;
+                padding: 10px 14px;
+                word-break: break-all;
+                width: 100%;
+                justify-content: center;
+                box-sizing: border-box;
+            }
+            .contact-form {
+                padding: 20px 14px;
+                border-radius: 16px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .form-group input, .form-group select, .form-group textarea {
+                font-size: 13.5px;
+                padding: 10px 12px;
+            }
+            .app-download-banner {
+                padding: 24px 16px;
+                border-radius: 20px;
+                text-align: center;
+            }
+            .app-download-banner h2 {
+                font-size: 1.45rem;
+            }
+            .app-download-banner .btn-playstore {
+                width: 100%;
+                justify-content: center;
+                box-sizing: border-box;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .preset-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .brand-name {
+                font-size: 18px;
+            }
+            .brand-logo {
+                width: 34px;
+                height: 34px;
+            }
+            .phone-frame {
+                max-width: 275px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAV BAR -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="brand">
+                <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI Logo" class="brand-logo">
+                <span class="brand-name">DISHI</span>
+            </a>
+            
+            <ul class="nav-links">
+                <li><a href="#features">Ecosystem</a></li>
+                <li><a href="#inclusion">Vision & Inclusion</a></li>
+                <li><a href="#employment" style="color: #38BDF8; font-weight: 700;">Delivery & Fundi 🛵</a></li>
+                <li><a href="#agents">Agent Float</a></li>
+                <li><a href="/events" style="color: var(--mint); font-weight: 700;">Events 🎉</a></li>
+                <li><a href="#support" style="color: var(--mint); font-weight: 700;">Support DISHI 💚</a></li>
+                <li><a href="/about">Investor Pitch</a></li>
+                <li><a href="/fund">Harambee Fund</a></li>
+                <li><a href="/health">Health</a></li>
+                <li><a href="#contact">Partner Contact</a></li>
+                <li><a href="mailto:dishi@delstarfordworks.co.ke" class="btn-nav">Email Us</a></li>
+            </ul>
+
+            <!-- THREE BARS MOBILE HAMBURGER BUTTON -->
+            <button type="button" class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle navigation menu" aria-expanded="false" onclick="toggleMobileNav()">
+                <span class="bar bar-1"></span>
+                <span class="bar bar-2"></span>
+                <span class="bar bar-3"></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- MOBILE NAVIGATION OVERLAY & DRAWER (SLIDES FROM LEFT TO RIGHT) -->
+    <div id="mobileNavBackdrop" class="mobile-nav-backdrop" onclick="closeMobileNav()"></div>
+    
+    <aside id="mobileNavDrawer" class="mobile-nav-drawer" aria-label="Mobile Navigation Drawer">
+        <div class="drawer-header">
+            <a href="/" class="brand" onclick="closeMobileNav()">
+                <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI Logo" class="brand-logo" style="width: 36px; height: 36px;">
+                <span class="brand-name" style="font-size: 20px;">DISHI</span>
+            </a>
+            <button type="button" class="drawer-close-btn" onclick="closeMobileNav()" aria-label="Close Navigation">
+                ✕
+            </button>
+        </div>
+
+        <div class="drawer-content">
+            <div class="drawer-section-title">Navigation Menu</div>
+            <ul class="drawer-links">
+                <li><a href="#features" onclick="closeMobileNav()"><span class="nav-ico">🍽️</span><span>Ecosystem Features</span></a></li>
+                <li><a href="#inclusion" onclick="closeMobileNav()"><span class="nav-ico">🌍</span><span>Vision & Inclusion</span></a></li>
+                <li><a href="#employment" onclick="closeMobileNav()" style="color: #38BDF8; font-weight: 700;"><span class="nav-ico">🛵</span><span>Delivery & Fundi Gigs</span></a></li>
+                <li><a href="#agents" onclick="closeMobileNav()"><span class="nav-ico">🏦</span><span>Agent Float (0.5%)</span></a></li>
+                <li><a href="/events" onclick="closeMobileNav()" class="highlight-link"><span class="nav-ico">🎉</span><span>Campus Events</span></a></li>
+                <li><a href="#support" onclick="closeMobileNav()" class="support-link"><span class="nav-ico">💚</span><span>Support DISHI Community</span></a></li>
+                <li><a href="/about" onclick="closeMobileNav()"><span class="nav-ico">📊</span><span>Investor Pitch & Story</span></a></li>
+                <li><a href="/fund" onclick="closeMobileNav()"><span class="nav-ico">🤝</span><span>Harambee Fund</span></a></li>
+                <li><a href="/health" onclick="closeMobileNav()"><span class="nav-ico">🩺</span><span>System Health</span></a></li>
+                <li><a href="#contact" onclick="closeMobileNav()"><span class="nav-ico">✉️</span><span>Partner Contact</span></a></li>
+            </ul>
+
+            <div class="drawer-divider"></div>
+
+            <div class="drawer-section-title">Get DISHI App</div>
+            <div class="drawer-actions">
+                <a href="https://play.google.com/store/apps/details?id=com.delstarfordworks.dishi" target="_blank" rel="noopener" class="btn-playstore" style="width: 100%; justify-content: center; box-sizing: border-box;">
+                    <svg class="playstore-icon" viewBox="0 0 512 512">
+                        <path fill="#4285F4" d="M32.5 16.5C30.2 18.9 28.8 22.8 28.8 28.2v455.6c0 5.4 1.4 9.3 3.7 11.7l1.3 1.2 254.9-254.9v-6L33.8 15.3l-1.3 1.2z"/>
+                        <path fill="#FBBC04" d="M380.1 369.3l-91.4-91.4v-6l91.4-91.4 2.1 1.2 108.3 61.5c30.9 17.5 30.9 46.2 0 63.8l-108.3 61.5-2.1 0.8z"/>
+                        <path fill="#EA4335" d="M288.7 271.9L33.8 526.8c10.2 10.8 27.2 12.1 46.5 1.1l208.4-118.4-91.4-91.4z"/>
+                        <path fill="#34A853" d="M288.7 240.1l91.4-91.4L171.7 30.3C152.4 19.3 135.4 20.6 125.2 31.4l163.5 208.7z"/>
+                    </svg>
+                    <div class="playstore-text">
+                        <span class="sub">GET IT ON</span>
+                        <span class="main">Google Play</span>
+                    </div>
+                </a>
+
+                <a href="mailto:dishi@delstarfordworks.co.ke?subject=DISHI%20Mobile%20Inquiry" class="drawer-email-btn">
+                    <span>✉️ dishi@delstarfordworks.co.ke</span>
+                </a>
+            </div>
+
+            <div class="drawer-footer-note">
+                DISHI • Designed & Created in Africa 🌍
+            </div>
+        </div>
+    </aside>
+
+    <!-- HERO SECTION -->
+    <header class="hero">
+        <div class="hero-left">
+
+            <h1>The Operating System for <span class="gradient">Campus Meals, Agency Banking</span> & Universal Inclusion.</h1>
+            <p class="lead">
+                DISHI is an African startup designed and created in Africa to solve campus hunger and financial exclusion. We empower cafeteria vendors as 0.5% commission agents, bring barrier-free access to students gifted differently (Blind, Deaf, Mobility), and deliver tap-to-eat dignity with offline smart cards and IoT hardware.
+            </p>
+            <div class="hero-ctas">
+                <a href="https://play.google.com/store/apps/details?id=com.delstarfordworks.dishi" target="_blank" rel="noopener" class="btn-playstore" id="heroPlayStoreBtn">
+                    <svg class="playstore-icon" viewBox="0 0 512 512">
+                        <path fill="#4285F4" d="M32.5 16.5C30.2 18.9 28.8 22.8 28.8 28.2v455.6c0 5.4 1.4 9.3 3.7 11.7l1.3 1.2 254.9-254.9v-6L33.8 15.3l-1.3 1.2z"/>
+                        <path fill="#FBBC04" d="M380.1 369.3l-91.4-91.4v-6l91.4-91.4 2.1 1.2 108.3 61.5c30.9 17.5 30.9 46.2 0 63.8l-108.3 61.5-2.1 0.8z"/>
+                        <path fill="#EA4335" d="M288.7 271.9L33.8 526.8c10.2 10.8 27.2 12.1 46.5 1.1l208.4-118.4-91.4-91.4z"/>
+                        <path fill="#34A853" d="M288.7 240.1l91.4-91.4L171.7 30.3C152.4 19.3 135.4 20.6 125.2 31.4l163.5 208.7z"/>
+                    </svg>
+                    <div class="playstore-text">
+                        <span class="sub">GET IT ON</span>
+                        <span class="main">Google Play</span>
+                    </div>
+                </a>
+                <a href="/events" class="btn-secondary" style="border-color: rgba(5, 213, 170, 0.4); color: var(--mint);">
+                    <span>🎉 Campus Events</span>
+                </a>
+                <a href="#support" class="btn-primary" style="background: linear-gradient(135deg, #05D5AA, #028A6E); color: #000; box-shadow: 0 4px 20px var(--mint-glow);">
+                    <span>Support Our Community</span>
+                    <span>💚</span>
+                </a>
+                <a href="#inclusion" class="btn-secondary">
+                    <span>Our African Vision & Inclusion</span>
+                    <span>→</span>
+                </a>
+                <a href="#features" class="btn-secondary">
+                    <span>Explore Features</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="mockup-container">
+            <div class="phone-frame">
+                <div class="phone-notch"></div>
+                <div class="mock-screen">
+                    <div class="mock-header">
+                        <span style="font-weight: 800; font-size: 13px; color: var(--mint);">DISHI PAY & EAT</span>
+                        <span style="font-size: 11px; color: #fff;">10:42 AM</span>
+                    </div>
+
+                    <div class="mock-wallet">
+                        <div class="mock-tag">Meal Balance</div>
+                        <div class="mock-balance">KSh 1,450.00</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                            <span class="mock-agent-badge">Agent Cash-In Active</span>
+                            <span style="font-size: 11px; color: #94A3B8;">350 Dishi Coins 🪙</span>
+                        </div>
+                    </div>
+
+                    <div class="mock-pill-row">
+                        <div class="mock-pill" style="border-color: var(--mint); color: var(--mint);">Order Meal 🍔</div>
+                        <div class="mock-pill">Deposit Cash 💵</div>
+                        <div class="mock-pill">Play & Earn 🎮</div>
+                    </div>
+
+                    <div style="font-size: 12px; font-weight: 700; color: #94A3B8; margin-top: 6px;">TODAY'S CAFETERIA HIGHLIGHTS</div>
+
+                    <div class="mock-item">
+                        <div style="font-size: 24px;">🍕</div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 12px; font-weight: bold; color: #fff;">Campus Hot Pizza Slice</div>
+                            <div style="font-size: 10px; color: var(--mint);">Main Hall Diner • Ready in 5m</div>
+                        </div>
+                        <div style="font-size: 12px; font-weight: 800; color: #fff;">KSh 150</div>
+                    </div>
+
+                    <div class="mock-item">
+                        <div style="font-size: 24px;">🥑</div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 12px; font-weight: bold; color: #fff;">Student Healthy Salad Bowl</div>
+                            <div style="font-size: 10px; color: var(--mint);">Science Complex • Low Calorie</div>
+                        </div>
+                        <div style="font-size: 12px; font-weight: 800; color: #fff;">KSh 120</div>
+                    </div>
+
+                    <div class="mock-item" style="border-color: rgba(255, 42, 109, 0.3);">
+                        <div style="font-size: 24px;">🎮</div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 12px; font-weight: bold; color: var(--pink);">Bite Ninja Arcade Mode</div>
+                            <div style="font-size: 10px; color: #fff;">Earn real KES 50 wallet cash!</div>
+                        </div>
+                        <div style="font-size: 10px; font-weight: 800; background: var(--pink); color: #fff; padding: 4px 8px; border-radius: 8px;">PLAY</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- LIVE STATS -->
+    <section class="stats-bar">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-num">50,000+</div>
+                <div class="stat-label">Meals Funded</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-num">120+</div>
+                <div class="stat-label">Certified DISHI Agents</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-num">0.5%</div>
+                <div class="stat-label">Agent Cash-In Commission</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-num">0 Sec</div>
+                <div class="stat-label">NFC Tap Checkout Latency</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- WHAT DISHI HAS -->
+    <section id="features" class="section-wrap">
+        <div class="section-header">
+            <h2 class="section-title">What DISHI Has to Offer</h2>
+            <p class="section-desc">A complete, purpose-built architecture solving campus food insecurity, slow payment queues, and financial exclusion.</p>
+        </div>
+
+        <div class="features-grid">
+            <!-- 1 -->
+            <div class="feature-card">
+                <div class="feature-icon-wrap" style="background: rgba(5, 213, 170, 0.1); color: var(--mint);">
+                    🍽️
+                </div>
+                <h3>Smart Campus Cafeterias</h3>
+                <p>Browse live cafeteria menus, pre-order meals between lectures, avoid crowded lunch queues, and enjoy personalized allergen warnings ensuring dietary safety.</p>
+            </div>
+
+            <!-- 2 -->
+            <div class="feature-card">
+                <div class="feature-icon-wrap" style="background: rgba(255, 183, 3, 0.1); color: var(--gold);">
+                    🏦
+                </div>
+                <h3>DISHI Cash-In Agents</h3>
+                <p>Campus food vendors double as certified banking agents. Students deposit cash into their wallets right at the cafeteria counter, and vendors earn an instant 0.5% commission.</p>
+            </div>
+
+            <!-- 3 -->
+            <div class="feature-card">
+                <div class="feature-icon-wrap" style="background: rgba(37, 99, 235, 0.1); color: var(--blue);">
+                    📶
+                </div>
+                <h3>100% Offline Student NFC</h3>
+                <p>No smartphone or network? No problem. Offline students use encrypted physical NFC student cards and secure offline PINs to tap and purchase hot meals instantly.</p>
+            </div>
+
+            <!-- 4 -->
+            <div class="feature-card">
+                <div class="feature-icon-wrap" style="background: rgba(157, 78, 221, 0.1); color: var(--purple);">
+                    👨‍👩‍👧
+                </div>
+                <h3>Parent Meal Assurance</h3>
+                <p>Parents fund their child's digital meal allowance from anywhere via M-PESA and receive instant real-time receipts whenever their child eats or deposits funds at an agent.</p>
+            </div>
+
+            <!-- 5 -->
+            <div class="feature-card">
+                <div class="feature-icon-wrap" style="background: rgba(255, 42, 109, 0.1); color: var(--pink);">
+                    🤝
+                </div>
+                <h3>Campus Harambee Crowdfunding</h3>
+                <p>Zero student hunger. Students in emergency need launch verified Harambee campaigns where peers, alumni, and sponsors contribute micro-donations directly for meals.</p>
+                <div style="margin-top: 14px; padding: 12px 14px; background: rgba(255, 42, 109, 0.08); border: 1px dashed rgba(255, 42, 109, 0.35); border-radius: 12px; font-size: 13px;">
+                    <div style="font-weight: 700; color: var(--pink); margin-bottom: 4px;">🚀 Launch Your Own Campaign:</div>
+                    <div style="color: #E2E8F0; font-size: 12px; margin-bottom: 8px;">Facing an emergency or need meal assistance? Download the free DISHI App to create and launch your verified Harambee campaign.</div>
+                    <a href="https://play.google.com/store/apps/details?id=com.delstarfordworks.dishi" target="_blank" rel="noopener" style="font-size: 12px; font-weight: 800; color: var(--mint); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                        <span>📲 Download Free App to Create Yours</span> <span>→</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 6 -->
+            <div class="feature-card">
+                <div class="feature-icon-wrap" style="background: rgba(5, 213, 170, 0.1); color: var(--mint);">
+                    🎮
+                </div>
+                <h3>Games Hub & Real Cash Store</h3>
+                <p>Play 12 thrilling campus games (Bite Ninja, Delivery Dash, Hungry Fresher). Earn Dishi Coins and redeem them directly for KES 50 / KES 100 wallet cash and cafeteria discounts.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- AFRICAN VISION & UNIVERSAL INCLUSION -->
+    <section id="inclusion" class="section-wrap">
+        <div class="inclusion-header">
+            <span class="hero-badge" style="background: rgba(5, 213, 170, 0.15); color: var(--mint); border-color: rgba(5, 213, 170, 0.4);">Born in Africa • Built with Empathy</span>
+            <h2 class="section-title">An African Startup Designed & Created in Africa</h2>
+            <p class="section-desc">
+                What the world needs most is technology with heart. DISHI was conceived, architected, and built on African soil to bridge physical, financial, and sensory divides. We ensure every campus student—especially members of our community gifted differently—enjoys equal dignity, nourishment, and empowerment.
+            </p>
+        </div>
+
+        <!-- 6 INCLUSION & INNOVATION CARDS -->
+        <div class="inclusion-grid">
+            <!-- 1: Blind Students -->
+            <div class="inclusion-card">
+                <div class="inclusion-img-wrap">
+                    <img src="{{ url_for('static', filename='img/dishi_blind_student.jpg') }}" alt="DISHI Blind Student Assistive Technology" class="inclusion-img">
+                    <span class="inclusion-overlay-badge" style="color: var(--mint); border-color: rgba(5, 213, 170, 0.4);">Accessibility</span>
+                </div>
+                <div class="inclusion-body">
+                    <h3>Voice & Tactile Dining for Blind Students</h3>
+                    <p>
+                        DISHI eliminates dining hall chaos for visually impaired students. Voice-guided navigation, tactile NFC meal passes, and cafeteria audio chimes allow blind students to explore menus, pre-order, and tap to pay with complete independence.
+                    </p>
+                    <div class="inclusion-tags">
+                        <span class="inclusion-tag">🎙️ Voice Menu Prompts</span>
+                        <span class="inclusion-tag">📳 Tactile NFC Pass</span>
+                        <span class="inclusion-tag">🛡️ Dignified Independence</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2: Deaf Students -->
+            <div class="inclusion-card">
+                <div class="inclusion-img-wrap">
+                    <img src="{{ url_for('static', filename='img/dishi_deaf_student.jpg') }}" alt="DISHI Deaf Student Visual & Haptic Alerts" class="inclusion-img">
+                    <span class="inclusion-overlay-badge" style="color: var(--pink); border-color: rgba(255, 42, 109, 0.4);">Inclusivity</span>
+                </div>
+                <div class="inclusion-body">
+                    <h3>Visual Queues & Haptic Alerts for Deaf Students</h3>
+                    <p>
+                        Communication barriers dissolve at the cafeteria counter. DISHI integrates high-contrast visual order readiness screens and synchronized haptic phone/watch vibrations when meals are plated, paired with silent one-tap peer meal gifting.
+                    </p>
+                    <div class="inclusion-tags">
+                        <span class="inclusion-tag">👁️ Visual Status Board</span>
+                        <span class="inclusion-tag">📳 Haptic Readiness Alerts</span>
+                        <span class="inclusion-tag">🤝 Silent Peer Gifting</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3: Wheelchair Students -->
+            <div class="inclusion-card">
+                <div class="inclusion-img-wrap">
+                    <img src="{{ url_for('static', filename='img/dishi_wheelchair_student.jpg') }}" alt="DISHI Wheelchair Student Campus Meal Dispatch" class="inclusion-img">
+                    <span class="inclusion-overlay-badge" style="color: #60A5FA; border-color: rgba(37, 99, 235, 0.4);">Mobility Care</span>
+                </div>
+                <div class="inclusion-body">
+                    <h3>Barrier-Free Dining & Priority Dorm Dispatch</h3>
+                    <p>
+                        Navigating multi-level campus dining halls or steep stairs in a wheelchair shouldn't hinder good nutrition. DISHI enables priority dorm delivery dispatch by trusted student couriers, alongside lowered wheelchair-height vendor agent touchpoints.
+                    </p>
+                    <div class="inclusion-tags">
+                        <span class="inclusion-tag">🚪 Direct Dorm Dispatch</span>
+                        <span class="inclusion-tag">♿ Wheelchair Height POS</span>
+                        <span class="inclusion-tag">⚡ Queue Bypass</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4: IoT Design -->
+            <div class="inclusion-card">
+                <div class="inclusion-img-wrap">
+                    <img src="{{ url_for('static', filename='img/dishi_iot_design.jpg') }}" alt="DISHI Smart IoT Terminal African Hardware" class="inclusion-img">
+                    <span class="inclusion-overlay-badge" style="color: var(--gold); border-color: rgba(255, 183, 3, 0.4);">African Hardware</span>
+                </div>
+                <div class="inclusion-body">
+                    <h3>Ruggedized Offline IoT Infrastructure</h3>
+                    <p>
+                        Engineered in Africa for African campus network environments. Our low-power, solar-ready smart terminals execute encrypted NFC tap transactions in under 300ms with 100% offline resilience, ensuring food lines move swiftly even without internet.
+                    </p>
+                    <div class="inclusion-tags">
+                        <span class="inclusion-tag">📶 100% Offline Capable</span>
+                        <span class="inclusion-tag">⚡ Sub-300ms Tap</span>
+                        <span class="inclusion-tag">🔋 Solar & Battery Ready</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5: DISHI Watch -->
+            <div class="inclusion-card">
+                <div class="inclusion-img-wrap">
+                    <img src="{{ url_for('static', filename='img/dishi_watch.jpg') }}" alt="DISHI Smart Wearable Watch Food Pass" class="inclusion-img">
+                    <span class="inclusion-overlay-badge" style="color: var(--purple); border-color: rgba(157, 78, 221, 0.4);">Wearable Innovation</span>
+                </div>
+                <div class="inclusion-body">
+                    <h3>Contactless Smart Food Pass on Your Wrist</h3>
+                    <p>
+                        The DISHI Watch merges assistive convenience and modern design. Students tap their wrist at any cafeteria counter to redeem meals, receive discrete haptic balance alerts, and stay protected by parent-set daily nutrition limits.
+                    </p>
+                    <div class="inclusion-tags">
+                        <span class="inclusion-tag">⌚ Wearable Food Pass</span>
+                        <span class="inclusion-tag">💧 Water Resistant</span>
+                        <span class="inclusion-tag">🔒 Parent-Safe Limits</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6: Shirts and Caps -->
+            <div class="inclusion-card">
+                <div class="inclusion-img-wrap">
+                    <img src="{{ url_for('static', filename='img/dishi_shirts_caps.jpg') }}" alt="DISHI Community Shirts and Caps Ambassador Gear" class="inclusion-img">
+                    <span class="inclusion-overlay-badge" style="color: var(--mint); border-color: rgba(5, 213, 170, 0.4);">Community Movement</span>
+                </div>
+                <div class="inclusion-body">
+                    <h3>A Movement of Solidarity & African Pride</h3>
+                    <p>
+                        DISHI is more than technology; it is a community movement. Official DISHI branded shirts and caps identify certified student agents, peer accessibility guides, and campus delivery champions—fostering African pride and mutual student support.
+                    </p>
+                    <div class="inclusion-tags">
+                        <span class="inclusion-tag">👕 Student Ambassador Gear</span>
+                        <span class="inclusion-tag">💼 Campus Youth Employment</span>
+                        <span class="inclusion-tag">🌍 African Pride</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- COMRADE & COMMUNITY EMPLOYMENT: FOOD DELIVERY (DeLiv) & SKILLED FUNDI -->
+    <section id="employment" class="section-wrap">
+        <div class="employment-box">
+            <div style="text-align: center; max-width: 820px; margin: 0 auto;">
+                <span class="hero-badge" style="background: rgba(56, 189, 248, 0.15); color: #38BDF8; border-color: rgba(56, 189, 248, 0.35);">Campus Gig Economy & Dignified Jobs</span>
+                <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 2.3rem; font-weight: 700; margin-bottom: 14px; letter-spacing: -0.5px;">Empowering Comrades & Community: Food Delivery & Skilled Fundi Services</h2>
+                <p style="color: var(--text-muted); font-size: 15.5px; line-height: 1.7;">
+                    DISHI transforms campuses into thriving economic hubs. By combining on-demand food delivery with a verified skills marketplace backed by <strong>100% Escrow Protection</strong>, comrades earn sustainable income between lectures while local community artisans gain structured access to the student market.
+                </p>
+            </div>
+
+            <div class="employment-grid">
+                <!-- CARD 1: FOOD DELIVERY (DeLiv) -->
+                <div class="employment-card">
+                    <div>
+                        <div class="employment-card-header">
+                            <div class="employment-card-icon">🛵</div>
+                            <div class="employment-card-title">
+                                <h3>Campus Food Delivery (DeLiv)</h3>
+                                <span class="employment-card-tag">Student Couriers & Local Riders</span>
+                            </div>
+                        </div>
+
+                        <p class="intro">
+                            Between intense lecture schedules and late-night study sessions, students need hot food delivered fast. DISHI DeLiv empowers student couriers and local youth bodas to pick up cafeteria orders and deliver them straight to dorm rooms, hostel gates, and library lobbies.
+                        </p>
+
+                        <div class="employment-modes">
+                            <div class="employment-mode-item">
+                                <span class="mode-ico">🚶</span>
+                                <div class="mode-info">
+                                    <span class="mode-title">Walking Couriers</span>
+                                    <span class="mode-sub">Zero vehicle expense. Comrades earn KES 40-70 per drop across hostel blocks.</span>
+                                </div>
+                            </div>
+                            <div class="employment-mode-item">
+                                <span class="mode-ico">🚲</span>
+                                <div class="mode-info">
+                                    <span class="mode-title">Bicycle Transit</span>
+                                    <span class="mode-sub">Rapid inter-campus transit between distant labs, cafeterias, and hostels.</span>
+                                </div>
+                            </div>
+                            <div class="employment-mode-item">
+                                <span class="mode-ico">🏍️</span>
+                                <div class="mode-info">
+                                    <span class="mode-title">Boda & Errand Drops</span>
+                                    <span class="mode-sub">Motorbike drops for off-campus bedsitters, groceries, and heavy parcels.</span>
+                                </div>
+                            </div>
+                            <div class="employment-mode-item">
+                                <span class="mode-ico">♿</span>
+                                <div class="mode-info">
+                                    <span class="mode-title">Accessible Dorm Dispatch</span>
+                                    <span class="mode-sub">Priority doorstep delivery for wheelchair comrades and students unwell in sickbays.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Escrow Steps for Delivery -->
+                    <div class="escrow-flow-strip">
+                        <div class="escrow-flow-title">
+                            <span>🛡️</span>
+                            <span>How DeLiv Escrow Protects Comrades:</span>
+                        </div>
+                        <div class="escrow-steps">
+                            <div class="escrow-step-item">
+                                <div class="escrow-step-num">1</div>
+                                <div class="escrow-step-txt"><strong>Order Placed:</strong> Meal + delivery fee locked in DISHI Escrow.</div>
+                            </div>
+                            <div class="escrow-step-item">
+                                <div class="escrow-step-num">2</div>
+                                <div class="escrow-step-txt"><strong>Rider Alert:</strong> Nearest comrade rider accepts with live ETA.</div>
+                            </div>
+                            <div class="escrow-step-item">
+                                <div class="escrow-step-num">3</div>
+                                <div class="escrow-step-txt"><strong>Doorstep Drop:</strong> Fresh food delivered safely to student.</div>
+                            </div>
+                            <div class="escrow-step-item">
+                                <div class="escrow-step-num">4</div>
+                                <div class="escrow-step-txt"><strong>Instant Credit:</strong> Student confirms; funds release to rider wallet!</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 2: CAMPUS & COMMUNITY FUNDI -->
+                <div class="employment-card">
+                    <div>
+                        <div class="employment-card-header">
+                            <div class="employment-card-icon" style="background: rgba(168, 85, 247, 0.12); color: #C084FC; border-color: rgba(168, 85, 247, 0.35);">🛠️</div>
+                            <div class="employment-card-title">
+                                <h3>Campus & Community Fundi</h3>
+                                <span class="employment-card-tag" style="color: #C084FC;">Verified Skilled Artisan Marketplace</span>
+                            </div>
+                        </div>
+
+                        <p class="intro">
+                            Comrades and local community members hold incredible vocational skills. DISHI Fundi eliminates campus trust barriers and scammers by offering verified profiles, transparent pricing, and foolproof escrow payments for technical, lifestyle, and maintenance jobs.
+                        </p>
+
+                        <div class="employment-modes">
+                            <div class="employment-mode-item">
+                                <span class="mode-ico">💻</span>
+                                <div class="mode-info">
+                                    <span class="mode-title">Gadget & Laptop Techs</span>
+                                    <span class="mode-sub">Screen replacements, Windows/macOS/Linux installs, phone and tablet repairs.</span>
+                                </div>
+                            </div>
+                            <div class="employment-mode-item">
+                                <span class="mode-ico">✂️</span>
+                                <div class="mode-info">
+                                    <span class="mode-title">Hostel Grooming & Salon</span>
+                                    <span class="mode-sub">Student barbers, braiding, dreadlocks, nail care, and sneaker laundry.</span>
+                                </div>
+                            </div>
+                            <div class="employment-mode-item">
+                                <span class="mode-ico">🔧</span>
+                                <div class="mode-info">
+                                    <span class="mode-title">Hostel Maintenance</span>
+                                    <span class="mode-sub">Hostel plumbing, electrical repairs, socket fixes, and carpenter bed repairs.</span>
+                                </div>
+                            </div>
+                            <div class="employment-mode-item">
+                                <span class="mode-ico">📚</span>
+                                <div class="mode-info">
+                                    <span class="mode-title">Academic & Moving Errands</span>
+                                    <span class="mode-sub">Peer tutors for tough course units, thesis formatting, and hostel room moving.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Escrow Steps for Fundi -->
+                    <div class="escrow-flow-strip" style="border-color: rgba(168, 85, 247, 0.4);">
+                        <div class="escrow-flow-title" style="color: #C084FC;">
+                            <span>🔒</span>
+                            <span>How Fundi Escrow Guarantees Payment:</span>
+                        </div>
+                        <div class="escrow-steps">
+                            <div class="escrow-step-item">
+                                <div class="escrow-step-num" style="background: rgba(168, 85, 247, 0.2); color: #C084FC; border-color: #C084FC;">1</div>
+                                <div class="escrow-step-txt"><strong>Hire & Lock:</strong> Agreed fee locked in DISHI Escrow before work begins.</div>
+                            </div>
+                            <div class="escrow-step-item">
+                                <div class="escrow-step-num" style="background: rgba(168, 85, 247, 0.2); color: #C084FC; border-color: #C084FC;">2</div>
+                                <div class="escrow-step-txt"><strong>Fundi Works:</strong> Fundi sees funds guaranteed in vault & performs job.</div>
+                            </div>
+                            <div class="escrow-step-item">
+                                <div class="escrow-step-num" style="background: rgba(168, 85, 247, 0.2); color: #C084FC; border-color: #C084FC;">3</div>
+                                <div class="escrow-step-txt"><strong>Inspection:</strong> Client tests & inspects completed repair or service.</div>
+                            </div>
+                            <div class="escrow-step-item">
+                                <div class="escrow-step-num" style="background: rgba(168, 85, 247, 0.2); color: #C084FC; border-color: #C084FC;">4</div>
+                                <div class="escrow-step-txt"><strong>Funds Released:</strong> Client taps "Release Escrow", Fundi wallet credited!</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Impact Metrics -->
+            <div class="employment-metrics-strip">
+                <div class="emp-stat">
+                    <div class="emp-stat-num">KSh 3,500+</div>
+                    <div class="emp-stat-label">Avg. Weekly Earning for Active Student Couriers</div>
+                </div>
+                <div class="emp-stat">
+                    <div class="emp-stat-num">100%</div>
+                    <div class="emp-stat-label">Escrow Protected Payments (Zero Client or Fundi Fraud)</div>
+                </div>
+                <div class="emp-stat">
+                    <div class="emp-stat-num">10+</div>
+                    <div class="emp-stat-label">Skilled Service Categories from Laptop Tech to Barbering</div>
+                </div>
+                <div class="emp-stat">
+                    <div class="emp-stat-num">Flexible</div>
+                    <div class="emp-stat-label">Work Between Classes, Mornings, Evenings & Weekends</div>
+                </div>
+            </div>
+
+            <!-- Call to action row -->
+            <div class="emp-cta-row">
+                <div class="emp-cta-text">
+                    <h4>🎓 Are You a Comrade with a Skill or Bicycle/Boda?</h4>
+                    <p>Start earning flexible money on campus today. Register as a DeLiv Rider or skilled Fundi in under 2 minutes.</p>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <a href="https://play.google.com/store/apps/details?id=com.delstarfordworks.dishi" target="_blank" rel="noopener" class="btn-primary" style="padding: 12px 22px; font-size: 13.5px; background: #38BDF8; color: #000; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.35);">
+                        <span>📲 Download App to Register</span>
+                        <span>→</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- AGENT FLOAT & CASH-IN DEEP-DIVE -->
+    <section id="agents" class="section-wrap">
+        <div class="float-deepdive">
+            <div style="text-align: center; max-width: 750px; margin: 0 auto;">
+                <span class="hero-badge" style="background: rgba(255, 183, 3, 0.15); color: var(--gold); border-color: rgba(255, 183, 3, 0.3);">Agent Architecture</span>
+                <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 2.2rem; font-weight: 700; margin-bottom: 14px;">How Does the Vendor Add Float to Allow for Student Deposits?</h2>
+                <p style="color: var(--text-muted); font-size: 15px;">
+                    In the DISHI Agency Banking network, vendors act as local cash-in agents. Here is the exact, secure flow explaining how vendors maintain float and process student cash deposits.
+                </p>
+            </div>
+
+            <div class="float-steps-grid">
+                <!-- Step 1 -->
+                <div class="float-step">
+                    <div class="step-badge">1</div>
+                    <h4>Vendor Float Top-Up</h4>
+                    <p>The vendor loads digital float (E-Float) directly onto their DISHI POS via <strong>Safaricom M-PESA STK Push</strong> or utilizes daily digital food sales revenue.</p>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="float-step">
+                    <div class="step-badge">2</div>
+                    <h4>Student Cash Handover</h4>
+                    <p>A student hands physical paper cash (e.g. KSh 500) to the vendor at the counter and presents their Student QR code or NFC card.</p>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="float-step">
+                    <div class="step-badge">3</div>
+                    <h4>Dual PIN Verification</h4>
+                    <p>Online students enter their 4-digit Wallet PIN or Daily Auth Token. Offline students enter their verified Offline Card PIN. No unauthorized deposits.</p>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="float-step">
+                    <div class="step-badge">4</div>
+                    <h4>Atomic Transfer & Guaranteed Commission</h4>
+                    <p>The vendor's float is debited by KSh 500, the student's wallet is credited KSh 500, and the vendor instantly earns <strong>0.5% commission (KSh 2.50)</strong>.</p>
+                </div>
+
+                <!-- Step 5 -->
+                <div class="float-step">
+                    <div class="step-badge">5</div>
+                    <h4>Real-Time Parent Alert</h4>
+                    <p>The student's parent receives an automated push notification and SMS receipt: <em>"Child deposited KSh 500 at [VendorName]. Balance: KSh 1,450."</em></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SUPPORT DISHI & COMMUNITY SECTION -->
+    <section id="support" class="section-wrap">
+        <div class="support-box">
+            <!-- Left Info -->
+            <div class="support-info">
+                <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap;">
+                    <span class="hero-badge" style="background: rgba(5, 213, 170, 0.15); color: var(--mint); border-color: rgba(5, 213, 170, 0.4);">Community Support & Love</span>
+                    <span class="mpesa-badge">🟢 M-PESA STK Push</span>
+                </div>
+
+                <h2>Support DISHI — Back African Vision & Community Inclusivity</h2>
+                
+                <p>
+                    What the world needs is more love, care, and practical support for one another. Your contribution directly funds hot meals for students gifted differently (Blind, Deaf, Mobility challenged), helps us deploy accessible NFC audio hardware, and ensures zero campus students skip meals due to poverty.
+                </p>
+
+                <div class="support-impact-pill" id="impactPill">
+                    <h4>✨ Live Impact Preview</h4>
+                    <p id="impactText">Select an amount on the right to see how your support directly empowers students on campus.</p>
+                </div>
+
+                <div style="border-left: 2px solid var(--mint); padding-left: 16px; margin-top: 24px;">
+                    <div style="font-size: 13px; font-weight: 700; color: #fff;">100% Direct Community Allocation</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+                        Processed instantly via Safaricom Daraja STK Push into the verified DISHI Community Trust Pool. Instant SMS confirmation provided.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Form Card -->
+            <div class="support-form-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 14px; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">Choose Amount (KES)</span>
+                    <span style="font-size: 11px; color: var(--mint); font-weight: 700;">Instant STK Push</span>
+                </div>
+
+                <!-- Preset Chips -->
+                <div class="preset-grid">
+                    <button type="button" class="preset-btn" data-amount="50" onclick="selectPreset(50, this)">KES 50</button>
+                    <button type="button" class="preset-btn active" data-amount="100" onclick="selectPreset(100, this)">KES 100</button>
+                    <button type="button" class="preset-btn" data-amount="250" onclick="selectPreset(250, this)">KES 250</button>
+                    <button type="button" class="preset-btn" data-amount="500" onclick="selectPreset(500, this)">KES 500</button>
+                    <button type="button" class="preset-btn" data-amount="1000" onclick="selectPreset(1000, this)">KES 1,000</button>
+                    <button type="button" class="preset-btn" data-amount="2500" onclick="selectPreset(2500, this)">KES 2,500</button>
+                </div>
+
+                <!-- Custom Amount -->
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-size: 12px; color: var(--text-muted);">Or Enter Custom Amount (KES)</label>
+                    <input type="number" id="customAmountInput" placeholder="e.g. 300" min="10" max="70000" oninput="onCustomAmountChange(this.value)">
+                </div>
+
+                <!-- Cause Selection -->
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-size: 12px; color: var(--text-muted);">Direct Your Love & Support To</label>
+                    <select id="supportCause">
+                        <option value="Universal Support: Students Gifted Differently">Universal Support: Students Gifted Differently</option>
+                        <option value="Blind Students Audio & Tactile Dining Fund">Blind Students Audio & Tactile Dining Fund</option>
+                        <option value="Wheelchair Campus Dispatch & Dorm Delivery">Wheelchair Campus Dispatch & Dorm Delivery</option>
+                        <option value="African IoT & Assistive Hardware Innovation">African IoT & Assistive Hardware Innovation</option>
+                        <option value="Zero-Hunger Emergency Student Meals">Zero-Hunger Emergency Student Meals</option>
+                    </select>
+                </div>
+
+                <!-- Supporter Name -->
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-size: 12px; color: var(--text-muted);">Your Name (Optional)</label>
+                    <input type="text" id="supporterName" placeholder="e.g. Brian M. / Mama Sarah / Anonymous">
+                </div>
+
+                <!-- Phone Number -->
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-size: 12px; color: var(--text-muted);">Safaricom Phone Number for M-PESA STK Push</label>
+                    <div class="phone-input-wrap">
+                        <span class="phone-prefix">🇰🇪 +254</span>
+                        <input type="tel" id="supporterPhone" class="phone-input" placeholder="712345678" maxlength="12">
+                    </div>
+                    <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Enter Safaricom number (e.g. 0712345678 or 712345678)</div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="button" class="btn-stk-submit" id="stkSubmitBtn" onclick="initiateSupportSTK()">
+                    <span>Send M-PESA STK Prompt 📲</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- APP DOWNLOAD CALLOUT -->
+    <section class="section-wrap" style="padding-top: 0;">
+        <div class="app-download-banner">
+            <span class="hero-badge" style="background: rgba(5, 213, 170, 0.15); color: var(--mint); border-color: rgba(5, 213, 170, 0.4);">Available for Free on Android</span>
+            <h2>Experience DISHI in the Palm of Your Hand</h2>
+            <p>
+                Pre-order cafeteria meals, manage agent banking float with guaranteed 0.5% commission, create campus Harambee emergency campaigns, and play 12 arcade games to win cash. Free download for all students, parents, and campus vendors.
+            </p>
+            <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 22px;">
+                <a href="https://play.google.com/store/apps/details?id=com.delstarfordworks.dishi" target="_blank" rel="noopener" class="btn-playstore" style="padding: 12px 24px;">
+                    <svg class="playstore-icon" viewBox="0 0 512 512">
+                        <path fill="#4285F4" d="M32.5 16.5C30.2 18.9 28.8 22.8 28.8 28.2v455.6c0 5.4 1.4 9.3 3.7 11.7l1.3 1.2 254.9-254.9v-6L33.8 15.3l-1.3 1.2z"/>
+                        <path fill="#FBBC04" d="M380.1 369.3l-91.4-91.4v-6l91.4-91.4 2.1 1.2 108.3 61.5c30.9 17.5 30.9 46.2 0 63.8l-108.3 61.5-2.1 0.8z"/>
+                        <path fill="#EA4335" d="M288.7 271.9L33.8 526.8c10.2 10.8 27.2 12.1 46.5 1.1l208.4-118.4-91.4-91.4z"/>
+                        <path fill="#34A853" d="M288.7 240.1l91.4-91.4L171.7 30.3C152.4 19.3 135.4 20.6 125.2 31.4l163.5 208.7z"/>
+                    </svg>
+                    <div class="playstore-text">
+                        <span class="sub">GET IT ON</span>
+                        <span class="main">Google Play</span>
+                    </div>
+                </a>
+                <a href="/events" class="btn-secondary" style="border-color: rgba(5, 213, 170, 0.4); color: var(--mint);">
+                    <span>View Upcoming Campus Events 🎉</span>
+                </a>
+                <span style="font-size: 12.5px; color: var(--text-muted);">Play Store Release v6.4 • Verified Safe</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTACT PARTNER SECTION -->
+    <section id="contact" class="section-wrap">
+        <div class="contact-box">
+            <div class="contact-info">
+                <span class="hero-badge" style="background: rgba(37, 99, 235, 0.15); color: #60A5FA; border-color: rgba(37, 99, 235, 0.4);">Partner With Us</span>
+                <h3>Bring DISHI to Your Campus or Cafeteria</h3>
+                <p>
+                    Are you a university administration, student welfare union, campus food vendor, or corporate sponsor? Join our expanding network across Kenya.
+                </p>
+                <div style="margin-bottom: 24px;">
+                    <div style="font-size: 13px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 8px;">Direct Partnership Desk</div>
+                    <a href="mailto:dishi@delstarfordworks.co.ke?subject=DISHI%20Partnership%20Proposal" class="partner-email-link">
+                        <span>✉️</span>
+                        <span>dishi@delstarfordworks.co.ke</span>
+                    </a>
+                </div>
+                <div style="color: var(--text-muted); font-size: 13px;">
+                    Response time: Within 24 business hours. Confidential NDA and pilot campus rollout kits available.
+                </div>
+            </div>
+
+            <form class="contact-form" action="mailto:dishi@delstarfordworks.co.ke" method="get" enctype="text/plain">
+                <div class="form-group">
+                    <label>Your Name / Contact Person</label>
+                    <input type="text" name="name" placeholder="Prof. / Dr. / Director / Vendor Name" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Institution or Business Name</label>
+                    <input type="text" name="organization" placeholder="e.g. University of Nairobi / Main Hall Diner" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Partnership Interest</label>
+                    <select name="subject">
+                        <option value="Campus Cafeteria Vendor Agent Onboarding">Campus Cafeteria Vendor Agent Onboarding</option>
+                        <option value="University Administration Student Meal Portal">University Administration Student Meal Portal</option>
+                        <option value="Corporate Sponsor / Harambee Meal Donor">Corporate Sponsor / Harambee Meal Donor</option>
+                        <option value="NFC Smart Card Campus Distribution">NFC Smart Card Campus Distribution</option>
+                        <option value="General Inquiries">General Inquiries</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Message / Scope</label>
+                    <textarea name="body" rows="3" placeholder="Tell us about your campus size or cafeteria requirements..."></textarea>
+                </div>
+
+                <button type="submit" class="btn-submit">Send Partnership Message 🚀</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-content">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI Logo" style="width: 32px; height: 32px; border-radius: 8px;">
+                <span style="font-weight: 800; font-size: 18px; letter-spacing: 1px;">DISHI</span>
+            </div>
+
+            <ul class="footer-links">
+                <li><a href="/about">About & Pitch</a></li>
+                <li><a href="/fund">Harambee Campaigns</a></li>
+                <li><a href="/events">Campus Events</a></li>
+                <li><a href="/health">System Health</a></li>
+                <li><a href="https://play.google.com/store/apps/details?id=com.delstarfordworks.dishi" target="_blank" rel="noopener">Download DISHI App</a></li>
+                <li><a href="mailto:dishi@delstarfordworks.co.ke">dishi@delstarfordworks.co.ke</a></li>
+            </ul>
+
+            <div class="copy">
+                © 2026 DISHI Platform. Developed by Delstarford Works. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <!-- STK MODAL OVERLAY -->
+    <div id="stkModal" class="stk-modal-backdrop">
+        <div class="stk-modal-card">
+            <div class="stk-pulse-ring">📲</div>
+            <h3 id="modalTitle" style="font-family: 'Space Grotesk', sans-serif; font-size: 1.4rem; color: #fff; margin-bottom: 8px;">Check Your Handset</h3>
+            <p id="modalDesc" style="color: var(--text-muted); font-size: 13.5px; line-height: 1.6; margin-bottom: 20px;">
+                An M-PESA payment prompt of <strong id="modalAmount" style="color: var(--mint);">KES 100</strong> has been sent to your phone.<br>Enter your M-PESA PIN to complete your community support.
+            </p>
+
+            <div style="background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 20px; font-size: 12px; color: #E2E8F0;">
+                <span id="modalTimer">Waiting for PIN entry... (90s)</span>
+            </div>
+
+            <div id="modalFallback" style="display: none; text-align: left; background: rgba(255, 183, 3, 0.08); border: 1px solid rgba(255, 183, 3, 0.3); border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 12px;">
+                <strong style="color: var(--gold); display: block; margin-bottom: 4px;">Didn't receive the prompt? Use Manual Paybill:</strong>
+                <div>• Paybill: <strong>4103131</strong></div>
+                <div>• Account No: <strong>DISHISUPPORT</strong></div>
+                <div>• Amount: <strong id="modalFallbackAmount">KES 100</strong></div>
+            </div>
+
+            <button type="button" onclick="closeStkModal()" style="background: rgba(255,255,255,0.08); border: 1px solid var(--border); color: #fff; padding: 10px 24px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 700;">
+                Close Window
+            </button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT FOR SUPPORT WIDGET -->
+    <script>
+        let selectedAmount = 100;
+        let pollInterval = null;
+        let countdownInterval = null;
+        let remainingSeconds = 90;
+
+        const impactDescriptions = {
+            50: "Provides 1 nutritious hot meal for a student in emergency need.",
+            100: "Provides a full day of balanced meals (Breakfast & Lunch) for a campus student.",
+            250: "Funds voice/tactile meal vouchers and dorm dispatch for a student gifted differently for 3 days.",
+            500: "Equips an assistive tap station and covers a full week of meals for a visually impaired student.",
+            1000: "Sponsors assistive IoT tags, smart food pass wristbands, and a 2-week meal security package.",
+            2500: "Institutional community patron: Funds an entire semester meal safety net for a vulnerable student."
+        };
+
+        function updateImpactPreview(amt) {
+            const text = impactDescriptions[amt] || `Your generous KES ${amt} contribution directly funds assistive dining access and zero-hunger campus meals.`;
+            document.getElementById('impactText').textContent = text;
+        }
+
+        function selectPreset(amt, btn) {
+            selectedAmount = amt;
+            document.getElementById('customAmountInput').value = '';
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            updateImpactPreview(amt);
+        }
+
+        function onCustomAmountChange(val) {
+            const parsed = parseInt(val, 10);
+            if (!isNaN(parsed) && parsed > 0) {
+                selectedAmount = parsed;
+                document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+                updateImpactPreview(parsed);
+            }
+        }
+
+        function formatKenyanPhone(phone) {
+            let p = phone.trim().replace(/[^0-9]/g, '');
+            if (p.startsWith('254')) return p;
+            if (p.startsWith('0')) return '254' + p.substring(1);
+            if (p.length === 9) return '254' + p;
+            return p;
+        }
+
+        async function initiateSupportSTK() {
+            const phoneInput = document.getElementById('supporterPhone');
+            const rawPhone = phoneInput.value;
+            const phone = formatKenyanPhone(rawPhone);
+
+            if (!phone || phone.length !== 12 || !phone.startsWith('254')) {
+                alert('Please enter a valid Safaricom phone number (e.g. 0712345678).');
+                phoneInput.focus();
+                return;
+            }
+
+            if (!selectedAmount || selectedAmount < 10) {
+                alert('Please select or enter an amount of at least KES 10.');
+                return;
+            }
+
+            const name = document.getElementById('supporterName').value.trim() || 'Anonymous Supporter';
+            const cause = document.getElementById('supportCause').value;
+            const submitBtn = document.getElementById('stkSubmitBtn');
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>Contacting M-PESA... ⏳</span>';
+
+            try {
+                const resp = await fetch('/api/v1/mpesa/stkpush', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone_number: phone,
+                        amount: selectedAmount,
+                        credit_amount: selectedAmount,
+                        user_id: 'dishi_community_fund',
+                        destination: 'support',
+                        account_reference: 'DISHISUPPORT',
+                        transaction_desc: 'SupportDISHI',
+                        metadata: {
+                            action: 'support_dishi',
+                            donor_name: name,
+                            cause: cause
+                        }
+                    })
+                });
+
+                const data = await resp.json();
+
+                if (resp.ok && data.ResponseCode === '0' && data.CheckoutRequestID) {
+                    showStkModal(data.CheckoutRequestID, selectedAmount, phone);
+                } else {
+                    const err = data.error || data.errorMessage || data.ResultDesc || 'STK Push failed. Please check your phone number.';
+                    alert('M-PESA Error: ' + err);
+                }
+            } catch (e) {
+                alert('Network error. Please verify your internet connection and try again.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>Send M-PESA STK Prompt 📲</span>';
+            }
+        }
+
+        function showStkModal(checkoutId, amt, phone) {
+            const modal = document.getElementById('stkModal');
+            document.getElementById('modalTitle').textContent = 'Check Your Handset';
+            document.getElementById('modalDesc').innerHTML = `An M-PESA prompt of <strong style="color: var(--mint);">KES ${amt.toLocaleString()}</strong> has been sent to <strong style="color: #fff;">+${phone}</strong>.<br>Enter your M-PESA PIN to complete your contribution.`;
+            document.getElementById('modalFallback').style.display = 'none';
+            document.getElementById('modalFallbackAmount').textContent = 'KES ' + amt.toLocaleString();
+
+            modal.classList.add('show');
+            remainingSeconds = 90;
+            startCountdown();
+            startPolling(checkoutId, amt);
+        }
+
+        function closeStkModal() {
+            clearInterval(pollInterval);
+            clearInterval(countdownInterval);
+            document.getElementById('stkModal').classList.remove('show');
+        }
+
+        function startCountdown() {
+            clearInterval(countdownInterval);
+            const timerEl = document.getElementById('modalTimer');
+            countdownInterval = setInterval(() => {
+                remainingSeconds--;
+                if (remainingSeconds <= 0) {
+                    clearInterval(countdownInterval);
+                    timerEl.textContent = 'STK prompt timeout. You can use the manual Paybill below.';
+                    document.getElementById('modalFallback').style.display = 'block';
+                } else {
+                    timerEl.textContent = `Waiting for PIN entry... (${remainingSeconds}s)`;
+                }
+            }, 1000);
+        }
+
+        function startPolling(checkoutId, amt) {
+            clearInterval(pollInterval);
+            pollInterval = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/v1/mpesa/check_status?checkout_id=' + encodeURIComponent(checkoutId));
+                    if (!res.ok) return;
+                    const d = await res.json();
+                    if (d.status === 'completed') {
+                        clearInterval(pollInterval);
+                        clearInterval(countdownInterval);
+                        document.getElementById('modalTitle').textContent = '🎉 Thank You!';
+                        document.getElementById('modalDesc').innerHTML = `Your contribution of <strong style="color: var(--mint);">KES ${amt.toLocaleString()}</strong> has been received with deep gratitude.<br><br>Together, we are making campus life more inclusive, dignified, and loving for students gifted differently. 💚`;
+                        document.getElementById('modalTimer').textContent = '✅ Payment Verified by M-PESA';
+                        document.getElementById('modalFallback').style.display = 'none';
+                    } else if (d.status === 'failed') {
+                        clearInterval(pollInterval);
+                        clearInterval(countdownInterval);
+                        document.getElementById('modalTitle').textContent = 'Payment Unsuccessful';
+                        document.getElementById('modalDesc').textContent = d.result_desc || 'The transaction was cancelled or declined on your handset.';
+                        document.getElementById('modalTimer').textContent = 'Please retry or use manual Paybill below.';
+                        document.getElementById('modalFallback').style.display = 'block';
+                    }
+                } catch (e) {}
+            }, 3000);
+        }
+
+        /* ─── MOBILE DRAWER SCRIPT (SLIDES LEFT TO RIGHT) ──── */
+        function openMobileNav() {
+            document.getElementById('mobileNavDrawer').classList.add('open');
+            document.getElementById('mobileNavBackdrop').classList.add('open');
+            document.getElementById('hamburgerBtn').classList.add('active');
+            document.getElementById('hamburgerBtn').setAttribute('aria-expanded', 'true');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMobileNav() {
+            document.getElementById('mobileNavDrawer').classList.remove('open');
+            document.getElementById('mobileNavBackdrop').classList.remove('open');
+            document.getElementById('hamburgerBtn').classList.remove('active');
+            document.getElementById('hamburgerBtn').setAttribute('aria-expanded', 'false');
+            document.body.style.overflow = '';
+        }
+
+        function toggleMobileNav() {
+            const drawer = document.getElementById('mobileNavDrawer');
+            if (drawer.classList.contains('open')) {
+                closeMobileNav();
+            } else {
+                openMobileNav();
+            }
+        }
+
+        // Close drawer on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeMobileNav();
+            }
+        });
+    </script>
+</body>
+</html>
