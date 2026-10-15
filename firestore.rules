@@ -109,14 +109,13 @@ service cloud.firestore {
     // ─────────────────────────────────────────────────────────────────────────
     // 3.5. NOTIFICATIONS, PREORDERS, SCHEDULED ALLOWANCES, DISPUTES
     // ─────────────────────────────────────────────────────────────────────────
-    // In-app notifications (written server-side by Admin SDK)
-    // Each notification has a targetUserId field — only that user can read it.
+    // In-app notifications
+    // Each notification has a targetUserId field — only that user can read/modify it.
     match /notifications/{notificationId} {
       allow read: if isAuth();
-      allow create: if false; // Written only by backend (Admin SDK bypasses rules)
-      // Allow users to update their own notification (mark read, dismiss)
-      allow update: if isAuth() && resource.data.targetUserId == request.auth.uid;
-      allow delete: if isAdmin() || (isAuth() && resource.data.targetUserId == request.auth.uid);
+      allow create: if isAuth();
+      allow update: if isAuth() && (resource.data.targetUserId == request.auth.uid || resource.data.targetUserId == null || !('targetUserId' in resource.data));
+      allow delete: if isAdmin() || (isAuth() && (resource.data.targetUserId == request.auth.uid || resource.data.targetUserId == null || !('targetUserId' in resource.data)));
     }
     
     match /preorders/{docId} {
@@ -551,6 +550,8 @@ service cloud.firestore {
     match /vendor_bookings/{bookingId}      { allow read, write: if isAuth(); }
     // Vendor bookings at feature level
     match /match_bookings/{bookingId}       { allow read, write: if isAuth(); }
+    match /escrows/{escrowId}               { allow read, write: if isAuth(); }
+    match /supplier_requests/{requestId}    { allow read, write: if isAuth(); }
 
     // ─────────────────────────────────────────────────────────────────────────
     // 9. MARKETPLACE
@@ -1028,6 +1029,103 @@ service cloud.firestore {
     match /trivia_questions/{docId} {
       allow read: if isAuth();
       allow write: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 30. LOST & FOUND, BOUNTIES & ESCROW
+    // ─────────────────────────────────────────────────────────────────────────
+    match /lost_and_found/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth();
+      allow delete: if isAuth() && (resource == null || resource.data.studentId == request.auth.uid || isAdmin());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 31. CAMPUS MATCH, BLIND CHAT & DATING GAMES
+    // ─────────────────────────────────────────────────────────────────────────
+    match /match_profiles/{profileId} {
+      allow read: if isAuth();
+      allow write: if isAuth() && (isSelf(profileId) || isAdmin());
+    }
+    match /blind_chat_queue/{docId} {
+      allow read, write: if isAuth();
+    }
+    match /blind_chat_sessions/{sessionId} {
+      allow read, write: if isAuth();
+      match /messages/{messageId} {
+        allow read, write: if isAuth();
+      }
+    }
+    match /game_sessions/{sessionId} {
+      allow read, write: if isAuth();
+    }
+    match /secret_crushes/{docId} {
+      allow read, write: if isAuth();
+    }
+    match /vibes/{vibeId} {
+      allow read, write: if isAuth();
+    }
+    match /study_sessions/{sessionId} {
+      allow read, write: if isAuth();
+    }
+    match /active_calls/{callId} {
+      allow read, write: if isAuth();
+    }
+    match /speed_dating_reservations/{docId} {
+      allow read, write: if isAuth();
+    }
+    match /meetup_shares/{shareId} {
+      allow read, write: if isAuth();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 32. CAMPUS SOCIAL & COMMUNITY
+    // ─────────────────────────────────────────────────────────────────────────
+    match /campus_confessions/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth();
+      allow delete: if isAdmin() || (isAuth() && resource.data.student_id == request.auth.uid);
+      match /comments/{commentId} {
+        allow read, write: if isAuth();
+      }
+    }
+    match /harambee_campaigns/{campaignId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth();
+      allow delete: if isAdmin() || (isAuth() && resource.data.studentId == request.auth.uid);
+    }
+    match /harambee_withdrawals/{withdrawalId} {
+      allow read, write: if isAuth();
+    }
+    match /gig_board/{gigId} {
+      allow read, write: if isAuth();
+    }
+    match /gig_applications/{appId} {
+      allow read, write: if isAuth();
+    }
+    match /events/{eventId} {
+      allow read: if isAuth();
+      allow create, update: if isAuth();
+      allow delete: if isAdmin();
+      match /{subcol=**} {
+        allow read, write: if isAuth();
+      }
+    }
+    match /eco_profiles/{uid} {
+      allow read, write: if isAuth();
+    }
+    match /health_nudges/{nudgeId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    match /split_bills/{billId} {
+      allow read, write: if isAuth();
+    }
+    match /wallets/{walletId} {
+      allow read, write: if isAuth();
     }
   }
 }

@@ -21,8 +21,10 @@ def send_fcm_notification(user_id: str, title: str, body: str, data: dict = None
             print(f"[FCM] User {user_id} does not have an fcmToken registered.")
             return False
 
-        # Prepare data payload (must be strings)
+        # Prepare data payload (must be strings, mirror title and body for foreground parsing)
         stringified_data = {k: str(v) for k, v in data.items()} if data else {}
+        stringified_data.setdefault('title', str(title))
+        stringified_data.setdefault('body', str(body))
 
         # Build the message with high-priority Android & APNS config for offline wake-up
         message = messaging.Message(
@@ -35,7 +37,10 @@ def send_fcm_notification(user_id: str, title: str, body: str, data: dict = None
             android=messaging.AndroidConfig(
                 priority='high',
                 ttl=86400, # 24 hours offline TTL
-                notification=messaging.AndroidNotification(sound='default')
+                notification=messaging.AndroidNotification(
+                    sound='default',
+                    channel_id='dishi_alerts',
+                )
             ),
             apns=messaging.APNSConfig(
                 payload=messaging.APNSPayload(

@@ -94,6 +94,21 @@ class _VendorTopupViewState extends State<VendorTopupView> with SingleTickerProv
             }
           }
         });
+        
+        if (_studentAllergens.isNotEmpty && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28),
+                const SizedBox(width: 12),
+                Expanded(child: Text('ALERT: Student is allergic to ${_studentAllergens.join(", ")}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white))),
+              ],
+            ),
+            backgroundColor: Colors.red.shade800,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
       }
       
       // Check for active preorders
@@ -396,7 +411,17 @@ class _VendorTopupViewState extends State<VendorTopupView> with SingleTickerProv
 
       if (response.statusCode == 200) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isCash ? 'Cash Payment Recorded!' : 'Wallet Payment Successful!'), backgroundColor: Colors.green));
+          int pointsEarned = 0;
+          try {
+            final parsed = jsonDecode(response.body);
+            pointsEarned = parsed['student']?['loyaltyPointsEarned'] ?? 0;
+          } catch (_) {}
+          
+          String msg = isCash ? 'Cash Payment Recorded!' : 'Wallet Payment Successful!';
+          if (pointsEarned > 0) {
+            msg += ' (Earned $pointsEarned Loyalty Points)';
+          }
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.green));
           Navigator.pop(context);
         }
       } else {
@@ -677,6 +702,39 @@ class _VendorTopupViewState extends State<VendorTopupView> with SingleTickerProv
                       _buildStudentHeader(),
                       const Divider(),
                       Expanded(child: _buildFavoritesGrid()),
+                      if (_cart.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          color: MPesaTheme.primaryGreen.withOpacity(0.1),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('✨ AI Cross-Sell Suggestions', style: TextStyle(fontWeight: FontWeight.bold, color: MPesaTheme.primaryGreen)),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                height: 60,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: _catalog.length,
+                                  itemBuilder: (context, index) {
+                                    final item = _catalog[index];
+                                    if (_cart.containsKey(item['id'])) return const SizedBox.shrink();
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 8.0),
+                                      child: ActionChip(
+                                        label: Text('+ ${item['name']} (Ksh ${item['price']})'),
+                                        backgroundColor: Colors.green.shade50,
+                                        onPressed: () {
+                                          setState(() => _cart[item['id']] = 1);
+                                        },
+                                      ),
+                                    );
+                                  },
+                                ),
+                              )
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -694,7 +752,43 @@ class _VendorTopupViewState extends State<VendorTopupView> with SingleTickerProv
               _buildStudentHeader(),
               Expanded(
                 flex: 2,
-                child: _buildFavoritesGrid(),
+                child: Column(
+                  children: [
+                    Expanded(child: _buildFavoritesGrid()),
+                    if (_cart.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        color: MPesaTheme.primaryGreen.withOpacity(0.1),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('✨ AI Suggestions', style: TextStyle(fontWeight: FontWeight.bold, color: MPesaTheme.primaryGreen)),
+                            SizedBox(
+                              height: 40,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _catalog.length,
+                                itemBuilder: (context, index) {
+                                  final item = _catalog[index];
+                                  if (_cart.containsKey(item['id'])) return const SizedBox.shrink();
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8.0),
+                                    child: ActionChip(
+                                      label: Text('+ ${item['name']}'),
+                                      backgroundColor: Colors.green.shade50,
+                                      onPressed: () {
+                                        setState(() => _cart[item['id']] = 1);
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
+                            )
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ),
               Expanded(
                 flex: 3,
@@ -765,9 +859,75 @@ class _VendorTopupViewState extends State<VendorTopupView> with SingleTickerProv
             onActionCompleted: _processAgentDeposit,
             baseColor: MPesaTheme.primaryGreen,
           ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                final amount = double.tryParse(_depositDisplay) ?? 0.0;
+                if (amount <= 0) return;
+                
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Extend Okoa Dishi Credit'),
+                    content: Text('Are you sure you want to issue Ksh $amount in credit to $_studentName? This will be deducted from your E-Float.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _issueOkoaDishi();
+                        },
+                        child: const Text('Confirm Credit', style: TextStyle(color: Colors.white)),
+                      )
+                    ],
+                  ),
+                );
+              },
+              icon: const Icon(Icons.handshake),
+              label: const Text('Extend Okoa Dishi Credit'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  void _issueOkoaDishi() async {
+    final amount = double.tryParse(_depositDisplay) ?? 0.0;
+    if (amount <= 0) return;
+
+    try {
+      final vendorId = FirebaseAuth.instance.currentUser!.uid;
+      // We will define the endpoint in api_config.dart
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/vendor_finance/okoa_dishi/issue'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'studentUid': widget.studentUid,
+          'amount': amount,
+          'vendorUid': vendorId,
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Okoa Dishi Credit Issued Successfully!'), backgroundColor: Colors.green));
+          Navigator.pop(context);
+        }
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${response.body}'), backgroundColor: MPesaTheme.primaryRed));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: MPesaTheme.primaryRed));
+    }
   }
 
   @override

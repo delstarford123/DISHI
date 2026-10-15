@@ -18,88 +18,126 @@ class FCMService {
   static FcmTapCallback? onNotificationTap;
 
   static Future<void> initialize() async {
-    // 1. Request permissions (especially needed for iOS)
-    NotificationSettings settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      criticalAlert: true, // iOS critical alerts (SOS)
-    );
+    try {
+      // 0. Ensure local notification channels and plugins are initialized
+      await NotificationService.initialize();
 
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      debugPrint('FCMService: User granted permission');
-    } else {
-      debugPrint('FCMService: User declined or has not accepted permission');
-      return;
-    }
+      // 1. Request permissions (required for iOS and Android 13+)
+      NotificationSettings settings = await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        criticalAlert: true, // iOS critical alerts (SOS)
+        provisional: false,
+      );
 
-    // 2. Get the FCM token and save to Firestore
-    final String? token = await _messaging.getToken();
-    debugPrint('FCM Token: $token');
+      // Set foreground notification presentation for iOS
+      await _messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
 
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null && token != null) {
-      try {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser.uid)
-            .set({'fcmToken': token}, SetOptions(merge: true));
-        debugPrint('FCM Token saved for user: ${currentUser.uid}');
-      } catch (e) {
-        debugPrint('Failed to save FCM token: $e');
+      if (settings.authorizationStatus == AuthorizationStatus.denied) {
+        debugPrint('FCMService: User explicitly denied notification permission');
+      } else {
+        debugPrint('FCMService: Notification permission granted (${settings.authorizationStatus})');
       }
-    }
 
-    // 3. Token refresh listener
-    _messaging.onTokenRefresh.listen((newToken) async {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .set({'fcmToken': newToken}, SetOptions(merge: true));
-        debugPrint('FCM Token refreshed for ${user.uid}');
-      }
-    });
+      // 2. Sync token for current user
+      await syncToken();
 
-    // 4. Foreground messages
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint('FCM foreground message: ${message.data}');
-      if (message.notification != null) {
-        final isSos = message.data['type'] == 'sos_alert';
-        if (isSos) {
-          NotificationService.showSosNotification(
-            id: message.hashCode,
-            title: message.notification!.title ?? '🚨 SOS Alert',
-            body: message.notification!.body ?? '',
-            payload: jsonEncode(message.data),
-          );
-        } else {
-          NotificationService.showNotification(
-            id: message.hashCode,
-            title: message.notification!.title ?? 'New Alert',
-            body: message.notification!.body ?? '',
-            payload: jsonEncode(message.data),
-          );
+      // 3. Token refresh listener
+      _messaging.onTokenRefresh.listen((newToken) async {
+        debugPrint('FCM Token refreshed: $newToken');
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          try {
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .set({'fcmToken': newToken, 'tokenUpdatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+            debugPrint('FCM Token updated in Firestore for ${user.uid}');
+          } catch (e) {
+            debugPrint('Failed to save refreshed token: $e');
+          }
         }
-      }
-    });
-
-    // 5. Background tap: app was in background, user tapped notification
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint('FCM notification tapped (background): ${message.data}');
-      onNotificationTap?.call(message);
-    });
-
-    // 6. Terminated state tap: app launched from a notification
-    final RemoteMessage? initialMessage =
-        await _messaging.getInitialMessage();
-    if (initialMessage != null) {
-      debugPrint('FCM launched from terminated state: ${initialMessage.data}');
-      // Slight delay to let the widget tree build before navigating
-      Future.delayed(const Duration(seconds: 1), () {
-        onNotificationTap?.call(initialMessage);
       });
+
+      // 4. Foreground messages listener (handles both notification & data-only payloads)
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint('FCM foreground message received: ${message.data}');
+        
+        final title = message.notification?.title ?? 
+                      message.data['title'] ?? 
+                      (message.data['type'] == 'sos_alert' ? '🚨 SOS Alert' : 'DISHI Alert');
+        final body = message.notification?.body ?? 
+                     message.data['body'] ?? 
+                     message.data['message'] ?? 
+                     message.data['content'] ?? 
+                     '';
+
+        if (title.isNotEmpty || body.isNotEmpty) {
+          final isSos = message.data['type'] == 'sos_alert' || 
+                        message.data['alert_type'] == 'sos' ||
+                        (message.notification?.title?.contains('SOS') ?? false);
+
+          if (isSos) {
+            NotificationService.showSosNotification(
+              id: message.hashCode,
+              title: title,
+              body: body,
+              payload: jsonEncode(message.data),
+            );
+          } else {
+            NotificationService.showNotification(
+              id: message.hashCode,
+              title: title,
+              body: body,
+              payload: jsonEncode(message.data),
+            );
+          }
+        }
+      });
+
+      // 5. Background tap: app was in background, user tapped notification
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        debugPrint('FCM notification tapped (background): ${message.data}');
+        onNotificationTap?.call(message);
+      });
+
+      // 6. Terminated state tap: app launched from a notification
+      final RemoteMessage? initialMessage = await _messaging.getInitialMessage();
+      if (initialMessage != null) {
+        debugPrint('FCM launched from terminated state: ${initialMessage.data}');
+        Future.delayed(const Duration(seconds: 1), () {
+          onNotificationTap?.call(initialMessage);
+        });
+      }
+    } catch (e) {
+      debugPrint('FCMService initialization error: $e');
+    }
+  }
+
+  /// Syncs current device's FCM token to Firestore for the logged-in user.
+  static Future<void> syncToken([String? explicitUid]) async {
+    try {
+      final uid = explicitUid ?? FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      final token = await _messaging.getToken();
+      if (token != null) {
+        debugPrint('FCMService.syncToken: $token for $uid');
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .set({
+              'fcmToken': token,
+              'tokenUpdatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('FCMService.syncToken error: $e');
     }
   }
 

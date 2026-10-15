@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import '../../../../core/services/api_config.dart';
+import '../../../../core/services/secure_http_client.dart';
 import 'dart:convert';
 import 'dart:async';
 
@@ -28,8 +29,35 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
   bool _isCostingLoading = false;
   Map<String, dynamic>? _costingResult;
 
+  // Supplier Bidding Controllers
+  final _bidItemController = TextEditingController();
+  final _bidQtyController = TextEditingController();
+  final _bidPriceController = TextEditingController();
+  bool _isBidLoading = false;
+
   // Predictive Prep Future
   late Future<List<dynamic>> _predictivePrepFuture;
+  
+  // Dynamic Pricing State
+  bool _isDynamicPricingLoading = false;
+
+  // Delivery Optimization State
+  bool _isOptimizingRoute = false;
+  Map<String, dynamic>? _optimizedRoute;
+  final _deliveryDriverIdController = TextEditingController();
+  final _deliveryOrderIdsController = TextEditingController();
+
+  @override
+  void dispose() {
+    _wasteItemController.dispose();
+    _wasteQtyController.dispose();
+    _bidItemController.dispose();
+    _bidQtyController.dispose();
+    _bidPriceController.dispose();
+    _deliveryDriverIdController.dispose();
+    _deliveryOrderIdsController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -39,9 +67,9 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
 
   Future<List<dynamic>> _fetchPredictions() async {
     try {
-      final response = await http.get(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_operations/predictive_prep?vendorUid=${widget.user['uid']}'),
-      ).timeout(const Duration(seconds: 15));
+      final response = await SecureHttpClient.get(
+        '${ApiConfig.baseUrl}/api/v1/vendor_operations/predictive_prep?vendorUid=${widget.user['uid']}',
+      );
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -54,18 +82,17 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
   Future<void> _handleDynamicCosting() async {
     setState(() => _isCostingLoading = true);
     try {
-      final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_operations/inventory/costing'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_operations/inventory/costing',
+        body: {
           'sellingPrice': 180.0,
           'ingredients': [
             {'name': 'Rice (200g)', 'cost': 30},
             {'name': 'Beef (100g)', 'cost': 60},
             {'name': 'Cooking Oil / Gas', 'cost': 15}
           ]
-        }),
-      ).timeout(const Duration(seconds: 15));
+        },
+      );
 
       if (response.statusCode == 200) {
         setState(() {
@@ -92,15 +119,14 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
 
     setState(() => _isWasteLoading = true);
     try {
-      final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_operations/waste/log'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_operations/waste/log',
+        body: {
           'vendorUid': widget.user['uid'],
           'itemName': item,
           'quantity': qty,
-        }),
-      ).timeout(const Duration(seconds: 15));
+        },
+      );
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -114,6 +140,106 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     } finally {
       setState(() => _isWasteLoading = false);
+    }
+  }
+
+  Future<void> _handleSupplierBidRequest() async {
+    final item = _bidItemController.text.trim();
+    final qty = _bidQtyController.text.trim();
+    final maxPrice = double.tryParse(_bidPriceController.text.trim()) ?? 0.0;
+
+    if (item.isEmpty || qty.isEmpty || maxPrice <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields for the bid request')));
+      return;
+    }
+
+    setState(() => _isBidLoading = true);
+    try {
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_operations/supplier_bidding/post_request',
+        body: {
+          'vendorUid': widget.user['uid'],
+          'itemName': item,
+          'quantity': qty,
+          'maxPrice': maxPrice,
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Bidding Opened!'), backgroundColor: _neonCyan));
+        _bidItemController.clear();
+        _bidQtyController.clear();
+        _bidPriceController.clear();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Failed to open bidding'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isBidLoading = false);
+    }
+  }
+
+  Future<void> _handleDynamicPricing() async {
+    setState(() => _isDynamicPricingLoading = true);
+    try {
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_operations/inventory/dynamic_pricing',
+        body: {
+          'vendorUid': widget.user['uid'],
+          'discountPercentage': 20.0,
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Dynamic Pricing Applied!'), backgroundColor: _neonCyan));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Failed to apply dynamic pricing'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isDynamicPricingLoading = false);
+    }
+  }
+
+  Future<void> _handleOptimizeRoute() async {
+    final driverId = _deliveryDriverIdController.text.trim();
+    final ordersText = _deliveryOrderIdsController.text.trim();
+
+    if (driverId.isEmpty || ordersText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter Driver ID and Order IDs')));
+      return;
+    }
+
+    final orderIds = ordersText.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+
+    setState(() => _isOptimizingRoute = true);
+    try {
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_operations/delivery/optimize',
+        body: {
+          'vendorUid': widget.user['uid'],
+          'driverId': driverId,
+          'orderIds': orderIds,
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        setState(() {
+          _optimizedRoute = data['data'];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Route Optimized!'), backgroundColor: _neonCyan));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Failed to optimize route'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isOptimizingRoute = false);
     }
   }
 
@@ -253,6 +379,178 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
                     : const Text('Log Unsold Food', style: TextStyle(color: Colors.white)),
                 ),
               )
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 32),
+
+        // Automated Supplier Bidding
+        _buildSectionHeader('Automated Supplier Bidding', Icons.gavel, Colors.deepOrangeAccent),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.deepOrangeAccent.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Post an ingredient request and let suppliers bid for your business.', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _bidItemController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Ingredient (e.g. Flour)',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  filled: true,
+                  fillColor: _bgColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _bidQtyController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Qty (e.g. 50kg)',
+                        labelStyle: const TextStyle(color: _textSecondary),
+                        filled: true,
+                        fillColor: _bgColor,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _bidPriceController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Max Price (KSH)',
+                        labelStyle: const TextStyle(color: _textSecondary),
+                        filled: true,
+                        fillColor: _bgColor,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isBidLoading ? null : _handleSupplierBidRequest,
+                  icon: _isBidLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) : const Icon(Icons.campaign, color: Colors.white),
+                  label: Text(_isBidLoading ? 'Posting...' : 'Open Bidding', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrangeAccent, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
+              )
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 32),
+
+        // Dynamic Pricing
+        _buildSectionHeader('Smart Dynamic Pricing', Icons.price_change, Colors.purpleAccent),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.purpleAccent.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Automatically apply a 20% discount to all menu items with high stock nearing closing time to clear inventory and reduce waste.', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isDynamicPricingLoading ? null : _handleDynamicPricing,
+                  icon: _isDynamicPricingLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) : const Icon(Icons.flash_on, color: Colors.white),
+                  label: Text(_isDynamicPricingLoading ? 'Applying...' : 'Trigger Flash Sale (20% Off)', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.purpleAccent, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
+              )
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 32),
+
+        // Smart Route Planning
+        _buildSectionHeader('Smart Route Planning', Icons.alt_route, Colors.lightBlueAccent),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.lightBlueAccent.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Optimize delivery sequence for multiple orders to save time and fuel.', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _deliveryDriverIdController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Driver ID',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  filled: true,
+                  fillColor: _bgColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _deliveryOrderIdsController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Order IDs (Comma-separated)',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  filled: true,
+                  fillColor: _bgColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isOptimizingRoute ? null : _handleOptimizeRoute,
+                  icon: _isOptimizingRoute ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) : const Icon(Icons.route, color: Colors.white),
+                  label: Text(_isOptimizingRoute ? 'Optimizing...' : 'Optimize Route', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.lightBlueAccent, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
+              ),
+              if (_optimizedRoute != null) ...[
+                const SizedBox(height: 16),
+                const Divider(color: _textSecondary),
+                const SizedBox(height: 8),
+                const Text('Optimized Sequence:', style: TextStyle(color: Colors.lightBlueAccent, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ...List.generate(_optimizedRoute!['optimizedSequence'].length, (i) {
+                  return Text('${i + 1}. Order ${_optimizedRoute!['optimizedSequence'][i]}', style: const TextStyle(color: Colors.white));
+                }),
+                const SizedBox(height: 8),
+                Text('Estimated Time: ${_optimizedRoute!['estimatedTimeMinutes']} mins', style: const TextStyle(color: _neonCyan)),
+                Text('Total Distance: ${_optimizedRoute!['totalDistanceKm']} km', style: const TextStyle(color: _neonCyan)),
+              ]
             ],
           ),
         ),

@@ -98,6 +98,7 @@ from routes.cron_routes import cron_bp
 from routes.social_routes import social_bp
 from routes.allowance_routes import allowance_bp
 from routes.subscription_routes import subscription_bp
+from routes.savings_matcher_routes import savings_matcher_bp
 from routes.gamification_v2_routes import gamification_v2_bp
 from routes.community_routes import community_bp
 from routes.vendor_finance_routes import vendor_finance_bp
@@ -148,6 +149,7 @@ app.register_blueprint(cron_bp,             url_prefix='/cron')
 app.register_blueprint(social_bp,           url_prefix='/api/v1/social')
 app.register_blueprint(allowance_bp,        url_prefix='/api/v1/allowance')
 app.register_blueprint(subscription_bp,     url_prefix='/api/v1/subscriptions')
+app.register_blueprint(savings_matcher_bp)
 app.register_blueprint(gamification_v2_bp,  url_prefix='/api/v1/gamification_v2')
 app.register_blueprint(community_bp,        url_prefix='/api/v1/community')
 app.register_blueprint(vendor_finance_bp,   url_prefix='/api/v1/vendor_finance')

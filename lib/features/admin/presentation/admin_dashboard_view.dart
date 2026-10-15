@@ -457,7 +457,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 title: const Text('Maintenance Mode', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 subtitle: const Text('Disables the app for all non-admin users immediately.', style: TextStyle(color: _textSecondary)),
                 value: isMaintenance,
-                activeColor: _neonRed,
+                activeThumbColor: _neonRed,
                 onChanged: (val) async {
                   try {
                     await AdminService().toggleMaintenanceMode(val);
@@ -748,7 +748,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
         ),
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('harambees').where('status', isEqualTo: 'active').snapshots(),
+            stream: FirebaseFirestore.instance.collection('harambee_campaigns').snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _neonCyan));
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('No active campaigns', style: TextStyle(color: _textSecondary)));
@@ -760,7 +760,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   final doc = campaigns[index];
                   final data = doc.data() as Map<String, dynamic>;
                   final title = data['title'] ?? 'Untitled';
-                  final raised = data['raised_amount'] ?? 0;
+                  final raised = data['raised'] ?? data['raised_amount'] ?? 0;
                   
                   return Card(
                     color: _surfaceLight,

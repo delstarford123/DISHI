@@ -476,6 +476,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
       stream: FirebaseFirestore.instance
           .collection('notifications')
           .orderBy('createdAt', descending: true)
+          .limit(40)
           .snapshots(),
       builder: (context, snapshot) {
         int unreadCount = 0;

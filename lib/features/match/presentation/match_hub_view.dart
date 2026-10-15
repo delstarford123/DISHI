@@ -97,7 +97,7 @@ class MatchHubView extends StatelessWidget {
                 _buildListCard('Secret Admirer', 'Send a crush...', Icons.favorite, Colors.pinkAccent, () {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const MatchSecretAdmirerView()));
                 }),
-                _buildListCard('Truth or Drink', 'Icebreaker...', Icons.liquor, Colors.redAccent, () {
+                _buildListCard('Truth or Dare 🎲', 'Truth, dare & drinks...', Icons.casino, Colors.redAccent, () {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const MatchTruthOrDrinkView()));
                 }),
                 _buildListCard('Campus Idol', 'Voice notes...', Icons.mic, Colors.blueAccent, () {

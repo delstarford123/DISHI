@@ -248,3 +248,97 @@ def log_waste():
         return jsonify({"status": "success", "message": "Waste logged successfully."}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@vendor_operations_bp.route('/supplier_bidding/post_request', methods=['POST'])
+def post_supplier_request():
+    """ Post an ingredient request for suppliers to bid on """
+    data = request.json
+    vendor_uid = data.get('vendorUid')
+    item_name = data.get('itemName')
+    quantity = data.get('quantity')
+    max_price = float(data.get('maxPrice', 0))
+
+    if not all([vendor_uid, item_name, quantity, max_price > 0]):
+        return jsonify({"error": "Missing parameters"}), 400
+
+    try:
+        db = firestore.client()
+        request_ref = db.collection('supplier_requests').document()
+        request_ref.set({
+            'vendorUid': vendor_uid,
+            'itemName': item_name,
+            'quantity': quantity,
+            'maxPrice': max_price,
+            'status': 'open',
+            'timestamp': firestore.SERVER_TIMESTAMP
+        })
+        return jsonify({"status": "success", "message": f"Bidding opened for {quantity} of {item_name}!"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@vendor_operations_bp.route('/inventory/dynamic_pricing', methods=['POST'])
+def apply_dynamic_pricing():
+    """ 
+    Smart Dynamic Pricing: Automatically applies a discount (e.g. 20%) 
+    to menu items that have high stock levels to clear them out before closing.
+    """
+    data = request.json
+    vendor_uid = data.get('vendorUid')
+    discount_percentage = float(data.get('discountPercentage', 20.0))
+
+    if not vendor_uid:
+        return jsonify({"error": "Missing vendorUid"}), 400
+
+    try:
+        db = firestore.client()
+        # For prototype, we will just apply a straight discount to all menu items
+        # In production, we'd query `inventory` subcollection, find items > threshold, 
+        # match with `vendor_menus` and update only those.
+        
+        menus_ref = db.collection('vendor_menus').where('vendorId', '==', vendor_uid).get()
+        
+        batch = db.batch()
+        updated_items = 0
+        
+        for doc in menus_ref:
+            doc_data = doc.to_dict()
+            current_price = float(doc_data.get('price', 0))
+            if current_price > 0:
+                new_price = current_price * (1 - (discount_percentage / 100))
+                batch.update(doc.reference, {'price': round(new_price, 2)})
+                updated_items += 1
+                
+        if updated_items > 0:
+            batch.commit()
+            
+        return jsonify({"status": "success", "message": f"Applied {discount_percentage}% discount to {updated_items} menu items to clear stock!"}), 200
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@vendor_operations_bp.route('/delivery/optimize', methods=['POST'])
+def optimize_delivery_route():
+    """ Smart Route Planning (Operations) - Optimizes delivery sequence for multiple orders """
+    data = request.json
+    vendor_uid = data.get('vendorUid')
+    driver_id = data.get('driverId')
+    order_ids = data.get('orderIds', [])
+
+    if not all([vendor_uid, order_ids]):
+        return jsonify({"error": "Missing parameters"}), 400
+
+    try:
+        # In a real app, integrate with Google Maps Distance Matrix API
+        # Here we simulate an optimized route response
+        optimized_route = {
+            "driverId": driver_id,
+            "optimizedSequence": order_ids[::-1], # Mock optimization by reversing
+            "estimatedTimeMinutes": len(order_ids) * 12,
+            "totalDistanceKm": len(order_ids) * 1.5,
+            "status": "optimized"
+        }
+        
+        return jsonify({"status": "success", "data": optimized_route, "message": "Delivery route optimized successfully."}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

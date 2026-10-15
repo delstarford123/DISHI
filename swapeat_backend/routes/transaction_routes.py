@@ -450,6 +450,11 @@ def charge():
                 student_updates['spentToday'] = split_amount
                 student_updates['lastSpendDate'] = current_date_str
                 
+        # Customer Loyalty Points: 1 point per 10 Ksh spent
+        points_earned = int(split_amount // 10)
+        if points_earned > 0:
+            student_updates['loyaltyPoints'] = firestore.Increment(points_earned)
+                
         if student_updates:
             # Update category spent today
             if items:
@@ -553,7 +558,8 @@ def charge():
                 "name": student_data.get('displayName', 'Student'),
                 "swapeatCode": student_data.get('swapeatCode', 'Unknown'),
                 "remainingBalance": wallet_balance - split_amount,
-                "usedOkoa": used_okoa
+                "usedOkoa": used_okoa,
+                "loyaltyPointsEarned": points_earned
             }
         }), 200
     except Exception as e:

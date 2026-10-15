@@ -39,8 +39,23 @@ class _SignupViewState extends State<SignupView> {
   }
 
   Future<void> _signup() async {
-    if (_nameController.text.trim().isEmpty || _emailController.text.trim().isEmpty || _passwordController.text.isEmpty || _phoneController.text.trim().isEmpty) {
-      setState(() { _errorMessage = 'Please fill all fields'; });
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final phone = _phoneController.text.trim();
+
+    if (name.isEmpty || email.isEmpty || password.isEmpty || phone.isEmpty) {
+      setState(() { _errorMessage = 'Please fill all fields.'; });
+      return;
+    }
+
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      setState(() { _errorMessage = 'Please enter a valid email address.'; });
+      return;
+    }
+
+    if (password.length < 6) {
+      setState(() { _errorMessage = 'Password must be at least 6 characters.'; });
       return;
     }
 
@@ -48,14 +63,14 @@ class _SignupViewState extends State<SignupView> {
 
     try {
       final UserCredential userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+        email: email,
+        password: password,
       );
 
       await FirebaseFirestore.instance.collection('users').doc(userCred.user!.uid).set({
-        'name': _nameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'phoneNumber': _phoneController.text.trim(),
+        'name': name,
+        'email': email,
+        'phoneNumber': phone,
         'roles': [_selectedRole],
         'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -63,31 +78,60 @@ class _SignupViewState extends State<SignupView> {
       await SecureStorageService.saveUserData(
         userId: userCred.user!.uid, 
         role: _selectedRole,
-        name: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        phone: _phoneController.text.trim(),
+        name: name,
+        email: email,
+        phone: phone,
       );
 
       _routeToPinSetup();
+    } on FirebaseAuthException catch (e) {
+      String msg = 'Sign up failed. Please try again.';
+      if (e.code == 'email-already-in-use') {
+        msg = 'An account already exists with this email. Please sign in.';
+      } else if (e.code == 'weak-password') {
+        msg = 'Password is too weak. Please use at least 6 characters.';
+      } else if (e.code == 'invalid-email') {
+        msg = 'The email address format is invalid.';
+      } else if (e.code == 'network-request-failed') {
+        await _handleOfflineSignup(name, email, phone);
+        return;
+      } else if (e.message != null && e.message!.isNotEmpty) {
+        msg = e.message!;
+      }
+      setState(() => _errorMessage = msg);
     } catch (e) {
-      // Offline Signup Workflow
-      final offlineUid = 'offline_${DateTime.now().millisecondsSinceEpoch}';
-      await LocalAuthService.generateAndStoreOfflinePin(offlineUid);
-      
-      OfflineSyncService.queueRequest({
-        'endpoint': '/api/auth/sync_offline_profile',
-        'method': 'POST',
-        'payload': {
-          'offline_uid': offlineUid,
-          'name': _nameController.text.trim(),
-          'email': _emailController.text.trim(),
-        },
-      });
-
-      _routeToPinSetup();
+      await _handleOfflineSignup(name, email, phone);
     } finally {
       if (mounted) setState(() { _isLoading = false; });
     }
+  }
+
+  Future<void> _handleOfflineSignup(String name, String email, String phone) async {
+    // Offline Signup Workflow
+    final offlineUid = 'offline_${DateTime.now().millisecondsSinceEpoch}';
+    await LocalAuthService.generateAndStoreOfflinePin(offlineUid);
+
+    await SecureStorageService.saveUserData(
+      userId: offlineUid,
+      role: _selectedRole,
+      name: name,
+      email: email,
+      phone: phone,
+    );
+    
+    OfflineSyncService.queueRequest({
+      'endpoint': '/api/auth/sync_offline_profile',
+      'method': 'POST',
+      'payload': {
+        'offline_uid': offlineUid,
+        'name': name,
+        'email': email,
+        'phone': phone,
+        'role': _selectedRole,
+      },
+    });
+
+    _routeToPinSetup();
   }
 
   Future<void> _handleGoogleSignUp() async {

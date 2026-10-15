@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import '../../../../core/services/api_config.dart';
+import '../../../../core/services/secure_http_client.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -30,6 +31,18 @@ class _VendorSalesTabViewState extends State<VendorSalesTabView> {
   final _loyaltyStudentController = TextEditingController();
   bool _isLoyaltyLoading = false;
 
+  // Happy Hour Controllers
+  final _hhDiscountController = TextEditingController();
+  final _hhStartController = TextEditingController();
+  final _hhEndController = TextEditingController();
+  bool _isHhLoading = false;
+
+  // Subscription Controllers
+  final _subNameController = TextEditingController();
+  final _subPriceController = TextEditingController();
+  final _subDurationController = TextEditingController();
+  bool _isSubLoading = false;
+
   Future<void> _handleFlashSale() async {
     final item = _flashItemController.text.trim();
     final msg = _flashDiscountController.text.trim();
@@ -41,15 +54,14 @@ class _VendorSalesTabViewState extends State<VendorSalesTabView> {
 
     setState(() => _isFlashLoading = true);
     try {
-      final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_sales/sales/flash_sale'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_sales/sales/flash_sale',
+        body: {
           'vendorUid': widget.user['uid'],
           'itemName': item,
           'discountMsg': msg,
-        }),
-      ).timeout(const Duration(seconds: 15));
+        },
+      );
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -76,14 +88,13 @@ class _VendorSalesTabViewState extends State<VendorSalesTabView> {
 
     setState(() => _isLoyaltyLoading = true);
     try {
-      final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_sales/loyalty/stamp'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_sales/loyalty/stamp',
+        body: {
           'vendorUid': widget.user['uid'],
           'studentUid': studentId,
-        }),
-      ).timeout(const Duration(seconds: 15));
+        },
+      );
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -99,18 +110,102 @@ class _VendorSalesTabViewState extends State<VendorSalesTabView> {
     }
   }
 
+  Future<void> _scheduleHappyHour() async {
+    final discount = _hhDiscountController.text.trim();
+    final start = _hhStartController.text.trim();
+    final end = _hhEndController.text.trim();
+
+    if (discount.isEmpty || start.isEmpty || end.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
+      return;
+    }
+
+    setState(() => _isHhLoading = true);
+    try {
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_sales/happy_hour/schedule',
+        body: {
+          'vendorUid': widget.user['uid'],
+          'discountPercentage': double.tryParse(discount) ?? 0,
+          'startTime': start,
+          'endTime': end,
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Happy Hour Scheduled!'), backgroundColor: Colors.deepPurpleAccent));
+        _hhDiscountController.clear();
+        _hhStartController.clear();
+        _hhEndController.clear();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Failed to schedule'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isHhLoading = false);
+    }
+  }
+
+  Future<void> _createSubscriptionPlan() async {
+    final name = _subNameController.text.trim();
+    final price = _subPriceController.text.trim();
+    final duration = _subDurationController.text.trim();
+
+    if (name.isEmpty || price.isEmpty || duration.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
+      return;
+    }
+
+    setState(() => _isSubLoading = true);
+    try {
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_sales/subscription/create',
+        body: {
+          'vendorUid': widget.user['uid'],
+          'planName': name,
+          'price': double.tryParse(price) ?? 0,
+          'durationDays': int.tryParse(duration) ?? 30,
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Subscription Created!'), backgroundColor: Colors.teal));
+        _subNameController.clear();
+        _subPriceController.clear();
+        _subDurationController.clear();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Failed to create plan'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isSubLoading = false);
+    }
+  }
+
   Future<void> _markOrderFulfilled(String orderId) async {
     try {
-      final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_sales/preorders/fulfill'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_sales/preorders/fulfill',
+        body: {
           'orderId': orderId,
-        }),
-      ).timeout(const Duration(seconds: 15));
+        },
+      );
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order marked fulfilled'), backgroundColor: _neonCyan));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.inventory, color: Colors.black, size: 18),
+              SizedBox(width: 8),
+              Expanded(child: Text('Order fulfilled. Ingredients deducted.', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))),
+            ],
+          ),
+          backgroundColor: _neonCyan,
+        ));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to fulfill order'), backgroundColor: Colors.red));
       }
@@ -171,6 +266,159 @@ class _VendorSalesTabViewState extends State<VendorSalesTabView> {
                   icon: _isFlashLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black)) : const Icon(Icons.campaign, color: Colors.black),
                   label: Text(_isFlashLoading ? 'Broadcasting...' : 'Broadcast Sale', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(backgroundColor: _neonOrange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Happy Hour Automation
+        const SizedBox(height: 32),
+        _buildSectionHeader('Happy Hour Automation', Icons.schedule, Colors.deepPurpleAccent),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Schedule dynamic pricing for slow hours. e.g. 20% off from 3 PM to 5 PM.', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _hhDiscountController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Discount %',
+                        labelStyle: const TextStyle(color: _textSecondary),
+                        filled: true,
+                        fillColor: _bgColor,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _hhStartController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Start Time (HH:MM)',
+                        labelStyle: const TextStyle(color: _textSecondary),
+                        filled: true,
+                        fillColor: _bgColor,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _hhEndController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'End Time (HH:MM)',
+                        labelStyle: const TextStyle(color: _textSecondary),
+                        filled: true,
+                        fillColor: _bgColor,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _isHhLoading ? null : _scheduleHappyHour,
+                  icon: _isHhLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) : const Icon(Icons.timer, color: Colors.white),
+                  label: Text(_isHhLoading ? 'Scheduling...' : 'Schedule Happy Hour', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurpleAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Subscription Plans
+        const SizedBox(height: 32),
+        _buildSectionHeader('Subscription Plans', Icons.card_membership, Colors.teal),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.teal.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Create pre-paid meal plans for parents to subscribe to. (e.g. Gold Lunch Plan)', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _subNameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Plan Name',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  filled: true,
+                  fillColor: _bgColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _subPriceController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Price (KSH)',
+                        labelStyle: const TextStyle(color: _textSecondary),
+                        filled: true,
+                        fillColor: _bgColor,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _subDurationController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Duration (Days)',
+                        labelStyle: const TextStyle(color: _textSecondary),
+                        filled: true,
+                        fillColor: _bgColor,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _isSubLoading ? null : _createSubscriptionPlan,
+                  icon: _isSubLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) : const Icon(Icons.add, color: Colors.white),
+                  label: Text(_isSubLoading ? 'Creating...' : 'Create Meal Plan', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 ),
               ),
             ],

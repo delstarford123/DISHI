@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import '../../../../core/services/api_config.dart';
+import '../../../../core/services/secure_http_client.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -35,6 +36,43 @@ class _VendorFinanceTabViewState extends State<VendorFinanceTabView> {
   final _supplierIdController = TextEditingController();
   final _supplierAmountController = TextEditingController();
   bool _isSupplierLoading = false;
+  bool _autoPaySupplier = false;
+
+  // Auto-Withdrawal State
+  bool _autoWithdrawal = false;
+
+  // Escrow Controllers
+  final _escrowPhoneController = TextEditingController();
+  final _escrowAmountController = TextEditingController();
+  final _escrowEventController = TextEditingController();
+  bool _isEscrowLoading = false;
+
+  // Tax Export State
+  bool _isTaxExporting = false;
+  bool _isAdvancedReporting = false;
+  
+  // Refund Controllers
+  final _refundStudentIdController = TextEditingController();
+  final _refundAmountController = TextEditingController();
+  final _refundReasonController = TextEditingController();
+  bool _isRefunding = false;
+
+  @override
+  void dispose() {
+    _agentStudentIdController.dispose();
+    _agentAmountController.dispose();
+    _p2pVendorIdController.dispose();
+    _p2pAmountController.dispose();
+    _supplierIdController.dispose();
+    _supplierAmountController.dispose();
+    _escrowPhoneController.dispose();
+    _escrowAmountController.dispose();
+    _escrowEventController.dispose();
+    _refundStudentIdController.dispose();
+    _refundAmountController.dispose();
+    _refundReasonController.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleAgentDeposit() async {
     final studentId = _agentStudentIdController.text.trim();
@@ -68,15 +106,14 @@ class _VendorFinanceTabViewState extends State<VendorFinanceTabView> {
         }
       }
 
-      final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_finance/agent/deposit'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_finance/agent/deposit',
+        body: {
           'vendorUid': widget.user['uid'],
           'studentUid': resolvedUid,
           'amount': amount,
-        }),
-      ).timeout(const Duration(seconds: 30));
+        },
+      );
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -86,8 +123,6 @@ class _VendorFinanceTabViewState extends State<VendorFinanceTabView> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Deposit failed'), backgroundColor: Colors.red));
       }
-    } on TimeoutException {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request timed out. Please try again.'), backgroundColor: Colors.red));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     } finally {
@@ -107,15 +142,14 @@ class _VendorFinanceTabViewState extends State<VendorFinanceTabView> {
     setState(() => _isP2pLoading = true);
 
     try {
-      final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_finance/p2p_transfer'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_finance/p2p_transfer',
+        body: {
           'senderUid': widget.user['uid'],
           'receiverUid': receiverId,
           'amount': amount,
-        }),
-      ).timeout(const Duration(seconds: 30));
+        },
+      );
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -125,8 +159,6 @@ class _VendorFinanceTabViewState extends State<VendorFinanceTabView> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Transfer failed'), backgroundColor: Colors.red));
       }
-    } on TimeoutException {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request timed out. Please try again.'), backgroundColor: Colors.red));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     } finally {
@@ -146,16 +178,15 @@ class _VendorFinanceTabViewState extends State<VendorFinanceTabView> {
     setState(() => _isSupplierLoading = true);
 
     try {
-      final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_finance/supplier/pay'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_finance/supplier/pay',
+        body: {
           'vendorUid': widget.user['uid'],
           'supplierId': supplierId,
           'amount': amount,
           'invoiceNumber': 'INV-${DateTime.now().millisecondsSinceEpoch}'
-        }),
-      ).timeout(const Duration(seconds: 30));
+        },
+      );
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -165,14 +196,173 @@ class _VendorFinanceTabViewState extends State<VendorFinanceTabView> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Payment failed'), backgroundColor: Colors.red));
       }
-    } on TimeoutException {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request timed out. Please try again.'), backgroundColor: Colors.red));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     } finally {
       setState(() => _isSupplierLoading = false);
     }
   }
+
+  Future<void> _handleEscrowRequest() async {
+    final phone = _escrowPhoneController.text.trim();
+    final amount = double.tryParse(_escrowAmountController.text.trim()) ?? 0.0;
+    final event = _escrowEventController.text.trim();
+
+    if (phone.isEmpty || amount <= 0 || event.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter Phone, Amount, and Event Name.')));
+      return;
+    }
+
+    setState(() => _isEscrowLoading = true);
+
+    try {
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_finance/escrow/request',
+        body: {
+          'vendorUid': widget.user['uid'],
+          'parentPhone': phone,
+          'amount': amount,
+          'eventName': event,
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Escrow requested successfully'), backgroundColor: _neonCyan));
+        _escrowPhoneController.clear();
+        _escrowAmountController.clear();
+        _escrowEventController.clear();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Escrow request failed'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isEscrowLoading = false);
+    }
+  }
+
+  Future<void> _handleTaxExport() async {
+    setState(() => _isTaxExporting = true);
+
+    try {
+      final response = await SecureHttpClient.get(
+        '${ApiConfig.baseUrl}/api/v1/vendor_finance/tax_export?vendorUid=${widget.user['uid']}',
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final summary = data['data'];
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Tax report generated'), backgroundColor: _neonCyan));
+        
+        // Show summary dialog
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('KRA Tax Report Summary', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            backgroundColor: _cardColor,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Gross Revenue: Ksh ${summary['grossRevenue']}'),
+                Text('VAT Collected: Ksh ${summary['vatCollected']}'),
+                Text('Transactions: ${summary['transactionsCount']}'),
+                Text('KRA PIN: ${summary['kraPin']}'),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+            ],
+          )
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Tax export failed'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isTaxExporting = false);
+    }
+  }
+
+  Future<void> _handleAdvancedReport() async {
+    setState(() => _isAdvancedReporting = true);
+    try {
+      final response = await SecureHttpClient.get(
+        '${ApiConfig.baseUrl}/api/v1/vendor_finance/advanced_export?vendorUid=${widget.user['uid']}&format=csv',
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final metrics = data['data']['metrics'];
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Advanced report generated'), backgroundColor: _neonCyan));
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Advanced Financial Analysis', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            backgroundColor: _cardColor,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Total Sales: Ksh ${metrics['totalSales']}'),
+                Text('Total Refunds: Ksh ${metrics['totalRefunds']}'),
+                Text('Escrow Held: Ksh ${metrics['escrowHeld']}'),
+                Text('Top Selling: ${metrics['topSellingItem']}'),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+            ],
+          )
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Report failed'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isAdvancedReporting = false);
+    }
+  }
+
+  Future<void> _handleRefund() async {
+    final studentId = _refundStudentIdController.text.trim();
+    final amount = double.tryParse(_refundAmountController.text.trim()) ?? 0.0;
+    final reason = _refundReasonController.text.trim();
+
+    if (studentId.isEmpty || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid Student ID and Amount.')));
+      return;
+    }
+
+    setState(() => _isRefunding = true);
+    try {
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_finance/refund',
+        body: {
+          'vendorUid': widget.user['uid'],
+          'studentUid': studentId,
+          'amount': amount,
+          'reason': reason.isNotEmpty ? reason : 'Customer requested refund',
+        },
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Refund successful'), backgroundColor: _neonCyan));
+        _refundStudentIdController.clear();
+        _refundAmountController.clear();
+        _refundReasonController.clear();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Refund failed'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isRefunding = false);
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -349,11 +539,239 @@ class _VendorFinanceTabViewState extends State<VendorFinanceTabView> {
                       ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white))
                       : const Text('Pay Supplier', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
-              )
+              ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Enable Auto-Pay', style: TextStyle(color: Colors.white, fontSize: 14)),
+                subtitle: const Text('Automatically pay this supplier when balance > 10,000 KSH', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                activeColor: _neonCyan,
+                value: _autoPaySupplier,
+                onChanged: (val) {
+                  setState(() => _autoPaySupplier = val);
+                },
+              ),
             ],
           ),
         ),
         
+        const SizedBox(height: 32),
+
+        // Escrow for Bulk Catering Orders
+        _buildSectionHeader('Bulk Catering Escrow', Icons.handshake, Colors.deepPurpleAccent),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Request a secure escrow payment from a parent for large events (e.g., Birthday Party). Funds are held until fulfillment.', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _escrowEventController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Event Name (e.g., John Birthday)',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  filled: true,
+                  fillColor: _bgColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _escrowPhoneController,
+                      keyboardType: TextInputType.phone,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Parent Phone',
+                        labelStyle: const TextStyle(color: _textSecondary),
+                        filled: true,
+                        fillColor: _bgColor,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _escrowAmountController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Amount (KSH)',
+                        labelStyle: const TextStyle(color: _textSecondary),
+                        filled: true,
+                        fillColor: _bgColor,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _isEscrowLoading ? null : _handleEscrowRequest,
+                  icon: _isEscrowLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) : const Icon(Icons.security, color: Colors.white),
+                  label: Text(_isEscrowLoading ? 'Requesting...' : 'Request Escrow Payment', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurpleAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 32),
+
+        // Auto-Withdrawal Section
+        _buildSectionHeader('E-Float Auto-Withdrawal', Icons.schedule, _neonCyan),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Schedule your e-float to automatically withdraw to your M-PESA Till every night at 9:00 PM.', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Enable 9 PM Auto-Withdrawal', style: TextStyle(color: Colors.white, fontSize: 14)),
+                activeColor: _neonCyan,
+                value: _autoWithdrawal,
+                onChanged: (val) {
+                  setState(() => _autoWithdrawal = val);
+                  if (val) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Auto-withdrawal scheduled for 9:00 PM'), backgroundColor: _neonCyan));
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 32),
+
+        // Tax & Revenue Export Section
+        _buildSectionHeader('Automated Tax & Revenue Export', Icons.receipt_long, Colors.greenAccent),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Generate compliant tax reports and revenue summaries for KRA filings.', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _isTaxExporting ? null : _handleTaxExport,
+                  icon: _isTaxExporting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black)) : const Icon(Icons.download, color: Colors.black),
+                  label: Text(_isTaxExporting ? 'Generating Report...' : 'Download KRA Tax Report', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.greenAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton.icon(
+                  onPressed: _isAdvancedReporting ? null : _handleAdvancedReport,
+                  icon: _isAdvancedReporting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.greenAccent)) : const Icon(Icons.analytics, color: Colors.greenAccent),
+                  label: Text(_isAdvancedReporting ? 'Analyzing...' : 'Advanced Financial Analysis', style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.greenAccent), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 32),
+        
+        // Automated Vendor Refunds
+        _buildSectionHeader('Automated Refunds', Icons.money_off, Colors.redAccent),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Instantly refund a student from your E-Float for cancelled or problematic orders.', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _refundStudentIdController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Student UID',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  filled: true,
+                  fillColor: _bgColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _refundAmountController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Refund Amount (KSH)',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  filled: true,
+                  fillColor: _bgColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _refundReasonController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Reason (Optional)',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  filled: true,
+                  fillColor: _bgColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _isRefunding ? null : _handleRefund,
+                  icon: _isRefunding ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) : const Icon(Icons.settings_backup_restore, color: Colors.white),
+                  label: Text(_isRefunding ? 'Processing...' : 'Issue Refund', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
+              ),
+            ],
+          ),
+        ),
+
         const SizedBox(height: 100),
       ],
     );

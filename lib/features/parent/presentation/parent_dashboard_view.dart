@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:ui';
 import 'dart:io';
 import 'package:fl_chart/fl_chart.dart';
+import 'subscription_manager_view.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -78,12 +79,26 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  final PageController _financialToolsController = PageController(viewportFraction: 1.0);
+  Timer? _financialToolsTimer;
 
   @override
   void initState() {
     super.initState();
     _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat(reverse: true);
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(_pulseController);
+    
+    _financialToolsTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (_financialToolsController.hasClients) {
+        int nextPage = (_financialToolsController.page?.round() ?? 0) + 1;
+        if (nextPage >= 2) {
+          _financialToolsController.animateToPage(0, duration: const Duration(milliseconds: 800), curve: Curves.easeInOut);
+        } else {
+          _financialToolsController.animateToPage(nextPage, duration: const Duration(milliseconds: 800), curve: Curves.fastOutSlowIn);
+        }
+      }
+    });
+    
     _fetchParentData();
 
     // Initialize FCM so this parent gets push notifications
@@ -125,6 +140,8 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
   void dispose() {
     _sosStreamSub?.cancel();
     _pulseController.dispose();
+    _financialToolsTimer?.cancel();
+    _financialToolsController.dispose();
     super.dispose();
   }
 
@@ -282,7 +299,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
 
   Widget _buildCommunityFeedSnippet() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('community_posts').orderBy('createdAt', descending: true).limit(1).snapshots(),
+      stream: FirebaseFirestore.instance.collection('campus_feed').orderBy('createdAt', descending: true).limit(1).snapshots(),
       builder: (context, snapshot) {
         String content = '"How do you guys handle lunchbox limits? My kid keeps buying junk food!"';
         String author = '- Sarah N., 15 mins ago';
@@ -322,14 +339,14 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
   }
 
   void _showSavingsMatcher() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _cardColor,
-        title: const Text('Savings Matcher', style: TextStyle(color: _neonCyan)),
-        content: const Text('Automatically match your child\'s savings by 50% from your Family Vault. (Coming soon)', style: TextStyle(color: Colors.white)),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close', style: TextStyle(color: _textSecondary)))],
-      )
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SavingsTargetView(
+          parentUser: widget.user,
+          selectedStudentUid: _globalSelectedStudentUid,
+        ),
+      ),
     );
   }
 
@@ -775,7 +792,17 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
 
   Widget _buildGuardianBadge() {
     return InkWell(
-      onTap: () {},
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SubscriptionManagerView(
+              parentUser: widget.user,
+              selectedStudentUid: _globalSelectedStudentUid,
+            ),
+          ),
+        );
+      },
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -1275,22 +1302,41 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
             
             const Text('Financial Tools', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              children: [
-                _buildActionGridButton(Icons.account_balance_wallet, 'Auto Top-Up', _neonCyan, _showAutoTopUpSelector),
-                _buildActionGridButton(Icons.schedule, 'Allowances', _neonOrange, _showScheduledAllowances),
-                _buildActionGridButton(Icons.pie_chart, 'Analytics', _neonCyan, _showSpendingAnalytics),
-                _buildActionGridButton(Icons.bento, 'Pre-order Food', Colors.greenAccent, _showLunchboxSelector),
-                _buildActionGridButton(Icons.savings, 'Savings Targets', MPesaTheme.primaryGreen, _showSavingsTarget),
-                _buildActionGridButton(Icons.school, 'Grad Fund', Colors.purpleAccent, _showGraduationFund),
-                _buildActionGridButton(Icons.autorenew, 'Bills & Subs', Colors.cyanAccent, _showSubscriptionManager),
-                _buildActionGridButton(Icons.family_restroom, 'Wallet Rules', _neonBlue, _showSharedWalletDialog),
-              ],
+            SizedBox(
+              height: 280, // Increased height to prevent RenderFlex overflow
+              child: PageView(
+                controller: _financialToolsController,
+                children: [
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.2, // Adjusted aspect ratio so cards are taller
+                    children: [
+                      _buildActionGridButton(Icons.account_balance_wallet, 'Auto Top-Up', _neonCyan, _showAutoTopUpSelector),
+                      _buildActionGridButton(Icons.schedule, 'Allowances', _neonOrange, _showScheduledAllowances),
+                      _buildActionGridButton(Icons.pie_chart, 'Analytics', _neonCyan, _showSpendingAnalytics),
+                      _buildActionGridButton(Icons.bento, 'Pre-order Food', Colors.greenAccent, _showLunchboxSelector),
+                    ],
+                  ),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.2, // Ensure matching card ratio
+                    children: [
+                      _buildActionGridButton(Icons.savings, 'Savings Targets', MPesaTheme.primaryGreen, _showSavingsTarget),
+                      _buildActionGridButton(Icons.school, 'Grad Fund', Colors.purpleAccent, _showGraduationFund),
+                      _buildActionGridButton(Icons.autorenew, 'Bills & Subs', Colors.cyanAccent, _showSubscriptionManager),
+                      _buildActionGridButton(Icons.family_restroom, 'Wallet Rules', _neonBlue, _showSharedWalletDialog),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),

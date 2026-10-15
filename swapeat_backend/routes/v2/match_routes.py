@@ -78,6 +78,11 @@ def get_potentials():
         # Get current user's profile to know gender preference
         user_profile_doc = db.collection('match_profiles').document(user_id).get()
         user_gender = user_profile_doc.to_dict().get('gender', '') if user_profile_doc.exists else ''
+        user_gender_norm = (user_gender or '').strip().lower()
+        if not user_gender_norm:
+            u_doc = db.collection('users').document(user_id).get()
+            if u_doc.exists:
+                user_gender_norm = (u_doc.to_dict().get('gender') or '').strip().lower()
         
         # Get the users that this user has already swiped on
         interactions_ref = db.collection('match_profiles').document(user_id).collection('swipes')
@@ -87,13 +92,22 @@ def get_potentials():
         
         # Get potentials
         potentials_query = db.collection('match_profiles').where('is_active', '==', True)
-            
         potentials_docs = potentials_query.stream()
         
         results = []
+        is_user_male = user_gender_norm in ['male', 'm']
+        
         for doc in potentials_docs:
             if doc.id not in swiped_ids:
                 data = doc.to_dict()
+                cand_gender = (data.get('gender') or '').strip().lower()
+                
+                # STRICT OPPOSITE GENDER FILTER
+                if user_gender_norm:
+                    is_opposite = (cand_gender in ['female', 'f']) if is_user_male else (cand_gender in ['male', 'm'])
+                    if not is_opposite:
+                        continue
+                        
                 results.append(data)
                 
         return jsonify({"status": "success", "data": results}), 200

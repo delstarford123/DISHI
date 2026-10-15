@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -24,48 +23,188 @@ class _LostAndFoundViewState extends State<LostAndFoundView> {
 
   void _claimBounty(DocumentSnapshot doc) {
     final bounty = doc.data() as Map<String, dynamic>;
+    final noteController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF131A2A),
-        title: Text(bounty['type'] == 'Lost' ? 'Found this item?' : 'Is this yours?', style: const TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              bounty['type'] == 'Lost' 
-                ? 'Contact ${bounty['student']} to return the item. Once they verify with a photo, KES ${bounty['bounty']} will be automatically transferred to your DISHI Wallet via Escrow.'
-                : 'Contact ${bounty['student']} to claim your item. You will need to provide proof of ownership.',
-              style: const TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.orangeAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-              child: const Row(
-                children: [
-                  Icon(Icons.security, color: Colors.orangeAccent),
-                  SizedBox(width: 8),
-                  Expanded(child: Text('DISHI Escrow Active. Funds are secured.', style: TextStyle(color: Colors.orangeAccent, fontSize: 12))),
-                ],
+        title: Text(bounty['type'] == 'Lost' ? 'Found this item?' : 'Is this yours?', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                bounty['type'] == 'Lost' 
+                  ? 'Notify ${bounty['student']} that you have found their item. Once they verify, any bounty will be released directly to your DISHI Wallet via Escrow.'
+                  : 'Notify ${bounty['student']} to claim your item. Please provide verification details below.',
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
-            )
-          ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: noteController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: bounty['type'] == 'Lost' ? 'Where is the item currently?' : 'Proof of ownership / details',
+                  labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+                  hintText: 'e.g. Left at Library Security or meet at cafeteria',
+                  hintStyle: const TextStyle(color: Colors.white30, fontSize: 12),
+                  filled: true,
+                  fillColor: Colors.black26,
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: Colors.orangeAccent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                child: const Row(
+                  children: [
+                    Icon(Icons.security, color: Colors.orangeAccent, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(child: Text('DISHI Escrow Guaranteed. Safe campus returns.', style: TextStyle(color: Colors.orangeAccent, fontSize: 11))),
+                  ],
+                ),
+              )
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryGreen),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Verification Request sent! Opening chat...')));
+              final note = noteController.text.trim();
+              
+              await FirebaseFirestore.instance.collection('lost_and_found').doc(doc.id).update({
+                'status': 'Claim Pending',
+                'claimedBy': currentUid,
+                'claimerName': widget.user['displayName'] ?? 'A Student',
+                'claimerPhone': widget.user['phoneNumber'] ?? '',
+                'claimNote': note,
+                'claimedAt': FieldValue.serverTimestamp(),
+              });
+
+              final ownerId = bounty['studentId'] as String?;
+              if (ownerId != null && ownerId.isNotEmpty) {
+                await FirebaseFirestore.instance.collection('notifications').add({
+                  'targetUserId': ownerId,
+                  'userId': ownerId,
+                  'title': bounty['type'] == 'Lost' ? '🎉 Someone Found Your Item!' : '📦 Item Claim Submitted',
+                  'body': '${widget.user['displayName'] ?? 'A student'} reported finding "${bounty['item']}". Open Lost & Found to verify and release bounty.',
+                  'type': 'lost_and_found_claim',
+                  'itemId': doc.id,
+                  'createdAt': FieldValue.serverTimestamp(),
+                  'readBy': [],
+                });
+              }
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Claim submitted! The owner has been notified.')));
+              }
             },
-            child: Text(bounty['type'] == 'Lost' ? 'Start Claim' : 'Message Finder', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            child: Text(bounty['type'] == 'Lost' ? 'Submit Claim' : 'Claim Item', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           )
         ],
       )
     );
+  }
+
+  void _resolveBounty(DocumentSnapshot doc) async {
+    final bounty = doc.data() as Map<String, dynamic>;
+    final bountyAmount = double.tryParse('${bounty['bounty']}') ?? 0.0;
+    final claimerUid = bounty['claimedBy'] as String?;
+    final claimerName = bounty['claimerName'] as String? ?? 'Finder';
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF131A2A),
+        title: const Text('Verify & Release Escrow 🤝', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text(
+          bountyAmount > 0 
+            ? 'Confirm you have received your item? KES $bountyAmount will be automatically credited from Escrow to $claimerName\'s DISHI Wallet.'
+            : 'Confirm that this item has been returned and resolved?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryGreen),
+            onPressed: () async {
+              Navigator.pop(context);
+
+              // 1. Mark item resolved
+              await FirebaseFirestore.instance.collection('lost_and_found').doc(doc.id).update({
+                'status': 'Resolved',
+                'resolvedAt': FieldValue.serverTimestamp(),
+              });
+
+              // 2. Transfer bounty via Escrow if applicable
+              if (bountyAmount > 0 && claimerUid != null && claimerUid.isNotEmpty) {
+                try {
+                  await FirebaseFirestore.instance.collection('wallets').doc(claimerUid).set({
+                    'balance': FieldValue.increment(bountyAmount),
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  }, SetOptions(merge: true));
+
+                  await FirebaseFirestore.instance.collection('transactions').add({
+                    'userId': claimerUid,
+                    'amount': bountyAmount,
+                    'type': 'bounty_reward',
+                    'description': 'Bounty reward for returning "${bounty['item']}"',
+                    'createdAt': FieldValue.serverTimestamp(),
+                    'status': 'completed',
+                  });
+                } catch (_) {}
+              }
+
+              // 3. Notify claimer
+              if (claimerUid != null && claimerUid.isNotEmpty) {
+                await FirebaseFirestore.instance.collection('notifications').add({
+                  'targetUserId': claimerUid,
+                  'userId': claimerUid,
+                  'title': 'Bounty Rewarded! 💰',
+                  'body': 'Your claim on "${bounty['item']}" was verified! ${bountyAmount > 0 ? "KES $bountyAmount has been credited to your DISHI Wallet." : "Thank you for being a campus Good Samaritan!"}',
+                  'type': 'lost_and_found_reward',
+                  'itemId': doc.id,
+                  'createdAt': FieldValue.serverTimestamp(),
+                  'readBy': [],
+                });
+              }
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Item marked as Resolved! Escrow released.')));
+              }
+            },
+            child: const Text('Confirm & Release', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          )
+        ],
+      )
+    );
+  }
+
+  void _rejectClaim(DocumentSnapshot doc) async {
+    await FirebaseFirestore.instance.collection('lost_and_found').doc(doc.id).update({
+      'status': 'Active',
+      'claimedBy': FieldValue.delete(),
+      'claimerName': FieldValue.delete(),
+      'claimerPhone': FieldValue.delete(),
+      'claimNote': FieldValue.delete(),
+      'claimedAt': FieldValue.delete(),
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Claim dismissed. Item returned to active listings.')));
+    }
+  }
+
+  void _deleteItem(DocumentSnapshot doc) async {
+    await FirebaseFirestore.instance.collection('lost_and_found').doc(doc.id).delete();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Item removed.')));
+    }
   }
 
   void _showPostItemDialog() {
@@ -251,6 +390,10 @@ class _LostAndFoundViewState extends State<LostAndFoundView> {
                     final doc = docs[index];
                     final bounty = doc.data() as Map<String, dynamic>;
                     final bool isMine = bounty['studentId'] == currentUid;
+                    final double bountyAmount = double.tryParse('${bounty['bounty'] ?? 0}') ?? 0.0;
+                    final String status = bounty['status'] as String? ?? 'Active';
+                    final bool isPendingClaim = status == 'Claim Pending';
+                    final bool isResolved = status == 'Resolved';
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 16),
@@ -258,7 +401,11 @@ class _LostAndFoundViewState extends State<LostAndFoundView> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF131A2A),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.orangeAccent.withOpacity(0.3)),
+                        border: Border.all(
+                          color: isResolved 
+                              ? Colors.green.withOpacity(0.5)
+                              : (isPendingClaim ? Colors.amber.withOpacity(0.6) : Colors.orangeAccent.withOpacity(0.3)),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,7 +417,7 @@ class _LostAndFoundViewState extends State<LostAndFoundView> {
                                 decoration: BoxDecoration(color: _viewMode == 'Lost' ? Colors.redAccent.withOpacity(0.2) : Colors.greenAccent.withOpacity(0.2), shape: BoxShape.circle),
                                 child: Icon(Icons.search, color: _viewMode == 'Lost' ? Colors.redAccent : Colors.greenAccent, size: 24),
                               ),
-                              const SizedBox(width: 16),
+                              const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,7 +428,32 @@ class _LostAndFoundViewState extends State<LostAndFoundView> {
                                   ],
                                 ),
                               ),
-                              IconButton(icon: const Icon(Icons.share, color: Colors.white54), onPressed: () => _exportPoster(bounty))
+                              // Status Badge
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isResolved 
+                                      ? Colors.green.withOpacity(0.2)
+                                      : (isPendingClaim ? Colors.amber.withOpacity(0.2) : Colors.white12),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isResolved 
+                                        ? Colors.green 
+                                        : (isPendingClaim ? Colors.amber : Colors.white24),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: TextStyle(
+                                    color: isResolved ? Colors.greenAccent : (isPendingClaim ? Colors.amberAccent : Colors.white70),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              IconButton(icon: const Icon(Icons.share, color: Colors.white54, size: 20), onPressed: () => _exportPoster(bounty))
                             ],
                           ),
                           
@@ -300,51 +472,162 @@ class _LostAndFoundViewState extends State<LostAndFoundView> {
                             const SizedBox(height: 8),
                           ],
                           
-                          if (_viewMode == 'Lost' && (bounty['bounty'] as num) > 0) ...[
+                          if (_viewMode == 'Lost' && bountyAmount > 0) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(color: MPesaTheme.primaryGreen.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                              child: Text('Bounty: KES ${bounty['bounty']}', style: const TextStyle(color: MPesaTheme.primaryGreen, fontWeight: FontWeight.bold)),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                          
-                          // Smart Match Suggestion (Mocked)
-                          if (!isMine && math.Random().nextDouble() > 0.8) ...[
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: Colors.purpleAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                              child: const Row(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.auto_awesome, color: Colors.purpleAccent, size: 16),
-                                  SizedBox(width: 8),
-                                  Text('Smart Match: Similar item found recently!', style: TextStyle(color: Colors.purpleAccent, fontSize: 12)),
+                                  const Icon(Icons.attach_money, color: MPesaTheme.primaryGreen, size: 16),
+                                  Text('Bounty Reward: KES ${bountyAmount.toStringAsFixed(0)}', style: const TextStyle(color: MPesaTheme.primaryGreen, fontWeight: FontWeight.bold)),
                                 ],
                               ),
                             ),
                             const SizedBox(height: 12),
                           ],
 
-                          if (!isMine)
-                            Row(
-                              children: [
-                                _buildActionButton(Icons.phone, Colors.green, () async {
-                                  final Uri launchUri = Uri(scheme: 'tel', path: bounty['phone'] ?? '');
-                                  if (await canLaunchUrl(launchUri)) await launchUrl(launchUri);
-                                }),
-                                const SizedBox(width: 8),
-                                _buildActionButton(Icons.videocam, Colors.cyan, () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (_) => MatchCallView(userName: bounty['student'] ?? '', userAvatar: '', calleeId: bounty['studentId'] ?? '', isVideoCall: true)));
-                                }),
-                                const Spacer(),
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(backgroundColor: _viewMode == 'Lost' ? MPesaTheme.primaryGreen : Colors.blueAccent),
-                                  onPressed: () => _claimBounty(doc),
-                                  icon: Icon(_viewMode == 'Lost' ? Icons.handshake : Icons.pan_tool, color: _viewMode == 'Lost' ? Colors.black : Colors.white, size: 16),
-                                  label: Text(_viewMode == 'Lost' ? 'I found it!' : 'It\'s mine', style: TextStyle(color: _viewMode == 'Lost' ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
-                                )
-                              ],
-                            )
+                          // Owner Claim Management Section
+                          if (isMine) ...[
+                            if (isPendingClaim) ...[
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.amber.withOpacity(0.4)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.announcement, color: Colors.amberAccent, size: 18),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Claim by: ${bounty['claimerName'] ?? 'A student'} (${bounty['claimerPhone'] ?? 'No phone'})',
+                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (bounty['claimNote'] != null && (bounty['claimNote'] as String).isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text('Details: "${bounty['claimNote']}"', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                    ],
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton(
+                                            style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.redAccent)),
+                                            onPressed: () => _rejectClaim(doc),
+                                            child: const Text('Reject', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(backgroundColor: MPesaTheme.primaryGreen),
+                                            onPressed: () => _resolveBounty(doc),
+                                            child: Text(
+                                              bountyAmount > 0 ? 'Release KES ${bountyAmount.toStringAsFixed(0)}' : 'Verify & Close',
+                                              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                            ] else if (isResolved) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(color: Colors.green.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.greenAccent, size: 18),
+                                    const SizedBox(width: 8),
+                                    const Expanded(child: Text('Item Resolved & Handed Over', style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold))),
+                                    TextButton(onPressed: () => _deleteItem(doc), child: const Text('Delete Post', style: TextStyle(color: Colors.white54, fontSize: 12))),
+                                  ],
+                                ),
+                              ),
+                            ] else ...[
+                              Row(
+                                children: [
+                                  const Text('Your listing is Active', style: TextStyle(color: Colors.white54, fontSize: 13)),
+                                  const Spacer(),
+                                  TextButton(onPressed: () => _deleteItem(doc), child: const Text('Remove', style: TextStyle(color: Colors.redAccent, fontSize: 13))),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+                                    onPressed: () => _resolveBounty(doc),
+                                    child: const Text('Mark Found', style: TextStyle(color: Colors.white, fontSize: 12)),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+
+                          // Non-Owner View
+                          if (!isMine) ...[
+                            if (isPendingClaim) ...[
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.hourglass_top, color: Colors.amberAccent, size: 16),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        bounty['claimedBy'] == currentUid
+                                            ? 'Your claim is currently pending owner verification.'
+                                            : 'A claim has been filed for this item. Under review.',
+                                        style: const TextStyle(color: Colors.amberAccent, fontSize: 12),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ] else if (isResolved) ...[
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.done_all, color: Colors.greenAccent, size: 16),
+                                    SizedBox(width: 8),
+                                    Text('This item has been safely returned.', style: TextStyle(color: Colors.greenAccent, fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                            ] else ...[
+                              Row(
+                                children: [
+                                  _buildActionButton(Icons.phone, Colors.green, () async {
+                                    final Uri launchUri = Uri(scheme: 'tel', path: bounty['phone'] ?? '');
+                                    if (await canLaunchUrl(launchUri)) await launchUrl(launchUri);
+                                  }),
+                                  const SizedBox(width: 8),
+                                  _buildActionButton(Icons.videocam, Colors.cyan, () {
+                                    Navigator.push(context, MaterialPageRoute(builder: (_) => MatchCallView(userName: bounty['student'] ?? '', userAvatar: '', calleeId: bounty['studentId'] ?? '', isVideoCall: true)));
+                                  }),
+                                  const Spacer(),
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(backgroundColor: _viewMode == 'Lost' ? MPesaTheme.primaryGreen : Colors.blueAccent),
+                                    onPressed: () => _claimBounty(doc),
+                                    icon: Icon(_viewMode == 'Lost' ? Icons.handshake : Icons.pan_tool, color: _viewMode == 'Lost' ? Colors.black : Colors.white, size: 16),
+                                    label: Text(_viewMode == 'Lost' ? 'I found it!' : 'It\'s mine', style: TextStyle(color: _viewMode == 'Lost' ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
+                                  )
+                                ],
+                              ),
+                            ],
+                          ],
                         ],
                       ),
                     );

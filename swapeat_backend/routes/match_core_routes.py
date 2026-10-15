@@ -20,12 +20,28 @@ def get_nearby_radar():
 
     try:
         db = firestore.client()
-        # Mock finding 3-5 random active profiles
-        docs = db.collection('match_profiles').limit(10).stream()
+        # Get user gender
+        u_doc = db.collection('match_profiles').document(uid).get()
+        u_gender = ''
+        if u_doc.exists:
+            u_gender = (u_doc.to_dict().get('gender') or '').strip().lower()
+        if not u_gender:
+            u_user = db.collection('users').document(uid).get()
+            if u_user.exists:
+                u_gender = (u_user.to_dict().get('gender') or '').strip().lower()
+
+        is_user_male = u_gender in ['male', 'm']
+
+        docs = db.collection('match_profiles').limit(25).stream()
         radar_hits = []
         for doc in docs:
             if doc.id != uid:
                 data = doc.to_dict()
+                cand_gender = (data.get('gender') or '').strip().lower()
+                if u_gender:
+                    is_opposite = (cand_gender in ['female', 'f']) if is_user_male else (cand_gender in ['male', 'm'])
+                    if not is_opposite:
+                        continue
                 radar_hits.append({
                     "uid": doc.id,
                     "distanceMeters": random.randint(10, 150),
@@ -34,7 +50,7 @@ def get_nearby_radar():
                     "name": f"Student {doc.id[:3].upper()}"
                 })
         
-        return jsonify({"status": "success", "radarHits": radar_hits}), 200
+        return jsonify({"status": "success", "radarHits": radar_hits[:10]}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

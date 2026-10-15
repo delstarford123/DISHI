@@ -1,16 +1,36 @@
 import 'package:flutter/material.dart';
 import '../document_vault_view.dart';
+import '../../../../core/services/local_auth_service.dart';
 
-const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
 const Color _neonCyan = Color(0xFF05D5AA);
 const Color _neonPink = Color(0xFFF92B60);
 const Color _textSecondary = Color(0xFF8B9BB4);
 
-class SettingsTabView extends StatelessWidget {
+class SettingsTabView extends StatefulWidget {
   final Map<String, dynamic> user;
   
   const SettingsTabView({super.key, required this.user});
+
+  @override
+  State<SettingsTabView> createState() => _SettingsTabViewState();
+}
+
+class _SettingsTabViewState extends State<SettingsTabView> {
+  bool _biometricEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricState();
+  }
+
+  Future<void> _loadBiometricState() async {
+    final isBiometric = await LocalAuthService.isBiometricPreferred();
+    if (mounted) {
+      setState(() => _biometricEnabled = isBiometric);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,14 +47,36 @@ class SettingsTabView extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => DocumentVaultView(user: user)),
+              MaterialPageRoute(builder: (context) => DocumentVaultView(user: widget.user)),
             );
           },
         ),
         
         const SizedBox(height: 24),
         _buildSectionHeader('Security Settings'),
-        _buildSwitchTile('Biometric Login', 'Use Fingerprint/FaceID to login', true, (val) {}),
+        _buildSwitchTile(
+          'Biometric Login',
+          'Use Fingerprint/Pattern to unlock DISHI',
+          _biometricEnabled,
+          (val) async {
+            final messenger = ScaffoldMessenger.of(context);
+            setState(() => _biometricEnabled = val);
+            await LocalAuthService.setPreferredAuthMethod(val ? 'biometric' : 'pin');
+            if (mounted) {
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    val
+                        ? 'Biometric / Pattern unlock set as default.'
+                        : '4-Digit PIN set as default unlock.',
+                  ),
+                  backgroundColor: _neonCyan,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+        ),
         _buildSwitchTile('Two-Factor Authentication', 'Require SMS code on new devices', false, (val) {}),
         _buildSettingsTile(title: 'Change Recovery PIN', icon: Icons.password, onTap: () {}),
 
@@ -60,12 +102,12 @@ class SettingsTabView extends StatelessWidget {
         ),
         
         const SizedBox(height: 32),
-        // Keep notifications at the bottom
+        // Notifications preview
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Recent Notifications', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            TextButton(onPressed: () {}, child: const Text('Mark all read', style: TextStyle(color: _neonCyan))),
+            const Text('Recent Alerts', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            TextButton(onPressed: () {}, child: const Text('View All', style: TextStyle(color: _neonCyan))),
           ],
         ),
         const SizedBox(height: 8),

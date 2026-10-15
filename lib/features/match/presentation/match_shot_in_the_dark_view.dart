@@ -75,11 +75,12 @@ class _MatchShotInTheDarkViewState extends State<MatchShotInTheDarkView> with Si
     setState(() => _status = 'queuing');
     
     try {
-      final oppositeGender = gender.toLowerCase() == 'male' ? 'female' : 'male';
+      final normGender = (gender.toLowerCase().trim() == 'male' || gender.toLowerCase().trim() == 'm') ? 'male' : 'female';
+      final oppositeGenders = normGender == 'male' ? ['female', 'Female', 'FEMALE', 'f', 'F'] : ['male', 'Male', 'MALE', 'm', 'M'];
       
       final queueRef = FirebaseFirestore.instance.collection('blind_chat_queue');
       final potentialMatches = await queueRef
-          .where('gender', isEqualTo: oppositeGender)
+          .where('gender', whereIn: oppositeGenders)
           .where('status', isEqualTo: 'waiting')
           .limit(1)
           .get();
@@ -99,13 +100,13 @@ class _MatchShotInTheDarkViewState extends State<MatchShotInTheDarkView> with Si
         });
         
         await matchDoc.reference.update({'status': 'matched', 'session_id': sessionId});
-        await queueRef.doc(currentUid).set({'status': 'matched', 'session_id': sessionId, 'gender': gender});
+        await queueRef.doc(currentUid).set({'status': 'matched', 'session_id': sessionId, 'gender': normGender});
         
         setState(() => _sessionId = sessionId);
         _startChat();
       } else {
         await queueRef.doc(currentUid).set({
-          'gender': gender,
+          'gender': normGender,
           'status': 'waiting',
           'timestamp': FieldValue.serverTimestamp(),
         });

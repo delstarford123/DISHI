@@ -32,7 +32,7 @@ class _WalletDashboardViewState extends State<WalletDashboardView> {
       if (user == null) throw Exception("User not authenticated");
 
       final response = await SecureHttpClient.post(
-        ApiConfig.buildUrl('/api/v1/mpesa/b2c'),
+        '${ApiConfig.baseUrl}/api/v1/mpesa/b2c',
         body: {
           'user_id': user.uid,
           'amount': balance,

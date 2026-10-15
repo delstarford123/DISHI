@@ -132,3 +132,58 @@ def fulfill_preorder():
         return jsonify({"status": "success", "message": "Order fulfilled."}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@vendor_sales_bp.route('/happy_hour/schedule', methods=['POST'])
+def schedule_happy_hour():
+    """ Schedule dynamic pricing (Happy Hour) for menu items """
+    data = request.json
+    vendor_uid = data.get('vendorUid')
+    discount_percentage = float(data.get('discountPercentage', 0))
+    start_time = data.get('startTime')
+    end_time = data.get('endTime')
+
+    if not all([vendor_uid, discount_percentage > 0, start_time, end_time]):
+        return jsonify({"error": "Missing parameters"}), 400
+
+    try:
+        db = firestore.client()
+        hh_ref = db.collection('happy_hours').document()
+        hh_ref.set({
+            'vendorUid': vendor_uid,
+            'discountPercentage': discount_percentage,
+            'startTime': start_time,
+            'endTime': end_time,
+            'isActive': True,
+            'timestamp': firestore.SERVER_TIMESTAMP
+        })
+        
+        return jsonify({"status": "success", "message": f"{discount_percentage}% Happy Hour Scheduled!"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@vendor_sales_bp.route('/subscription/create', methods=['POST'])
+def create_subscription_plan():
+    """ Vendor creates a meal plan subscription for parents/students to buy """
+    data = request.json
+    vendor_uid = data.get('vendorUid')
+    plan_name = data.get('planName')
+    price = float(data.get('price', 0))
+    duration_days = int(data.get('durationDays', 30))
+
+    if not all([vendor_uid, plan_name, price > 0, duration_days > 0]):
+        return jsonify({"error": "Missing parameters"}), 400
+
+    try:
+        db = firestore.client()
+        plan_ref = db.collection('subscription_plans').document()
+        plan_ref.set({
+            'vendorUid': vendor_uid,
+            'planName': plan_name,
+            'price': price,
+            'durationDays': duration_days,
+            'isActive': True,
+            'createdAt': firestore.SERVER_TIMESTAMP
+        })
+        return jsonify({"status": "success", "message": f"Meal Plan '{plan_name}' created!"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

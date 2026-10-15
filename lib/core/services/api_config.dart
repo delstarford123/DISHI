@@ -18,8 +18,8 @@ class ApiConfig {
   static const String mpesaStkPush = '$baseUrl/api/v1/mpesa/stkpush';
   
   // Transaction endpoints
-  static const String transactionCharge = 'https://dishi.delstarfordworks.co.ke/api/v1/transaction/charge';
-  static const String transactionSos = 'https://dishi.delstarfordworks.co.ke/api/v1/transaction/sos';
-  static const String transactionCashout = 'https://dishi.delstarfordworks.co.ke/api/v1/transaction/cashout';
-  static const String transactionTopup = 'https://dishi.delstarfordworks.co.ke/api/v1/transaction/topup';
+  static const String transactionCharge = '$baseUrl/api/v1/transaction/charge';
+  static const String transactionSos = '$baseUrl/api/v1/transaction/sos';
+  static const String transactionCashout = '$baseUrl/api/v1/transaction/cashout';
+  static const String transactionTopup = '$baseUrl/api/v1/transaction/topup';
 }

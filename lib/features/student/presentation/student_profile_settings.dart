@@ -13,6 +13,7 @@ import '../../fundi/presentation/fundi_registration_view.dart';
 import '../../../core/models/user_model.dart';
 import '../../auth/presentation/login_view.dart';
 import '../../../core/services/secure_storage_service.dart';
+import '../../../shared/presentation/profile_hub_sheet.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF161B29);
@@ -221,7 +222,21 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
             children: [
               Center(
                 child: GestureDetector(
-                  onTap: _pickAndUploadImage,
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => ProfileHubSheet(
+                        user: {
+                          'uid': widget.userModel.uid,
+                          'name': widget.userModel.displayName,
+                          'email': widget.userModel.email,
+                          'photoUrl': liveImageUrl,
+                        },
+                      ),
+                    );
+                  },
                   child: Stack(
                     children: [
                       CircleAvatar(

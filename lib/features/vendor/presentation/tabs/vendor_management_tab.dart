@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import '../../../../core/services/api_config.dart';
+import '../../../../core/services/secure_http_client.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import 'dart:async';
@@ -34,6 +35,36 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
   // Vault State
   bool _isVaultUploading = false;
 
+  // Staff Addition State
+  final _staffNameController = TextEditingController();
+  final _staffRoleController = TextEditingController();
+  final _staffPinController = TextEditingController();
+  bool _isStaffAdding = false;
+
+  // Equipment Maintenance State
+  final _equipmentNameController = TextEditingController();
+  final _issueDescController = TextEditingController();
+  bool _needsRepair = false;
+  bool _isLoggingMaintenance = false;
+
+  // Branch Management State
+  final _branchNameController = TextEditingController();
+  final _branchLocController = TextEditingController();
+  bool _isAddingBranch = false;
+
+  @override
+  void dispose() {
+    _pinController.dispose();
+    _staffNameController.dispose();
+    _staffRoleController.dispose();
+    _staffPinController.dispose();
+    _equipmentNameController.dispose();
+    _issueDescController.dispose();
+    _branchNameController.dispose();
+    _branchLocController.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -42,9 +73,9 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
 
   Future<List<dynamic>> _fetchInsights() async {
     try {
-      final response = await http.get(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_management/market_insights?vendorUid=${widget.user['uid']}'),
-      ).timeout(const Duration(seconds: 15));
+      final response = await SecureHttpClient.get(
+        '${ApiConfig.baseUrl}/api/v1/vendor_management/market_insights?vendorUid=${widget.user['uid']}',
+      );
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -63,14 +94,13 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
 
     setState(() => _isClockingIn = true);
     try {
-      final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_management/staff/clock_in'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_management/staff/clock_in',
+        body: {
           'vendorUid': widget.user['uid'],
           'pin': pin,
-        }),
-      ).timeout(const Duration(seconds: 15));
+        },
+      );
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -95,19 +125,64 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
 
     setState(() => _isClockingOut = true);
     try {
-      final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_management/staff/clock_out'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_management/staff/clock_out',
+        body: {
           'vendorUid': widget.user['uid'],
           'shiftId': _activeShiftId,
-        }),
-      ).timeout(const Duration(seconds: 15));
+        },
+      );
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
+        final shiftSales = data['shiftSales'] ?? 0.0;
+        final shiftDeposits = data['shiftDeposits'] ?? 0.0;
         setState(() => _activeShiftId = null);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Clocked out'), backgroundColor: _neonOrange));
+        
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: _cardColor,
+              title: const Row(
+                children: [
+                  Icon(Icons.receipt_long, color: _neonCyan),
+                  SizedBox(width: 8),
+                  Text('Shift Summary', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Shift ended successfully.', style: TextStyle(color: _textSecondary)),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Total Sales', style: TextStyle(color: Colors.white)),
+                      Text('KES $shiftSales', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const Divider(color: _textSecondary),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Agent Deposits', style: TextStyle(color: Colors.white)),
+                      Text('KES $shiftDeposits', style: const TextStyle(color: _neonOrange, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close', style: TextStyle(color: _neonCyan)),
+                )
+              ],
+            )
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Clock Out failed'), backgroundColor: Colors.red));
       }
@@ -121,15 +196,14 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
   Future<void> _handleVaultUpload() async {
     setState(() => _isVaultUploading = true);
     try {
-      final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/vendor_management/vault/upload'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_management/vault/upload',
+        body: {
           'vendorUid': widget.user['uid'],
           'docType': 'Food Handling License',
           'docUrl': 'https://firebasestorage.googleapis.com/v0/b/mock-bucket/o/license.pdf',
-        }),
-      ).timeout(const Duration(seconds: 15));
+        },
+      );
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -141,6 +215,119 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     } finally {
       setState(() => _isVaultUploading = false);
+    }
+  }
+
+  Future<void> _handleAddStaff() async {
+    final name = _staffNameController.text.trim();
+    final role = _staffRoleController.text.trim();
+    final pin = _staffPinController.text.trim();
+
+    if (name.isEmpty || role.isEmpty || pin.length != 4) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields and provide a 4-digit PIN.')));
+      return;
+    }
+
+    setState(() => _isStaffAdding = true);
+
+    try {
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_management/staff/add',
+        body: {
+          'vendorUid': widget.user['uid'],
+          'name': name,
+          'role': role,
+          'pin': pin,
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Staff added'), backgroundColor: _neonCyan));
+        _staffNameController.clear();
+        _staffRoleController.clear();
+        _staffPinController.clear();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Add staff failed'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isStaffAdding = false);
+    }
+  }
+
+  Future<void> _handleMaintenanceLog() async {
+    final equipment = _equipmentNameController.text.trim();
+    final issue = _issueDescController.text.trim();
+
+    if (equipment.isEmpty || issue.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill equipment name and issue description.')));
+      return;
+    }
+
+    setState(() => _isLoggingMaintenance = true);
+
+    try {
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_management/maintenance/log',
+        body: {
+          'vendorUid': widget.user['uid'],
+          'equipmentName': equipment,
+          'issueDescription': issue,
+          'needsRepair': _needsRepair,
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Maintenance logged'), backgroundColor: _neonCyan));
+        _equipmentNameController.clear();
+        _issueDescController.clear();
+        setState(() => _needsRepair = false);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Logging failed'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isLoggingMaintenance = false);
+    }
+  }
+
+  Future<void> _handleAddBranch() async {
+    final name = _branchNameController.text.trim();
+    final loc = _branchLocController.text.trim();
+
+    if (name.isEmpty || loc.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all branch details.')));
+      return;
+    }
+
+    setState(() => _isAddingBranch = true);
+
+    try {
+      final response = await SecureHttpClient.post(
+        '${ApiConfig.baseUrl}/api/v1/vendor_management/branches/add',
+        body: {
+          'vendorUid': widget.user['uid'],
+          'branchName': name,
+          'location': loc,
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Branch added'), backgroundColor: _neonCyan));
+        _branchNameController.clear();
+        _branchLocController.clear();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['error'] ?? 'Add branch failed'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isAddingBranch = false);
     }
   }
 
@@ -224,6 +411,83 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
                     ),
                   ),
                 ],
+              )
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 32),
+
+        // Role-Based Access Control
+        _buildSectionHeader('Role-Based Access (RBAC)', Icons.admin_panel_settings, _neonPink),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Add staff members and assign roles (e.g., Cashier, Manager).', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _staffNameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Staff Name',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  filled: true,
+                  fillColor: _bgColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _staffRoleController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Role (e.g. Cashier)',
+                        labelStyle: const TextStyle(color: _textSecondary),
+                        filled: true,
+                        fillColor: _bgColor,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _staffPinController,
+                      keyboardType: TextInputType.number,
+                      obscureText: true,
+                      maxLength: 4,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: '4-Digit PIN',
+                        labelStyle: const TextStyle(color: _textSecondary),
+                        filled: true,
+                        fillColor: _bgColor,
+                        counterText: "",
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isStaffAdding ? null : _handleAddStaff,
+                  icon: _isStaffAdding ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) : const Icon(Icons.person_add, color: Colors.white),
+                  label: Text(_isStaffAdding ? 'Adding...' : 'Add Staff Member', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: _neonPink, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
               )
             ],
           ),
@@ -371,6 +635,73 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
           },
         ),
 
+        const SizedBox(height: 32),
+
+        // Equipment Maintenance Log
+        _buildSectionHeader('Equipment Maintenance Log', Icons.build, Colors.amber),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.amber.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Track repairs and maintenance schedules for fryers, ovens, and fridges.', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _equipmentNameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Equipment Name (e.g. Fridge A)',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  filled: true,
+                  fillColor: _bgColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _issueDescController,
+                style: const TextStyle(color: Colors.white),
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: 'Issue / Routine Description',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  filled: true,
+                  fillColor: _bgColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                title: const Text('Needs Urgent Repair', style: TextStyle(color: Colors.white, fontSize: 14)),
+                activeColor: Colors.amber,
+                value: _needsRepair,
+                onChanged: (val) {
+                  setState(() => _needsRepair = val);
+                },
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isLoggingMaintenance ? null : _handleMaintenanceLog,
+                  icon: _isLoggingMaintenance ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black)) : const Icon(Icons.engineering, color: Colors.black),
+                  label: Text(_isLoggingMaintenance ? 'Logging...' : 'Log Maintenance', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
+              )
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 32),
+        _buildBranchManagementSection(),
+
         const SizedBox(height: 100),
       ],
     );
@@ -414,4 +745,70 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
       ),
     );
   }
+
+  Widget _buildBranchManagementSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.store, color: _neonCyan),
+              const SizedBox(width: 8),
+              const Text('Multi-Branch Management', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text('Expand operations by registering new branches.', style: TextStyle(color: _textSecondary, fontSize: 13)),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _branchNameController,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: 'Branch Name',
+              labelStyle: const TextStyle(color: _textSecondary),
+              filled: true,
+              fillColor: _bgColor,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _branchLocController,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: 'Location',
+              labelStyle: const TextStyle(color: _textSecondary),
+              filled: true,
+              fillColor: _bgColor,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isAddingBranch ? null : _handleAddBranch,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _neonCyan,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _isAddingBranch
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                  : const Text('Add Branch', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+

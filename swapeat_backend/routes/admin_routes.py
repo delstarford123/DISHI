@@ -24,10 +24,13 @@ def verify_admin(req):
             from firebase_admin import auth
             decoded = auth.verify_id_token(token)
             uid = decoded['uid']
-            db = firestore.client()
             user_doc = db.collection('users').document(uid).get()
-            if user_doc.exists and user_doc.to_dict().get('role') == 'admin':
-                return uid
+            if user_doc.exists:
+                u_data = user_doc.to_dict() or {}
+                if (u_data.get('role') == 'admin' or 
+                    'admin' in u_data.get('roles', []) or 
+                    u_data.get('isAdmin') is True):
+                    return uid
         except Exception as e:
             print(f"Admin auth error: {e}")
             

@@ -58,4 +58,10 @@ class AuthRateLimiter {
     await prefs.remove(_keyAttempts);
     await prefs.remove(_keyLockoutTime);
   }
+
+  static Future<int> getRemainingAttempts() async {
+    final prefs = await SharedPreferences.getInstance();
+    int attempts = prefs.getInt(_keyAttempts) ?? 0;
+    return (maxAttempts - attempts).clamp(0, maxAttempts);
+  }
 }

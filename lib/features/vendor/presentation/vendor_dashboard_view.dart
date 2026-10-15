@@ -20,9 +20,8 @@ import 'dart:convert';
 import 'dart:async';
 
 
-import 'package:http/http.dart' as http;
-
-
+import '../../../core/services/api_config.dart';
+import '../../../core/services/secure_http_client.dart';
 
 // -- CUSTOM DESIGN COLORS --
 const Color _bgColor = Color(0xFF0C101B);
@@ -105,17 +104,16 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Initiating STK Push...')));
     
     try {
-      final response = await http.post(
-        Uri.parse('https://dishi.delstarfordworks.co.ke/api/v1/mpesa/stkpush'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await SecureHttpClient.post(
+        ApiConfig.mpesaStkPush,
+        body: {
           'phone_number': phoneNumber,
           'amount': amount,
           'user_id': widget.user['uid'],
           'destination': 'walletBalance',
           'transaction_desc': 'Vendor E-Float Topup'
-        }),
-      ).timeout(const Duration(seconds: 30));
+        },
+      );
       
       if (!mounted) return;
       if (response.statusCode == 200) {
@@ -128,12 +126,9 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
         } catch (_) {}
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errMsg), backgroundColor: Colors.red));
       }
-    } on TimeoutException catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request timed out. Please try again.'), backgroundColor: Colors.red));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Network error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 

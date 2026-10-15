@@ -1,0 +1,11 @@
+{
+  "java.jdt.ls.java.home": "C:\\src\\java\\jdk-17.0.18",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-17",
+      "path": "C:\\src\\java\\jdk-17.0.18",
+      "default": true
+    }
+  ],
+  "gradle.java.home": "C:\\src\\java\\jdk-17.0.18"
+}

@@ -21,7 +21,7 @@ import 'features/smartimer/data/hive_service.dart';
 import 'features/smartimer/providers/plan_provider.dart';
 import 'features/match/presentation/widgets/incoming_call_listener.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'core/services/fcm_service.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
@@ -42,6 +42,13 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Enable high-performance local Firestore persistence & unlimited caching for instant loads
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+
     await SmartiHiveService.init();
     
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -101,6 +108,9 @@ class _InitialRouterState extends State<InitialRouter> {
   Future<void> _checkInitialRoute() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      // Sync FCM token in background
+      FCMService.syncToken(user.uid);
+
       // 1. Lightning Fast Boot Checks (L1 Cache)
       final hasPin = await SecureStorageService.hasPinFastCheck();
       

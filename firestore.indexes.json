@@ -15,10 +15,22 @@
     { "collectionGroup": "flash_sales", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "vendorUid", "order": "ASCENDING" }, { "fieldPath": "isActive", "order": "ASCENDING" }, { "fieldPath": "timestamp", "order": "DESCENDING" }] },
     { "collectionGroup": "danger_zones", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "isActive", "order": "ASCENDING" }, { "fieldPath": "timestamp", "order": "DESCENDING" }] },
     { "collectionGroup": "notifications", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "targetUserId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "notifications", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "userId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
     { "collectionGroup": "deliv_rides", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "driver_id", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "timestamp", "order": "DESCENDING" }] },
     { "collectionGroup": "deliv_rides", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "student_id", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "timestamp", "order": "DESCENDING" }] },
     { "collectionGroup": "game_leaderboards", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "game_id", "order": "ASCENDING" }, { "fieldPath": "score", "order": "DESCENDING" }] },
-    { "collectionGroup": "escrow_items", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] }
+    { "collectionGroup": "escrow_items", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "lost_and_found", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "type", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "lost_and_found", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "match_profiles", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "gender", "order": "ASCENDING" }, { "fieldPath": "is_active", "order": "ASCENDING" }] },
+    { "collectionGroup": "blind_chat_queue", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "gender", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }] },
+    { "collectionGroup": "blind_chat_sessions", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "user1Uid", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "game_sessions", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "player1Uid", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "study_sessions", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "isGroup", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "study_sessions", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "receiverId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "vibes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "receiverId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "harambee_campaigns", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "category", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "gig_board", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "category", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] }
   ],
   "fieldOverrides": [
     { "collectionGroup": "campus_confessions", "fieldPath": "created_at", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }, { "order": "DESCENDING", "queryScope": "COLLECTION" }] },

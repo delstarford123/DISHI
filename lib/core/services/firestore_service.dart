@@ -20,6 +20,16 @@ class FirestoreService {
     return await _db.collection(collectionPath).doc(docId).get();
   }
 
+  /// Fast document fetch with Cache fallback for instantaneous UI renders
+  Future<DocumentSnapshot> getDocumentFast(String collectionPath, String docId) async {
+    _requireAuth();
+    try {
+      final doc = await _db.collection(collectionPath).doc(docId).get(const GetOptions(source: Source.cache));
+      if (doc.exists) return doc;
+    } catch (_) {}
+    return await _db.collection(collectionPath).doc(docId).get(const GetOptions(source: Source.serverAndCache));
+  }
+
   /// Add a new document (auto-generated ID)
   Future<DocumentReference> addDocument(String collectionPath, Map<String, dynamic> data) async {
     _requireAuth();

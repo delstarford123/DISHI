@@ -23,17 +23,69 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
   
   String _selectedCategory = 'Spicy';
   final List<String> _categories = ['Spicy', 'Deep', 'Funny', 'Campus Life'];
+  String _cardType = 'TRUTH'; // 'TRUTH' or 'DARE'
   
   final Map<String, List<String>> _questions = {
-    'Spicy': ['What is your biggest turn on?', 'Have you ever sent a risky text to the wrong person?', 'What is your wildest fantasy?'],
-    'Deep': ['What is your biggest fear?', 'Who do you miss the most right now?', 'What is the biggest lie you have ever told?'],
-    'Funny': ['What is the most embarrassing thing you have done while drunk?', 'What is your worst habit?'],
-    'Campus Life': ['Have you ever skipped a final exam?', 'Which professor do you hate the most?', 'Have you ever sneaked someone into the dorms?']
+    'Spicy': [
+      'What is your biggest romantic turn on?',
+      'Have you ever sent a risky text to the wrong person?',
+      'What is your wildest campus fantasy?',
+      'Who was your first campus crush and do they know?',
+      'What is the smoothest pickup line someone used on you?',
+    ],
+    'Deep': [
+      'What is your biggest fear after graduating?',
+      'Who do you miss the most right now?',
+      'What is the biggest lie you have told your parents about campus life?',
+      'What is one insecurity you wish you could overcome?',
+      'Have you ever felt truly in love, and how did it end?',
+    ],
+    'Funny': [
+      'What is the most embarrassing thing you have done while drunk?',
+      'What is your weirdest campus habit?',
+      'What is the most awkward date you have ever been on?',
+      'What is the cheapest thing you did to save money in campus?',
+    ],
+    'Campus Life': [
+      'Have you ever skipped an exam or submitted an empty paper?',
+      'Which campus lecturer do you find the most intimidating?',
+      'Have you ever sneaked someone into the hostels past curfew?',
+      'What is the worst meal you ever ate at the university mess?',
+    ]
+  };
+
+  final Map<String, List<String>> _dares = {
+    'Spicy': [
+      'Send a 5-second voice note saying something sweet in your best radio voice.',
+      'Text your recent crush: "I had a dream about you last night" and show screenshot.',
+      'Do your best catwalk across the room right now.',
+      'Show the last 3 photos in your phone gallery without hiding anything.',
+    ],
+    'Deep': [
+      'Call a close friend on speakerphone and tell them you appreciate them.',
+      'Confess the one thing you regret doing in university so far.',
+      'Tell your opponent the very first thing you noticed about their profile.',
+      'Read aloud the last draft message you wrote but never sent.',
+    ],
+    'Funny': [
+      'Speak in an exaggerated Kenyan accent for the next 2 rounds.',
+      'Do 15 quick pushups or 20 jumping jacks right now.',
+      'Sing the chorus of your favorite Kenyan song in an opera voice.',
+      'Send a hilarious meme that describes your dating life right now.',
+    ],
+    'Campus Life': [
+      'Imitate your strictest lecturer for 30 seconds.',
+      'Show your current DISHI wallet or M-PESA balance to your opponent.',
+      'Text your roommate asking them to bring you water right now.',
+      'Name 3 campus hangout spots and rank them honestly.',
+    ]
   };
 
   String _currentQuestion = 'Tap the card to draw...';
   int _myDrinks = 0;
   int _opponentDrinks = 0;
+  int _myPoints = 0;
+  int _opponentPoints = 0;
   bool _isMyTurn = true;
 
   String get currentUid => FirebaseAuth.instance.currentUser?.uid ?? 'guest';
@@ -62,44 +114,106 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
         final data = doc.data() as Map<String, dynamic>;
         setState(() {
           _currentQuestion = data['currentQuestion'] ?? 'Tap to draw...';
+          _cardType = data['cardType'] ?? 'TRUTH';
           _isMyTurn = data['currentTurnUid'] == currentUid;
           if (data['player1Uid'] == currentUid) {
             _myDrinks = data['player1Drinks'] ?? 0;
             _opponentDrinks = data['player2Drinks'] ?? 0;
+            _myPoints = data['player1Points'] ?? 0;
+            _opponentPoints = data['player2Points'] ?? 0;
           } else {
             _myDrinks = data['player2Drinks'] ?? 0;
             _opponentDrinks = data['player1Drinks'] ?? 0;
+            _myPoints = data['player2Points'] ?? 0;
+            _opponentPoints = data['player1Points'] ?? 0;
           }
           if (data['isFlipped'] == true && !_isCardFlipped) {
             _isCardFlipped = true;
             _flipController.forward();
+          } else if (data['isFlipped'] == false && _isCardFlipped) {
+            _isCardFlipped = false;
+            _flipController.reverse();
           }
         });
       }
     });
   }
 
-  void _drawCard() {
+  void _drawCard([String? forcedType]) {
     if (widget.gameSessionId != null && !_isMyTurn) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('It is not your turn!')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('It is not your turn! Wait for your opponent.')));
       return;
     }
 
-    final qList = _questions[_selectedCategory]!;
-    final nextQ = qList[math.Random().nextInt(qList.length)];
+    final type = forcedType ?? (math.Random().nextBool() ? 'TRUTH' : 'DARE');
+    final list = type == 'DARE' ? _dares[_selectedCategory]! : _questions[_selectedCategory]!;
+    final nextText = list[math.Random().nextInt(list.length)];
     
     if (widget.gameSessionId != null) {
-      FirebaseFirestore.instance.collection('game_sessions').doc(widget.gameSessionId).update({
-        'currentQuestion': nextQ,
+      FirebaseFirestore.instance.collection('game_sessions').doc(widget.gameSessionId).set({
+        'currentQuestion': nextText,
+        'cardType': type,
         'isFlipped': true,
-      });
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } else {
       // Solo Practice Mode
       setState(() {
-        _currentQuestion = nextQ;
+        _cardType = type;
+        _currentQuestion = nextText;
         _isCardFlipped = true;
       });
       _flipController.forward();
+    }
+  }
+
+  void _completeDare() {
+    if (!_isCardFlipped) return;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (_) {
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted && Navigator.canPop(context)) Navigator.pop(context);
+        });
+        return const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle, color: Colors.greenAccent, size: 80),
+              SizedBox(height: 16),
+              Text('🔥 DARE COMPLETED!', style: TextStyle(color: Colors.greenAccent, fontSize: 32, fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              Text('+10 Points to you!', style: TextStyle(color: Colors.white, fontSize: 18)),
+            ],
+          ),
+        );
+      }
+    );
+
+    if (widget.gameSessionId != null) {
+      FirebaseFirestore.instance.collection('game_sessions').doc(widget.gameSessionId).get().then((doc) {
+        if (!doc.exists) return;
+        final data = doc.data() as Map<String, dynamic>;
+        final isP1 = data['player1Uid'] == currentUid;
+        final nextTurn = isP1 ? data['player2Uid'] : data['player1Uid'];
+
+        FirebaseFirestore.instance.collection('game_sessions').doc(widget.gameSessionId).update({
+          isP1 ? 'player1Points' : 'player2Points': FieldValue.increment(10),
+          'currentTurnUid': nextTurn,
+          'isFlipped': false,
+          'currentQuestion': 'Tap to draw...',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+    } else {
+      setState(() {
+        _myPoints += 10;
+        _isCardFlipped = false;
+        _currentQuestion = 'Tap the card to draw...';
+      });
+      _flipController.reverse();
     }
   }
 
@@ -111,18 +225,27 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
       context: context,
       barrierColor: Colors.black87,
       builder: (_) {
-        Future.delayed(const Duration(seconds: 1), () => Navigator.pop(context));
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted && Navigator.canPop(context)) Navigator.pop(context);
+        });
         return const Center(child: Text('🍻 GLUG GLUG!', style: TextStyle(color: Colors.orangeAccent, fontSize: 40, fontWeight: FontWeight.bold)));
       }
     );
 
     if (widget.gameSessionId != null) {
-      final isP1 = widget.gameSessionId!.startsWith(currentUid); // simplified check
-      FirebaseFirestore.instance.collection('game_sessions').doc(widget.gameSessionId).update({
-        isP1 ? 'player1Drinks' : 'player2Drinks': FieldValue.increment(1),
-        'currentTurnUid': widget.opponentUid, // swap turn
-        'isFlipped': false,
-        'currentQuestion': 'Tap to draw...',
+      FirebaseFirestore.instance.collection('game_sessions').doc(widget.gameSessionId).get().then((doc) {
+        if (!doc.exists) return;
+        final data = doc.data() as Map<String, dynamic>;
+        final isP1 = data['player1Uid'] == currentUid;
+        final nextTurn = isP1 ? data['player2Uid'] : data['player1Uid'];
+
+        FirebaseFirestore.instance.collection('game_sessions').doc(widget.gameSessionId).update({
+          isP1 ? 'player1Drinks' : 'player2Drinks': FieldValue.increment(1),
+          'currentTurnUid': nextTurn,
+          'isFlipped': false,
+          'currentQuestion': 'Tap to draw...',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       });
     } else {
       setState(() {
@@ -142,39 +265,54 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF1E293B),
-        title: const Text('Spill your truth...', style: TextStyle(color: Colors.white)),
+        title: const Text('Spill your truth 💬', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: TextField(
           controller: controller,
           style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(filled: true, fillColor: Colors.black26),
+          decoration: const InputDecoration(
+            hintText: 'Type your honest confession here...',
+            hintStyle: TextStyle(color: Colors.white38),
+            filled: true,
+            fillColor: Colors.black26,
+          ),
+          maxLines: 3,
         ),
         actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent),
             onPressed: () {
               Navigator.pop(context);
               
               if (widget.gameSessionId != null) {
-                // Send answer to opponent (mocked via chat)
-                FirebaseFirestore.instance.collection('game_sessions').doc(widget.gameSessionId).update({
-                  'currentTurnUid': widget.opponentUid, // swap turn
-                  'isFlipped': false,
-                  'currentQuestion': 'Tap to draw...',
-                  'lastAnswer': controller.text,
+                FirebaseFirestore.instance.collection('game_sessions').doc(widget.gameSessionId).get().then((doc) {
+                  if (!doc.exists) return;
+                  final data = doc.data() as Map<String, dynamic>;
+                  final isP1 = data['player1Uid'] == currentUid;
+                  final nextTurn = isP1 ? data['player2Uid'] : data['player1Uid'];
+
+                  FirebaseFirestore.instance.collection('game_sessions').doc(widget.gameSessionId).update({
+                    isP1 ? 'player1Points' : 'player2Points': FieldValue.increment(5),
+                    'currentTurnUid': nextTurn,
+                    'isFlipped': false,
+                    'currentQuestion': 'Tap to draw...',
+                    'lastAnswer': controller.text.trim(),
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  });
                 });
               } else {
                 setState(() {
+                  _myPoints += 5;
                   _isCardFlipped = false;
                   _currentQuestion = 'Tap the card to draw...';
                 });
                 _flipController.reverse();
               }
             },
-            child: const Text('Send Answer', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            child: const Text('Send Truth (+5 pts)', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           )
         ],
       )
-    );
   }
 
   void _inviteMatch() {
@@ -237,7 +375,7 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Truth or Drink 🎲', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Truth or Dare 🎲', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           if (widget.opponentUid == null) IconButton(icon: const Icon(Icons.person_add, color: Colors.orangeAccent), onPressed: _inviteMatch, tooltip: 'Invite a Match'),
           IconButton(icon: const Icon(Icons.add_circle_outline, color: Colors.white54), onPressed: _addCommunityQuestion, tooltip: 'Submit Question'),
@@ -251,13 +389,13 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildScoreBadge('You', _myDrinks, true),
+                _buildScoreBadge('You', _myDrinks, _myPoints, true),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(color: _isMyTurn ? Colors.orangeAccent.withOpacity(0.2) : Colors.white10, borderRadius: BorderRadius.circular(20)),
                   child: Text(_isMyTurn ? 'YOUR TURN' : 'OPPONENT TURN', style: TextStyle(color: _isMyTurn ? Colors.orangeAccent : Colors.white54, fontWeight: FontWeight.bold)),
                 ),
-                if (widget.opponentUid != null) _buildScoreBadge('Them', _opponentDrinks, false),
+                if (widget.opponentUid != null) _buildScoreBadge('Them', _opponentDrinks, _opponentPoints, false),
               ],
             ),
           ),
@@ -289,7 +427,7 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
           Expanded(
             child: Center(
               child: GestureDetector(
-                onTap: _isCardFlipped ? null : _drawCard,
+                onTap: _isCardFlipped ? null : () => _drawCard(),
                 child: AnimatedBuilder(
                   animation: _flipController,
                   builder: (context, child) {
@@ -318,28 +456,71 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
           
           // Action Buttons
           Padding(
-            padding: const EdgeInsets.all(24),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(side: BorderSide(color: _isCardFlipped && _isMyTurn ? Colors.redAccent : Colors.grey)),
-                    onPressed: _isCardFlipped && _isMyTurn ? _takeDrink : null,
-                    icon: const Icon(Icons.local_bar, color: Colors.redAccent),
-                    label: const Text('Drink', style: TextStyle(color: Colors.redAccent, fontSize: 18, fontWeight: FontWeight.bold)),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: !_isCardFlipped
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurpleAccent,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: _isMyTurn ? () => _drawCard('TRUTH') : null,
+                          icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                          label: const Text('Truth', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: _isMyTurn ? () => _drawCard('DARE') : null,
+                          icon: const Icon(Icons.local_fire_department, color: Colors.white),
+                          label: const Text('Dare', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: _isMyTurn ? Colors.orangeAccent : Colors.grey),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: _isMyTurn ? _takeDrink : null,
+                          icon: const Icon(Icons.local_bar, color: Colors.orangeAccent),
+                          label: const Text('Drink / Pass', style: TextStyle(color: Colors.orangeAccent, fontSize: 15, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _cardType == 'DARE' ? Colors.green : Colors.deepPurpleAccent,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: _isMyTurn
+                              ? (_cardType == 'DARE' ? _completeDare : _answerTruth)
+                              : null,
+                          icon: Icon(_cardType == 'DARE' ? Icons.check_circle : Icons.send, color: Colors.white),
+                          label: Text(
+                            _cardType == 'DARE' ? 'Done! (+10)' : 'Answer (+5)',
+                            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: _isCardFlipped && _isMyTurn ? Colors.orangeAccent : Colors.grey.withOpacity(0.5)),
-                    onPressed: _isCardFlipped && _isMyTurn ? _answerTruth : null,
-                    icon: const Icon(Icons.check_circle, color: Colors.black),
-                    label: const Text('Truth', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
           ),
           
           TextButton(onPressed: _quitGame, child: const Text('End Game', style: TextStyle(color: Colors.white54))),
@@ -349,21 +530,38 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
     );
   }
 
-  Widget _buildScoreBadge(String name, int drinks, bool isMe) {
+  Widget _buildScoreBadge(String name, int drinks, int points, bool isMe) {
     return Column(
       children: [
         Text(name, style: TextStyle(color: isMe ? Colors.white : Colors.white70, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(color: Colors.orangeAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-          child: Row(
-            children: [
-              const Icon(Icons.local_bar, color: Colors.orangeAccent, size: 14),
-              const SizedBox(width: 4),
-              Text('$drinks', style: const TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold)),
-            ],
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(color: Colors.orangeAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+              child: Row(
+                children: [
+                  const Icon(Icons.star, color: Colors.orangeAccent, size: 13),
+                  const SizedBox(width: 3),
+                  Text('$points pts', style: const TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+              child: Row(
+                children: [
+                  const Icon(Icons.local_bar, color: Colors.redAccent, size: 13),
+                  const SizedBox(width: 3),
+                  Text('$drinks', style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ],
         )
       ],
     );
@@ -374,20 +572,26 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
       width: 280,
       height: 400,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFFE65100), Color(0xFFBF360C)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE65100), Color(0xFF6A1B9A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 20, spreadRadius: 5, offset: Offset(0, 10))],
-        border: Border.all(color: Colors.orangeAccent, width: 2),
+        border: Border.all(color: Colors.orangeAccent.withOpacity(0.5), width: 2),
       ),
       child: const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.liquor, color: Colors.white, size: 80),
+            Icon(Icons.casino, color: Colors.white, size: 70),
             SizedBox(height: 16),
-            Text('Truth or Drink', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold, fontFamily: 'serif')),
-            SizedBox(height: 40),
-            Text('TAP TO DRAW', style: TextStyle(color: Colors.white70, fontSize: 14, letterSpacing: 2)),
+            Text('Truth or Dare', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold, fontFamily: 'serif')),
+            SizedBox(height: 8),
+            Text('TRUTH • DARE • DRINK', style: TextStyle(color: Colors.white70, fontSize: 11, letterSpacing: 2, fontWeight: FontWeight.w600)),
+            SizedBox(height: 36),
+            Text('TAP OR CHOOSE BELOW', style: TextStyle(color: Colors.white60, fontSize: 12, letterSpacing: 1.5)),
           ],
         ),
       ),
@@ -395,6 +599,7 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
   }
 
   Widget _buildCardFront() {
+    final isDare = _cardType == 'DARE';
     return Container(
       width: 280,
       height: 400,
@@ -402,6 +607,7 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
         color: const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(24),
         boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 20, spreadRadius: 5, offset: Offset(0, 10))],
+        border: Border.all(color: isDare ? Colors.redAccent : Colors.deepPurpleAccent, width: 2),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -417,26 +623,48 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Expanded(
-                            child: Text(
-                              _selectedCategory.toUpperCase(),
-                              style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, letterSpacing: 1),
-                              overflow: TextOverflow.ellipsis,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isDare ? Colors.redAccent : Colors.deepPurpleAccent,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(isDare ? Icons.local_fire_department : Icons.record_voice_over, color: Colors.white, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isDare ? 'DARE (+10 PTS)' : 'TRUTH (+5 PTS)',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                ),
+                              ],
                             ),
                           ),
-                          const Icon(Icons.local_fire_department, color: Colors.redAccent),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black12,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              _selectedCategory.toUpperCase(),
+                              style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.bold, fontSize: 11),
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       Text(
                         _currentQuestion,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.black87, fontSize: 22, fontWeight: FontWeight.w600, height: 1.4),
+                        style: const TextStyle(color: Colors.black87, fontSize: 20, fontWeight: FontWeight.w600, height: 1.4),
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Will you answer or drink?',
-                        style: TextStyle(color: Colors.black54, fontStyle: FontStyle.italic),
+                      const SizedBox(height: 20),
+                      Text(
+                        isDare ? 'Perform the dare or drink!' : 'Confess your truth or drink!',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.black54, fontStyle: FontStyle.italic, fontSize: 13),
                       ),
                     ],
                   ),

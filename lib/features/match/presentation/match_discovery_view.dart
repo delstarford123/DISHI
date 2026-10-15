@@ -61,7 +61,7 @@ class _MatchDiscoveryViewState extends State<MatchDiscoveryView> with TickerProv
     try {
       final currentUid = FirebaseAuth.instance.currentUser?.uid;
 
-      // --- Gender filtering ---
+      // --- Strict Gender filtering ---
       // Determine the current user's gender from Firestore or the passed widget map.
       String myGender = widget.currentUser?['gender'] as String? ?? '';
       if (myGender.isEmpty && currentUid != null) {
@@ -69,40 +69,41 @@ class _MatchDiscoveryViewState extends State<MatchDiscoveryView> with TickerProv
             .collection('users')
             .doc(currentUid)
             .get();
-        myGender = (myDoc.data()?['gender'] as String? ?? '').toLowerCase();
+        myGender = (myDoc.data()?['gender'] as String? ?? '').toLowerCase().trim();
       } else {
-        myGender = myGender.toLowerCase();
+        myGender = myGender.toLowerCase().trim();
       }
-      // Opposite gender to show: male sees female, female sees male, others see all
-      final oppositeGender = myGender == 'male'
-          ? 'female'
-          : myGender == 'female'
-              ? 'male'
-              : '';
+
+      // If gender is completely unset, prompt user immediately to pick Male or Female
+      if (myGender != 'male' && myGender != 'female' && myGender != 'm' && myGender != 'f') {
+        if (mounted) {
+          _showGenderSelectionModal();
+        }
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final isMale = myGender == 'male' || myGender == 'm';
+      final oppositeGenderList = isMale 
+          ? ['female', 'Female', 'FEMALE', 'f', 'F']
+          : ['male', 'Male', 'MALE', 'm', 'M'];
 
       Query query = FirebaseFirestore.instance
           .collection('users')
+          .where('gender', whereIn: oppositeGenderList)
           .limit(50);
-
-      // Apply gender filter only when we know the opposite gender
-      if (oppositeGender.isNotEmpty) {
-        query = query.where('gender', isEqualTo: oppositeGender);
-      }
 
       final snapshot = await query.get();
 
       final profiles = snapshot.docs
           .map((doc) {
             final data = doc.data() as Map<String, dynamic>;
-            // Use real photos from profile; fall back to a placeholder
             final avatar = data['profileImageUrl'] as String?;
-            data['photos'] = avatar != null
+            data['photos'] = avatar != null && avatar.isNotEmpty
                 ? [avatar]
                 : ['https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80'];
-            // Use real interests if stored, else empty
-            data['interests'] =
-                (data['interests'] as List?)?.cast<String>() ?? [];
-            // Compute distance if location available
+            data['interests'] = (data['interests'] as List?)?.cast<String>() ?? [];
+
             if (myPosition != null &&
                 data['latitude'] != null &&
                 data['longitude'] != null) {
@@ -122,16 +123,112 @@ class _MatchDiscoveryViewState extends State<MatchDiscoveryView> with TickerProv
           })
           .where((user) {
              final roles = user['roles'] as List<dynamic>? ?? [];
-             final isStudent = roles.contains('student');
-             final isOnline = user['isOnline'] == true;
-             return user['id'] != currentUid && user['id'] != null && user['isOffline'] != true && isStudent && isOnline;
+             final roleStr = (user['role'] as String? ?? '').toLowerCase();
+             final isStudent = roles.contains('student') || roleStr == 'student';
+             
+             // STRICT OPPOSITE GENDER VERIFICATION
+             final targetGender = (user['gender'] ?? '').toString().toLowerCase().trim();
+             final isTargetOpposite = isMale 
+                 ? (targetGender == 'female' || targetGender == 'f')
+                 : (targetGender == 'male' || targetGender == 'm');
+
+             return user['id'] != currentUid && 
+                    user['id'] != null && 
+                    user['isOffline'] != true && 
+                    isStudent &&
+                    isTargetOpposite;
           })
           .toList();
+
+      // Prioritize online matches first
+      profiles.sort((a, b) => (b['isOnline'] == true ? 1 : 0).compareTo(a['isOnline'] == true ? 1 : 0));
 
       if (mounted) setState(() { _profiles = profiles; _isLoading = false; });
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showGenderSelectionModal() {
+    String chosenGender = 'female';
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          backgroundColor: _cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: _neonPink, width: 2)),
+          title: const Text('Select Your Gender 💖', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('To find your perfect match, DISHI strictly matches opposite genders (Male & Female). What is your gender?', style: TextStyle(color: Colors.white70)),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => setModalState(() => chosenGender = 'male'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color: chosenGender == 'male' ? _neonCyan.withOpacity(0.2) : Colors.transparent,
+                          border: Border.all(color: chosenGender == 'male' ? _neonCyan : Colors.white24, width: 2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(Icons.male, color: _neonCyan, size: 36),
+                            SizedBox(height: 6),
+                            Text('Male', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => setModalState(() => chosenGender = 'female'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color: chosenGender == 'female' ? _neonPink.withOpacity(0.2) : Colors.transparent,
+                          border: Border.all(color: chosenGender == 'female' ? _neonPink : Colors.white24, width: 2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(Icons.female, color: _neonPink, size: 36),
+                            SizedBox(height: 6),
+                            Text('Female', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _neonPink),
+              onPressed: () async {
+                final uid = FirebaseAuth.instance.currentUser?.uid;
+                if (uid != null) {
+                  await FirebaseFirestore.instance.collection('users').doc(uid).set({'gender': chosenGender}, SetOptions(merge: true));
+                  await FirebaseFirestore.instance.collection('match_profiles').doc(uid).set({'gender': chosenGender}, SetOptions(merge: true));
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+                _fetchLocationAndProfiles();
+              },
+              child: const Text('Save & Find Matches', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _onSwipe(bool isRight, bool isSuperLike) {

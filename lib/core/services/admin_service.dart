@@ -18,6 +18,16 @@ class AdminService {
     };
   }
 
+  static String _parseError(http.Response response, String fallback) {
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map && decoded.containsKey('error')) {
+        return decoded['error'].toString();
+      }
+    } catch (_) {}
+    return '$fallback (${response.statusCode})';
+  }
+
   Future<void> suspendUser(String userId, String reason) async {
     final headers = await _getHeaders();
     final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/$userId/suspend');
@@ -25,10 +35,10 @@ class AdminService {
       url,
       headers: headers,
       body: jsonEncode({'reason': reason}),
-    );
+    ).timeout(const Duration(seconds: 30));
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to suspend user: ${response.body}');
+      throw Exception(_parseError(response, 'Failed to suspend user'));
     }
   }
 
@@ -38,10 +48,10 @@ class AdminService {
     final response = await http.delete(
       url,
       headers: headers,
-    );
+    ).timeout(const Duration(seconds: 30));
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to delete user: ${response.body}');
+      throw Exception(_parseError(response, 'Failed to delete user'));
     }
   }
 
@@ -442,15 +452,23 @@ class AdminService {
   // D. General Admin Dashboard Stats
   Future<Map<String, dynamic>> getSystemOverview() async {
     final headers = await _getHeaders();
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/analytics/dashboard_stats'), headers: headers);
-    if (response.statusCode != 200) throw Exception(response.body);
+    final response = await http
+        .get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/analytics/dashboard_stats'), headers: headers)
+        .timeout(const Duration(seconds: 30));
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to load system stats'));
+    }
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   Future<List<dynamic>> getAllUsers() async {
     final headers = await _getHeaders();
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/all'), headers: headers);
-    if (response.statusCode != 200) throw Exception(response.body);
-    return jsonDecode(response.body)['users'];
+    final response = await http
+        .get(Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/all'), headers: headers)
+        .timeout(const Duration(seconds: 30));
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to fetch users'));
+    }
+    return jsonDecode(response.body)['users'] as List<dynamic>;
   }
 }

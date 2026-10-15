@@ -25,6 +25,58 @@ class SecureStorageService {
     await _storage.delete(key: _keyToken);
   }
 
+  static const String _keyPreferredAuthMethod = 'preferred_auth_method';
+  static const String _keyBiometricEnabled = 'biometric_enabled';
+
+  // --- Preferred Auth Method ('biometric' or 'pin') ---
+  static Future<void> setPreferredAuthMethod(String method) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyPreferredAuthMethod, method);
+    await _storage.write(key: _keyPreferredAuthMethod, value: method);
+  }
+
+  static Future<String> getPreferredAuthMethod() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString(_keyPreferredAuthMethod);
+    if (cached != null && cached.isNotEmpty) {
+      return cached;
+    }
+    final stored = await _storage.read(key: _keyPreferredAuthMethod);
+    if (stored != null && stored.isNotEmpty) {
+      await prefs.setString(_keyPreferredAuthMethod, stored);
+      return stored;
+    }
+    return 'pin';
+  }
+
+  static Future<bool> hasPreferredAuthMethod() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.containsKey(_keyPreferredAuthMethod)) return true;
+    final stored = await _storage.read(key: _keyPreferredAuthMethod);
+    return stored != null && stored.isNotEmpty;
+  }
+
+  // --- Biometric Enabled Toggle ---
+  static Future<void> setBiometricEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyBiometricEnabled, enabled);
+    await _storage.write(key: _keyBiometricEnabled, value: enabled.toString());
+  }
+
+  static Future<bool> isBiometricEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.containsKey(_keyBiometricEnabled)) {
+      return prefs.getBool(_keyBiometricEnabled) ?? true;
+    }
+    final val = await _storage.read(key: _keyBiometricEnabled);
+    if (val != null) {
+      final enabled = val == 'true';
+      await prefs.setBool(_keyBiometricEnabled, enabled);
+      return enabled;
+    }
+    return true;
+  }
+
   static Future<void> saveHashedPin(String pin) async {
     await _storage.write(key: _keyPin, value: pin);
     final prefs = await SharedPreferences.getInstance();
