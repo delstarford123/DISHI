@@ -365,7 +365,7 @@ class _MeetupShareViewState extends State<MeetupShareView> {
       if (snap.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('No connections found. Connect with peers in Find Your Match!'),
+            content: Text('No connections found. Connect with peers in UniUptown!'),
             backgroundColor: _neonBlue,
           ),
         );

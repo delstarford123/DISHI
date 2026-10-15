@@ -103,7 +103,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
     );
   }
 
-  List<String> _featureOrder = ['Fundi Juaji Market', 'Find Your Match', 'Study Companion', 'Keja Yangu'];
+  List<String> _featureOrder = ['Fundi Juaji Market', 'UniUptown', 'Study Companion', 'Keja Yangu'];
 
   Future<void> _loadFeatureOrder() async {
     final prefs = await SharedPreferences.getInstance();
@@ -111,7 +111,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
     if (savedOrder != null && savedOrder.length == _featureOrder.length) {
       if (mounted) {
         setState(() {
-          _featureOrder = savedOrder;
+          _featureOrder = savedOrder.map((f) => f == 'Find Your Match' ? 'UniUptown' : f).toList();
         });
       }
     }
@@ -1059,7 +1059,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('To find your perfect match, we strictly match opposite genders. What is your gender?', style: TextStyle(color: Colors.white70)),
+              const Text('To join UniUptown, we strictly match opposite genders. What is your gender?', style: TextStyle(color: Colors.white70)),
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -1145,7 +1145,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
       _buildActionIcon(Icons.history_edu, 'History', const Color(0xFFF59E0B), [const Color(0xFFF59E0B), const Color(0xFFB45309)], false, () {
         Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLedgerView()));
       }),
-      _buildActionIcon(Icons.favorite, 'Find Match', const Color(0xFFEC4899), [const Color(0xFFEC4899), const Color(0xFFBE185D)], true, () {
+      _buildActionIcon(Icons.favorite, 'UniUptown', const Color(0xFFEC4899), [const Color(0xFFEC4899), const Color(0xFFBE185D)], true, () {
         final gender = userModel.gender ?? '';
         if (gender.isEmpty) {
           _showGenderPromptDialog(userModel);

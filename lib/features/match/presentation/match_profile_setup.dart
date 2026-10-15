@@ -178,7 +178,7 @@ class _MatchProfileSetupState extends State<MatchProfileSetup> {
       }, SetOptions(merge: true));
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Match Profile Activated!'), backgroundColor: _neonPink));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('UniUptown Profile Activated!'), backgroundColor: _neonPink));
         Navigator.pop(context);
       }
     } catch (e) {
@@ -195,7 +195,7 @@ class _MatchProfileSetupState extends State<MatchProfileSetup> {
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text('Build Your Profile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('UniUptown Profile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),

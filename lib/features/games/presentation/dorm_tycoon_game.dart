@@ -45,6 +45,11 @@ class _DormTycoonGameState extends State<DormTycoonGame> {
       UpgradeItem('Room Maid', '🧹', 100, 1000),
     ];
 
+    _startLoop();
+  }
+
+  void _startLoop() {
+    loopTimer?.cancel();
     loopTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (cps > 0) {
         setState(() {
@@ -87,7 +92,7 @@ class _DormTycoonGameState extends State<DormTycoonGame> {
       context: context,
       userModel: widget.userModel,
       gameTitle: 'DORM TYCOON',
-      score: tycoonCash,
+      score: tycoonCash.round(),
       scoreLabel: 'TYCOON CASH CASHED OUT',
       coinsEarned: res.coinsEarned,
       isVictory: true,
@@ -95,6 +100,13 @@ class _DormTycoonGameState extends State<DormTycoonGame> {
         setState(() {
           tycoonCash = 0;
           cps = 0;
+          upgrades = [
+            UpgradeItem('Better Bed', '🛏️', 1, 10),
+            UpgradeItem('Mini Fridge', '❄️', 5, 50),
+            UpgradeItem('Microwave', '♨️', 15, 100),
+            UpgradeItem('Gaming PC', '💻', 50, 500),
+            UpgradeItem('Room Maid', '🧹', 100, 1000),
+          ];
         });
         _startLoop();
       },

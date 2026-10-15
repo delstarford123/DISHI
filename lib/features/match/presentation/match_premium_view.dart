@@ -49,7 +49,7 @@ class _MatchPremiumViewState extends State<MatchPremiumView> {
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text('DISHI Match Premium', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('UniUptown Premium', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),

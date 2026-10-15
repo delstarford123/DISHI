@@ -26,7 +26,7 @@ class _RoleSelectionViewState extends State<RoleSelectionView> {
     {
       'id': 'student',
       'title': 'Student',
-      'desc': 'Order food, split bills, and find matches on campus.',
+      'desc': 'Order food, split bills, and connect on UniUptown.',
       'icon': Icons.school,
       'color': Colors.blueAccent,
     },

@@ -38,7 +38,7 @@ class MatchHubView extends StatelessWidget {
               )
             : null,
         title: const Text(
-          'Find Your Match',
+          'UniUptown',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
         ),
         actions: [
@@ -123,7 +123,7 @@ class MatchHubView extends StatelessWidget {
                 _buildListCard('Vibe Check', 'Your Inbox...', Icons.psychology, Colors.purpleAccent, () {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const MatchVibeInboxView()));
                 }),
-                _buildListCard('Love Language', 'Find your s...', Icons.favorite, Colors.redAccent, () {
+                _buildListCard('Love Language', 'Discover vibe...', Icons.favorite, Colors.redAccent, () {
                   showDialog(context: context, builder: (context) => const MatchLoveLanguageDialog());
                 }),
                 _buildListCard('Voice Intro', 'Listen to v...', Icons.mic, Colors.orangeAccent, () {

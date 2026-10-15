@@ -162,7 +162,7 @@ class _MatchDiscoveryViewState extends State<MatchDiscoveryView> with TickerProv
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('To find your perfect match, DISHI strictly matches opposite genders (Male & Female). What is your gender?', style: TextStyle(color: Colors.white70)),
+              const Text('To explore UniUptown, DISHI strictly matches opposite genders (Male & Female). What is your gender?', style: TextStyle(color: Colors.white70)),
               const SizedBox(height: 20),
               Row(
                 children: [
@@ -223,7 +223,7 @@ class _MatchDiscoveryViewState extends State<MatchDiscoveryView> with TickerProv
                 if (ctx.mounted) Navigator.pop(ctx);
                 _fetchLocationAndProfiles();
               },
-              child: const Text('Save & Find Matches', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: const Text('Save & Enter UniUptown', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),

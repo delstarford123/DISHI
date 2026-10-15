@@ -233,7 +233,7 @@ class _TasteMatchGameState extends State<TasteMatchGame> {
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 32.0),
             child: Text(
-              'We saved your weird food preferences. Check your Match Hub later to see if anyone else likes Ketchup on Eggs.',
+              'We saved your weird food preferences. Check UniUptown later to see if anyone else likes Ketchup on Eggs.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white70, fontSize: 16),
             ),

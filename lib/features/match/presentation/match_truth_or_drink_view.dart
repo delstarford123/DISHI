@@ -312,7 +312,8 @@ class _MatchTruthOrDrinkViewState extends State<MatchTruthOrDrinkView> with Sing
             child: const Text('Send Truth (+5 pts)', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           )
         ],
-      )
+      ),
+    );
   }
 
   void _inviteMatch() {

@@ -311,7 +311,7 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
           
           _buildSectionHeader('App Preferences', Icons.settings, _neonCyan),
           const SizedBox(height: 16),
-          _buildToggleCard('Push Notifications', 'Receive match alerts and ecosystem updates', Icons.notifications_active, _neonCyan, _pushNotifications, (val) {
+          _buildToggleCard('Push Notifications', 'Receive UniUptown alerts and ecosystem updates', Icons.notifications_active, _neonCyan, _pushNotifications, (val) {
             setState(() => _pushNotifications = val);
             _saveField('pushNotifications', val);
           }),
@@ -326,8 +326,8 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
           const SizedBox(height: 16),
           
           _buildProfileCard(
-            'Find Your Match Profile', 
-            'Update your dating preferences, vibe check, and bio.',
+            'UniUptown Profile', 
+            'Update your dating preferences, vibe check, and bio in UniUptown.',
             Icons.favorite,
             _neonPink,
             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MatchProfileSetup())),

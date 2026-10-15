@@ -81,9 +81,9 @@ class AllFeaturesView extends StatelessWidget {
             _FeatureItem(icon: Icons.style, label: 'Flashcards', color: Colors.yellowAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FlashcardsView()))),
           ], cardColor),
 
-          _buildStickyHeader('Student Life & Social (Match)'),
+          _buildStickyHeader('Student Life & Social (UniUptown)'),
           _buildSliverGrid([
-            _FeatureItem(icon: Icons.favorite, label: 'Match Hub', color: Colors.redAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MatchHubView()))),
+            _FeatureItem(icon: Icons.favorite, label: 'UniUptown', color: Colors.redAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MatchHubView()))),
             _FeatureItem(icon: Icons.people, label: 'Campus Feed', color: Colors.blueAccent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MatchCampusFeedView()))),
           ], cardColor),
 
