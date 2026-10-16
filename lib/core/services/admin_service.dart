@@ -758,4 +758,92 @@ class AdminService {
     }
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
+
+  // ==========================================
+  // PHASE 9: DEPARTMENT & ROLE COMPENSATION MANAGEMENT
+  // ==========================================
+
+  Future<List<dynamic>> getDepartments() async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments');
+    final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to fetch departments'));
+    }
+    return jsonDecode(response.body)['departments'] as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> createDepartment({
+    required String name,
+    required String code,
+    String? description,
+    double budget = 0.0,
+    List<Map<String, dynamic>>? roles,
+  }) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments');
+    final body = jsonEncode({
+      'name': name,
+      'code': code,
+      'description': description ?? '',
+      'budget': budget,
+      'roles': roles ?? [],
+    });
+    final response = await http.post(url, headers: headers, body: body).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to create department'));
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<void> updateDepartment(String deptId, Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments/$deptId');
+    final response = await http.post(url, headers: headers, body: jsonEncode(data)).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to update department'));
+    }
+  }
+
+  Future<void> deleteDepartment(String deptId) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments/$deptId');
+    final response = await http.delete(url, headers: headers).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to delete department'));
+    }
+  }
+
+  Future<Map<String, dynamic>> updateEmployeeCompensation({
+    required String employeeId,
+    required String role,
+    required String department,
+    required double baseSalary,
+    String salaryType = 'MONTHLY',
+    double? shifDeduction,
+    double? nssfDeduction,
+    double? housingLevy,
+  }) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/employees/$employeeId/compensation');
+    final body = jsonEncode({
+      'role': role,
+      'department': department,
+      'base_salary': baseSalary,
+      'salary_type': salaryType,
+      if (shifDeduction != null) 'shif_deduction': shifDeduction,
+      if (nssfDeduction != null) 'nssf_deduction': nssfDeduction,
+      if (housingLevy != null) 'housing_levy': housingLevy,
+    });
+    final response = await http.post(url, headers: headers, body: body).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to update compensation'));
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
 }

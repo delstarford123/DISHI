@@ -31,6 +31,7 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
   List<dynamic> _employees = [];
   Map<String, dynamic> _payrollSummary = {};
   List<dynamic> _payrollSlips = [];
+  List<dynamic> _departments = [];
 
   String _searchQuery = '';
   String _selectedDeptFilter = 'ALL';
@@ -38,7 +39,10 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _fetchAllData();
   }
 
@@ -59,6 +63,7 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
         _adminService.getEmployees(),
         _adminService.getPayrollSummary(),
         _adminService.getPayrollSlips(),
+        _adminService.getDepartments().catchError((_) => <dynamic>[]),
       ]);
 
       if (mounted) {
@@ -66,13 +71,14 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
           _employees = results[0] as List<dynamic>;
           _payrollSummary = results[1] as Map<String, dynamic>;
           _payrollSlips = results[2] as List<dynamic>;
+          _departments = results[3] as List<dynamic>;
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
           _isLoading = false;
         });
       }
@@ -86,7 +92,17 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
     );
   }
 
-  // --- ADD EMPLOYEE MODAL ---
+  List<String> _getDepartmentNames() {
+    if (_departments.isEmpty) {
+      return ['ALL', 'Kitchen Operations', 'Campus Delivery', 'Engineering & Tech', 'Support & Dispute Care', 'Hygiene & Facilities', 'Executive Management'];
+    }
+    final names = _departments.map((d) => (d['name'] ?? '').toString()).where((n) => n.isNotEmpty).toList();
+    return ['ALL', ...names];
+  }
+
+  // ==========================================
+  // 1. ADD / EDIT EMPLOYEE MODAL
+  // ==========================================
   void _showAddEmployeeModal({Map<String, dynamic>? existingEmp}) {
     final bool isEditing = existingEmp != null;
     final nameCtrl = TextEditingController(text: existingEmp?['name'] ?? '');
@@ -98,19 +114,19 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
     final nssfCtrl = TextEditingController(text: (existingEmp?['nssf_deduction'] ?? '0').toString());
     final housingCtrl = TextEditingController(text: (existingEmp?['housing_levy'] ?? '0').toString());
 
-    String selectedDept = existingEmp?['department'] ?? 'Delivery Fleet';
+    final deptList = _getDepartmentNames().where((d) => d != 'ALL').toList();
+    String selectedDept = existingEmp?['department'] ?? (deptList.isNotEmpty ? deptList.first : 'Operations');
     String selectedSalaryType = existingEmp?['salary_type'] ?? 'MONTHLY';
-    final departments = ['Delivery Fleet', 'Kitchen Staff', 'Caretakers', 'Security', 'Operations', 'Tech/IT'];
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: _cardColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
             left: 20,
             right: 20,
             top: 24,
@@ -124,7 +140,7 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(isEditing ? 'Edit Employee Record' : 'Register New Employee', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                    IconButton(icon: const Icon(Icons.close, color: _textSecondary), onPressed: () => Navigator.pop(context)),
+                    IconButton(icon: const Icon(Icons.close, color: _textSecondary), onPressed: () => Navigator.pop(ctx)),
                   ],
                 ),
                 const SizedBox(height: 14),
@@ -132,7 +148,7 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                   controller: nameCtrl,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'Full Name',
+                    labelText: 'Full Name *',
                     labelStyle: const TextStyle(color: _textSecondary),
                     filled: true,
                     fillColor: _surfaceLight,
@@ -145,7 +161,7 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                   keyboardType: TextInputType.phone,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'M-PESA Phone (e.g. 254712345678)',
+                    labelText: 'M-PESA Phone (e.g. 254712345678) *',
                     labelStyle: const TextStyle(color: _textSecondary),
                     filled: true,
                     fillColor: _surfaceLight,
@@ -153,15 +169,99 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                   ),
                 ),
                 const SizedBox(height: 10),
+                TextField(
+                  controller: idCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'National ID / Passport Number',
+                    labelStyle: const TextStyle(color: _textSecondary),
+                    filled: true,
+                    fillColor: _surfaceLight,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Department Selector
+                const Text('Department *', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: deptList.map((dept) {
+                    final isSel = selectedDept == dept;
+                    return ChoiceChip(
+                      label: Text(dept, style: TextStyle(color: isSel ? Colors.black : Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                      selected: isSel,
+                      selectedColor: _neonCyan,
+                      backgroundColor: _surfaceLight,
+                      onSelected: (val) {
+                        setSheetState(() {
+                          selectedDept = dept;
+                          // If department has role presets, auto-suggest first role
+                          final matchedDept = _departments.firstWhere((d) => d['name'] == dept, orElse: () => null);
+                          if (matchedDept != null && matchedDept['roles'] is List && (matchedDept['roles'] as List).isNotEmpty) {
+                            final firstRole = matchedDept['roles'][0];
+                            if (roleCtrl.text.isEmpty || roleCtrl.text == 'Staff') {
+                              roleCtrl.text = firstRole['title'] ?? 'Staff';
+                              if (salaryCtrl.text.isEmpty || salaryCtrl.text == '0') {
+                                salaryCtrl.text = (firstRole['default_salary'] ?? '').toString();
+                              }
+                            }
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 14),
+
+                // Role Presets for chosen department
+                Builder(
+                  builder: (context) {
+                    final matchedDept = _departments.firstWhere((d) => d['name'] == selectedDept, orElse: () => null);
+                    if (matchedDept != null && matchedDept['roles'] is List && (matchedDept['roles'] as List).isNotEmpty) {
+                      final roles = matchedDept['roles'] as List;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Suggested Roles for this Department:', style: TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: roles.map((r) {
+                              final title = r['title'] ?? '';
+                              final sal = (r['default_salary'] as num?)?.toDouble() ?? 0.0;
+                              return ActionChip(
+                                backgroundColor: _surfaceLight,
+                                label: Text('$title (KES ${sal.toStringAsFixed(0)})', style: const TextStyle(color: Colors.white, fontSize: 10)),
+                                onPressed: () {
+                                  setSheetState(() {
+                                    roleCtrl.text = title;
+                                    salaryCtrl.text = sal.toStringAsFixed(0);
+                                  });
+                                },
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+
                 Row(
                   children: [
                     Expanded(
+                      flex: 2,
                       child: TextField(
-                        controller: salaryCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        controller: roleCtrl,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
-                          labelText: 'Base Salary (KES)',
+                          labelText: 'Assigned Role Title *',
                           labelStyle: const TextStyle(color: _textSecondary),
                           filled: true,
                           fillColor: _surfaceLight,
@@ -169,13 +269,15 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Expanded(
+                      flex: 2,
                       child: TextField(
-                        controller: roleCtrl,
-                        style: const TextStyle(color: Colors.white),
+                        controller: salaryCtrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                         decoration: InputDecoration(
-                          labelText: 'Job Title / Role',
+                          labelText: 'Base Salary (KES) *',
                           labelStyle: const TextStyle(color: _textSecondary),
                           filled: true,
                           fillColor: _surfaceLight,
@@ -186,24 +288,9 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                   ],
                 ),
                 const SizedBox(height: 14),
-                const Text('Department:', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: departments.map((dept) {
-                    final isSel = selectedDept == dept;
-                    return ChoiceChip(
-                      label: Text(dept, style: TextStyle(color: isSel ? Colors.black : Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                      selected: isSel,
-                      selectedColor: _neonCyan,
-                      backgroundColor: _surfaceLight,
-                      onSelected: (val) => setSheetState(() => selectedDept = dept),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 14),
-                const Text('Statutory Deductions (Optional):', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+
+                // Statutory Deductions
+                const Text('Kenyan Statutory Deductions (Optional):', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -266,10 +353,10 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                     final phone = phoneCtrl.text.trim();
                     final sal = double.tryParse(salaryCtrl.text.trim());
                     if (name.isEmpty || phone.isEmpty || sal == null || sal <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid name, phone, and salary')));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid name, phone, and salary'), backgroundColor: _neonRed));
                       return;
                     }
-                    Navigator.pop(context);
+                    Navigator.pop(ctx);
                     final payload = {
                       'name': name,
                       'phone': phone,
@@ -298,7 +385,7 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                   },
                   child: Text(isEditing ? 'Save Changes' : 'Register Employee', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -307,7 +394,572 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
     );
   }
 
-  // --- DISBURSE SALARY B2C MODAL ---
+  // ==========================================
+  // 2. DEDICATED CHANGE ROLE & SALARY MODAL
+  // ==========================================
+  void _showChangeCompensationModal(Map<String, dynamic> emp) {
+    final empId = emp['id']?.toString() ?? '';
+    final name = emp['name'] ?? 'Staff Member';
+    final roleCtrl = TextEditingController(text: emp['role'] ?? 'Staff');
+    final salaryCtrl = TextEditingController(text: ((emp['base_salary'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(0));
+    final deptList = _getDepartmentNames().where((d) => d != 'ALL').toList();
+    String selectedDept = emp['department'] ?? (deptList.isNotEmpty ? deptList.first : 'Operations');
+    String selectedSalaryType = emp['salary_type'] ?? 'MONTHLY';
+
+    final shifCtrl = TextEditingController(text: ((emp['shif_deduction'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(0));
+    final nssfCtrl = TextEditingController(text: ((emp['nssf_deduction'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(0));
+    final housingCtrl = TextEditingController(text: ((emp['housing_levy'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(0));
+
+    final history = (emp['compensation_history'] as List<dynamic>?) ?? [];
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setCompState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            left: 20,
+            right: 20,
+            top: 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.currency_exchange, color: Colors.amberAccent, size: 22),
+                        const SizedBox(width: 8),
+                        Text('Change Role & Salary: $name', style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    IconButton(icon: const Icon(Icons.close, color: _textSecondary), onPressed: () => Navigator.pop(ctx)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Update this employee’s designated department, job title, and base salary. Changes apply immediately to future payroll cycles.',
+                  style: TextStyle(color: _textSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 16),
+
+                // Department Selector
+                const Text('Select Department *', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: deptList.map((dept) {
+                    final isSel = selectedDept == dept;
+                    return ChoiceChip(
+                      label: Text(dept, style: TextStyle(color: isSel ? Colors.black : Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                      selected: isSel,
+                      selectedColor: Colors.amberAccent,
+                      backgroundColor: _surfaceLight,
+                      onSelected: (val) {
+                        setCompState(() {
+                          selectedDept = dept;
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 14),
+
+                // Preset Roles from selected Department
+                Builder(
+                  builder: (context) {
+                    final matchedDept = _departments.firstWhere((d) => d['name'] == selectedDept, orElse: () => null);
+                    if (matchedDept != null && matchedDept['roles'] is List && (matchedDept['roles'] as List).isNotEmpty) {
+                      final roles = matchedDept['roles'] as List;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Quick Role Presets (Tap to Apply):', style: TextStyle(color: Colors.amberAccent, fontSize: 11, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: roles.map((r) {
+                              final title = r['title'] ?? '';
+                              final sal = (r['default_salary'] as num?)?.toDouble() ?? 0.0;
+                              return ActionChip(
+                                backgroundColor: _surfaceLight,
+                                side: BorderSide(color: roleCtrl.text == title ? Colors.amberAccent : Colors.transparent),
+                                label: Text('$title • KES ${sal.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 10)),
+                                onPressed: () {
+                                  setCompState(() {
+                                    roleCtrl.text = title;
+                                    salaryCtrl.text = sal.toStringAsFixed(0);
+                                  });
+                                },
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+
+                // Role and Salary Fields
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextField(
+                        controller: roleCtrl,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Role / Job Title *',
+                          labelStyle: const TextStyle(color: _textSecondary),
+                          filled: true,
+                          fillColor: _surfaceLight,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: salaryCtrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 16),
+                        decoration: InputDecoration(
+                          labelText: 'Salary (KES) *',
+                          labelStyle: const TextStyle(color: _textSecondary),
+                          filled: true,
+                          fillColor: _surfaceLight,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Deductions
+                const Text('Statutory Deductions (Monthly KES):', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: nssfCtrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'NSSF',
+                          labelStyle: const TextStyle(color: _textSecondary, fontSize: 11),
+                          filled: true,
+                          fillColor: _surfaceLight,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: shifCtrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'SHIF',
+                          labelStyle: const TextStyle(color: _textSecondary, fontSize: 11),
+                          filled: true,
+                          fillColor: _surfaceLight,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: housingCtrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Housing Levy',
+                          labelStyle: const TextStyle(color: _textSecondary, fontSize: 11),
+                          filled: true,
+                          fillColor: _surfaceLight,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // History accordion if exists
+                if (history.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text('Past Compensation Changes:', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: _surfaceLight, borderRadius: BorderRadius.circular(10)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: history.reversed.take(3).map((h) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4.0),
+                          child: Text(
+                            '• ${h['old_role'] ?? 'Staff'} (KES ${h['old_salary'] ?? 0}) ➔ ${h['new_role']} (KES ${h['new_salary']})',
+                            style: const TextStyle(color: Colors.white70, fontSize: 11),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 24),
+                isSaving
+                    ? const Center(child: CircularProgressIndicator(color: Colors.amberAccent))
+                    : ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amberAccent,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () async {
+                          final newRole = roleCtrl.text.trim();
+                          final newSal = double.tryParse(salaryCtrl.text.trim()) ?? 0.0;
+                          if (newRole.isEmpty || newSal <= 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please provide a valid role and salary > 0'), backgroundColor: _neonRed),
+                            );
+                            return;
+                          }
+
+                          setCompState(() => isSaving = true);
+                          try {
+                            final res = await _adminService.updateEmployeeCompensation(
+                              employeeId: empId,
+                              role: newRole,
+                              department: selectedDept,
+                              baseSalary: newSal,
+                              salaryType: selectedSalaryType,
+                              shifDeduction: double.tryParse(shifCtrl.text.trim()),
+                              nssfDeduction: double.tryParse(nssfCtrl.text.trim()),
+                              housingLevy: double.tryParse(housingCtrl.text.trim()),
+                            );
+
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(res['message'] ?? 'Role & compensation updated!'), backgroundColor: _neonCyan),
+                              );
+                              _fetchAllData();
+                            }
+                          } catch (e) {
+                            setCompState(() => isSaving = false);
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Update Failed: $e'), backgroundColor: _neonRed));
+                            }
+                          }
+                        },
+                        child: const Text('Save & Apply New Salary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // 3. CREATE / EDIT DEPARTMENT MODAL
+  // ==========================================
+  void _showCreateDepartmentModal({Map<String, dynamic>? existingDept}) {
+    final bool isEditing = existingDept != null;
+    final deptId = existingDept?['id']?.toString() ?? '';
+    final nameCtrl = TextEditingController(text: existingDept?['name'] ?? '');
+    final codeCtrl = TextEditingController(text: existingDept?['code'] ?? '');
+    final descCtrl = TextEditingController(text: existingDept?['description'] ?? '');
+    final budgetCtrl = TextEditingController(text: ((existingDept?['budget'] as num?)?.toDouble() ?? 100000.0).toStringAsFixed(0));
+
+    final List<Map<String, dynamic>> rolesList = [];
+    if (existingDept != null && existingDept['roles'] is List) {
+      for (var r in (existingDept['roles'] as List)) {
+        rolesList.add({'title': r['title'] ?? '', 'default_salary': (r['default_salary'] as num?)?.toDouble() ?? 0.0});
+      }
+    } else {
+      rolesList.addAll([
+        {'title': 'Supervisor', 'default_salary': 40000.0},
+        {'title': 'Specialist', 'default_salary': 25000.0},
+      ]);
+    }
+
+    final newRoleTitleCtrl = TextEditingController();
+    final newRoleSalCtrl = TextEditingController();
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDeptState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            left: 20,
+            right: 20,
+            top: 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.apartment, color: _neonCyan, size: 22),
+                        const SizedBox(width: 8),
+                        Text(isEditing ? 'Edit Department' : 'Create New Department', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    IconButton(icon: const Icon(Icons.close, color: _textSecondary), onPressed: () => Navigator.pop(ctx)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Define organizational departments, monthly expenditure budgets, and role compensation presets.',
+                  style: TextStyle(color: _textSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextField(
+                        controller: nameCtrl,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Department Name (e.g. Campus Security) *',
+                          labelStyle: const TextStyle(color: _textSecondary),
+                          filled: true,
+                          fillColor: _surfaceLight,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 1,
+                      child: TextField(
+                        controller: codeCtrl,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        decoration: InputDecoration(
+                          labelText: 'Code',
+                          labelStyle: const TextStyle(color: _textSecondary),
+                          filled: true,
+                          fillColor: _surfaceLight,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: descCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Description / Purpose',
+                    labelStyle: const TextStyle(color: _textSecondary),
+                    filled: true,
+                    fillColor: _surfaceLight,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: budgetCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Monthly Budget Limit (KES)',
+                    labelStyle: const TextStyle(color: _textSecondary),
+                    filled: true,
+                    fillColor: _surfaceLight,
+                    prefixIcon: const Icon(Icons.account_balance_wallet, color: _neonCyan),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Configured Roles list
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Designated Role Presets & Standard Pay:', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                    Text('${rolesList.length} Roles', style: const TextStyle(color: _neonCyan, fontSize: 11)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: _surfaceLight, borderRadius: BorderRadius.circular(12)),
+                  child: Column(
+                    children: [
+                      ...rolesList.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final r = entry.value;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.badge_outlined, color: _neonCyan, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text('${r['title']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                              Text('KES ${(r['default_salary'] as num).toStringAsFixed(0)}', style: const TextStyle(color: Colors.greenAccent, fontSize: 12)),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: _neonRed, size: 16),
+                                onPressed: () {
+                                  setDeptState(() {
+                                    rolesList.removeAt(idx);
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const Divider(color: Colors.white12),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: TextField(
+                              controller: newRoleTitleCtrl,
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                              decoration: const InputDecoration(
+                                hintText: 'Role Title (e.g. Lead)',
+                                hintStyle: TextStyle(color: _textSecondary, fontSize: 11),
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: TextField(
+                              controller: newRoleSalCtrl,
+                              keyboardType: TextInputType.number,
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                              decoration: const InputDecoration(
+                                hintText: 'Pay (KES)',
+                                hintStyle: TextStyle(color: _textSecondary, fontSize: 11),
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              final title = newRoleTitleCtrl.text.trim();
+                              final sal = double.tryParse(newRoleSalCtrl.text.trim()) ?? 0.0;
+                              if (title.isNotEmpty && sal > 0) {
+                                setDeptState(() {
+                                  rolesList.add({'title': title, 'default_salary': sal});
+                                  newRoleTitleCtrl.clear();
+                                  newRoleSalCtrl.clear();
+                                });
+                              }
+                            },
+                            child: const Text('+ Add', style: TextStyle(color: _neonCyan, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                isSaving
+                    ? const Center(child: CircularProgressIndicator(color: _neonCyan))
+                    : ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _neonCyan,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () async {
+                          final name = nameCtrl.text.trim();
+                          if (name.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Department name is required'), backgroundColor: _neonRed));
+                            return;
+                          }
+
+                          setDeptState(() => isSaving = true);
+                          final payload = {
+                            'name': name,
+                            'code': codeCtrl.text.trim().isEmpty ? name.substring(0, name.length > 5 ? 5 : name.length).toUpperCase() : codeCtrl.text.trim().toUpperCase(),
+                            'description': descCtrl.text.trim(),
+                            'budget': double.tryParse(budgetCtrl.text.trim()) ?? 0.0,
+                            'roles': rolesList,
+                          };
+
+                          try {
+                            if (isEditing) {
+                              await _adminService.updateDepartment(deptId, payload);
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Department updated!'), backgroundColor: _neonCyan));
+                            } else {
+                              await _adminService.createDepartment(
+                                name: payload['name'] as String,
+                                code: payload['code'] as String,
+                                description: payload['description'] as String,
+                                budget: payload['budget'] as double,
+                                roles: rolesList,
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Department created successfully!'), backgroundColor: _neonCyan));
+                            }
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx);
+                              _fetchAllData();
+                            }
+                          } catch (e) {
+                            setDeptState(() => isSaving = false);
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: _neonRed));
+                            }
+                          }
+                        },
+                        child: Text(isEditing ? 'Save Department Changes' : 'Create Department', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // 4. DISBURSE SALARY B2C MODAL
+  // ==========================================
   void _showDisburseModal(Map<String, dynamic> emp) {
     final bonusCtrl = TextEditingController(text: '0');
     final advanceCtrl = TextEditingController(text: '0');
@@ -322,19 +974,21 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          final bonus = double.tryParse(bonusCtrl.text.trim()) ?? 0.0;
-          final advance = double.tryParse(advanceCtrl.text.trim()) ?? 0.0;
-          final net = (baseSalary + bonus) - (fixedDeductions + advance);
+        builder: (context, setModalState) {
+          final bonus = double.tryParse(bonusCtrl.text) ?? 0.0;
+          final adv = double.tryParse(advanceCtrl.text) ?? 0.0;
+          final net = (baseSalary + bonus) - (fixedDeductions + adv);
 
           return AlertDialog(
             backgroundColor: _cardColor,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: _neonCyan, width: 1.5)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: _neonCyan, width: 2)),
             title: Row(
               children: [
                 const Icon(Icons.send_rounded, color: _neonCyan),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Pay Salary: ${emp["name"]}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+                Expanded(
+                  child: Text('Disburse Salary: ${emp['name']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
               ],
             ),
             content: SingleChildScrollView(
@@ -342,87 +996,64 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Phone: ${emp["phone"]} • Dept: ${emp["department"]}', style: const TextStyle(color: _textSecondary, fontSize: 11)),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: _surfaceLight, borderRadius: BorderRadius.circular(10)),
-                    child: Column(
-                      children: [
-                        _buildPayRow('Base Salary', 'KES ${baseSalary.toStringAsFixed(2)}', Colors.white),
-                        if (fixedDeductions > 0) _buildPayRow('Statutory Deductions (NSSF/SHIF)', '- KES ${fixedDeductions.toStringAsFixed(2)}', _neonRed),
-                        const Divider(color: Colors.white12),
-                        _buildPayRow('Net Disbursement', 'KES ${net.toStringAsFixed(2)}', _neonCyan, isBold: true),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: bonusCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            labelText: '+ Bonus',
-                            labelStyle: const TextStyle(color: _textSecondary, fontSize: 11),
-                            filled: true,
-                            fillColor: _surfaceLight,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                          ),
-                          onChanged: (_) => setDialogState(() {}),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: advanceCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            labelText: '- Advance Loan',
-                            labelStyle: const TextStyle(color: _textSecondary, fontSize: 11),
-                            filled: true,
-                            fillColor: _surfaceLight,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                          ),
-                          onChanged: (_) => setDialogState(() {}),
-                        ),
-                      ),
-                    ],
-                  ),
+                  Text('Destination Phone: ${emp['phone']}', style: const TextStyle(color: _textSecondary, fontSize: 12)),
+                  Text('Role & Dept: ${emp['role']} • ${emp['department']}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  const Divider(color: _surfaceLight, height: 20),
+                  _buildPayRow('Base Salary', 'KES ${baseSalary.toStringAsFixed(2)}', Colors.white),
+                  if (nssf > 0) _buildPayRow('NSSF Deduction', '- KES ${nssf.toStringAsFixed(2)}', _neonOrange),
+                  if (shif > 0) _buildPayRow('SHIF Deduction', '- KES ${shif.toStringAsFixed(2)}', _neonOrange),
+                  if (housing > 0) _buildPayRow('Housing Levy', '- KES ${housing.toStringAsFixed(2)}', _neonOrange),
                   const SizedBox(height: 10),
                   TextField(
-                    controller: notesCtrl,
+                    controller: bonusCtrl,
+                    keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      labelText: 'Remarks / Month',
-                      labelStyle: const TextStyle(color: _textSecondary, fontSize: 11),
+                      labelText: 'Bonus (KES)',
+                      labelStyle: const TextStyle(color: _textSecondary),
                       filled: true,
                       fillColor: _surfaceLight,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                     ),
+                    onChanged: (_) => setModalState(() {}),
                   ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: advanceCtrl,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Advance Deduction (KES)',
+                      labelStyle: const TextStyle(color: _textSecondary),
+                      filled: true,
+                      fillColor: _surfaceLight,
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                    ),
+                    onChanged: (_) => setModalState(() {}),
+                  ),
+                  const Divider(color: _surfaceLight, height: 24),
+                  _buildPayRow('Net Payout (Daraja B2C)', 'KES ${net.toStringAsFixed(2)}', _neonCyan, isBold: true),
                 ],
               ),
             ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: _textSecondary))),
-              ElevatedButton.icon(
+              ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
                 onPressed: () async {
                   Navigator.pop(context);
                   try {
                     final res = await _adminService.disburseSalaryB2C(
                       employeeId: emp['id'],
-                      bonus: double.tryParse(bonusCtrl.text.trim()) ?? 0.0,
-                      advanceDeduction: double.tryParse(advanceCtrl.text.trim()) ?? 0.0,
+                      bonus: bonus,
+                      advanceDeduction: adv,
                       notes: notesCtrl.text.trim(),
                     );
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(res['message'] ?? 'Salary payment queued!'), backgroundColor: _neonCyan),
+                        SnackBar(content: Text(res['message'] ?? 'Salary queued to Safaricom B2C!'), backgroundColor: _neonCyan),
                       );
                       _fetchAllData();
                     }
@@ -434,8 +1065,7 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                     }
                   }
                 },
-                icon: const Icon(Icons.flash_on, size: 16),
-                label: const Text('Disburse via M-PESA B2C', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text('Confirm & Pay (B2C)', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -444,10 +1074,12 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
     );
   }
 
-  // --- BULK DISBURSE MODAL ---
+  // ==========================================
+  // 5. BULK DEPARTMENTAL DISBURSEMENT MODAL
+  // ==========================================
   void _showBulkDisburseModal() {
+    final deptList = _getDepartmentNames();
     String selectedDept = 'ALL';
-    final departments = ['ALL', 'Delivery Fleet', 'Kitchen Staff', 'Caretakers', 'Security', 'Operations', 'Tech/IT'];
 
     showDialog(
       context: context,
@@ -471,7 +1103,7 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: departments.map((dept) {
+                children: deptList.map((dept) {
                   final isSel = selectedDept == dept;
                   return ChoiceChip(
                     label: Text(dept, style: TextStyle(color: isSel ? Colors.black : Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
@@ -532,7 +1164,7 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text('Employee Management & Payroll (B2C)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Staff & Payroll Command', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -558,22 +1190,16 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
           indicatorColor: _neonCyan,
           labelColor: _neonCyan,
           unselectedLabelColor: _textSecondary,
+          isScrollable: true,
           tabs: const [
             Tab(icon: Icon(Icons.badge), text: 'Staff Directory'),
+            Tab(icon: Icon(Icons.apartment), text: 'Departments & Roles'),
             Tab(icon: Icon(Icons.payments), text: 'Payroll Engine'),
             Tab(icon: Icon(Icons.receipt_long), text: 'Payslip History'),
           ],
         ),
       ),
-      floatingActionButton: _tabController.index == 0
-          ? FloatingActionButton.extended(
-              backgroundColor: _neonCyan,
-              foregroundColor: Colors.black,
-              icon: const Icon(Icons.person_add),
-              label: const Text('Add Staff', style: TextStyle(fontWeight: FontWeight.bold)),
-              onPressed: () => _showAddEmployeeModal(),
-            )
-          : null,
+      floatingActionButton: _buildFloatingAction(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _neonCyan))
           : _errorMessage != null
@@ -582,6 +1208,7 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                   controller: _tabController,
                   children: [
                     _buildStaffDirectoryTab(),
+                    _buildDepartmentsTab(),
                     _buildPayrollEngineTab(),
                     _buildPayslipsTab(),
                   ],
@@ -589,8 +1216,33 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
     );
   }
 
-  // --- TAB 1: STAFF DIRECTORY ---
+  Widget? _buildFloatingAction() {
+    if (_tabController.index == 0) {
+      return FloatingActionButton.extended(
+        backgroundColor: _neonCyan,
+        foregroundColor: Colors.black,
+        icon: const Icon(Icons.person_add),
+        label: const Text('Add Staff', style: TextStyle(fontWeight: FontWeight.bold)),
+        onPressed: () => _showAddEmployeeModal(),
+      );
+    } else if (_tabController.index == 1) {
+      return FloatingActionButton.extended(
+        backgroundColor: _neonCyan,
+        foregroundColor: Colors.black,
+        icon: const Icon(Icons.add_business),
+        label: const Text('Create Department', style: TextStyle(fontWeight: FontWeight.bold)),
+        onPressed: () => _showCreateDepartmentModal(),
+      );
+    }
+    return null;
+  }
+
+  // ==========================================
+  // TAB 1: STAFF DIRECTORY
+  // ==========================================
   Widget _buildStaffDirectoryTab() {
+    final deptNames = _getDepartmentNames();
+
     final filtered = _employees.where((emp) {
       final name = (emp['name'] ?? '').toString().toLowerCase();
       final phone = (emp['phone'] ?? '').toString().toLowerCase();
@@ -626,7 +1278,7 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: ['ALL', 'Delivery Fleet', 'Kitchen Staff', 'Caretakers', 'Security', 'Operations', 'Tech/IT'].map((dept) {
+                  children: deptNames.map((dept) {
                     final isSel = _selectedDeptFilter == dept;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8.0),
@@ -653,6 +1305,11 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                       const Icon(Icons.people_outline, color: _textSecondary, size: 48),
                       const SizedBox(height: 12),
                       const Text('No employees found matching filter.', style: TextStyle(color: _textSecondary)),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () => _showAddEmployeeModal(),
+                        child: const Text('+ Register Employee', style: TextStyle(color: _neonCyan)),
+                      ),
                     ],
                   ),
                 )
@@ -716,18 +1373,37 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                             ],
                           ),
                           const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.end,
                             children: [
                               OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(foregroundColor: Colors.white70, side: const BorderSide(color: _surfaceLight)),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.amberAccent,
+                                  side: const BorderSide(color: Colors.amberAccent),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                ),
+                                onPressed: () => _showChangeCompensationModal(emp),
+                                icon: const Icon(Icons.currency_exchange, size: 14),
+                                label: const Text('Change Role & Salary', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white70,
+                                  side: const BorderSide(color: _surfaceLight),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                ),
                                 onPressed: () => _showAddEmployeeModal(existingEmp: emp),
                                 icon: const Icon(Icons.edit, size: 14),
                                 label: const Text('Edit', style: TextStyle(fontSize: 12)),
                               ),
-                              const SizedBox(width: 8),
                               ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _neonCyan,
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                ),
                                 onPressed: () => _showDisburseModal(emp),
                                 icon: const Icon(Icons.send_rounded, size: 14),
                                 label: const Text('Pay Salary (B2C)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
@@ -744,7 +1420,240 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
     );
   }
 
-  // --- TAB 2: PAYROLL ENGINE ---
+  // ==========================================
+  // TAB 2: DEPARTMENTS & ROLES MANAGER
+  // ==========================================
+  Widget _buildDepartmentsTab() {
+    double totalBudget = 0.0;
+    double totalActualPayroll = 0.0;
+    int totalAssigned = 0;
+
+    for (var d in _departments) {
+      totalBudget += (d['budget'] as num?)?.toDouble() ?? 0.0;
+      totalActualPayroll += (d['monthly_payroll'] as num?)?.toDouble() ?? 0.0;
+      totalAssigned += (d['active_employees'] as num?)?.toInt() ?? 0;
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Summary Header Card
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF131A2A), Color(0xFF1E283E)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: _neonCyan.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Company Organizational Structure', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: _neonCyan.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                    child: Text('${_departments.length} DEPARTMENTS', style: const TextStyle(color: _neonCyan, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Total Departmental Budget', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                      Text('KES ${totalBudget.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text('Committed Payroll', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                      Text('KES ${totalActualPayroll.toStringAsFixed(2)}', style: const TextStyle(color: Colors.greenAccent, fontSize: 20, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(Icons.groups, color: _neonBlue, size: 16),
+                  const SizedBox(width: 6),
+                  Text('$totalAssigned Staff assigned across departments', style: const TextStyle(color: _neonBlue, fontSize: 12, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Configured Departments & Role Pay', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            TextButton.icon(
+              icon: const Icon(Icons.add_circle, color: _neonCyan, size: 16),
+              label: const Text('Add Department', style: TextStyle(color: _neonCyan, fontWeight: FontWeight.bold)),
+              onPressed: () => _showCreateDepartmentModal(),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        if (_departments.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                children: [
+                  const Icon(Icons.apartment_outlined, color: _textSecondary, size: 48),
+                  const SizedBox(height: 12),
+                  const Text('No departments configured.', style: TextStyle(color: _textSecondary)),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+                    onPressed: () => _showCreateDepartmentModal(),
+                    child: const Text('Create First Department'),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ..._departments.map((d) {
+            final deptMap = d as Map<String, dynamic>;
+            final name = deptMap['name'] ?? 'Department';
+            final code = deptMap['code'] ?? 'GEN';
+            final desc = deptMap['description'] ?? '';
+            final budget = (deptMap['budget'] as num?)?.toDouble() ?? 0.0;
+            final payroll = (deptMap['monthly_payroll'] as num?)?.toDouble() ?? 0.0;
+            final empCount = (deptMap['active_employees'] as num?)?.toInt() ?? 0;
+            final roles = (deptMap['roles'] as List<dynamic>?) ?? [];
+
+            final isOverBudget = budget > 0 && payroll > budget;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: isOverBudget ? _neonRed.withOpacity(0.5) : _surfaceLight),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(color: _neonCyan.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                            child: Text(code, style: const TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.white70, size: 18),
+                            tooltip: 'Edit Department',
+                            onPressed: () => _showCreateDepartmentModal(existingDept: deptMap),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: _neonRed, size: 18),
+                            tooltip: 'Delete Department',
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  backgroundColor: _cardColor,
+                                  title: Text('Delete $name?', style: const TextStyle(color: Colors.white)),
+                                  content: const Text('Are you sure you want to remove this department?', style: TextStyle(color: Colors.white70)),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(backgroundColor: _neonRed),
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                try {
+                                  await _adminService.deleteDepartment(deptMap['id']);
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Department deleted'), backgroundColor: _neonCyan));
+                                  _fetchAllData();
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete Failed: $e'), backgroundColor: _neonRed));
+                                }
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (desc.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(desc, style: const TextStyle(color: _textSecondary, fontSize: 12)),
+                  ],
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('$empCount Staff Allocated', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                      Text(
+                        'Payroll: KES ${payroll.toStringAsFixed(0)} / ${budget > 0 ? "KES ${budget.toStringAsFixed(0)}" : "No Limit"}',
+                        style: TextStyle(color: isOverBudget ? _neonRed : Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Preset Roles Chip Deck
+                  if (roles.isNotEmpty) ...[
+                    const Text('Configured Roles & Pay:', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: roles.map((r) {
+                        final title = r['title'] ?? 'Role';
+                        final sal = (r['default_salary'] as num?)?.toDouble() ?? 0.0;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: _surfaceLight, borderRadius: BorderRadius.circular(8)),
+                          child: Text('$title: KES ${sal.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
+  // ==========================================
+  // TAB 3: PAYROLL ENGINE
+  // ==========================================
   Widget _buildPayrollEngineTab() {
     final activeCount = _payrollSummary['active_employees'] ?? 0;
     final liability = (_payrollSummary['monthly_liability'] as num?)?.toDouble() ?? 0.0;
@@ -755,7 +1664,6 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Summary Cards
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -809,7 +1717,6 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
         ),
         const SizedBox(height: 20),
 
-        // Bulk Disbursement Trigger Card
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -849,7 +1756,6 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
         ),
         const SizedBox(height: 24),
 
-        // Statutory & Tax Compliance Info
         const Text('Kenyan Statutory Payroll Compliance', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 10),
         _buildComplianceTile('National Social Security Fund (NSSF)', 'Tier I & II auto-deduction configured per employee card'),
@@ -885,7 +1791,9 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
     );
   }
 
-  // --- TAB 3: PAYSLIP HISTORY ---
+  // ==========================================
+  // TAB 4: PAYSLIP HISTORY
+  // ==========================================
   Widget _buildPayslipsTab() {
     if (_payrollSlips.isEmpty) {
       return Center(

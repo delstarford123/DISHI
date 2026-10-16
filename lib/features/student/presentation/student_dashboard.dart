@@ -14,10 +14,20 @@ import '../../deliv/presentation/deliv_registration_view.dart';
 import '../../../core/services/secure_storage_service.dart';
 import 'student_ledger_view.dart';
 import 'student_preorders_view.dart';
+import 'student_transfers_view.dart';
+import 'vendor_directory_view.dart';
+import 'campus_employment_hub.dart';
+import 'split_bill_view.dart';
 import 'okoa_food_view.dart';
 import 'all_features_view.dart';
 import 'virtual_card_view.dart';
 import 'student_profile_settings.dart';
+import '../../games/presentation/games_hub_view.dart';
+import '../../games/presentation/redeem_store_view.dart';
+import '../../games/presentation/daily_spin_game.dart';
+import '../../housing/presentation/housing_dashboard_view.dart';
+import '../../smartimer/presentation/timetable_view.dart';
+import '../../smartimer/presentation/smarti_chatbot_view.dart';
 import '../../../shared/presentation/universal_support_widget.dart';
 import '../../../core/services/fcm_service.dart';
 import '../../../core/services/location_service.dart';
@@ -273,16 +283,36 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
                           const SizedBox(height: 16),
+                          _buildSmartCampusContextBar(),
+                          const SizedBox(height: 14),
                           _buildDriverModeToggle(userModel),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 14),
                           _buildVipBadge(),
                           const SizedBox(height: 16),
                           _buildBalancePageView(userModel),
                           const SizedBox(height: 8),
                           _buildPaginationDots(),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 20),
+                          _buildSendAgainTray(userModel),
+                          const SizedBox(height: 18),
+                          _buildStreakAndRewardsBar(userModel),
+                          const SizedBox(height: 20),
+                          _buildUpNextClassCard(userModel),
+                          const SizedBox(height: 20),
+                          _buildLiveActiveOrderStream(userModel),
+                          const SizedBox(height: 20),
+                          _buildFlashSalesTicker(userModel),
+                          const SizedBox(height: 24),
                           _buildQuickActions(userModel),
                           const SizedBox(height: 24),
+                          _buildWeeklyBurnRateCard(userModel),
+                          const SizedBox(height: 24),
+                          _buildKejaDueTracker(userModel),
+                          const SizedBox(height: 28),
+                          _buildCampusEcosystemHub(userModel),
+                          const SizedBox(height: 28),
+                          _buildCampusVendorsSpotlight(userModel),
+                          const SizedBox(height: 28),
                           _buildSafetyCard(userModel),
                           const SizedBox(height: 16),
                           _buildDishiIdCard(userModel),
@@ -1134,18 +1164,1090 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
     );
   }
 
+  Widget _buildSmartCampusContextBar() {
+    final hour = DateTime.now().hour;
+    String greeting = 'Good Morning';
+    String message = 'Breakfast specials & hot tea at Cafeteria ☕';
+    String rushStatus = 'Low Rush · Fast Pickup 🟢';
+    Color rushColor = const Color(0xFF10B981);
+    IconData icon = Icons.wb_sunny_rounded;
+
+    if (hour >= 11 && hour <= 14) {
+      greeting = 'Peak Lunch Rush';
+      message = 'High queue times (~15m). Pre-order ahead to skip line!';
+      rushStatus = 'Peak Rush Hour ⏱️';
+      rushColor = _neonPink;
+      icon = Icons.local_fire_department_rounded;
+    } else if (hour >= 15 && hour <= 18) {
+      greeting = 'Afternoon Study & Gigs';
+      message = '3 new campus gigs posted today. Study pods open.';
+      rushStatus = 'Snack Time · Moderate 🟡';
+      rushColor = _neonOrange;
+      icon = Icons.menu_book_rounded;
+    } else if (hour >= 18 || hour < 6) {
+      greeting = 'Campus Night Life';
+      message = 'Safe-Walk active. Hostels dinner delivery online.';
+      rushStatus = 'Night Corridor Active 🛡️';
+      rushColor = _neonBlue;
+      icon = Icons.nightlight_round;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: rushColor.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: rushColor.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: rushColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: rushColor, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      greeting,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: rushColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        rushStatus,
+                        style: TextStyle(color: rushColor, fontSize: 9, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  message,
+                  style: const TextStyle(color: _textSecondary, fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSendAgainTray(UserModel userModel) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.bolt, color: _neonCyan, size: 18),
+                SizedBox(width: 6),
+                Text('Send Again', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(context, MaterialPageRoute(builder: (_) => StudentTransfersView(userModel: userModel)));
+              },
+              child: Text('New Transfer +', style: TextStyle(color: _neonCyan.withOpacity(0.85), fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('transactions')
+              .where('senderUid', isEqualTo: userModel.uid)
+              .where('type', isEqualTo: 'p2p_transfer')
+              .orderBy('timestamp', descending: true)
+              .limit(8)
+              .snapshots(),
+          builder: (context, snapshot) {
+            final Map<String, Map<String, dynamic>> recipients = {};
+            if (snapshot.hasData) {
+              for (var doc in snapshot.data!.docs) {
+                final d = doc.data() as Map<String, dynamic>;
+                final recUid = d['receiverUid'] as String?;
+                final recName = d['receiverName'] as String? ?? 'Peer';
+                if (recUid != null && recUid.isNotEmpty && !recipients.containsKey(recUid)) {
+                  recipients[recUid] = {
+                    'uid': recUid,
+                    'name': recName,
+                  };
+                }
+              }
+            }
+
+            final recipientList = recipients.values.toList();
+
+            return SizedBox(
+              height: 82,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: recipientList.length + 1,
+                separatorBuilder: (_, __) => const SizedBox(width: 14),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return InkWell(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => StudentTransfersView(userModel: userModel)));
+                      },
+                      borderRadius: BorderRadius.circular(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: _neonCyan.withOpacity(0.5), width: 1.5),
+                              color: _neonCyan.withOpacity(0.12),
+                            ),
+                            child: const Icon(Icons.add, color: _neonCyan, size: 24),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text('Anyone', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final rec = recipientList[index - 1];
+                  final name = rec['name'] as String;
+                  final initial = name.isNotEmpty ? name[0].toUpperCase() : 'P';
+                  final firstName = name.split(' ').first;
+
+                  return InkWell(
+                    onTap: () => _showQuickPeerTransferSheet(userModel, rec['uid'] as String, name),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: _surfaceLight, width: 1.5),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            initial,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          width: 60,
+                          child: Text(
+                            firstName,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showQuickPeerTransferSheet(UserModel userModel, String recUid, String recName) {
+    HapticFeedback.lightImpact();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StudentTransfersView(
+          userModel: userModel,
+          prefilledRecipientId: recUid,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUpNextClassCard(UserModel userModel) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _neonBlue.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: _neonBlue.withOpacity(0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _neonBlue.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _neonBlue.withOpacity(0.4)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.school, color: _neonBlue, size: 13),
+                    SizedBox(width: 4),
+                    Text('Up Next · Class', style: TextStyle(color: _neonBlue, fontWeight: FontWeight.bold, fontSize: 11)),
+                  ],
+                ),
+              ),
+              InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const TimetableView()));
+                },
+                child: Text('Timetable >', style: TextStyle(color: _neonCyan.withOpacity(0.85), fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _surfaceLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: const Icon(Icons.menu_book_rounded, color: _neonBlue, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text('CS 312: Distributed Systems', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                    SizedBox(height: 2),
+                    Text('11:00 AM – 1:00 PM · Science Complex Hall B4', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text('In 25m', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 11)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartiChatbotView()));
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _surfaceLight,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.smart_toy, color: Colors.purpleAccent, size: 14),
+                        SizedBox(width: 6),
+                        Text('Study with Smarti AI', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFlashSalesTicker(UserModel userModel) {
+    final flashDeals = [
+      {
+        'stall': 'Mama Oliech Kitchen',
+        'deal': '25% Off Pilau Combo',
+        'price': 'KES 120',
+        'oldPrice': 'KES 160',
+        'timeLeft': '35m left',
+        'icon': Icons.rice_bowl,
+        'color': _neonOrange,
+      },
+      {
+        'stall': 'Campus Fresh Juices',
+        'deal': 'Passion + Chapati Deal',
+        'price': 'KES 70',
+        'oldPrice': 'KES 90',
+        'timeLeft': '50m left',
+        'icon': Icons.local_drink,
+        'color': _neonCyan,
+      },
+      {
+        'stall': 'Student Cafe 1',
+        'deal': 'Beef Burger + Fries',
+        'price': 'KES 180',
+        'oldPrice': 'KES 220',
+        'timeLeft': '1h left',
+        'icon': Icons.lunch_dining,
+        'color': _neonPink,
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.bolt, color: _neonOrange, size: 18),
+                SizedBox(width: 6),
+                Text('Campus Flash Sales', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorDirectoryView()));
+              },
+              child: Text('All Deals >', style: TextStyle(color: _neonCyan.withOpacity(0.85), fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 125,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: flashDeals.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final d = flashDeals[index];
+              final color = d['color'] as Color;
+
+              return InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorDirectoryView()));
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: 200,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: color.withOpacity(0.3)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withOpacity(0.06),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      )
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              d['timeLeft'] as String,
+                              style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          Icon(d['icon'] as IconData, color: color, size: 18),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            d['deal'] as String,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            d['stall'] as String,
+                            style: const TextStyle(color: _textSecondary, fontSize: 11),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            d['price'] as String,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            d['oldPrice'] as String,
+                            style: const TextStyle(color: _textSecondary, fontSize: 10, decoration: TextDecoration.lineThrough),
+                          ),
+                          const Spacer(),
+                          Text(
+                            'Claim >',
+                            style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWeeklyBurnRateCard(UserModel userModel) {
+    final dailyLimit = userModel.dailyLimit ?? 300.0;
+    final weeklyTarget = dailyLimit * 7;
+    final double weeklySpend = (userModel.walletBalance < 1000) ? 1450.0 : 880.0;
+    final double safeDailyPace = ((weeklyTarget - weeklySpend) / 4).clamp(50.0, 500.0);
+    final bool isHealthy = weeklySpend <= (weeklyTarget * 0.7);
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _surfaceLight),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.pie_chart_outline, color: _neonCyan, size: 18),
+                  SizedBox(width: 8),
+                  Text('Weekly Spend Health', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isHealthy ? const Color(0xFF10B981).withOpacity(0.15) : _neonOrange.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: isHealthy ? const Color(0xFF10B981).withOpacity(0.5) : _neonOrange.withOpacity(0.5)),
+                ),
+                child: Text(
+                  isHealthy ? '🟢 Safe Pace' : '🟠 High Burn Rate',
+                  style: TextStyle(color: isHealthy ? const Color(0xFF10B981) : _neonOrange, fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Spent This Week', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                  const SizedBox(height: 2),
+                  Text('KES ${weeklySpend.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text('Safe Daily Pace', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                  const SizedBox(height: 2),
+                  Text('KES ${safeDailyPace.toStringAsFixed(0)} / day', style: const TextStyle(color: _neonCyan, fontSize: 14, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: SizedBox(
+              height: 6,
+              child: Row(
+                children: const [
+                  Expanded(flex: 65, child: ColoredBox(color: _neonOrange)),
+                  SizedBox(width: 2),
+                  Expanded(flex: 20, child: ColoredBox(color: _neonCyan)),
+                  SizedBox(width: 2),
+                  Expanded(flex: 15, child: ColoredBox(color: _neonBlue)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              _SpendLegendItem(color: _neonOrange, label: 'Meals (65%)'),
+              _SpendLegendItem(color: _neonCyan, label: 'Transfers (20%)'),
+              _SpendLegendItem(color: _neonBlue, label: 'Keja/WiFi (15%)'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKejaDueTracker(UserModel userModel) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.home_work_outlined, color: Color(0xFF6366F1), size: 18),
+                  SizedBox(width: 8),
+                  Text('Keja Roommate Due Alert', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text('Due in 3 Days', style: TextStyle(color: Color(0xFF6366F1), fontSize: 10, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text('Hostel High-Speed WiFi Split', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    SizedBox(height: 2),
+                    Text('3 of 4 roommates paid · Your share KES 350', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                  ],
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  elevation: 0,
+                ),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => HousingDashboardView(user: userModel.toJson())));
+                },
+                child: const Text('Pay Share', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreakAndRewardsBar(UserModel userModel) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(userModel.uid).snapshots(),
+      builder: (context, snapshot) {
+        int coins = 150;
+        int streak = 5;
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>?;
+          coins = (data?['dishiCoins'] as num?)?.toInt() ?? 150;
+          streak = (data?['streakDays'] as num?)?.toInt() ?? 5;
+        }
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _surfaceLight),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              )
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _neonOrange.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.local_fire_department, color: _neonOrange, size: 22),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text('$streak Day Streak', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(width: 4),
+                      const Text('🔥', style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                  Text('🪙 $coins DISHI Coins', style: const TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => DailySpinGame(userModel: userModel)));
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _neonPink.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _neonPink.withOpacity(0.4)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.casino, color: _neonPink, size: 14),
+                      SizedBox(width: 4),
+                      Text('Spin', style: TextStyle(color: _neonPink, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => RedeemStoreView(userModel: userModel)));
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _neonCyan.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _neonCyan.withOpacity(0.4)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.redeem, color: _neonCyan, size: 14),
+                      SizedBox(width: 4),
+                      Text('Rewards', style: TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLiveActiveOrderStream(UserModel userModel) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('preorders')
+          .where('studentId', isEqualTo: userModel.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildOrderAheadBanner(userModel);
+        }
+
+        final activeDocs = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final status = (data['status'] ?? 'pending').toString().toLowerCase();
+          return status != 'fulfilled' && status != 'cancelled';
+        }).toList();
+
+        if (activeDocs.isEmpty) {
+          return _buildOrderAheadBanner(userModel);
+        }
+
+        final firstOrder = activeDocs.first;
+        final data = firstOrder.data() as Map<String, dynamic>;
+        final String vendorName = data['vendorName'] ?? 'Campus Cafeteria';
+        final String mealName = data['mealName'] ?? 'Meal Order';
+        final double price = (data['price'] as num?)?.toDouble() ?? 0.0;
+        final String status = (data['status'] ?? 'pending').toString().toLowerCase();
+        final String orderId = firstOrder.id;
+
+        String statusLabel = 'Order Confirmed · In Kitchen';
+        Color statusColor = _neonOrange;
+        IconData statusIcon = Icons.hourglass_top_rounded;
+
+        if (status == 'preparing') {
+          statusLabel = 'Chef is Preparing 🍳';
+          statusColor = _neonBlue;
+          statusIcon = Icons.soup_kitchen_rounded;
+        } else if (status == 'ready' || status == 'ready_for_pickup') {
+          statusLabel = 'Ready for Pickup at Stall! 🛎️';
+          statusColor = _neonCyan;
+          statusIcon = Icons.check_circle_outline;
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: statusColor.withOpacity(0.4), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: statusColor.withOpacity(0.12),
+                blurRadius: 18,
+                spreadRadius: 2,
+              )
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: statusColor.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(statusIcon, color: statusColor, size: 14),
+                        const SizedBox(width: 6),
+                        Text(
+                          statusLabel,
+                          style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentPreordersView()));
+                    },
+                    child: Text('All Orders >', style: TextStyle(color: _neonCyan.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: _surfaceLight,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: const Icon(Icons.restaurant, color: _neonCyan, size: 26),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          mealName,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          vendorName,
+                          style: const TextStyle(color: _textSecondary, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'KES ${price.toStringAsFixed(0)}',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      const Text(
+                        'Paid with Wallet',
+                        style: TextStyle(color: _neonCyan, fontSize: 10, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Divider(color: Colors.white10, height: 1),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _neonCyan,
+                        foregroundColor: Colors.black87,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(Icons.qr_code, size: 18),
+                      label: const Text('Pickup QR & Token', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      onPressed: () => _showOrderPickupSheet(orderId, mealName, vendorName),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildOrderAheadBanner(UserModel userModel) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _surfaceLight),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _neonOrange.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.fastfood_rounded, color: _neonOrange, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text('Skip Campus Lunch Lines!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                SizedBox(height: 2),
+                Text('Preorder hot meals directly from stalls.', style: TextStyle(color: _textSecondary, fontSize: 12)),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _neonCyan.withOpacity(0.2),
+              foregroundColor: _neonCyan,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(color: _neonCyan.withOpacity(0.5)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorDirectoryView()));
+            },
+            child: const Text('Order >', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showOrderPickupSheet(String orderId, String mealName, String vendorName) {
+    final token = orderId.length >= 6 ? orderId.substring(orderId.length - 6).toUpperCase() : orderId.toUpperCase();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            const Text('Present at Stall Counter', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text('$mealName · $vendorName', style: const TextStyle(color: _textSecondary, fontSize: 13)),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+              child: QrImageView(
+                data: 'dishi:preorder:$orderId',
+                version: QrVersions.auto,
+                size: 160.0,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: _surfaceLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _neonCyan.withOpacity(0.3)),
+              ),
+              child: Text(
+                'TOKEN: #$token',
+                style: const TextStyle(color: _neonCyan, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Cashier or Vendor will scan this QR or input the token to hand over your meal.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _textSecondary, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuickActions(UserModel userModel) {
-    // Default actions
     List<Widget> actions = [
       _buildActionIcon(Icons.add_card, 'Top Up', const Color(0xFF10B981), [const Color(0xFF10B981), const Color(0xFF047857)], false, () => _showTopUpBottomSheet(userModel)),
+      _buildActionIcon(Icons.send_rounded, 'Send Money', _neonCyan, [_neonCyan, const Color(0xFF007A60)], false, () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => StudentTransfersView(userModel: userModel)));
+      }),
+      _buildActionIcon(Icons.qr_code_scanner, 'Dynamic QR', const Color(0xFF8B5CF6), [const Color(0xFF8B5CF6), const Color(0xFF6D28D9)], false, () => _showDynamicQRDialog(userModel)),
+      _buildActionIcon(Icons.restaurant, 'Food Stalls', _neonOrange, [_neonOrange, const Color(0xFFC04B00)], false, () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorDirectoryView()));
+      }),
+      _buildActionIcon(Icons.call_split, 'Split Bill', const Color(0xFF06B6D4), [const Color(0xFF06B6D4), const Color(0xFF0891B2)], false, () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => SplitBillView(userModel: userModel)));
+      }),
       _buildActionIcon(Icons.credit_card, 'VCC Card', const Color(0xFF3B82F6), [const Color(0xFF3B82F6), const Color(0xFF1D4ED8)], false, () {
         Navigator.push(context, MaterialPageRoute(builder: (_) => VirtualCardView(userModel: userModel)));
       }),
-      _buildActionIcon(Icons.qr_code_scanner, 'Dynamic QR', const Color(0xFF8B5CF6), [const Color(0xFF8B5CF6), const Color(0xFF6D28D9)], false, () => _showDynamicQRDialog(userModel)),
+      _buildActionIcon(Icons.shopping_bag_outlined, 'Pre-orders', const Color(0xFF14B8A6), [const Color(0xFF14B8A6), const Color(0xFF0F766E)], false, () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentPreordersView()));
+      }),
+      _buildActionIcon(Icons.apartment, 'Keja Hostels', const Color(0xFF6366F1), [const Color(0xFF6366F1), const Color(0xFF4338CA)], false, () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => HousingDashboardView(user: userModel.toJson())));
+      }),
+      _buildActionIcon(Icons.work_outline, 'Campus Gigs', const Color(0xFF10B981), [const Color(0xFF10B981), const Color(0xFF059669)], false, () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusEmploymentHubView()));
+      }),
+      _buildActionIcon(Icons.sports_esports, 'Games Hub', const Color(0xFFA855F7), [const Color(0xFFA855F7), const Color(0xFF7E22CE)], false, () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => GamesHubView(userModel: userModel)));
+      }),
       _buildActionIcon(Icons.history_edu, 'History', const Color(0xFFF59E0B), [const Color(0xFFF59E0B), const Color(0xFFB45309)], false, () {
         Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLedgerView()));
       }),
-      _buildActionIcon(Icons.favorite, 'UniUptown', const Color(0xFFEC4899), [const Color(0xFFEC4899), const Color(0xFFBE185D)], true, () {
+      _buildActionIcon(Icons.favorite, 'UniUptown', const Color(0xFFEC4899), [const Color(0xFFEC4899), const Color(0xFFBE185D)], false, () {
         final gender = userModel.gender ?? '';
         if (gender.isEmpty) {
           _showGenderPromptDialog(userModel);
@@ -1155,30 +2257,12 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
       }),
     ];
 
-    // 1. Low Balance Logic (Balance < 100 Ksh)
+    // Priority inserts for low balance
     if (userModel.walletBalance < 100) {
       actions.insert(0, _buildActionIcon(Icons.fastfood, 'Okoa Food', const Color(0xFFEF4444), [const Color(0xFFEF4444), const Color(0xFFB91C1C)], true, () {
         Navigator.push(context, MaterialPageRoute(builder: (_) => const OkoaFoodView()));
       }));
       actions.insert(1, _buildActionIcon(Icons.volunteer_activism, 'Fund Me', const Color(0xFF06B6D4), [const Color(0xFF06B6D4), const Color(0xFF0369A1)], true, () => _showFundMeDialog(userModel)));
-    } else {
-      // Append normally if they have money
-      actions.add(_buildActionIcon(Icons.fastfood, 'Okoa Food', const Color(0xFFEF4444), [const Color(0xFFEF4444), const Color(0xFFB91C1C)], false, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const OkoaFoodView()));
-      }));
-      actions.add(_buildActionIcon(Icons.volunteer_activism, 'Fund Me', const Color(0xFF06B6D4), [const Color(0xFF06B6D4), const Color(0xFF0369A1)], false, () => _showFundMeDialog(userModel)));
-    }
-
-    // 2. Time-Based Logic (Lunch time: 11 AM - 2 PM)
-    final hour = DateTime.now().hour;
-    if (hour >= 11 && hour <= 14) {
-      actions.insert(0, _buildActionIcon(Icons.shopping_bag, 'Preorder\nLunch', const Color(0xFF14B8A6), [const Color(0xFF14B8A6), const Color(0xFF0F766E)], true, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentPreordersView()));
-      }));
-    } else {
-      actions.add(_buildActionIcon(Icons.card_giftcard, 'Gift Meal', const Color(0xFFF43F5E), [const Color(0xFFF43F5E), const Color(0xFFBE123C)], false, () {
-        showDialog(context: context, builder: (_) => const GiftMealDialog());
-      }));
     }
 
     // Chunk into pages of 4
@@ -1188,11 +2272,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
       for (int j = i; j < i + 4 && j < actions.length; j++) {
         pageItems.add(Expanded(child: actions[j]));
       }
-      // Fill the rest of the row with empty Expanded if less than 4
       while (pageItems.length < 4) {
         pageItems.add(const Expanded(child: SizedBox()));
       }
-      
       pages.add(Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1219,6 +2301,278 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
           child: PageView(
             children: pages,
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCampusEcosystemHub(UserModel userModel) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Campus Ecosystem', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            InkWell(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AllFeaturesView(userModel: userModel))),
+              child: Text('Explore All Apps >', style: TextStyle(color: _neonCyan.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.45,
+          children: [
+            _buildEcosystemTile(
+              title: 'Food Stalls',
+              subtitle: 'Menus & Pre-orders',
+              icon: Icons.restaurant_menu,
+              accentColor: _neonOrange,
+              badge: 'Skip Queue',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorDirectoryView())),
+            ),
+            _buildEcosystemTile(
+              title: 'Send Money',
+              subtitle: '0% P2P Student Transfer',
+              icon: Icons.send_rounded,
+              accentColor: _neonCyan,
+              badge: 'Instant',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentTransfersView(userModel: userModel))),
+            ),
+            _buildEcosystemTile(
+              title: 'Keja Housing',
+              subtitle: 'Hostels & Roommates',
+              icon: Icons.apartment,
+              accentColor: _neonBlue,
+              badge: 'Keja Yangu',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => HousingDashboardView(user: userModel.toJson()))),
+            ),
+            _buildEcosystemTile(
+              title: 'Campus Gigs',
+              subtitle: 'Freelance & Earn KES',
+              icon: Icons.work_outline,
+              accentColor: const Color(0xFF10B981),
+              badge: 'Jobs',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusEmploymentHubView())),
+            ),
+            _buildEcosystemTile(
+              title: 'DeLiv Courier',
+              subtitle: 'Campus Parcel Dispatch',
+              icon: Icons.delivery_dining,
+              accentColor: const Color(0xFFE11D48),
+              badge: 'Errands',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DelivDriverDashboard(user: userModel.toJson()))),
+            ),
+            _buildEcosystemTile(
+              title: 'Arcade Hub',
+              subtitle: 'Play Games & Win Deals',
+              icon: Icons.sports_esports,
+              accentColor: const Color(0xFFA855F7),
+              badge: 'Win Coins',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => GamesHubView(userModel: userModel))),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEcosystemTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    required String badge,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: accentColor.withOpacity(0.25)),
+          boxShadow: [
+            BoxShadow(
+              color: accentColor.withOpacity(0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            )
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: accentColor, size: 20),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    badge,
+                    style: TextStyle(color: accentColor, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: _textSecondary, fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCampusVendorsSpotlight(UserModel userModel) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.storefront, color: _neonCyan, size: 20),
+                SizedBox(width: 8),
+                Text('Popular Campus Cafeterias', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            InkWell(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorDirectoryView())),
+              child: Text('All Stalls >', style: TextStyle(color: _neonCyan.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .where('roles', arrayContains: 'vendor')
+              .limit(6)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _surfaceLight),
+                ),
+                child: const Text('Campus stalls opening soon for lunch & dinner.', style: TextStyle(color: _textSecondary)),
+              );
+            }
+
+            final vendors = snapshot.data!.docs.map((d) => UserModel.fromJson(d.data() as Map<String, dynamic>, d.id)).toList();
+
+            return SizedBox(
+              height: 140,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: vendors.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final v = vendors[index];
+                  return InkWell(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorDirectoryView())),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: 150,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: _surfaceLight),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: _neonCyan.withOpacity(0.2),
+                                backgroundImage: v.profileImageUrl != null ? NetworkImage(v.profileImageUrl!) : null,
+                                child: v.profileImageUrl == null ? const Icon(Icons.store, color: _neonCyan, size: 18) : null,
+                              ),
+                              const Spacer(),
+                              const Row(
+                                children: [
+                                  Icon(Icons.star, color: Colors.amber, size: 14),
+                                  SizedBox(width: 2),
+                                  Text('4.8', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          Text(
+                            v.displayName.isNotEmpty ? v.displayName : 'Campus Vendor',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Pre-order Meals',
+                            style: TextStyle(color: _textSecondary, fontSize: 11),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            width: double.infinity,
+                            alignment: Alignment.center,
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _neonCyan.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text('View Menu', style: TextStyle(color: _neonCyan, fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
         ),
       ],
     );
@@ -2276,4 +3630,30 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
     );
   }
 
+}
+
+class _SpendLegendItem extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  const _SpendLegendItem({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: const TextStyle(color: _textSecondary, fontSize: 10),
+        ),
+      ],
+    );
+  }
 }
