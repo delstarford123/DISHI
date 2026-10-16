@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'core/theme/mpesa_theme.dart';
-import 'features/auth/presentation/signup_view.dart';
 import 'features/auth/presentation/login_view.dart';
 import 'features/auth/presentation/pin_unlock_view.dart';
 import 'features/auth/presentation/splash_screen.dart';
@@ -15,6 +14,7 @@ import 'features/deliv/presentation/deliv_driver_dashboard.dart';
 import 'features/housing/presentation/housing_dashboard_view.dart';
 import 'features/fundi/presentation/fundi_dashboard_view.dart';
 import 'core/security/secure_storage_service.dart';
+import 'core/security/session_manager.dart';
 
 import 'package:provider/provider.dart';
 import 'features/smartimer/data/hive_service.dart';
@@ -67,8 +67,40 @@ void main() async {
   );
 }
 
-class DISHIApp extends StatelessWidget {
+class DISHIApp extends StatefulWidget {
   const DISHIApp({super.key});
+
+  @override
+  State<DISHIApp> createState() => _DISHIAppState();
+}
+
+class _DISHIAppState extends State<DISHIApp> {
+  bool _isSessionLockShowing = false;
+
+  void _handleSessionTimeout() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || _isSessionLockShowing) return;
+
+    final hasPin = await SecureStorageService.hasPinFastCheck();
+    if (!hasPin) return;
+
+    final nav = appNavigatorKey.currentState;
+    if (nav == null) return;
+
+    setState(() => _isSessionLockShowing = true);
+
+    nav.push(
+      MaterialPageRoute(
+        builder: (ctx) => PinUnlockView(
+          onSuccess: () {
+            _isSessionLockShowing = false;
+            if (mounted) setState(() {});
+            Navigator.of(ctx).pop();
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,9 +112,13 @@ class DISHIApp extends StatelessWidget {
       darkTheme: MPesaTheme.darkTheme,
       themeMode: ThemeMode.system,
       builder: (context, child) {
-        return IncomingCallListener(
-          navigatorKey: appNavigatorKey,
-          child: child ?? const SizedBox.shrink(),
+        return SessionManager(
+          timeoutDuration: const Duration(minutes: 15),
+          onSessionTimeout: _handleSessionTimeout,
+          child: IncomingCallListener(
+            navigatorKey: appNavigatorKey,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
       home: const InitialRouter(),
@@ -144,7 +180,7 @@ class _InitialRouterState extends State<InitialRouter> {
               appNavigatorKey.currentState!.pushReplacement(MaterialPageRoute(builder: (context) => dashboard));
 
               // Backfill the complete user map asynchronously
-              final userData = await userDataFuture;
+              await userDataFuture;
               // Depending on implementation, you could broadcast the rich userData 
               // or just rely on Firebase's cache for subsequent reads.
             }

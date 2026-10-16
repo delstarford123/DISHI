@@ -322,4 +322,490 @@ class GameRewardService {
       },
     );
   }
+
+  static const double entryFeeAmount = 5.0;
+
+  /// Prompt user to pay KES 5 entry fee from real wallet balance before starting a game.
+  static Future<void> promptAndPayEntryFee({
+    required BuildContext context,
+    required UserModel userModel,
+    required String gameId,
+    required String gameTitle,
+    required VoidCallback onConfirmed,
+  }) async {
+    // If it's a free daily spin, allow directly
+    if (gameId == 'daily_spin') {
+      onConfirmed();
+      return;
+    }
+
+    final userRef = FirebaseFirestore.instance.collection('users').doc(userModel.uid);
+    final userSnap = await userRef.get();
+    final double walletBal = (userSnap.data()?['walletBalance'] as num?)?.toDouble() ?? userModel.walletBalance;
+
+    if (!context.mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) {
+        bool isProcessing = false;
+        String? errorText;
+
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            final bool hasEnoughBalance = walletBal >= entryFeeAmount;
+
+            return Container(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+              decoration: const BoxDecoration(
+                color: Color(0xFF101726),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                border: Border(
+                  top: BorderSide(color: Color(0xFF05D5AA), width: 1.5),
+                  left: BorderSide(color: Colors.white12),
+                  right: BorderSide(color: Colors.white12),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF05D5AA).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFF05D5AA).withOpacity(0.35)),
+                        ),
+                        child: const Icon(Icons.sports_esports, color: Color(0xFF05D5AA), size: 28),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              gameTitle,
+                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            const Text(
+                              'Arcade Match Entry Fee',
+                              style: TextStyle(color: Colors.white54, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.amber.withOpacity(0.4)),
+                        ),
+                        child: const Text('KES 5.00', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 14)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.08)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Entry Fee', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                            Text('KES 5.00', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                          ],
+                        ),
+                        const Divider(color: Colors.white12, height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Your DISHI Wallet', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                            Text(
+                              'KES ${walletBal.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: hasEnoughBalance ? const Color(0xFF05D5AA) : const Color(0xFFF92B60),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: 12),
+                    Text(errorText!, style: const TextStyle(color: Color(0xFFF92B60), fontSize: 13)),
+                  ],
+                  const SizedBox(height: 24),
+                  if (hasEnoughBalance) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF05D5AA),
+                          foregroundColor: const Color(0xFF080D18),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          elevation: 0,
+                        ),
+                        onPressed: isProcessing ? null : () async {
+                          setModalState(() => isProcessing = true);
+                          try {
+                            // Try backend API first
+                            bool paid = false;
+                            try {
+                              final resp = await http.post(
+                                Uri.parse(ApiConfig.gamesEntry),
+                                headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${userModel.uid}'},
+                                body: json.encode({'game_id': gameId}),
+                              ).timeout(const Duration(seconds: 10));
+                              if (resp.statusCode == 200) paid = true;
+                            } catch (_) {}
+
+                            // Fallback atomic Firestore transaction
+                            if (!paid) {
+                              await FirebaseFirestore.instance.runTransaction((tx) async {
+                                final s = await tx.get(userRef);
+                                final b = (s.data()?['walletBalance'] as num?)?.toDouble() ?? 0.0;
+                                if (b < entryFeeAmount) throw Exception('Insufficient balance');
+                                tx.update(userRef, {'walletBalance': b - entryFeeAmount});
+                                final tRef = FirebaseFirestore.instance.collection('transactions').doc();
+                                tx.set(tRef, {
+                                  'userId': userModel.uid,
+                                  'studentId': userModel.uid,
+                                  'type': 'arcade_entry_fee',
+                                  'amount': entryFeeAmount,
+                                  'gameId': gameId,
+                                  'description': 'Arcade Entry: $gameTitle',
+                                  'timestamp': FieldValue.serverTimestamp(),
+                                  'status': 'completed',
+                                });
+                              });
+                            }
+
+                            if (modalCtx.mounted) {
+                              Navigator.pop(modalCtx);
+                              onConfirmed();
+                            }
+                          } catch (e) {
+                            setModalState(() {
+                              isProcessing = false;
+                              errorText = 'Payment failed: $e';
+                            });
+                          }
+                        },
+                        child: isProcessing
+                            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2.5))
+                            : const Text('Pay KES 5.00 & Play', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
+                    ),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF92B60).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFF92B60).withOpacity(0.35)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Color(0xFFF92B60), size: 20),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'You need at least KES 5.00 in your DISHI wallet to play.',
+                              style: TextStyle(color: Color(0xFFF92B60), fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(modalCtx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please top up your wallet via M-PESA on your home dashboard.'),
+                              backgroundColor: Colors.amber,
+                            ),
+                          );
+                        },
+                        child: const Text('Top Up Wallet (M-PESA)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Prompts user to unlock a game using earned virtual Arcade Coins.
+  static Future<void> promptAndUnlockGame({
+    required BuildContext context,
+    required UserModel userModel,
+    required String gameId,
+    required String gameTitle,
+    required int coinPrice,
+    required VoidCallback onUnlocked,
+  }) async {
+    final userRef = FirebaseFirestore.instance.collection('users').doc(userModel.uid);
+    final userSnap = await userRef.get();
+    final int userCoins = (userSnap.data()?['dishi_coins'] as num?)?.toInt() ?? 0;
+
+    if (!context.mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) {
+        bool isProcessing = false;
+        String? errorText;
+
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            final bool hasEnoughCoins = userCoins >= coinPrice;
+
+            return Container(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+              decoration: const BoxDecoration(
+                color: Color(0xFF101726),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                border: Border(
+                  top: BorderSide(color: Colors.amber, width: 1.5),
+                  left: BorderSide(color: Colors.white12),
+                  right: BorderSide(color: Colors.white12),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.amber.withOpacity(0.35)),
+                        ),
+                        child: const Icon(Icons.lock_open_rounded, color: Colors.amber, size: 28),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Unlock $gameTitle',
+                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            const Text(
+                              'Spend Arcade Coins to permanently unlock',
+                              style: TextStyle(color: Colors.white54, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.amber.withOpacity(0.4)),
+                        ),
+                        child: Text('$coinPrice Coins', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 14)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.08)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Unlock Price', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                            Text('$coinPrice Arcade Coins', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                          ],
+                        ),
+                        const Divider(color: Colors.white12, height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Your Arcade Coins', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                            Text(
+                              '$userCoins Coins',
+                              style: TextStyle(
+                                color: hasEnoughCoins ? Colors.amber : const Color(0xFFF92B60),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: 12),
+                    Text(errorText!, style: const TextStyle(color: Color(0xFFF92B60), fontSize: 13)),
+                  ],
+                  const SizedBox(height: 24),
+                  if (hasEnoughCoins) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          elevation: 0,
+                        ),
+                        onPressed: isProcessing ? null : () async {
+                          setModalState(() => isProcessing = true);
+                          try {
+                            bool unlocked = false;
+                            try {
+                              final resp = await http.post(
+                                Uri.parse(ApiConfig.gamesUnlock),
+                                headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${userModel.uid}'},
+                                body: json.encode({'game_id': gameId}),
+                              ).timeout(const Duration(seconds: 10));
+                              if (resp.statusCode == 200) unlocked = true;
+                            } catch (_) {}
+
+                            // Fallback atomic Firestore transaction
+                            if (!unlocked) {
+                              await FirebaseFirestore.instance.runTransaction((tx) async {
+                                final s = await tx.get(userRef);
+                                final c = (s.data()?['dishi_coins'] as num?)?.toInt() ?? 0;
+                                if (c < coinPrice) throw Exception('Insufficient coins');
+                                final List<dynamic> curUnlocked = List.from(s.data()?['unlocked_games'] ?? ['delivery_dash', 'daily_spin']);
+                                if (!curUnlocked.contains(gameId)) {
+                                  curUnlocked.add(gameId);
+                                }
+                                tx.update(userRef, {
+                                  'dishi_coins': c - coinPrice,
+                                  'unlocked_games': curUnlocked,
+                                });
+                              });
+                            }
+
+                            if (modalCtx.mounted) {
+                              Navigator.pop(modalCtx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('🎉 $gameTitle unlocked! Pay KES 5 to start playing.'),
+                                  backgroundColor: const Color(0xFF05D5AA),
+                                ),
+                              );
+                              onUnlocked();
+                            }
+                          } catch (e) {
+                            setModalState(() {
+                              isProcessing = false;
+                              errorText = 'Unlock failed: $e';
+                            });
+                          }
+                        },
+                        child: isProcessing
+                            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2.5))
+                            : Text('Unlock for $coinPrice Coins', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
+                    ),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange.withOpacity(0.35)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Play Delivery Dash or Daily Spin to earn ${coinPrice - userCoins} more coins to unlock this game!',
+                              style: const TextStyle(color: Colors.orange, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF05D5AA),
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: () => Navigator.pop(modalCtx),
+                        child: const Text('Earn Coins Playing Free Games', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 }

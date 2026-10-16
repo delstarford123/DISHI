@@ -8,7 +8,7 @@
 
 ## Project Architecture
 
-- Backend: Python Flask on Vercel at `https://swapeatbackend.vercel.app`
+- Backend: Python Flask on Vercel at `https://dishi.delstarfordworks.co.ke` (`https://swapeatbackend-v2.vercel.app`)
 - Backend source: `c:\Users\Delstaford\swapeat\swapeat_backend\`
 - Frontend: Flutter app at `c:\Users\Delstaford\swapeat\`
 - Database: Firebase Firestore

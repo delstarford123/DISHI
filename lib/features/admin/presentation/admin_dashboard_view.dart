@@ -16,10 +16,17 @@ import 'admin_onboarding_view.dart';
 import 'admin_payouts_view.dart';
 import 'admin_delivery_security_view.dart';
 import 'admin_match_safety_view.dart';
+import 'admin_users_view.dart';
+import 'admin_database_indexes_view.dart';
+import 'admin_emergency_security_view.dart';
+import 'admin_housing_view.dart';
+import 'admin_employee_payroll_view.dart';
+import 'admin_b2b_finance_view.dart';
+import 'admin_c2b_collections_view.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/services/admin_service.dart';
 
-// -- CUSTOM DESIGN COLORS --
+// -- CUSTOM EXECUTIVE THEME COLORS --
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
 const Color _surfaceLight = Color(0xFF1A2235);
@@ -39,63 +46,87 @@ class AdminDashboardView extends StatefulWidget {
 }
 
 class _AdminDashboardViewState extends State<AdminDashboardView> {
+  final AdminService _adminService = AdminService();
   bool _isLoading = true;
   int _activeUsers = 0;
   int _activeVendors = 0;
   double _systemFloat = 0.0;
+  double _totalEscrow = 0.0;
   int _flaggedTransactions = 0;
-  int _selectedIndex = 0;
+  bool _isMaintenance = false;
 
   @override
   void initState() {
     super.initState();
     _fetchAdminStats();
+    _listenToPlatformConfig();
   }
 
-  final FirestoreService _firestoreService = FirestoreService();
+  void _listenToPlatformConfig() {
+    FirebaseFirestore.instance.collection('system_settings').doc('platform_config').snapshots().listen((snap) {
+      if (snap.exists && mounted) {
+        setState(() {
+          _isMaintenance = snap.data()?['maintenance_mode'] == true;
+        });
+      }
+    });
+  }
 
   Future<void> _fetchAdminStats() async {
+    setState(() => _isLoading = true);
     try {
-      final stats = await AdminService().getSystemOverview();
-      
+      final stats = await _adminService.getSystemOverview();
+      final escrow = await _adminService.getEscrowSummary().catchError((_) => {'total_escrow': 0.0});
+
       if (mounted) {
         setState(() {
           _activeUsers = stats['usersCount'] ?? 0;
           _activeVendors = stats['vendorsCount'] ?? 0;
           _systemFloat = (stats['floatSum'] ?? 0.0).toDouble();
           _flaggedTransactions = stats['flaggedTransactions'] ?? 0;
+          _totalEscrow = (escrow['total_escrow'] ?? 0.0).toDouble();
           _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading stats: $e'), backgroundColor: _neonRed));
+      // Graceful fallback to Firestore direct queries
+      try {
+        final usersSnap = await FirebaseFirestore.instance.collection('users').get();
+        final vendorsCount = usersSnap.docs.where((d) => d.data()['role'] == 'vendor').length;
+        double floatSum = 0.0;
+        for (var doc in usersSnap.docs) {
+          floatSum += (doc.data()['walletBalance'] as num?)?.toDouble() ?? 0.0;
+        }
+        if (mounted) {
+          setState(() {
+            _activeUsers = usersSnap.docs.length;
+            _activeVendors = vendorsCount;
+            _systemFloat = floatSum;
+            _isLoading = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
 
   Future<void> _processMassPayouts() async {
     try {
-      await Future.delayed(const Duration(seconds: 2)); 
+      await _adminService.triggerManualPayout();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mass Payouts queued successfully!'), backgroundColor: _neonCyan),
+          const SnackBar(content: Text('Mass B2C Payouts queued successfully!'), backgroundColor: _neonCyan),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payout Error: ${e.toString()}'), backgroundColor: _neonRed),
+          SnackBar(content: Text('Payout Error: $e'), backgroundColor: _neonRed),
         );
       }
     }
   }
-
-  bool _isSearching = false;
-  String _searchQuery = '';
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -109,23 +140,36 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: _cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: _neonRed, width: 2)),
-        title: const Text('Profile Menu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: _neonCyan, width: 1.5)),
+        title: const Text('Admin Console Session', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('Admin: ${widget.user['name'] ?? widget.user['displayName'] ?? "Super Admin"}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text('UID: ${widget.user['uid'] ?? ""}', style: const TextStyle(color: _textSecondary, fontSize: 11)),
+            const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.person, color: _neonRed),
-              title: const Text('My Profile', style: TextStyle(color: Colors.white)),
+              leading: const Icon(Icons.security, color: _neonCyan),
+              title: const Text('Emergency Security Center', style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile coming soon')));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminEmergencySecurityView()));
               },
             ),
             ListTile(
+              leading: const Icon(Icons.storage, color: _neonBlue),
+              title: const Text('Database & Indexes Telemetry', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDatabaseIndexesView()));
+              },
+            ),
+            const Divider(color: Colors.white12),
+            ListTile(
               leading: const Icon(Icons.logout, color: _neonRed),
-              title: const Text('Logout', style: TextStyle(color: _neonRed)),
+              title: const Text('Sign Out', style: TextStyle(color: _neonRed, fontWeight: FontWeight.bold)),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
@@ -134,54 +178,24 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close', style: TextStyle(color: _neonRed))),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close', style: TextStyle(color: _textSecondary))),
         ],
       ),
     );
   }
 
   Widget _buildCustomAppBar() {
-    if (_isSearching) {
-      return Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => setState(() {
-              _isSearching = false;
-              _searchQuery = '';
-            }),
-          ),
-          Expanded(
-            child: TextField(
-              autofocus: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                hintText: 'Search...',
-                hintStyle: TextStyle(color: _textSecondary),
-                border: InputBorder.none,
-              ),
-              onChanged: (value) => setState(() => _searchQuery = value),
-            ),
-          ),
-        ],
-      );
-    }
-
     final adminName = widget.user['name'] ?? widget.user['displayName'] ?? 'Super Admin';
     final profileImageUrl = widget.user['profileImageUrl'];
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF161B29).withOpacity(0.8),
+        color: const Color(0xFF161B29).withOpacity(0.9),
         borderRadius: BorderRadius.circular(40),
         border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
+          BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))
         ],
       ),
       child: Row(
@@ -194,7 +208,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   radius: 20,
                   backgroundImage: profileImageUrl != null ? NetworkImage(profileImageUrl) : const AssetImage('assets/img/dishi_logo.png') as ImageProvider,
                   backgroundColor: _surfaceLight,
-                  child: profileImageUrl == null ? const Icon(Icons.admin_panel_settings, color: _neonRed, size: 20) : null,
+                  child: profileImageUrl == null ? const Icon(Icons.admin_panel_settings, color: _neonCyan, size: 20) : null,
                 ),
               ),
               Positioned(
@@ -204,7 +218,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   width: 12,
                   height: 12,
                   decoration: BoxDecoration(
-                    color: Colors.greenAccent,
+                    color: _isMaintenance ? _neonRed : Colors.greenAccent,
                     shape: BoxShape.circle,
                     border: Border.all(color: _bgColor, width: 2),
                   ),
@@ -218,9 +232,22 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(_getGreeting(), style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                Row(
+                  children: [
+                    Text(_getGreeting(), style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: _neonCyan.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text('SUPER ADMIN', style: TextStyle(color: _neonCyan, fontSize: 9, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
                 Text(
-                  adminName, 
+                  adminName,
                   style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -228,12 +255,15 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               ],
             ),
           ),
-          GestureDetector(
-            onTap: () => setState(() => _isSearching = true),
-            child: const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: Icon(Icons.search, color: Colors.white, size: 22),
-            ),
+          IconButton(
+            icon: const Icon(Icons.notifications_active_outlined, color: Colors.white70, size: 20),
+            tooltip: 'Send Broadcast',
+            onPressed: _showSendNotificationSheet,
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: _neonCyan, size: 20),
+            tooltip: 'Refresh Telemetry',
+            onPressed: _fetchAdminStats,
           ),
         ],
       ),
@@ -247,980 +277,444 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       resizeToAvoidBottomInset: false,
       drawer: _buildRoleSwitcherDrawer(),
       body: SafeArea(
-        child: _isLoading 
-            ? const Center(child: CircularProgressIndicator(color: _neonRed))
-            : _buildBody(),
-      ),
-    );
-  }
-
-  Widget _buildBody() {
-    switch (_selectedIndex) {
-      case 0:
-        return _buildHomeTab();
-      case 1:
-        return _buildUserManagementTab();
-      case 2:
-        return _buildSystemSettingsTab();
-      case 3:
-        return _buildDisputesTab();
-      case 4:
-        return _buildModerationTab();
-      case 5:
-        return _buildFinancialAuditTab();
-      case 6:
-        return _buildHarambeeTab();
-      case 7:
-        return _buildSystemAuditTab();
-      default:
-        return _buildHomeTab();
-    }
-  }
-  
-  Widget _buildUserManagementTab() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () {
-                  setState(() {
-                    _selectedIndex = 0; // Go back to Home tab
-                  });
-                },
-                tooltip: 'Back to Home',
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search users by email or name...',
-                    hintStyle: const TextStyle(color: _textSecondary),
-                    filled: true,
-                    fillColor: _surfaceLight,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    prefixIcon: const Icon(Icons.search, color: _textSecondary),
-                  ),
-                  style: const TextStyle(color: Colors.white),
-                  onChanged: (val) {
-                     setState(() {
-                       _searchQuery = val.toLowerCase();
-                     });
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: FutureBuilder<List<dynamic>>(
-            future: AdminService().getAllUsers(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: _neonCyan));
-              }
-              if (snapshot.hasError) {
-                return Center(child: Text('Error loading users: ${snapshot.error}', style: const TextStyle(color: _neonRed)));
-              }
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Center(child: Text('No users found', style: TextStyle(color: _textSecondary)));
-              }
-
-              var users = snapshot.data!;
-              if (_searchQuery.isNotEmpty) {
-                users = users.where((user) {
-                  final name = (user['name'] ?? user['displayName'] ?? '').toString().toLowerCase();
-                  final email = (user['email'] ?? '').toString().toLowerCase();
-                  return name.contains(_searchQuery) || email.contains(_searchQuery);
-                }).toList();
-              }
-
-              return ListView.builder(
-                itemCount: users.length,
-                itemBuilder: (context, index) {
-                  final data = users[index];
-                  final uid = data['uid'];
-                  final name = data['name'] ?? data['displayName'] ?? 'Unknown';
-                  final email = data['email'] ?? 'No Email';
-                  final role = data['role'] ?? 'user';
-                  final status = data['status'] ?? 'active';
-                  final photoUrl = data['photoUrl'] ?? data['profilePic'] ?? data['photo'] ?? data['image'];
-
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: _surfaceLight,
-                      backgroundImage: photoUrl != null && photoUrl.toString().isNotEmpty ? NetworkImage(photoUrl.toString()) : null,
-                      child: (photoUrl == null || photoUrl.toString().isEmpty) 
-                          ? Text(role.substring(0, 1).toUpperCase(), style: const TextStyle(color: _neonCyan))
-                          : null,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: _neonCyan))
+            : RefreshIndicator(
+                color: _neonCyan,
+                backgroundColor: _cardColor,
+                onRefresh: _fetchAdminStats,
+                child: CustomScrollView(
+                  slivers: [
+                    SliverAppBar(
+                      expandedHeight: 80,
+                      floating: true,
+                      pinned: false,
+                      backgroundColor: _bgColor,
+                      elevation: 0,
+                      iconTheme: const IconThemeData(color: Colors.white),
+                      flexibleSpace: FlexibleSpaceBar(
+                        background: Padding(
+                          padding: const EdgeInsets.only(left: 60, right: 16, top: 16),
+                          child: _buildCustomAppBar(),
+                        ),
+                      ),
                     ),
-                    title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    subtitle: Text('$email • Role: $role\nStatus: $status', style: TextStyle(color: status == 'suspended' ? _neonRed : _textSecondary)),
-                    trailing: PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert, color: Colors.white),
-                      color: _cardColor,
-                      onSelected: (val) async {
-                        try {
-                           final adminService = AdminService();
-                           if (val == 'suspend') {
-                             await adminService.suspendUser(uid, 'Admin action');
-                             if (context.mounted) {
-                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User suspended. Please refresh.')));
-                             }
-                           } else if (val == 'delete') {
-                             await adminService.deleteUser(uid);
-                             if (context.mounted) {
-                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User deleted. Please refresh.')));
-                             }
-                           } else if (val == 'impersonate') {
-                             final token = await adminService.impersonateUser(uid);
-                             await FirebaseAuth.instance.signInWithCustomToken(token);
-                             
-                             final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-                             final uData = userDoc.data();
-                             if (uData != null) {
-                               final rolesList = uData['roles'] as List<dynamic>? ?? [];
-                               final roleSingular = uData['role'] as String? ?? '';
-                               final userRole = rolesList.isNotEmpty
-                                   ? rolesList.first.toString()
-                                   : (roleSingular.isNotEmpty ? roleSingular : 'student');
-                               
-                               final userName = uData['name'] ?? uData['displayName'] ?? '';
-                               await SecureStorageService.saveUserData(
-                                 userId: uid,
-                                 role: userRole,
-                                 name: userName,
-                                 email: uData['email'],
-                                 phone: uData['phoneNumber'],
-                               );
-                             } else {
-                               await SecureStorageService.saveUserData(
-                                 userId: uid,
-                                 role: 'student',
-                                 name: 'Impersonated User',
-                               );
-                             }
+                    SliverPadding(
+                      padding: const EdgeInsets.all(16.0),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          // System Status Pill Banner
+                          if (_isMaintenance)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: _neonRed.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: _neonRed),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.warning_amber_rounded, color: _neonRed, size: 24),
+                                  const SizedBox(width: 12),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('PLATFORM IN LOCKDOWN MODE', style: TextStyle(color: _neonRed, fontWeight: FontWeight.bold, fontSize: 13)),
+                                        Text('Only administrators currently have access.', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                                      ],
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminEmergencySecurityView())),
+                                    child: const Text('Manage', style: TextStyle(color: _neonRed, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
+                            ),
 
-                             if (context.mounted) {
-                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ghost Login active. Redirecting...')));
-                               Navigator.pushAndRemoveUntil(
-                                 context,
-                                 MaterialPageRoute(builder: (_) => const InitialRouter()),
-                                 (route) => false,
-                               );
-                             }
-                           }
-                        } catch (e) {
-                           if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(value: 'impersonate', child: Text('Ghost Login (Impersonate)', style: TextStyle(color: Colors.white))),
-                        const PopupMenuItem(value: 'suspend', child: Text('Suspend User', style: TextStyle(color: Colors.orange))),
-                        const PopupMenuItem(value: 'delete', child: Text('Delete User', style: TextStyle(color: _neonRed))),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildSystemSettingsTab() {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('system_settings').doc('platform_config').snapshots(),
-      builder: (context, snapshot) {
-        bool isMaintenance = false;
-        if (snapshot.hasData && snapshot.data!.exists) {
-          isMaintenance = (snapshot.data!.data() as Map<String, dynamic>)['maintenance_mode'] ?? false;
-        }
+                          // Total System Float Card
+                          InkWell(
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminTransactionsView())),
+                            child: Container(
+                              padding: const EdgeInsets.all(22),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    const Color(0xFF131A2A),
+                                    const Color(0xFF162238),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: _neonCyan.withOpacity(0.4), width: 1.5),
+                                boxShadow: [BoxShadow(color: _neonCyan.withOpacity(0.08), blurRadius: 20, spreadRadius: 2)],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(Icons.account_balance, color: _neonCyan, size: 20),
+                                          SizedBox(width: 8),
+                                          Text('Total System Float (Live Ledger)', style: TextStyle(color: _textSecondary, fontSize: 13)),
+                                        ],
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(color: _neonCyan.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                                        child: const Row(
+                                          children: [
+                                            Text('Reconcile', style: TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.bold)),
+                                            SizedBox(width: 4),
+                                            Icon(Icons.arrow_forward_ios, color: _neonCyan, size: 10),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'KES ${_systemFloat.toStringAsFixed(2)}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.lock_clock, color: Colors.amberAccent, size: 14),
+                                      const SizedBox(width: 6),
+                                      Text('Platform Escrow: KES ${_totalEscrow.toStringAsFixed(2)}', style: const TextStyle(color: Colors.amberAccent, fontSize: 12, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
 
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const Text('Platform Controls', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            Container(
-              decoration: BoxDecoration(
-                color: _surfaceLight,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isMaintenance ? _neonRed : Colors.transparent),
-              ),
-              child: SwitchListTile(
-                title: const Text('Maintenance Mode', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                subtitle: const Text('Disables the app for all non-admin users immediately.', style: TextStyle(color: _textSecondary)),
-                value: isMaintenance,
-                activeThumbColor: _neonRed,
-                onChanged: (val) async {
-                  try {
-                    await AdminService().toggleMaintenanceMode(val);
-                  } catch (e) {
-                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                  }
-                },
-              ),
-            ),
-            const SizedBox(height: 32),
-            const Text('Events & Fees', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            ListTile(
-              tileColor: _surfaceLight,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              leading: const Icon(Icons.percent, color: _neonCyan),
-              title: const Text('Global Commission Rate', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white),
-              onTap: () {
-                _showUpdateCommissionDialog();
-              }
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              tileColor: _surfaceLight,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              leading: const Icon(Icons.event, color: _neonOrange),
-              title: const Text('Make Event Free', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white),
-              onTap: () {
-                _showMakeEventFreeDialog();
-              }
-            )
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildDisputesTab() {
-    return Column(
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text('Dispute Resolution Center', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-        ),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('disputes').snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _neonCyan));
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('No active disputes', style: TextStyle(color: _textSecondary)));
-
-              var disputes = snapshot.data!.docs;
-
-              return ListView.builder(
-                itemCount: disputes.length,
-                itemBuilder: (context, index) {
-                  final doc = disputes[index];
-                  final data = doc.data() as Map<String, dynamic>;
-                  final status = data['status'] ?? 'pending';
-                  if (status == 'resolved') return const SizedBox.shrink(); // hide resolved
-                  
-                  return Card(
-                    color: _surfaceLight,
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Dispute: ${doc.id}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Text('Amount: KES ${data['amount']}', style: const TextStyle(color: _neonOrange)),
-                          Text('Reason: ${data['reason'] ?? 'N/A'}', style: const TextStyle(color: _textSecondary)),
-                          const SizedBox(height: 16),
+                          // Executive Quick Dock Buttons
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: _neonRed),
-                                onPressed: () async {
-                                  await AdminService().resolveDispute(doc.id, 'refund_student');
-                                },
-                                child: const Text('Refund Student', style: TextStyle(color: Colors.white)),
+                              Expanded(
+                                child: _buildExecutiveActionTile(
+                                  label: 'Users & Roles',
+                                  subtitle: 'Manage UIDs',
+                                  icon: Icons.people_alt,
+                                  color: _neonCyan,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminUsersView())),
+                                ),
                               ),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
-                                onPressed: () async {
-                                  await AdminService().resolveDispute(doc.id, 'release_to_vendor');
-                                },
-                                child: const Text('Release to Vendor', style: TextStyle(color: Colors.black)),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildExecutiveActionTile(
+                                  label: 'M-PESA Resolver',
+                                  subtitle: 'Ledger Audit',
+                                  icon: Icons.receipt_long,
+                                  color: _neonBlue,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminTransactionsView())),
+                                ),
                               ),
-                            ],
-                          )
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildModerationTab() {
-    return Column(
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text('Content Moderation (Campus Feed)', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-        ),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('campus_feed').orderBy('createdAt', descending: true).limit(20).snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _neonCyan));
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('No posts', style: TextStyle(color: _textSecondary)));
-
-              var posts = snapshot.data!.docs;
-
-              return ListView.builder(
-                itemCount: posts.length,
-                itemBuilder: (context, index) {
-                  final doc = posts[index];
-                  final data = doc.data() as Map<String, dynamic>;
-                  
-                  return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    child: ListTile(
-                      tileColor: _surfaceLight,
-                      title: Text(data['content'] ?? 'No content', style: const TextStyle(color: Colors.white)),
-                      subtitle: Text('Author: ${data['authorName'] ?? 'Unknown'}', style: const TextStyle(color: _textSecondary)),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: _neonRed),
-                        onPressed: () async {
-                          await FirebaseFirestore.instance.collection('campus_feed').doc(doc.id).delete();
-                        },
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _showMakeEventFreeDialog() {
-    final eventIdController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _cardColor,
-        title: const Text('Make Event Free', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: eventIdController,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'Enter Event ID',
-            hintStyle: TextStyle(color: _textSecondary),
-            filled: true,
-            fillColor: _surfaceLight,
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _neonOrange),
-            onPressed: () async {
-              if (eventIdController.text.isEmpty) return;
-              try {
-                await AdminService().overrideEvent(eventIdController.text.trim(), true);
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Event updated!')));
-                }
-              } catch (e) {
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-              }
-            },
-            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
-          )
-        ],
-      ),
-    );
-  }
-
-  void _showUpdateCommissionDialog() {
-    final rateController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _cardColor,
-        title: const Text('Global Commission Rate', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: rateController,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'Enter new rate (%) e.g. 5.0',
-            hintStyle: TextStyle(color: _textSecondary),
-            filled: true,
-            fillColor: _surfaceLight,
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _neonOrange),
-            onPressed: () async {
-              if (rateController.text.isEmpty) return;
-              try {
-                final rate = double.parse(rateController.text);
-                await AdminService().updateCommissionRate(rate);
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Commission rate updated!')));
-                }
-              } catch (e) {
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-              }
-            },
-            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
-          )
-        ],
-      ),
-    );
-  }
-
-
-  Widget _buildFinancialAuditTab() {
-    return Column(
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text('Financial Audit Logs', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-        ),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('transactions').orderBy('timestamp', descending: true).limit(30).snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _neonCyan));
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('No transactions', style: TextStyle(color: _textSecondary)));
-
-              var txs = snapshot.data!.docs;
-              return ListView.builder(
-                itemCount: txs.length,
-                itemBuilder: (context, index) {
-                  final data = txs[index].data() as Map<String, dynamic>;
-                  final type = data['type'] ?? 'Unknown';
-                  final amount = data['amount'] ?? 0;
-                  final status = data['status'] ?? 'pending';
-                  
-                  return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    child: ListTile(
-                      tileColor: _surfaceLight,
-                      leading: Icon(
-                        type.contains('Refund') ? Icons.keyboard_return : Icons.attach_money,
-                        color: type.contains('Refund') ? _neonOrange : _neonCyan,
-                      ),
-                      title: Text('$type: KES $amount', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      subtitle: Text('Status: $status', style: const TextStyle(color: _textSecondary)),
-                      trailing: Text(txs[index].id.substring(0, 8), style: const TextStyle(color: Colors.white38)),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHarambeeTab() {
-    return Column(
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text('Harambee Moderation', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-        ),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('harambee_campaigns').snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _neonCyan));
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('No active campaigns', style: TextStyle(color: _textSecondary)));
-
-              var campaigns = snapshot.data!.docs;
-              return ListView.builder(
-                itemCount: campaigns.length,
-                itemBuilder: (context, index) {
-                  final doc = campaigns[index];
-                  final data = doc.data() as Map<String, dynamic>;
-                  final title = data['title'] ?? 'Untitled';
-                  final raised = data['raised'] ?? data['raised_amount'] ?? 0;
-                  
-                  return Card(
-                    color: _surfaceLight,
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          Text('Raised: KES $raised', style: const TextStyle(color: _neonOrange)),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                                onPressed: () async {
-                                  await AdminService().forceHarambeeAction(doc.id, 'pause');
-                                },
-                                child: const Text('Pause', style: TextStyle(color: Colors.white)),
-                              ),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: _neonRed),
-                                onPressed: () async {
-                                  await AdminService().forceHarambeeAction(doc.id, 'cancel_and_refund');
-                                },
-                                child: const Text('Cancel & Refund', style: TextStyle(color: Colors.white)),
-                              ),
-                            ],
-                          )
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSystemAuditTab() {
-    return Column(
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text('System Audit Trail', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-        ),
-        Expanded(
-          child: FutureBuilder<List<dynamic>>(
-            future: AdminService().getAuditLogs(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: _neonCyan));
-              if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: _neonRed)));
-              if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text('No audit logs available', style: TextStyle(color: _textSecondary)));
-
-              var logs = snapshot.data!;
-              return ListView.builder(
-                itemCount: logs.length,
-                itemBuilder: (context, index) {
-                  final log = logs[index];
-                  final action = log['action'] ?? 'Unknown Action';
-                  final adminId = log['admin_id'] ?? 'Unknown Admin';
-                  final timestamp = log['timestamp'] ?? '';
-                  final details = log['details']?.toString() ?? '';
-                  
-                  return Card(
-                    color: _surfaceLight,
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(action, style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 16)),
-                              Text(timestamp, style: const TextStyle(color: _textSecondary, fontSize: 12)),
                             ],
                           ),
-                          const SizedBox(height: 4),
-                          Text('Admin: $adminId', style: const TextStyle(color: Colors.white70)),
-                          const SizedBox(height: 4),
-                          Text('Details: $details', style: const TextStyle(color: Colors.white54, fontSize: 13)),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildExecutiveActionTile(
+                                  label: 'Firestore Health',
+                                  subtitle: 'Indexes & Telemetry',
+                                  icon: Icons.storage_rounded,
+                                  color: Colors.greenAccent,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDatabaseIndexesView())),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildExecutiveActionTile(
+                                  label: 'Security & Circuit',
+                                  subtitle: 'Kill Switch',
+                                  icon: Icons.shield,
+                                  color: _neonRed,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminEmergencySecurityView())),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildExecutiveActionTile(
+                                  label: 'Staff & Payroll',
+                                  subtitle: 'B2C Salary Engine',
+                                  icon: Icons.badge_outlined,
+                                  color: _neonCyan,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminEmployeePayrollView())),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildExecutiveActionTile(
+                                  label: 'B2B & C2B Hub',
+                                  subtitle: 'Paybill & Tills',
+                                  icon: Icons.swap_horiz_rounded,
+                                  color: Colors.amberAccent,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminB2BFinanceView())),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 28),
 
-  Widget _buildHomeTab() {
-    return CustomScrollView(
-                slivers: [
-                  SliverAppBar(
-                    expandedHeight: 80,
-                    floating: true,
-                    pinned: false,
-                    backgroundColor: _bgColor,
-                    elevation: 0,
-                    iconTheme: const IconThemeData(color: Colors.white),
-                    flexibleSpace: FlexibleSpaceBar(
-                      background: Padding(
-                        padding: const EdgeInsets.only(left: 60, right: 16, top: 16),
-                        child: _buildCustomAppBar(),
-                      ),
-                    ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.all(16.0),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        // System Float Summary
-                        InkWell(
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminTransactionsView())),
-                          child: Container(
-                            padding: const EdgeInsets.all(24),
+                          // Key Metrics Deck
+                          const Text('Executive Metrics Overview', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminUsersView())),
+                                  child: _buildSystemStat('Active Users', '$_activeUsers', Icons.people, _neonCyan),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminUsersView())),
+                                  child: _buildSystemStat('Vendors POS', '$_activeVendors', Icons.storefront, _neonOrange),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 28),
+
+                          // Management Command Modules
+                          const Text('System Management Modules', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 14),
+
+                          // 1. Fraud Radar
+                          ListTile(
+                            tileColor: _surfaceLight,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(color: _flaggedTransactions > 0 ? _neonRed : Colors.transparent),
+                            ),
+                            leading: Badge(
+                              isLabelVisible: _flaggedTransactions > 0,
+                              label: Text('$_flaggedTransactions'),
+                              child: const Icon(Icons.radar_rounded, color: _neonRed),
+                            ),
+                            title: const Text('Fraud & Velocity Radar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Wash trading & suspicious volume flags', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FraudVelocityView())),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 2. Disputes Center
+                          ListTile(
+                            tileColor: _surfaceLight,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            leading: const Icon(Icons.gavel, color: Colors.amberAccent),
+                            title: const Text('Disputes & Escrow Center', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Refund students or release merchant funds', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminSupportTicketsView())),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 3. Vendor & Fundi Onboarding
+                          ListTile(
+                            tileColor: _surfaceLight,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            leading: const Icon(Icons.how_to_reg, color: _neonCyan),
+                            title: const Text('Merchant & Fundi Onboarding', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Verify cafeteria kiosks, stores, and fundis', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminOnboardingView())),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 4. Housing Oversight
+                          ListTile(
+                            tileColor: _surfaceLight,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            leading: const Icon(Icons.home_work_outlined, color: _neonBlue),
+                            title: const Text('Hostel & Housing Oversight', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Approve campus listings & manage bookings', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminHousingView())),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 5. Delivery Drivers & Live Tracking
+                          ListTile(
+                            tileColor: _surfaceLight,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            leading: const Icon(Icons.two_wheeler, color: _neonCyan),
+                            title: const Text('Campus Delivery Security', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Driver verification, active rides & manual dispatch', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDeliverySecurityView())),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 6. Match Safety & SOS
+                          ListTile(
+                            tileColor: _surfaceLight,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            leading: const Icon(Icons.emergency, color: _neonRed),
+                            title: const Text('Match Safety Response (SOS)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Emergency dispatch, security alerts & safe vouchers', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminMatchSafetyView())),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 7. Community Moderation
+                          ListTile(
+                            tileColor: _surfaceLight,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            leading: const Icon(Icons.security, color: _neonOrange),
+                            title: const Text('Community Moderation Queue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Moderate campus feeds, confessions & reports', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminModerationView())),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 8. Platform Config & Feature Flags
+                          ListTile(
+                            tileColor: _surfaceLight,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            leading: const Icon(Icons.tune, color: _neonCyan),
+                            title: const Text('Platform Config & Live Flags', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Commission percentages, CBK limits, feature toggles', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminSettingsView())),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 9. Employee Management & B2C Payroll
+                          ListTile(
+                            tileColor: _surfaceLight,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            leading: const Icon(Icons.badge, color: _neonCyan),
+                            title: const Text('Staff & Employee Management', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Onboard staff, statutory deductions, B2C salary runs', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminEmployeePayrollView())),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 10. B2B Commercial Payouts
+                          ListTile(
+                            tileColor: _surfaceLight,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            leading: const Icon(Icons.swap_horiz, color: _neonBlue),
+                            title: const Text('B2B Commercial Liquidity', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Vendor BuyGoods tills, utility paybills, supplier payouts', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminB2BFinanceView())),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 11. C2B Paybill Collections
+                          ListTile(
+                            tileColor: _surfaceLight,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            leading: const Icon(Icons.arrow_downward, color: Colors.greenAccent),
+                            title: const Text('C2B Paybill Collections (4050545)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Live customer deposit stream & instant wallet crediting', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminC2BCollectionsView())),
+                          ),
+                          const SizedBox(height: 28),
+
+                          // High-Friction Payout Action
+                          const Text('Financial Liquidity Operations', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               color: _cardColor,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: _neonRed.withOpacity(0.4), width: 1.5),
-                              boxShadow: [BoxShadow(color: _neonRed.withOpacity(0.1), blurRadius: 20, spreadRadius: 2)]
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: _surfaceLight),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Row(
                                   children: [
-                                    Icon(Icons.account_balance, color: _neonRed, size: 20),
+                                    Icon(Icons.shield_outlined, color: _neonCyan, size: 18),
                                     SizedBox(width: 8),
-                                    Text('Total System Float (Tap for Ledger)', style: TextStyle(color: _textSecondary, fontSize: 14)),
+                                    Text('Automated Safaricom Daraja B2C Queue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                                   ],
                                 ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'KSH ${_systemFloat.toStringAsFixed(2)}',
-                                  style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Release accumulated vendor earnings into Safaricom B2C queue. Hold action for 2 seconds to initiate.',
+                                  style: TextStyle(color: _textSecondary, fontSize: 12),
+                                ),
+                                const SizedBox(height: 16),
+                                HighFrictionAction(
+                                  label: 'Hold for Mass B2C Payouts',
+                                  onActionCompleted: _processMassPayouts,
+                                  baseColor: _neonCyan,
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 32),
-    
-                        // Key Metrics
-                        const Text('System Overview', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(child: _buildSystemStat('Active Users', '$_activeUsers', Icons.people, _neonCyan)),
-                            const SizedBox(width: 12),
-                            Expanded(child: _buildSystemStat('Vendors', '$_activeVendors', Icons.storefront, _neonOrange)),
-                          ],
-                        ),
-                        const SizedBox(height: 32),
-    
-                        // Quick Actions
-                        const Text('Admin Actions', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 16),
-                        
-                        ListTile(
-                          tileColor: _surfaceLight,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: _flaggedTransactions > 0 ? _neonRed : _surfaceLight)
-                          ),
-                          leading: Badge(
-                            isLabelVisible: _flaggedTransactions > 0,
-                            label: Text('$_flaggedTransactions'),
-                            child: const Icon(Icons.security, color: _neonRed),
-                          ),
-                          title: const Text('Fraud & Wash Trading Logs', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          subtitle: const Text('Review velocity limit flags', style: TextStyle(color: _textSecondary)),
-                          trailing: const Icon(Icons.chevron_right, color: Colors.white),
-                          onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => const FraudVelocityView()));
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        
-                        ListTile(
-                          tileColor: _surfaceLight,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          leading: const Icon(Icons.notifications_active, color: _neonCyan),
-                          title: const Text('Send Notifications', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          subtitle: const Text('Broadcast or direct messages', style: TextStyle(color: _textSecondary)),
-                          trailing: const Icon(Icons.chevron_right, color: Colors.white),
-                          onTap: _showSendNotificationSheet,
-                        ),
-                        const SizedBox(height: 12),
-                        
-                        ListTile(
-                          tileColor: _surfaceLight,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          leading: const Icon(Icons.support_agent, color: _neonBlue),
-                          title: const Text('Dispute Resolution', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          subtitle: const Text('Manage escrow & offline disputes', style: TextStyle(color: _textSecondary)),
-                          trailing: const Icon(Icons.chevron_right, color: Colors.white),
-                          onTap: () {
-                             Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminSupportTicketsView()));
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        
-                        ListTile(
-                          tileColor: _surfaceLight,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          leading: const Icon(Icons.shield, color: _neonOrange),
-                          title: const Text('Community Moderation', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          subtitle: const Text('Review flagged content & bans', style: TextStyle(color: _textSecondary)),
-                          trailing: const Icon(Icons.chevron_right, color: Colors.white),
-                          onTap: () {
-                             Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminModerationView()));
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        
-                        ListTile(
-                          tileColor: _surfaceLight,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          leading: const Icon(Icons.how_to_reg, color: _neonCyan),
-                          title: const Text('Vendor Onboarding', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          subtitle: const Text('Approve new vendors & fundis', style: TextStyle(color: _textSecondary)),
-                          trailing: const Icon(Icons.chevron_right, color: Colors.white),
-                          onTap: () {
-                             Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminOnboardingView()));
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        
-                        ListTile(
-                          tileColor: _surfaceLight,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          leading: const Icon(Icons.two_wheeler, color: _neonCyan),
-                          title: const Text('Campus Delivery Security', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          subtitle: const Text('Approve drivers & view live rides', style: TextStyle(color: _textSecondary)),
-                          trailing: const Icon(Icons.chevron_right, color: Colors.white),
-                          onTap: () {
-                             Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDeliverySecurityView()));
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        
-                        ListTile(
-                          tileColor: _surfaceLight,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          leading: const Icon(Icons.emergency, color: _neonRed),
-                          title: const Text('Match Safety Response', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          subtitle: const Text('Monitor SOS alerts & dispatch', style: TextStyle(color: _textSecondary)),
-                          trailing: const Icon(Icons.chevron_right, color: Colors.white),
-                          onTap: () {
-                             Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminMatchSafetyView()));
-                          },
-                        ),
-                        const SizedBox(height: 32),
-                        
-                        const Text('Financial Operations', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: _cardColor,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: HighFrictionAction(
-                            label: 'Hold for Mass B2C Payouts',
-                            onActionCompleted: _processMassPayouts,
-                            baseColor: _neonRed,
-                          ),
-                        ),
-                      ]),
+                          const SizedBox(height: 32),
+                        ]),
+                      ),
                     ),
-                  ),
-                ],
-              );
+                  ],
+                ),
+              ),
+      ),
+    );
   }
 
-  Widget _buildRoleSwitcherDrawer() {
-    final roles = List<String>.from(widget.user['roles'] ?? ['admin']);
-    
-    return Drawer(
-      backgroundColor: _cardColor,
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget _buildExecutiveActionTile({
+    required String label,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: _cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
-              color: _surfaceLight,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: _neonRed.withOpacity(0.2), shape: BoxShape.circle),
-                    child: const Icon(Icons.admin_panel_settings, size: 40, color: _neonRed),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(widget.user['name'] ?? widget.user['displayName'] ?? 'Super Admin', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                  Text(widget.user['email'] ?? 'admin@dishi.com', style: const TextStyle(color: _textSecondary)),
+                  Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: const TextStyle(color: _textSecondary, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text('DASHBOARD TABS', style: TextStyle(fontWeight: FontWeight.bold, color: _textSecondary, fontSize: 12, letterSpacing: 1.5)),
-            ),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-
-            ListTile(
-              leading: const Icon(Icons.dashboard, color: Colors.white),
-              title: const Text('Home / Overview', style: TextStyle(color: Colors.white)),
-              selected: _selectedIndex == 0,
-              selectedTileColor: _neonRed.withOpacity(0.1),
-              onTap: () {
-                setState(() => _selectedIndex = 0);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.people, color: Colors.white),
-              title: const Text('User Management', style: TextStyle(color: Colors.white)),
-              selected: _selectedIndex == 1,
-              selectedTileColor: _neonRed.withOpacity(0.1),
-              onTap: () {
-                setState(() => _selectedIndex = 1);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings, color: Colors.white),
-              title: const Text('System Settings', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminSettingsView()));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.gavel, color: Colors.white),
-              title: const Text('Disputes Center', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminSupportTicketsView()));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.security, color: Colors.white),
-              title: const Text('Content Moderation', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminModerationView()));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_add, color: Colors.white),
-              title: const Text('Vendor Onboarding', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminOnboardingView()));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.receipt_long, color: Colors.white),
-              title: const Text('Financial Audit', style: TextStyle(color: Colors.white)),
-              selected: _selectedIndex == 5,
-              selectedTileColor: _neonRed.withOpacity(0.1),
-              onTap: () {
-                setState(() => _selectedIndex = 5);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.payment, color: Colors.white),
-              title: const Text('Payouts & Escrow', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminPayoutsView()));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.volunteer_activism, color: Colors.white),
-              title: const Text('Harambee Moderation', style: TextStyle(color: Colors.white)),
-              selected: _selectedIndex == 6,
-              selectedTileColor: _neonRed.withOpacity(0.1),
-              onTap: () {
-                setState(() => _selectedIndex = 6);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.history, color: Colors.white),
-              title: const Text('System Audit Trail', style: TextStyle(color: Colors.white)),
-              selected: _selectedIndex == 7,
-              selectedTileColor: _neonRed.withOpacity(0.1),
-              onTap: () {
-                setState(() => _selectedIndex = 7);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.two_wheeler, color: Colors.white),
-              title: const Text('Delivery Security', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDeliverySecurityView()));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.emergency, color: Colors.white),
-              title: const Text('Match Safety', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminMatchSafetyView()));
-              },
-            ),
-            const Divider(color: _surfaceLight),
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text('SWITCH CONSOLE', style: TextStyle(fontWeight: FontWeight.bold, color: _textSecondary, fontSize: 12, letterSpacing: 1.5)),
-            ),
-            if (roles.contains('admin'))
-              ListTile(
-                leading: const Icon(Icons.admin_panel_settings, color: _neonRed),
-                title: const Text('Admin Console', style: TextStyle(color: _neonRed, fontWeight: FontWeight.bold)),
-                selected: true,
-                onTap: () => Navigator.pop(context),
-              ),
-            if (roles.contains('student'))
-              ListTile(
-                title: const Text('Simulate Student Dashboard', style: TextStyle(color: Colors.white)),
-                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
-                onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => StudentMainScaffold(user: widget.user))),
-              ),
-            if (roles.contains('vendor'))
-              ListTile(
-                leading: const Icon(Icons.storefront, color: Colors.white70),
-                title: const Text('Vendor POS', style: TextStyle(color: Colors.white70)),
-                onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => VendorDashboardView(user: widget.user))),
-              ),
-                const Divider(color: _surfaceLight),
-                ListTile(
-                  leading: const Icon(Icons.logout, color: _neonRed),
-                  title: const Text('Sign Out', style: TextStyle(color: _neonRed)),
-                  onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView())),
-                ),
-              ],
-            ),
             ),
           ],
         ),
@@ -1244,15 +738,163 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(color: _textSecondary, fontSize: 12)),
-              const SizedBox(height: 4),
-              Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: _textSecondary, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 4),
+                Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+              ],
+            ),
           )
         ],
+      ),
+    );
+  }
+
+  Widget _buildRoleSwitcherDrawer() {
+    final roles = List<String>.from(widget.user['roles'] ?? ['admin']);
+
+    return Drawer(
+      backgroundColor: _cardColor,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              color: _surfaceLight,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: _neonCyan.withOpacity(0.15), shape: BoxShape.circle),
+                    child: const Icon(Icons.admin_panel_settings, size: 36, color: _neonCyan),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    widget.user['name'] ?? widget.user['displayName'] ?? 'Super Admin',
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(widget.user['email'] ?? 'admin@dishi.com', style: const TextStyle(color: _textSecondary, fontSize: 12)),
+                ],
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Text('COMMAND SECTIONS', style: TextStyle(fontWeight: FontWeight.bold, color: _textSecondary, fontSize: 11, letterSpacing: 1.5)),
+            ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.dashboard, color: _neonCyan),
+                    title: const Text('Home Overview', style: TextStyle(color: Colors.white)),
+                    onTap: () => Navigator.pop(context),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.people, color: Colors.white70),
+                    title: const Text('User & Identity Command', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminUsersView()));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.receipt_long, color: Colors.white70),
+                    title: const Text('Ledger & M-PESA Reconciler', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminTransactionsView()));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.storage, color: Colors.white70),
+                    title: const Text('Database & Firestore Indexes', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDatabaseIndexesView()));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.shield, color: _neonRed),
+                    title: const Text('Security & Circuit Breakers', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminEmergencySecurityView()));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.gavel, color: Colors.white70),
+                    title: const Text('Disputes & Escrow Center', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminSupportTicketsView()));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.settings, color: Colors.white70),
+                    title: const Text('Platform Config & Flags', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminSettingsView()));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.badge, color: _neonCyan),
+                    title: const Text('Staff & Payroll (B2C)', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminEmployeePayrollView()));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.swap_horiz, color: _neonBlue),
+                    title: const Text('B2B Commercial Payouts', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminB2BFinanceView()));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.arrow_downward, color: Colors.greenAccent),
+                    title: const Text('C2B Paybill (4050545)', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminC2BCollectionsView()));
+                    },
+                  ),
+                  const Divider(color: _surfaceLight),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Text('CONSOLE SIMULATION', style: TextStyle(fontWeight: FontWeight.bold, color: _textSecondary, fontSize: 11, letterSpacing: 1.5)),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.school, color: Colors.white70),
+                    title: const Text('Switch to Student Dashboard', style: TextStyle(color: Colors.white)),
+                    trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 14),
+                    onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => StudentMainScaffold(user: widget.user))),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.storefront, color: Colors.white70),
+                    title: const Text('Switch to Vendor POS', style: TextStyle(color: Colors.white)),
+                    trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 14),
+                    onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => VendorDashboardView(user: widget.user))),
+                  ),
+                  const Divider(color: _surfaceLight),
+                  ListTile(
+                    leading: const Icon(Icons.logout, color: _neonRed),
+                    title: const Text('Sign Out', style: TextStyle(color: _neonRed, fontWeight: FontWeight.bold)),
+                    onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView())),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1280,39 +922,39 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Send Notification', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 24),
+              const Text('Send Notification via FCM', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
               TextField(
                 controller: titleController,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  labelText: 'Title',
+                  labelText: 'Notification Title',
                   labelStyle: const TextStyle(color: _textSecondary),
                   filled: true,
                   fillColor: _surfaceLight,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               TextField(
                 controller: messageController,
                 style: const TextStyle(color: Colors.white),
                 maxLines: 3,
                 decoration: InputDecoration(
-                  labelText: 'Message',
+                  labelText: 'Notification Body',
                   labelStyle: const TextStyle(color: _textSecondary),
                   filled: true,
                   fillColor: _surfaceLight,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               TextField(
                 controller: targetIdController,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  labelText: 'Target User ID (Optional)',
-                  helperText: 'Leave blank to broadcast to everyone',
+                  labelText: 'Target User UID (Optional)',
+                  helperText: 'Leave empty to broadcast to entire campus network',
                   helperStyle: const TextStyle(color: _neonCyan),
                   labelStyle: const TextStyle(color: _textSecondary),
                   filled: true,
@@ -1320,36 +962,37 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               isSending
                   ? const Center(child: CircularProgressIndicator(color: _neonCyan))
                   : ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _neonCyan,
+                        foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () async {
-                        if (titleController.text.isEmpty || messageController.text.isEmpty) return;
+                        if (titleController.text.trim().isEmpty || messageController.text.trim().isEmpty) return;
                         setSheetState(() => isSending = true);
                         try {
-                          await AdminService().sendBroadcastNotification(
+                          await _adminService.sendBroadcastNotification(
                             titleController.text.trim(),
                             messageController.text.trim(),
                             targetUserId: targetIdController.text.trim().isEmpty ? null : targetIdController.text.trim(),
                           );
                           if (context.mounted) {
                             Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notification Sent via FCM'), backgroundColor: _neonCyan));
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notification Broadcast Sent'), backgroundColor: _neonCyan));
                           }
                         } catch (e) {
                           setSheetState(() => isSending = false);
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: _neonRed));
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Send Failed: $e'), backgroundColor: _neonRed));
                           }
                         }
                       },
-                      child: const Text('Send', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+                      child: const Text('Dispatch Notification', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
               const SizedBox(height: 24),
             ],

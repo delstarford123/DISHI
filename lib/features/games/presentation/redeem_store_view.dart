@@ -23,48 +23,39 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
 
   final List<Map<String, dynamic>> storeItems = [
     {
-      'id': 'cash_50',
-      'title': 'KES 50 DISHI Wallet Cash',
-      'desc': 'Convert 1,000 coins directly into KES 50 usable anywhere on DISHI!',
-      'icon': Icons.account_balance_wallet,
-      'cost': 1000,
-      'color': Colors.greenAccent,
-      'badge': 'MOST POPULAR 🔥',
-    },
-    {
-      'id': 'cash_100',
-      'title': 'KES 100 DISHI Wallet Cash',
-      'desc': 'Convert 2,000 coins into KES 100 real wallet balance for meals or delivery.',
-      'icon': Icons.monetization_on,
-      'cost': 2000,
+      'id': 'game_pass_bronze',
+      'title': 'Casual Game Unlock Pass',
+      'desc': 'Unlock any 1 Casual arcade game in the DISHI Games Hub permanently!',
+      'icon': Icons.sports_esports,
+      'cost': 400,
       'color': Colors.amberAccent,
-      'badge': 'BEST VALUE 💎',
+      'badge': 'CASUAL PASS 🎮',
     },
     {
-      'id': 'free_delivery',
-      'title': 'Free Peer Delivery Pass',
-      'desc': 'Waives delivery fee completely on your next campus order.',
-      'icon': Icons.two_wheeler,
-      'cost': 500,
-      'color': Colors.orangeAccent,
-      'badge': 'INSTANT',
-    },
-    {
-      'id': 'discount_10',
-      'title': '10% Meal Discount Voucher',
-      'desc': 'Save 10% on your next vendor order at any campus cafeteria.',
-      'icon': Icons.local_offer,
-      'cost': 750,
+      'id': 'game_pass_silver',
+      'title': 'Social & Matching Game Pass',
+      'desc': 'Unlock any 1 Social or Trivia game in the Games Hub permanently.',
+      'icon': Icons.favorite,
+      'cost': 800,
       'color': Colors.cyanAccent,
-      'badge': 'CAMPUS EATS',
+      'badge': 'PRO PASS ⚡',
+    },
+    {
+      'id': 'game_pass_gold',
+      'title': 'Tycoon & Strategy Game Pass',
+      'desc': 'Unlock top-tier simulation games (Dorm Tycoon or Scavenger Hunt).',
+      'icon': Icons.store,
+      'cost': 1500,
+      'color': Colors.purpleAccent,
+      'badge': 'MASTER PASS 🏆',
     },
     {
       'id': 'vip_badge',
-      'title': 'VIP Gold Platform Badge',
-      'desc': 'Exclusive gold VIP crest shown on your campus profile and leaderboard.',
+      'title': 'VIP Gold Arcade Badge',
+      'desc': 'Exclusive gold VIP crest shown on your campus profile and games leaderboard.',
       'icon': Icons.workspace_premium,
       'cost': 2500,
-      'color': Colors.purpleAccent,
+      'color': Colors.amber,
       'badge': 'STATUS 👑',
     },
   ];
@@ -72,7 +63,7 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
   Future<void> _purchaseItem(String itemId, String itemTitle, int cost, int currentCoins) async {
     if (currentCoins < cost) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Not enough Dishi Coins! Play games to earn more.'), backgroundColor: Colors.redAccent),
+        const SnackBar(content: Text('Not enough Arcade Coins! Play games to earn more.'), backgroundColor: Colors.redAccent),
       );
       return;
     }
@@ -102,33 +93,34 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
       // 2. Direct atomic Firestore transaction fallback
       if (!redeemedSuccessfully) {
         final userRef = FirebaseFirestore.instance.collection('users').doc(widget.userModel.uid);
-        final statsRef = FirebaseFirestore.instance.collection('user_game_stats').doc(widget.userModel.uid);
 
         await FirebaseFirestore.instance.runTransaction((tx) async {
           final snap = await tx.get(userRef);
           final coins = (snap.data()?['dishi_coins'] ?? 0) as int;
-          if (coins < cost) throw Exception('Insufficient Dishi Coins');
+          if (coins < cost) throw Exception('Insufficient Arcade Coins');
 
           final Map<String, dynamic> userUpdates = {
             'dishi_coins': coins - cost,
           };
 
-          if (itemId == 'cash_50') {
-            userUpdates['walletBalance'] = FieldValue.increment(50.0);
-          } else if (itemId == 'cash_100') {
-            userUpdates['walletBalance'] = FieldValue.increment(100.0);
-          } else if (itemId == 'vip_badge') {
+          if (itemId == 'vip_badge') {
             userUpdates['premium_badge'] = true;
             userUpdates['isVipBadge'] = true;
+          } else if (itemId == 'game_pass_bronze') {
+            final List<dynamic> cur = List.from(snap.data()?['unlocked_games'] ?? ['delivery_dash', 'daily_spin']);
+            if (!cur.contains('hungry_fresher')) cur.add('hungry_fresher');
+            userUpdates['unlocked_games'] = cur;
+          } else if (itemId == 'game_pass_silver') {
+            final List<dynamic> cur = List.from(snap.data()?['unlocked_games'] ?? ['delivery_dash', 'daily_spin']);
+            if (!cur.contains('bite_ninja')) cur.add('bite_ninja');
+            userUpdates['unlocked_games'] = cur;
+          } else if (itemId == 'game_pass_gold') {
+            final List<dynamic> cur = List.from(snap.data()?['unlocked_games'] ?? ['delivery_dash', 'daily_spin']);
+            if (!cur.contains('dorm_tycoon')) cur.add('dorm_tycoon');
+            userUpdates['unlocked_games'] = cur;
           }
 
           tx.update(userRef, userUpdates);
-
-          if (itemId == 'free_delivery') {
-            tx.set(statsRef, {'free_deliveries': FieldValue.increment(1)}, SetOptions(merge: true));
-          } else if (itemId == 'discount_10') {
-            tx.set(statsRef, {'discount_vouchers': FieldValue.increment(1)}, SetOptions(merge: true));
-          }
 
           final txDoc = FirebaseFirestore.instance.collection('transactions').doc();
           tx.set(txDoc, {
@@ -154,7 +146,7 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
             children: [
               Icon(Icons.stars, color: Colors.amber, size: 28),
               SizedBox(width: 8),
-              Text('Redeemed! 🎉', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Text('Unlocked! 🎉', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ],
           ),
           content: Column(
@@ -167,9 +159,7 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(color: _neonCyan.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
                 child: Text(
-                  itemId.startsWith('cash_')
-                      ? 'Funds credited directly to your DISHI Wallet balance!'
-                      : 'Reward active on your account! Check your dashboard/vouchers.',
+                  'Perk active! Return to Games Hub to play your unlocked games.',
                   style: TextStyle(color: _neonCyan, fontSize: 12),
                 ),
               ),
@@ -178,9 +168,12 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
           actions: [
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Awesome!', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-            )
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pop(context); // back to Games Hub
+              },
+              child: const Text('Go to Games Hub', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
           ],
         ),
       );
@@ -203,7 +196,7 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text('Redeem Store', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Arcade Game Store', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: _bgColor,
         foregroundColor: Colors.white,
       ),
@@ -220,7 +213,7 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
             children: [
               // Header Balance
               Container(
-                margin: const EdgeInsets.all(16),
+                margin: const EdgeInsets.fromLTRB(16, 16, 16, 10),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: _cardColor,
@@ -244,6 +237,30 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
                   ],
                 ),
               ),
+
+              // Policy Disclaimer Banner
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.amber.withOpacity(0.35)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.amber, size: 22),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'DISHI Arcade Coins are strictly virtual in-app tokens used exclusively to unlock games and arcade perks. They cannot be converted to real cash or used for meals.',
+                        style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.35),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
 
               // Store Items
               Expanded(

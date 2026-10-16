@@ -10,6 +10,7 @@ transaction_bp = Blueprint('transaction', __name__)
 
 VENDOR_SECRET = b"super-secret-vendor-key"
 
+@transaction_bp.route('/parent_transfer', methods=['POST'])
 @transaction_bp.route('/api/transactions/parent_transfer', methods=['POST'])
 def parent_to_student_transfer():
     try:
@@ -17,14 +18,18 @@ def parent_to_student_transfer():
         if not data:
             return jsonify({'error': 'Missing request body'}), 400
             
-        parent_uid = data.get('parentUid')
-        student_uid = data.get('studentUid')
-        amount = data.get('amount')
+        parent_uid = data.get('parentUid') or data.get('parent_uid') or data.get('senderUid')
+        student_uid = data.get('studentUid') or data.get('student_uid') or data.get('childUid') or data.get('receiverUid')
+        amount_raw = data.get('amount')
         
-        if not all([parent_uid, student_uid, amount]):
+        if not all([parent_uid, student_uid, amount_raw is not None]):
             return jsonify({'error': 'Missing required fields (parentUid, studentUid, amount)'}), 400
             
-        amount = float(amount)
+        try:
+            amount = float(amount_raw)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Amount must be a valid number'}), 400
+
         if amount <= 0:
             return jsonify({'error': 'Amount must be greater than 0'}), 400
             
@@ -38,26 +43,49 @@ def parent_to_student_transfer():
             student_snap = student_ref.get(transaction=transaction)
             
             if not parent_snap.exists:
-                return {'error': 'Parent not found'}, 404
+                return {'error': 'Parent account not found'}, 404
             if not student_snap.exists:
-                return {'error': 'Student not found'}, 404
+                return {'error': 'Student account not found'}, 404
                 
-            parent_data = parent_snap.to_dict()
-            parent_wallet = float(parent_data.get('walletBalance', 0.0))
+            parent_data = parent_snap.to_dict() or {}
+            student_data = student_snap.to_dict() or {}
+
+            parent_wallet = float(parent_data.get('walletBalance', 0.0) or 0.0)
+            parent_savings = float(parent_data.get('savingsBalance', 0.0) or 0.0)
+            parent_vault = float(parent_data.get('vaultBalance', 0.0) or 0.0)
             
-            if parent_wallet < amount:
-                return {'error': 'Insufficient funds in Parent Vault'}, 400
+            total_available = parent_savings + parent_vault + parent_wallet
+            
+            if total_available < amount:
+                return {'error': f'Insufficient funds in Family Vault. Available: Ksh {total_available:,.2f}'}, 400
                 
-            student_data = student_snap.to_dict()
-            student_wallet = float(student_data.get('walletBalance', 0.0))
+            student_wallet = float(student_data.get('walletBalance', 0.0) or 0.0)
             
-            transaction.update(parent_ref, {
-                'walletBalance': parent_wallet - amount
-            })
+            # Deduct in cascade: savingsBalance -> vaultBalance -> walletBalance
+            remaining_to_deduct = amount
+            parent_updates = {}
             
+            if parent_savings > 0:
+                deduct_savings = min(parent_savings, remaining_to_deduct)
+                parent_updates['savingsBalance'] = parent_savings - deduct_savings
+                remaining_to_deduct -= deduct_savings
+                
+            if remaining_to_deduct > 0 and parent_vault > 0:
+                deduct_vault = min(parent_vault, remaining_to_deduct)
+                parent_updates['vaultBalance'] = parent_vault - deduct_vault
+                remaining_to_deduct -= deduct_vault
+                
+            if remaining_to_deduct > 0 and parent_wallet > 0:
+                deduct_wallet = min(parent_wallet, remaining_to_deduct)
+                parent_updates['walletBalance'] = parent_wallet - deduct_wallet
+                remaining_to_deduct -= deduct_wallet
+                
+            transaction.update(parent_ref, parent_updates)
             transaction.update(student_ref, {
                 'walletBalance': student_wallet + amount
             })
+            
+            student_name = student_data.get('name') or student_data.get('displayName') or 'Student'
             
             tx_ref = db.collection('transactions').document()
             transaction.set(tx_ref, {
@@ -66,19 +94,40 @@ def parent_to_student_transfer():
                 'receiverUid': student_uid,
                 'amount': amount,
                 'timestamp': firestore.SERVER_TIMESTAMP,
-                'status': 'completed'
+                'status': 'completed',
+                'description': f'Family Vault transfer to {student_name}'
+            })
+
+            ledger_ref = db.collection('wallet_ledger').document()
+            transaction.set(ledger_ref, {
+                'type': 'parent_transfer',
+                'user_id': student_uid,
+                'sender_id': parent_uid,
+                'amount': amount,
+                'destination': 'walletBalance',
+                'timestamp': firestore.SERVER_TIMESTAMP
             })
             
-            return {'success': True, 'txId': tx_ref.id}
+            return {
+                'success': True,
+                'txId': tx_ref.id,
+                'transferred': amount,
+                'studentNewBalance': student_wallet + amount,
+                'message': f'Transferred Ksh {amount:,.2f} from Family Vault to {student_name}'
+            }
             
         result = run_transfer(db.transaction())
         
         if isinstance(result, tuple) and 'error' in result[0]:
             return jsonify(result[0]), result[1]
+        if isinstance(result, dict) and 'error' in result:
+            return jsonify(result), 400
             
         return jsonify(result), 200
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 # In-memory stores for mock logic

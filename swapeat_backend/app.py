@@ -83,6 +83,7 @@ from routes.support_routes import support_bp
 from routes.vendor_advanced import vendor_advanced_bp
 from routes.invite_routes import invite_bp
 from routes.admin_routes import admin_bp
+from routes.admin_payroll_routes import payroll_bp
 from routes.v2.housing_routes import housing_v2_bp
 from routes.v2.whatsapp_bot_routes import whatsapp_bot_bp
 from routes.v2.marketplace_routes import marketplace_v2_bp
@@ -135,6 +136,7 @@ app.register_blueprint(support_bp,          url_prefix='/api/v1/support')
 app.register_blueprint(vendor_advanced_bp,  url_prefix='/api/v1/vendor_advanced')
 app.register_blueprint(invite_bp,           url_prefix='/invite')
 app.register_blueprint(admin_bp,            url_prefix='/api/v1/admin')
+app.register_blueprint(payroll_bp,          url_prefix='/api/v1/admin')
 app.register_blueprint(housing_v2_bp,       url_prefix='/api/v2/housing')
 app.register_blueprint(deliv_v2_bp,         url_prefix='/api/v2/deliv')
 app.register_blueprint(whatsapp_bot_bp,     url_prefix='/v2')
@@ -168,7 +170,19 @@ app.register_blueprint(campus_gigs_v6_bp,   url_prefix='/api/v6/campus_gigs')
 app.register_blueprint(sos_notify_bp,        url_prefix='/api/v1/notify')
 app.register_blueprint(games_bp,             url_prefix='/api/v1/games')
 
+# ─── Legacy & Direct API Compatibility Endpoints ───────────────────────────────
+@app.route('/api/transactions/parent_transfer', methods=['POST'])
+@app.route('/api/v1/transaction/parent_transfer', methods=['POST'])
+def global_parent_transfer():
+    from routes.transaction_routes import parent_to_student_transfer
+    return parent_to_student_transfer()
 
+@app.route('/api/stk_push', methods=['POST'])
+@app.route('/api/mpesa/stk_push', methods=['POST'])
+@app.route('/api/v1/mpesa/stk_push', methods=['POST'])
+def global_stk_push():
+    from routes.mpesa_routes import trigger_stk_push
+    return trigger_stk_push()
 
 # ─── Health & Status routes ──────────────────────────────────────────────────────
 @app.route('/health')

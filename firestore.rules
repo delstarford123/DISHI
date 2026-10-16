@@ -258,8 +258,29 @@ service cloud.firestore {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 5. DELIV  (rides, drivers, requests, chats)
+    // 5. DELIV & DRIVERS  (rides, drivers, requests, chats, deliveries)
     // ─────────────────────────────────────────────────────────────────────────
+    match /drivers/{driverId} {
+      allow read: if isAuth();
+      allow write: if isSelf(driverId) || isAdmin();
+      match /{subcollection}/{docId} {
+        allow read, write: if isSelf(driverId) || isAdmin();
+      }
+    }
+    match /deliv_drivers/{driverId} {
+      allow read: if isAuth();
+      // Drivers manage their own doc; admin can manage all
+      allow write: if isSelf(driverId) || isAdmin();
+      match /{subcollection}/{docId} {
+        allow read, write: if isSelf(driverId) || isAdmin();
+      }
+    }
+    match /deliveries/{deliveryId} {
+      allow read, write: if isAuth();
+      match /{subcollection}/{docId} {
+        allow read, write: if isAuth();
+      }
+    }
     match /deliv_rides/{rideId} {
       allow read: if isAuth();
       allow create: if isAuth();
@@ -267,11 +288,9 @@ service cloud.firestore {
         (request.auth.uid == resource.data.driver_id ||
          request.auth.uid == resource.data.student_id ||
          isAdmin());
-    }
-    match /deliv_drivers/{driverId} {
-      allow read: if isAuth();
-      // Drivers manage their own doc; admin can manage all
-      allow write: if isSelf(driverId) || isAdmin();
+      match /{subcollection}/{docId} {
+        allow read, write: if isAuth();
+      }
     }
     match /deliv_requests/{reqId} {
       allow read: if isAuth();
@@ -280,18 +299,22 @@ service cloud.firestore {
         (resource == null ||
          request.auth.uid == resource.data.student_id ||
          request.auth.uid == resource.data.driver_id ||
+         request.auth.uid == resource.data.driverId ||
          isAdmin());
+      match /{subcollection}/{docId} {
+        allow read, write: if isAuth();
+      }
     }
     match /deliv_chats/{chatId} {
       allow read, write: if isAuth();
-      match /messages/{messageId} {
+      match /{subcollection}/{docId} {
         allow read, write: if isAuth();
       }
     }
     // Generic chat collection (match feature & DeLiv share this)
     match /chats/{chatId} {
       allow read, write: if isAuth();
-      match /messages/{messageId} {
+      match /{subcollection}/{docId} {
         allow read, write: if isAuth();
       }
     }
@@ -634,8 +657,19 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
     match /sos_alerts/{alertId} {
+      allow read: if isAuth();
       allow create: if isAuth();
-      allow read, update, delete: if isAdmin();
+      allow update, delete: if isAuth() &&
+        (resource == null ||
+         resource.data.driverId == request.auth.uid ||
+         resource.data.driver_id == request.auth.uid ||
+         resource.data.studentUid == request.auth.uid ||
+         resource.data.userId == request.auth.uid ||
+         resource.data.uid == request.auth.uid ||
+         isAdmin());
+      match /{subcollection}/{docId} {
+        allow read, write: if isAuth();
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -679,6 +713,9 @@ service cloud.firestore {
     // ─────────────────────────────────────────────────────────────────────────
     match /fundi_profiles/{userId} {
       allow read, write: if isAuth();
+      match /{subcollection}/{docId} {
+        allow read, write: if isAuth();
+      }
     }
     match /fundi_jobs/{jobId} {
       allow read: if isAuth();
@@ -1127,5 +1164,73 @@ service cloud.firestore {
     match /wallets/{walletId} {
       allow read, write: if isAuth();
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 33. DELIV GIGS & COURIER FLEET
+    // ─────────────────────────────────────────────────────────────────────────
+    match /deliv_requests/{requestId} {
+      // Drivers, students, and requesters can read open, active, and completed requests
+      allow read: if isAuth();
+      // Any authenticated student/user can broadcast a gig or errand
+      allow create: if isAuth();
+      // Couriers can accept open gigs, advance stages (pickup, transit, delivered), or reject gigs;
+      // students/requesters can update their own errand details
+      allow update: if isAuth();
+      // Requesters can cancel/delete their own errand, or admins can delete
+      allow delete: if isAdmin() || (isAuth() && (resource.data.postedBy == request.auth.uid || resource.data.user_id == request.auth.uid || resource.data.userId == request.auth.uid));
+      match /{subcol=**} {
+        allow read, write: if isAuth();
+      }
+    }
+
+    match /deliv_rides/{rideId} {
+      allow read, write: if isAuth();
+      match /{subcol=**} {
+        allow read, write: if isAuth();
+      }
+    }
+
+    match /drivers/{driverId} {
+      allow read: if isAuth();
+      allow write: if isSelf(driverId) || isAdmin();
+      match /{subcol=**} {
+        allow read, write: if isSelf(driverId) || isAdmin();
+      }
+    }
+
+    match /deliv_drivers/{driverId} {
+      allow read: if isAuth();
+      allow write: if isSelf(driverId) || isAdmin();
+      match /{subcol=**} {
+        allow read, write: if isSelf(driverId) || isAdmin();
+      }
+    }
+
+    match /transport_sessions/{sessionId} {
+      allow read, write: if isAuth();
+    }
+
+    match /sos_alerts/{alertId} {
+      allow read, write: if isAuth();
+    }
+
+    // ── EMPLOYEE MANAGEMENT & PAYROLL ─────────────────────────────────────────
+    match /employees/{employeeId} {
+      allow read, write: if isAdmin();
+    }
+    match /payroll_batches/{batchId} {
+      allow read, write: if isAdmin();
+    }
+    match /payroll_slips/{slipId} {
+      allow read: if isAuth() && (resource.data.employee_id == request.auth.uid || resource.data.uid == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+    match /b2b_transfers/{transferId} {
+      allow read, write: if isAdmin();
+    }
+    match /c2b_collections/{collectionId} {
+      allow read, write: if isAdmin();
+    }
   }
 }
+

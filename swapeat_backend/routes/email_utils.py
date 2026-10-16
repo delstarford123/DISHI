@@ -461,3 +461,135 @@ def campus_gig_accepted_email(requester_name: str, worker_name: str, category: s
       </div>
     """
     return subject, _base_template(content, preheader=f"{w_name} has accepted your {category} gig request!")
+
+
+def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: str, user_id: str = None, otp_code: str = None) -> tuple:
+    """
+    Sends email via available channels in priority order:
+    1. Resend HTTP API (Port 443 HTTPS - Vercel Native, no socket blocking)
+    2. Brevo HTTP API (Port 443 HTTPS)
+    3. Direct SMTP (Port 465 SSL or Port 587 TLS with strict 5s timeout)
+    4. In-App Notification (Firestore)
+    Returns: (success: bool, delivery_method: str)
+    """
+    import os
+    import requests
+    import smtplib
+    import ssl
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    # ── 1. Resend HTTP API (Vercel Native over HTTPS) ───────────
+    resend_key = os.getenv('RESEND_API_KEY')
+    if resend_key:
+        try:
+            from_sender = os.getenv('RESEND_FROM', 'DISHI Security <onboarding@resend.dev>')
+            resp = requests.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {resend_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "from": from_sender,
+                    "to": [to],
+                    "subject": subject,
+                    "html": html_body,
+                    "text": plain_body
+                },
+                timeout=8
+            )
+            if resp.status_code in [200, 201]:
+                print(f"[EmailEngine] Dispatched successfully via Resend to {to}")
+                return True, "Resend HTTP API"
+            else:
+                print(f"[EmailEngine] Resend returned {resp.status_code}: {resp.text}")
+        except Exception as e:
+            print(f"[EmailEngine] Resend attempt error: {e}")
+
+    # ── 2. Brevo HTTP API (Port 443 HTTPS) ──────────────────────
+    brevo_key = os.getenv('BREVO_API_KEY')
+    if brevo_key:
+        try:
+            sender_email = os.getenv('MAIL_DEFAULT_SENDER', 'dishi@delstarfordworks.co.ke')
+            resp = requests.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={
+                    "api-key": brevo_key,
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "sender": {"name": "DISHI Support", "email": sender_email},
+                    "to": [{"email": to}],
+                    "subject": subject,
+                    "htmlContent": html_body,
+                    "textContent": plain_body
+                },
+                timeout=8
+            )
+            if resp.status_code in [200, 201]:
+                print(f"[EmailEngine] Dispatched successfully via Brevo to {to}")
+                return True, "Brevo HTTP API"
+            else:
+                print(f"[EmailEngine] Brevo returned {resp.status_code}: {resp.text}")
+        except Exception as e:
+            print(f"[EmailEngine] Brevo attempt error: {e}")
+
+    # ── 3. SMTP (with strict 5s timeout to prevent hanging on Vercel) ──
+    mail_server = os.getenv('MAIL_SERVER', '')
+    if mail_server:
+        try:
+            mail_port = int(os.getenv('MAIL_PORT', '465'))
+            use_ssl = os.getenv('MAIL_USE_SSL', 'True').lower() in ['true', '1', 't']
+            username = os.getenv('MAIL_USERNAME', '')
+            password = os.getenv('MAIL_PASSWORD', '')
+            sender = os.getenv('MAIL_DEFAULT_SENDER', username or 'dishi@delstarfordworks.co.ke')
+
+            msg = MIMEMultipart("alternative")
+            msg['Subject'] = subject
+            msg['From'] = sender
+            msg['To'] = to
+            msg.attach(MIMEText(plain_body, 'plain'))
+            msg.attach(MIMEText(html_body, 'html'))
+
+            if use_ssl:
+                context = ssl.create_default_context()
+                with smtplib.SMTP_SSL(mail_server, mail_port, context=context, timeout=5) as s:
+                    if username and password:
+                        s.login(username, password)
+                    s.sendmail(sender, [to], msg.as_string())
+                    print(f"[EmailEngine] Dispatched successfully via SMTP SSL ({mail_server}) to {to}")
+                    return True, f"SMTP SSL ({mail_server})"
+            else:
+                context = ssl.create_default_context()
+                with smtplib.SMTP(mail_server, mail_port, timeout=5) as s:
+                    s.starttls(context=context)
+                    if username and password:
+                        s.login(username, password)
+                    s.sendmail(sender, [to], msg.as_string())
+                    print(f"[EmailEngine] Dispatched successfully via SMTP TLS ({mail_server}) to {to}")
+                    return True, f"SMTP TLS ({mail_server})"
+        except Exception as e:
+            print(f"[EmailEngine] SMTP ({mail_server}:{os.getenv('MAIL_PORT', '465')}) timed out or failed: {e}")
+
+    # ── 4. In-App Notification (Firestore) ──────────────────────
+    if user_id:
+        try:
+            from firebase_admin import firestore
+            db = firestore.client()
+            db.collection('notifications').add({
+                'title': subject,
+                'message': f"Your verification code is: {otp_code} (expires in 10 minutes).",
+                'targetUserId': user_id,
+                'type': 'pin_reset_otp',
+                'createdAt': firestore.SERVER_TIMESTAMP,
+                'readBy': [],
+                'dismissedBy': []
+            })
+            print(f"[EmailEngine] In-app notification created for user {user_id}")
+            return True, "In-App Notification"
+        except Exception as e:
+            print(f"[EmailEngine] In-App notification error: {e}")
+
+    return False, "All channels failed or timed out"
+

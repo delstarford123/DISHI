@@ -93,17 +93,24 @@ def _notify_parent(db, student_id: str, message_body: str):
 # ─────────────────────────────────────────────────────────────────────────────
 
 @mpesa_bp.route('/stkpush', methods=['POST'])
+@mpesa_bp.route('/stk_push', methods=['POST'])
 def trigger_stk_push():
     data = request.json or {}
 
-    phone_number   = data.get('phone_number', '').strip()
+    phone_number   = (data.get('phone_number') or data.get('phone') or '').strip()
     amount         = data.get('amount')           # Amount charged (including fee)
     credit_amount  = data.get('credit_amount', amount)   # Amount actually credited
-    user_id        = data.get('user_id', '').strip()
-    destination    = data.get('destination', 'walletBalance')
+    user_id        = (data.get('user_id') or data.get('uid') or data.get('student_uid') or data.get('studentUid') or data.get('account_reference') or '').strip()
+    destination    = data.get('destination')
     account_reference = data.get('account_reference')
     transaction_desc  = data.get('transaction_desc')
-    metadata       = data.get('metadata', {})
+    metadata       = data.get('metadata') or {}
+
+    if not destination:
+        if metadata.get('action') == 'fund_vault':
+            destination = 'savingsBalance'
+        else:
+            destination = 'walletBalance'
 
     # ── Validate ──────────────────────────────────────────────────
     missing = []
@@ -133,7 +140,7 @@ def trigger_stk_push():
     if amount_int <= 0:
         return jsonify({"error": "Amount must be greater than 0."}), 400
 
-    # ── Verify the student/child document exists before charging ──
+    # ── Verify the student/child/parent document exists before charging ──
     try:
         db = firestore.client()
         
@@ -144,27 +151,27 @@ def trigger_stk_push():
             if idem_doc.exists:
                 return jsonify(idem_doc.to_dict().get('response', {})), 200
 
-        # 2. Rate Limiting (Spam Protection)
-        # Check if this phone number initiated an STK push in the last 30 seconds
-        cutoff_time = datetime.utcnow().timestamp() - 30
-        recent_txs = db.collection('mpesa_transactions') \
-                       .where('phone', '==', formatted_phone) \
-                       .order_by('timestamp', direction=firestore.Query.DESCENDING) \
-                       .limit(1).get()
-        if recent_txs:
-            last_tx = recent_txs[0].to_dict()
-            last_ts = last_tx.get('timestamp')
-            if last_ts:
-                # Firestore timestamp to python seconds
-                if hasattr(last_ts, 'timestamp'):
-                    last_ts_sec = last_ts.timestamp()
-                else:
-                    last_ts_sec = last_ts
-                if last_ts_sec > cutoff_time:
-                    return jsonify({"error": "Please wait 30 seconds before trying again."}), 429
+        # 2. Rate Limiting (Spam Protection) - safely queries without composite index requirement
+        try:
+            cutoff_time = datetime.utcnow().timestamp() - 30
+            recent_txs = db.collection('mpesa_transactions') \
+                           .where('phone', '==', formatted_phone) \
+                           .limit(5).get()
+            for doc in recent_txs:
+                last_tx = doc.to_dict()
+                last_ts = last_tx.get('timestamp')
+                if last_ts:
+                    if hasattr(last_ts, 'timestamp'):
+                        last_ts_sec = last_ts.timestamp()
+                    else:
+                        last_ts_sec = float(last_ts)
+                    if last_ts_sec > cutoff_time:
+                        return jsonify({"error": "Please wait 30 seconds before trying again."}), 429
+        except Exception as rl_err:
+            print(f"Non-fatal rate limit warning: {rl_err}")
                     
         user_doc = db.collection('users').document(user_id).get()
-        if not user_doc.exists and not is_community_support and action != 'harambee_donate':
+        if not user_doc.exists and not is_community_support and action not in ['harambee_donate', 'fund_vault']:
             return jsonify({"error": f"No user found with ID '{user_id}'. Please check the student ID."}), 404
     except Exception as e:
         print(f"Firestore lookup error: {e}")

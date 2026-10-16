@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/services/admin_service.dart';
 
 class FraudVelocityView extends StatefulWidget {
@@ -38,18 +37,20 @@ class _FraudVelocityViewState extends State<FraudVelocityView> {
   void _takeAction(String userId, String action) async {
     try {
       if (action == 'Shadow Ban') {
-        // Suspend user API call
-        // Assuming AdminService has suspendUser or we can hit it directly
-        // For now just show a message, real integration requires suspend endpoint wrapper in AdminService
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Action "\$action" executed against \$userId. (Call suspend API)')));
+        await AdminService().suspendUser(userId, 'Wash trading & fraud velocity violation');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Account for $userId suspended successfully'), backgroundColor: Colors.green));
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Action "\$action" executed against \$userId')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Flag for $userId dismissed')));
       }
       setState(() {
         _flaggedUsers.removeWhere((v) => v['user_id'] == userId);
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error taking action: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error taking action: $e')));
+      }
     }
   }
 

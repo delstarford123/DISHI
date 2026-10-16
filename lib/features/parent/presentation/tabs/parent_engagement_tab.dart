@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/mpesa_theme.dart';
+import '../../../../core/theme/mpesa_theme.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../document_vault_view.dart';
 
-const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
-const Color _surfaceLight = Color(0xFF1A2235);
 const Color _neonCyan = Color(0xFF05D5AA);
 const Color _neonBlue = Color(0xFF3B82F6);
 const Color _neonOrange = Color(0xFFFF6F00);
@@ -12,10 +11,14 @@ const Color _neonPink = Color(0xFFF92B60);
 const Color _textSecondary = Color(0xFF8B9BB4);
 
 class ParentEngagementTab extends StatelessWidget {
-  const ParentEngagementTab({super.key});
+  final Map<String, dynamic>? user;
+
+  const ParentEngagementTab({super.key, this.user});
 
   @override
   Widget build(BuildContext context) {
+    final parentUser = user ?? {'uid': FirebaseAuth.instance.currentUser?.uid ?? ''};
+
     return SliverPadding(
       padding: const EdgeInsets.all(16.0),
       sliver: SliverList(
@@ -45,7 +48,7 @@ class ParentEngagementTab extends StatelessWidget {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('App Themes coming soon')));
               }),
               _buildActionGridButton(context, Icons.folder_shared, 'ID & Document Vault', Colors.tealAccent, () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const DocumentVaultView()));
+                Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentVaultView(user: parentUser)));
               }),
               _buildActionGridButton(context, Icons.event, 'Family Calendar', Colors.amberAccent, () {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Family Calendar coming soon')));

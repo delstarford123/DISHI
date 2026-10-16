@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify
 from firebase_admin import firestore
 import os
+import uuid
+import datetime
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -24,12 +26,14 @@ def verify_admin(req):
             from firebase_admin import auth
             decoded = auth.verify_id_token(token)
             uid = decoded['uid']
+            db = firestore.client()
             user_doc = db.collection('users').document(uid).get()
             if user_doc.exists:
                 u_data = user_doc.to_dict() or {}
                 if (u_data.get('role') == 'admin' or 
                     'admin' in u_data.get('roles', []) or 
-                    u_data.get('isAdmin') is True):
+                    u_data.get('isAdmin') is True or
+                    decoded.get('admin') is True):
                     return uid
         except Exception as e:
             print(f"Admin auth error: {e}")
@@ -286,6 +290,147 @@ def suspend_user(user_id):
         })
         log_admin_action(admin_id, 'suspend_user', {'target_user_id': user_id, 'reason': reason})
         return jsonify({'message': f'User suspended successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/users/<user_id>/unsuspend', methods=['POST'])
+def unsuspend_user(user_id):
+    admin_id = verify_admin(request)
+    if not admin_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        from firebase_admin import auth
+        db = firestore.client()
+        user_ref = db.collection('users').document(user_id)
+        if not user_ref.get().exists:
+            return jsonify({'error': 'User not found'}), 404
+
+        try:
+            auth.update_user(user_id, disabled=False)
+        except Exception as e:
+            print(f"Error enabling auth for {user_id}: {e}")
+
+        user_ref.update({
+            'status': 'active',
+            'suspension_reason': firestore.DELETE_FIELD,
+            'unsuspended_at': firestore.SERVER_TIMESTAMP,
+            'unsuspended_by': admin_id
+        })
+        log_admin_action(admin_id, 'unsuspend_user', {'target_user_id': user_id})
+        return jsonify({'message': 'User reactivated successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/users/<user_id>/role', methods=['POST'])
+def update_user_role(user_id):
+    admin_id = verify_admin(request)
+    if not admin_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        data = request.json or {}
+        new_role = data.get('role', '').lower().strip()
+        allowed_roles = ['student', 'vendor', 'admin', 'driver', 'caretaker', 'fundi', 'parent']
+        if new_role not in allowed_roles:
+            return jsonify({'error': f'Invalid role. Allowed: {", ".join(allowed_roles)}'}), 400
+
+        db = firestore.client()
+        user_ref = db.collection('users').document(user_id)
+        u_doc = user_ref.get()
+        if not u_doc.exists:
+            return jsonify({'error': 'User not found'}), 404
+
+        u_data = u_doc.to_dict() or {}
+        roles = list(set((u_data.get('roles') or []) + [new_role]))
+
+        user_ref.update({
+            'role': new_role,
+            'roles': roles,
+            'isAdmin': True if new_role == 'admin' else u_data.get('isAdmin', False),
+            'role_updated_at': firestore.SERVER_TIMESTAMP,
+            'role_updated_by': admin_id
+        })
+
+        # Set custom claims in Firebase Auth if needed
+        try:
+            from firebase_admin import auth
+            auth.set_custom_user_claims(user_id, {'admin': (new_role == 'admin'), 'role': new_role})
+        except Exception as e:
+            print(f"Error setting custom claims for {user_id}: {e}")
+
+        log_admin_action(admin_id, 'update_user_role', {'target_user_id': user_id, 'new_role': new_role})
+        return jsonify({'message': f'User role updated to {new_role}', 'role': new_role, 'roles': roles}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/users/<user_id>/reset_pin', methods=['POST'])
+def reset_user_pin(user_id):
+    admin_id = verify_admin(request)
+    if not admin_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        db = firestore.client()
+        user_ref = db.collection('users').document(user_id)
+        if not user_ref.get().exists:
+            return jsonify({'error': 'User not found'}), 404
+
+        user_ref.update({
+            'force_pin_reset': True,
+            'pin_failed_attempts': 0,
+            'pin_locked_until': firestore.DELETE_FIELD,
+            'pin_reset_by': admin_id,
+            'pin_reset_at': firestore.SERVER_TIMESTAMP
+        })
+        log_admin_action(admin_id, 'reset_user_pin', {'target_user_id': user_id})
+        return jsonify({'message': f'Security PIN reset triggered for user'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/users/<user_id>/adjust_balance', methods=['POST'])
+def adjust_user_balance(user_id):
+    admin_id = verify_admin(request)
+    if not admin_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        data = request.json or {}
+        amount = data.get('amount')
+        reason = data.get('reason', 'Admin balance correction')
+        if amount is None or not isinstance(amount, (int, float)):
+            return jsonify({'error': 'Valid amount number required'}), 400
+
+        db = firestore.client()
+        user_ref = db.collection('users').document(user_id)
+        
+        @firestore.transactional
+        def adjust_tx(transaction, u_ref):
+            snap = u_ref.get(transaction=transaction)
+            if not snap.exists:
+                raise Exception("User not found")
+            current = float(snap.to_dict().get('walletBalance', 0))
+            new_bal = current + float(amount)
+            if new_bal < 0:
+                raise Exception(f"Balance cannot become negative (current: {current}, adjustment: {amount})")
+            transaction.update(u_ref, {'walletBalance': new_bal})
+
+            tx_ref = db.collection('transactions').document()
+            transaction.set(tx_ref, {
+                'user_id': user_id,
+                'uid': user_id,
+                'amount': abs(float(amount)),
+                'type': 'Admin Credit' if float(amount) >= 0 else 'Admin Debit',
+                'description': f'Admin adjustment: {reason}',
+                'reason': reason,
+                'admin_id': admin_id,
+                'previous_balance': current,
+                'new_balance': new_bal,
+                'timestamp': firestore.SERVER_TIMESTAMP,
+                'status': 'completed'
+            })
+            return new_bal
+
+        tx = db.transaction()
+        new_balance = adjust_tx(tx, user_ref)
+        log_admin_action(admin_id, 'adjust_balance', {'target_user_id': user_id, 'amount': amount, 'reason': reason, 'new_balance': new_balance})
+        return jsonify({'message': f'Wallet adjusted by {amount}. New balance: {new_balance}', 'new_balance': new_balance}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1166,4 +1311,300 @@ def notify_delivery_party():
         return jsonify({'message': 'Notification sent successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ==========================================
+# PHASE 7: DATABASE HEALTH, SECURITY & MPESA RECONCILIATION
+# ==========================================
+
+@admin_bp.route('/database/health', methods=['GET'])
+def get_database_health():
+    admin_id = verify_admin(request)
+    if not admin_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        db = firestore.client()
+        start_time = datetime.datetime.now()
+
+        # Measure connection latency with a lightweight ping
+        db.collection('system_settings').document('platform_config').get()
+        latency_ms = int((datetime.datetime.now() - start_time).total_seconds() * 1000)
+
+        # Collection document counts (approximate or direct counts)
+        def get_count(col_name):
+            try:
+                return db.collection(col_name).count().get()[0][0].value
+            except:
+                return len(db.collection(col_name).limit(50).get())
+
+        counts = {
+            'users': get_count('users'),
+            'orders': get_count('orders'),
+            'transactions': get_count('transactions'),
+            'mpesa_transactions': get_count('mpesa_transactions'),
+            'disputes': get_count('disputes'),
+            'support_tickets': get_count('support_tickets'),
+            'deliv_requests': get_count('deliv_requests'),
+            'harambee_campaigns': get_count('harambee_campaigns'),
+            'campus_feed': get_count('campus_feed'),
+            'danger_zones': get_count('danger_zones'),
+            'admin_action_logs': get_count('admin_action_logs'),
+        }
+
+        # Registered composite indexes status checklist
+        registered_indexes = [
+            {'collection': 'orders', 'fields': 'student_id ASC, pickupTime ASC', 'status': 'ACTIVE'},
+            {'collection': 'orders', 'fields': 'vendorUid ASC, timestamp DESC', 'status': 'ACTIVE'},
+            {'collection': 'transactions', 'fields': 'vendor_id ASC, timestamp DESC', 'status': 'ACTIVE'},
+            {'collection': 'transactions', 'fields': 'student_id ASC, timestamp DESC', 'status': 'ACTIVE'},
+            {'collection': 'deliv_rides', 'fields': 'driver_id ASC, status ASC, timestamp DESC', 'status': 'ACTIVE'},
+            {'collection': 'keja_cooking', 'fields': 'status ASC, created_at DESC', 'status': 'ACTIVE'},
+            {'collection': 'maintenance_tickets', 'fields': 'student_id ASC, room_id ASC, created_at DESC', 'status': 'ACTIVE'},
+            {'collection': 'deliv_requests', 'fields': 'student_id ASC, status ASC', 'status': 'ACTIVE'},
+            {'collection': 'vendor_kds_orders', 'fields': 'studentId ASC, delivery_status ASC', 'status': 'ACTIVE'},
+            {'collection': 'support_tickets', 'fields': 'status ASC, created_at DESC', 'status': 'ACTIVE'},
+            {'collection': 'mpesa_transactions', 'fields': 'user_id ASC, timestamp DESC', 'status': 'ACTIVE'},
+            {'collection': 'admin_action_logs', 'fields': 'timestamp DESC', 'status': 'ACTIVE'}
+        ]
+
+        return jsonify({
+            'status': 'HEALTHY' if latency_ms < 1200 else 'DEGRADED',
+            'latency_ms': latency_ms,
+            'counts': counts,
+            'indexes': registered_indexes,
+            'timestamp': datetime.datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e), 'status': 'ERROR'}), 500
+
+@admin_bp.route('/security/emergency_action', methods=['POST'])
+def trigger_emergency_action():
+    admin_id = verify_admin(request)
+    if not admin_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        data = request.json or {}
+        action = data.get('action') # 'LOCKDOWN', 'RESTORE', 'FREEZE_PAYOUTS', 'UNFREEZE_PAYOUTS', 'PAUSE_ORDERS', 'RESUME_ORDERS'
+        reason = data.get('reason', 'Administrative emergency command')
+        
+        db = firestore.client()
+        cfg_ref = db.collection('system_settings').document('platform_config')
+        
+        updates = {'updated_at': firestore.SERVER_TIMESTAMP, 'last_security_admin': admin_id}
+        
+        if action == 'LOCKDOWN':
+            updates['maintenance_mode'] = True
+            updates['payouts_frozen'] = True
+            updates['ordering_paused'] = True
+            updates['lockdown_reason'] = reason
+        elif action == 'RESTORE':
+            updates['maintenance_mode'] = False
+            updates['payouts_frozen'] = False
+            updates['ordering_paused'] = False
+            updates['lockdown_reason'] = firestore.DELETE_FIELD
+        elif action == 'FREEZE_PAYOUTS':
+            updates['payouts_frozen'] = True
+        elif action == 'UNFREEZE_PAYOUTS':
+            updates['payouts_frozen'] = False
+        elif action == 'PAUSE_ORDERS':
+            updates['ordering_paused'] = True
+        elif action == 'RESUME_ORDERS':
+            updates['ordering_paused'] = False
+        else:
+            return jsonify({'error': f'Invalid emergency action: {action}'}), 400
+
+        cfg_ref.set(updates, merge=True)
+        log_admin_action(admin_id, f'EMERGENCY_{action}', {'reason': reason, 'updates': str(updates)})
+
+        return jsonify({'message': f'Emergency action {action} executed successfully', 'action': action}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/security/status', methods=['GET'])
+def get_security_status():
+    admin_id = verify_admin(request)
+    if not admin_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        db = firestore.client()
+        cfg_doc = db.collection('system_settings').document('platform_config').get()
+        cfg = cfg_doc.to_dict() or {} if cfg_doc.exists else {}
+
+        # Recent security logs
+        logs_docs = db.collection('admin_action_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(10).get()
+        recent_logs = []
+        for l in logs_docs:
+            ld = l.to_dict()
+            if 'timestamp' in ld and hasattr(ld['timestamp'], 'isoformat'):
+                ld['timestamp'] = ld['timestamp'].isoformat()
+            else:
+                ld['timestamp'] = str(ld.get('timestamp'))
+            ld['id'] = l.id
+            recent_logs.append(ld)
+
+        # Flagged threats count
+        flagged_count = 0
+        try:
+            flagged_count = db.collection('mpesa_transactions').where('status', '==', 'failed').count().get()[0][0].value
+        except: pass
+
+        is_maintenance = cfg.get('maintenance_mode', False)
+        is_frozen = cfg.get('payouts_frozen', False)
+        threat_level = 'CRITICAL' if (is_maintenance or is_frozen) else ('ELEVATED' if flagged_count > 5 else 'NORMAL')
+
+        return jsonify({
+            'maintenance_mode': is_maintenance,
+            'payouts_frozen': is_frozen,
+            'ordering_paused': cfg.get('ordering_paused', False),
+            'threat_level': threat_level,
+            'flagged_count': flagged_count,
+            'lockdown_reason': cfg.get('lockdown_reason'),
+            'recent_logs': recent_logs
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/mpesa/query_transaction', methods=['POST'])
+def query_mpesa_transaction():
+    admin_id = verify_admin(request)
+    if not admin_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        data = request.json or {}
+        query = data.get('query', '').strip()
+        if not query:
+            return jsonify({'error': 'Search query required'}), 400
+
+        db = firestore.client()
+        results = []
+
+        # 1. Search by document ID (often CheckoutRequestID)
+        doc = db.collection('mpesa_transactions').document(query).get()
+        if doc.exists:
+            d = doc.to_dict()
+            d['id'] = doc.id
+            results.append(d)
+
+        # 2. Search by receipt number
+        if not results:
+            docs = db.collection('mpesa_transactions').where('mpesa_receipt_number', '==', query.upper()).limit(5).get()
+            for d in docs:
+                item = d.to_dict()
+                item['id'] = d.id
+                results.append(item)
+
+        # 3. Search by MpesaReceiptNumber (alternate field)
+        if not results:
+            docs = db.collection('mpesa_transactions').where('MpesaReceiptNumber', '==', query.upper()).limit(5).get()
+            for d in docs:
+                item = d.to_dict()
+                item['id'] = d.id
+                results.append(item)
+
+        # 4. Search by phone number
+        if not results and query.isdigit():
+            docs = db.collection('mpesa_transactions').where('phone_number', '==', query).limit(5).get()
+            for d in docs:
+                item = d.to_dict()
+                item['id'] = d.id
+                results.append(item)
+
+        # 5. Search in ledger transactions if still not found
+        if not results:
+            tx_doc = db.collection('transactions').document(query).get()
+            if tx_doc.exists:
+                t = tx_doc.to_dict()
+                t['id'] = tx_doc.id
+                results.append(t)
+
+        # Format timestamps
+        for r in results:
+            if 'timestamp' in r and hasattr(r['timestamp'], 'isoformat'):
+                r['timestamp'] = r['timestamp'].isoformat()
+            else:
+                r['timestamp'] = str(r.get('timestamp'))
+
+        return jsonify({'results': results, 'count': len(results)}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/mpesa/manual_credit', methods=['POST'])
+def manual_credit_mpesa():
+    admin_id = verify_admin(request)
+    if not admin_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        data = request.json or {}
+        checkout_id = data.get('checkout_id')
+        user_id = data.get('user_id')
+        amount = float(data.get('amount', 0))
+        receipt = data.get('receipt', '').strip().upper()
+        reason = data.get('reason', 'Manual M-PESA reconciliation by Admin')
+
+        if not user_id or amount <= 0:
+            return jsonify({'error': 'Valid user_id and amount > 0 required'}), 400
+
+        db = firestore.client()
+        user_ref = db.collection('users').document(user_id)
+        if not user_ref.get().exists:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Check duplicate receipt credit
+        if receipt:
+            credited_docs = db.collection('transactions').where('receipt', '==', receipt).where('type', '==', 'topup').get()
+            if len(credited_docs) > 0:
+                return jsonify({'error': f'Receipt {receipt} has already been credited!'}), 400
+
+        @firestore.transactional
+        def do_credit(transaction):
+            snap = user_ref.get(transaction=transaction)
+            current_bal = float(snap.to_dict().get('walletBalance', 0))
+            new_bal = current_bal + amount
+            transaction.update(user_ref, {'walletBalance': new_bal})
+
+            # Create transaction record
+            tx_ref = db.collection('transactions').document()
+            transaction.set(tx_ref, {
+                'user_id': user_id,
+                'uid': user_id,
+                'amount': amount,
+                'type': 'topup',
+                'description': f'M-PESA Manual Credit ({receipt or "No Receipt"})',
+                'receipt': receipt,
+                'status': 'completed',
+                'credited_by': admin_id,
+                'reason': reason,
+                'timestamp': firestore.SERVER_TIMESTAMP,
+                'previous_balance': current_bal,
+                'new_balance': new_bal
+            })
+
+            # Mark in mpesa_transactions if checkout_id provided
+            if checkout_id:
+                m_ref = db.collection('mpesa_transactions').document(checkout_id)
+                if m_ref.get(transaction=transaction).exists:
+                    transaction.update(m_ref, {
+                        'status': 'completed',
+                        'manually_credited': True,
+                        'credited_by': admin_id,
+                        'credited_at': firestore.SERVER_TIMESTAMP
+                    })
+            return new_bal
+
+        tx = db.transaction()
+        new_balance = do_credit(tx)
+        log_admin_action(admin_id, 'manual_mpesa_credit', {
+            'target_user_id': user_id,
+            'amount': amount,
+            'receipt': receipt,
+            'reason': reason,
+            'new_balance': new_balance
+        })
+
+        return jsonify({
+            'message': f'Successfully credited KES {amount} to user {user_id}. New balance: {new_balance}',
+            'new_balance': new_balance
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 

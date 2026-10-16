@@ -122,16 +122,30 @@ def accept_request():
         if not doc.exists:
             return jsonify({"error": "Request not found"}), 404
             
-        if doc.to_dict().get('status') != 'pending':
+        current_status = doc.to_dict().get('status')
+        if current_status not in ['pending', 'open']:
             return jsonify({"error": "Request is no longer available"}), 400
             
-        req_ref.update({
+        update_data = {
             'status': 'accepted',
+            'stage': 'en_route_pickup',
+            'driverId': driver_id,
             'driver_id': driver_id,
-            'price': float(price),
-            'eta': eta,
+            'driverName': data.get('driver_name', 'Courier'),
+            'driverPhone': data.get('driver_phone', ''),
+            'driverVehicle': data.get('driver_vehicle', 'boda'),
+            'acceptedAt': firestore.SERVER_TIMESTAMP,
             'updated_at': firestore.SERVER_TIMESTAMP
-        })
+        }
+        if price:
+            try:
+                update_data['price'] = float(price)
+            except Exception:
+                pass
+        if eta:
+            update_data['eta'] = eta
+            
+        req_ref.update(update_data)
         
         driver_ref = db.collection('deliv_drivers').document(driver_id)
         driver_doc = driver_ref.get()

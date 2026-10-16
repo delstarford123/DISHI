@@ -13,11 +13,12 @@ class DepositHelper {
   }) async {
     try {
       final response = await SecureHttpClient.post(
-        '${ApiConfig.baseUrl}/api/mpesa/stk_push',
+        ApiConfig.mpesaStkPush,
         body: {
           'phone_number': phoneNumber,
           'amount': amount,
           'account_reference': accountReference,
+          'user_id': accountReference,
         },
       );
 

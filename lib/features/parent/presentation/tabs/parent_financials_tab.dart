@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../../core/theme/mpesa_theme.dart';
+import '../spending_analytics_view.dart';
+import '../scheduled_allowances_view.dart';
+import '../dispute_resolution_view.dart';
+import '../savings_target_view.dart';
+import '../medical_lock_view.dart';
+import '../lunchbox_planner.dart';
 
-const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
-const Color _surfaceLight = Color(0xFF1A2235);
 const Color _neonCyan = Color(0xFF05D5AA);
 const Color _neonBlue = Color(0xFF3B82F6);
 const Color _neonOrange = Color(0xFFFF6F00);
@@ -19,13 +25,16 @@ class ParentFinancialsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final parentUser = {'uid': FirebaseAuth.instance.currentUser?.uid ?? ''};
+    final selectedStudentUid = linkedStudents.isNotEmpty ? linkedStudents.first['uid'] : null;
+
     return SliverPadding(
       padding: const EdgeInsets.all(16.0),
       sliver: SliverList(
         delegate: SliverChildListDelegate([
-          const Text('Financial Hub', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+          const Text('Financial Command Hub', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          const Text('Manage allowances, view analytics, and track spending.', style: TextStyle(color: _textSecondary, fontSize: 14)),
+          const Text('Manage digital allowances, view analytics, and control family spending guardrails.', style: TextStyle(color: _textSecondary, fontSize: 14)),
           const SizedBox(height: 24),
           
           GridView.count(
@@ -35,26 +44,27 @@ class ParentFinancialsTab extends StatelessWidget {
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
             children: [
-              _buildActionGridButton(context, Icons.bar_chart, 'Spending Analytics', _neonCyan, () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Spending Analytics coming soon')));
+              _buildActionGridButton(context, Icons.bar_chart_rounded, 'Spending Analytics', _neonCyan, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => SpendingAnalyticsView(parentUser: parentUser, selectedStudentUid: selectedStudentUid)));
               }),
-              _buildActionGridButton(context, Icons.schedule, 'Digital Allowances', _neonBlue, () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Digital Allowances coming soon')));
+              _buildActionGridButton(context, Icons.schedule_rounded, 'Digital Allowances', _neonBlue, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => ScheduledAllowancesView(parentUser: parentUser, selectedStudentUid: selectedStudentUid)));
               }),
-              _buildActionGridButton(context, Icons.pie_chart, 'Category Budgets', _neonOrange, () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Category Budgets coming soon')));
+              _buildActionGridButton(context, Icons.bento_rounded, 'Lunchbox Cafeteria', _neonOrange, () {
+                if (linkedStudents.isNotEmpty) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => LunchboxPlanner(studentUid: linkedStudents.first['uid'], studentName: linkedStudents.first['name'], parentUid: parentUser['uid']!)));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please link a student first.')));
+                }
               }),
-              _buildActionGridButton(context, Icons.health_and_safety, 'Emergency Fund', _neonPink, () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Emergency Fund coming soon')));
+              _buildActionGridButton(context, Icons.savings_rounded, 'Savings Goals', MPesaTheme.primaryGreen, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => SavingsTargetView(parentUser: parentUser, selectedStudentUid: selectedStudentUid)));
               }),
-              _buildActionGridButton(context, Icons.receipt_long, 'Receipts & Disputes', Colors.tealAccent, () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Receipts coming soon')));
+              _buildActionGridButton(context, Icons.receipt_long_rounded, 'Receipts & Disputes', Colors.tealAccent, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => DisputeResolutionCenterView(parentUser: parentUser)));
               }),
-              _buildActionGridButton(context, Icons.account_balance, 'Tax & Fee Summary', Colors.amberAccent, () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tax Summary coming soon')));
-              }),
-              _buildActionGridButton(context, Icons.money_off, 'Overdraft Protection', Colors.redAccent, () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Overdraft Protection coming soon')));
+              _buildActionGridButton(context, Icons.local_hospital_rounded, 'Medical Lock', _neonPink, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => MedicalLockView(parentUser: parentUser, selectedStudentUid: selectedStudentUid)));
               }),
             ],
           ),

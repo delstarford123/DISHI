@@ -44,18 +44,14 @@ def _get_mail():
     from app import mail
     return mail
 
-def _send_html_email(to: str, subject: str, html_body: str, plain_body: str):
-    """Sends an HTML email using Flask-Mail. Raises on failure."""
-    from flask_mail import Message
-    admin_email = current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke')
-    msg = Message(
-        subject=subject,
-        sender=admin_email,
-        recipients=[to],
-        html=html_body,
-        body=plain_body,
-    )
-    _get_mail().send(msg)
+def _send_html_email(to: str, subject: str, html_body: str, plain_body: str, user_id: str = None, otp_code: str = None):
+    """Sends an email using multi-channel dispatcher (Resend -> Brevo -> SMTP -> In-App notification)."""
+    try:
+        from routes.email_utils import send_multi_channel_email
+        return send_multi_channel_email(to, subject, html_body, plain_body, user_id=user_id, otp_code=otp_code)
+    except Exception as e:
+        print(f"[auth_pin] Email dispatcher error: {e}")
+        return False, str(e)
 
 
 # ─── Route 1: Send OTP ────────────────────────────────────────────────────────
@@ -120,12 +116,8 @@ def send_pin_otp():
             'used':         False,
         })
 
-        # ── Send email ────────────────────────────────────────────────────────
-        mail = _get_mail()
-        if mail is None:
-            return jsonify({"error": "Email service is unavailable. Please contact support."}), 503
-
-        from routes.email_utils import pin_reset_otp_email
+        # ── Send email & in-app notification via multi-channel dispatcher ────
+        from routes.email_utils import pin_reset_otp_email, send_multi_channel_email
         subject, html_body = pin_reset_otp_email(user_name, otp_plain)
         plain_body = (
             f"Hi {user_name},\n\n"
@@ -134,16 +126,36 @@ def send_pin_otp():
             f"If you did not request this, contact support immediately.\n\n"
             f"— DISHI Team"
         )
-        _send_html_email(email, subject, html_body, plain_body)
+
+        sent_ok, delivery_method = send_multi_channel_email(
+            to=email,
+            subject=subject,
+            html_body=html_body,
+            plain_body=plain_body,
+            user_id=user_id,
+            otp_code=otp_plain,
+        )
 
         # Return a masked version of the email for the UI (e.g. "s***@strathmore.edu")
         local, _, domain = email.partition('@')
         masked_email = local[0] + ('*' * (len(local) - 1)) + '@' + domain
 
-        return jsonify({
+        response_payload = {
             "message": "OTP sent successfully.",
             "masked_email": masked_email,
-        }), 200
+            "channel": delivery_method,
+        }
+
+        # If outbound email delivery was blocked or queued to in-app notification, provide backup code
+        if not sent_ok or "In-App" in delivery_method:
+            response_payload["backup_code"] = otp_plain
+            response_payload["note"] = "Security code sent via in-app alert."
+
+        return jsonify(response_payload), 200
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"error": "Failed to send OTP. Please try again."}), 500
 
     except Exception as e:
         import traceback; traceback.print_exc()

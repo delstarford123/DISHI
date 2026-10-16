@@ -1,8 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
-import 'login_view.dart';
 import '../../../core/services/api_config.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -61,11 +61,26 @@ class _ForgotPinViewState extends State<ForgotPinView> {
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['backup_code'] != null) {
+          _otpController.text = data['backup_code'].toString();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(data['note'] ?? 'Verification code generated: ${data['backup_code']}'),
+                backgroundColor: MPesaTheme.primaryGreen,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        }
         setState(() => _step = 2);
       } else {
         final data = jsonDecode(response.body);
         setState(() => _errorMessage = data['error'] ?? 'Failed to send OTP.');
       }
+    } on TimeoutException {
+      setState(() => _errorMessage = 'Request timed out. Please check your internet connection.');
     } catch (e) {
       setState(() => _errorMessage = 'Connection error. Please try again.');
     } finally {
@@ -101,6 +116,8 @@ class _ForgotPinViewState extends State<ForgotPinView> {
         final data = jsonDecode(response.body);
         setState(() => _errorMessage = data['error'] ?? 'Invalid OTP.');
       }
+    } on TimeoutException {
+      setState(() => _errorMessage = 'Request timed out. Please check your internet connection.');
     } catch (e) {
       setState(() => _errorMessage = 'Connection error. Please try again.');
     } finally {
@@ -171,6 +188,8 @@ class _ForgotPinViewState extends State<ForgotPinView> {
         final data = jsonDecode(response.body);
         setState(() => _errorMessage = data['error'] ?? 'Failed to reset PIN.');
       }
+    } on TimeoutException {
+      setState(() => _errorMessage = 'Request timed out. Please check your internet connection.');
     } catch (e) {
       setState(() => _errorMessage = 'Connection error. Please try again.');
     } finally {
@@ -178,7 +197,6 @@ class _ForgotPinViewState extends State<ForgotPinView> {
     }
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(

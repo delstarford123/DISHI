@@ -263,18 +263,30 @@ class _DeliveryDashGameState extends State<DeliveryDashGame> {
               left: 0,
               right: 0,
               bottom: groundHeight,
-              child: Container(
-                height: 90,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.transparent, Colors.cyanAccent.withOpacity(0.04)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+              child: ClipRect(
+                child: Container(
+                  height: 90,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.transparent, Colors.cyanAccent.withValues(alpha: 0.04)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
                   ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(8, (i) => Icon(Icons.apartment, size: 40 + (i % 3) * 15, color: Colors.white10)),
+                  child: OverflowBox(
+                    maxWidth: double.infinity,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(
+                        (size.width / 45).ceil() + 2,
+                        (i) => Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          child: Icon(Icons.apartment, size: 36 + (i % 3) * 12, color: Colors.white10),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -285,36 +297,42 @@ class _DeliveryDashGameState extends State<DeliveryDashGame> {
               right: 0,
               bottom: 0,
               height: groundHeight,
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF151922),
-                  border: Border(
-                    top: BorderSide(color: Color(0xFF05D5AA), width: 3),
+              child: ClipRect(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF151922),
+                    border: Border(
+                      top: BorderSide(color: Color(0xFF05D5AA), width: 3),
+                    ),
                   ),
-                ),
-                child: Stack(
-                  children: [
-                    // Moving Road Dashes
-                    Positioned(
-                      top: 40,
-                      left: -_roadOffset,
-                      right: 0,
-                      child: Row(
-                        children: List.generate(
-                          (size.width / 40).ceil() + 2,
-                          (i) => Container(
-                            margin: const EdgeInsets.only(right: 20),
-                            width: 25,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(3),
+                  child: Stack(
+                    children: [
+                      // Moving Road Dashes
+                      Positioned(
+                        top: 40,
+                        left: -_roadOffset,
+                        child: OverflowBox(
+                          maxWidth: double.infinity,
+                          alignment: Alignment.topLeft,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              (size.width / 40).ceil() + 4,
+                              (i) => Container(
+                                margin: const EdgeInsets.only(right: 20),
+                                width: 25,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withValues(alpha: 0.7),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -421,39 +439,42 @@ class _DeliveryDashGameState extends State<DeliveryDashGame> {
             // Start Screen Overlay
             if (!_isPlaying && !_isGameOver)
               Center(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 24),
-                  padding: const EdgeInsets.all(28),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF131A2A),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: _neonCyan.withOpacity(0.3)),
-                    boxShadow: [
-                      BoxShadow(color: _neonCyan.withOpacity(0.15), blurRadius: 24),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('🛵 DELIVERY DASH 📦', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'Tap the screen to JUMP!\nDouble tap for DOUBLE JUMP!\n\nCollect pizza & coins 🪙 for extra rewards!\nDodge potholes, cars & street obstacles 🚧!',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _neonCyan,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 24),
+                    padding: const EdgeInsets.all(28),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF131A2A),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: _neonCyan.withValues(alpha: 0.3)),
+                      boxShadow: [
+                        BoxShadow(color: _neonCyan.withValues(alpha: 0.15), blurRadius: 24),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('🛵 DELIVERY DASH 📦', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'Tap the screen to JUMP!\nDouble tap for DOUBLE JUMP!\n\nCollect pizza & coins 🪙 for extra rewards!\nDodge potholes, cars & street obstacles 🚧!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
                         ),
-                        onPressed: _startGame,
-                        child: const Text('START DASHING', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _neonCyan,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          ),
+                          onPressed: _startGame,
+                          child: const Text('START DASHING', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

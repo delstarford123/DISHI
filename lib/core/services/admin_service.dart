@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'api_config.dart';
@@ -470,5 +471,291 @@ class AdminService {
       throw Exception(_parseError(response, 'Failed to fetch users'));
     }
     return jsonDecode(response.body)['users'] as List<dynamic>;
+  }
+
+  // ==========================================
+  // PHASE 7: POWER ADMIN & SECURITY CONTROLS
+  // ==========================================
+
+  Future<void> unsuspendUser(String userId) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/$userId/unsuspend');
+    final response = await http
+        .post(url, headers: headers)
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to unsuspend user'));
+    }
+  }
+
+  Future<void> updateUserRole(String userId, String role) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/$userId/role');
+    final response = await http
+        .post(url, headers: headers, body: jsonEncode({'role': role}))
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to update user role'));
+    }
+  }
+
+  Future<void> resetUserPin(String userId) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/$userId/reset_pin');
+    final response = await http
+        .post(url, headers: headers)
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to reset user PIN'));
+    }
+  }
+
+  Future<double> adjustUserBalance(String userId, double amount, String reason) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/users/$userId/adjust_balance');
+    final response = await http
+        .post(url, headers: headers, body: jsonEncode({'amount': amount, 'reason': reason}))
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to adjust user balance'));
+    }
+    final data = jsonDecode(response.body);
+    return (data['new_balance'] as num).toDouble();
+  }
+
+  Future<Map<String, dynamic>> getDatabaseHealth() async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/database/health');
+    final response = await http
+        .get(url, headers: headers)
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to fetch database health metrics'));
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<void> triggerEmergencyAction(String action, {String? reason}) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/security/emergency_action');
+    final response = await http
+        .post(url, headers: headers, body: jsonEncode({'action': action, 'reason': reason ?? 'Admin emergency command'}))
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to execute emergency protocol'));
+    }
+  }
+
+  Future<Map<String, dynamic>> getSecurityStatus() async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/security/status');
+    final response = await http
+        .get(url, headers: headers)
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to load security status'));
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> queryMpesaTransaction(String query) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/mpesa/query_transaction');
+    final response = await http
+        .post(url, headers: headers, body: jsonEncode({'query': query}))
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to query M-PESA record'));
+    }
+    final data = jsonDecode(response.body);
+    return data['results'] as List<dynamic>;
+  }
+
+  Future<void> manualCreditMpesa({
+    String? checkoutId,
+    required String userId,
+    required double amount,
+    required String receipt,
+    String? reason,
+  }) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/mpesa/manual_credit');
+    final body = jsonEncode({
+      if (checkoutId != null && checkoutId.isNotEmpty) 'checkout_id': checkoutId,
+      'user_id': userId,
+      'amount': amount,
+      'receipt': receipt,
+      'reason': reason ?? 'Admin manual reconciliation',
+    });
+    final response = await http
+        .post(url, headers: headers, body: body)
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to manually credit M-PESA transaction'));
+    }
+  }
+
+  // ==========================================
+  // PHASE 8: EMPLOYEE MANAGEMENT & PAYROLL (B2C, B2B, C2B)
+  // ==========================================
+
+  Future<List<dynamic>> getEmployees() async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/employees');
+    final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to fetch employees'));
+    }
+    return jsonDecode(response.body)['employees'] as List<dynamic>;
+  }
+
+  Future<String> addEmployee(Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/employees');
+    final response = await http.post(url, headers: headers, body: jsonEncode(data)).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to add employee'));
+    }
+    return jsonDecode(response.body)['id'] as String;
+  }
+
+  Future<void> updateEmployee(String empId, Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/employees/$empId');
+    final response = await http.post(url, headers: headers, body: jsonEncode(data)).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to update employee'));
+    }
+  }
+
+  Future<void> toggleEmployeeStatus(String empId, String status) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/employees/$empId/status');
+    final response = await http.post(url, headers: headers, body: jsonEncode({'status': status})).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to update employee status'));
+    }
+  }
+
+  Future<Map<String, dynamic>> getPayrollSummary() async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/payroll/summary');
+    final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to fetch payroll summary'));
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> disburseSalaryB2C({
+    required String employeeId,
+    String? month,
+    double bonus = 0.0,
+    double advanceDeduction = 0.0,
+    String? notes,
+  }) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/payroll/disburse/b2c');
+    final body = jsonEncode({
+      'employee_id': employeeId,
+      'month': month,
+      'bonus': bonus,
+      'advance_deduction': advanceDeduction,
+      'notes': notes,
+    });
+    final response = await http.post(url, headers: headers, body: body).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to disburse salary via B2C'));
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> bulkDisbursePayroll({String? department, String? month}) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/payroll/bulk_disburse');
+    final body = jsonEncode({
+      if (department != null) 'department': department,
+      if (month != null) 'month': month,
+    });
+    final response = await http.post(url, headers: headers, body: body).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to execute bulk payroll run'));
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getPayrollSlips() async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/payroll/slips');
+    final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to fetch payroll history'));
+    }
+    return jsonDecode(response.body)['slips'] as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> executeB2BPayment({
+    required String recipientName,
+    required String recipientType,
+    required String destinationNumber,
+    required double amount,
+    String? accountRef,
+    String? purpose,
+  }) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/finance/b2b_payment');
+    final body = jsonEncode({
+      'recipient_name': recipientName,
+      'recipient_type': recipientType,
+      'destination_number': destinationNumber,
+      'amount': amount,
+      'account_reference': accountRef ?? 'DISHI-B2B',
+      'purpose': purpose ?? 'Merchant/Supplier Payout',
+    });
+    final response = await http.post(url, headers: headers, body: body).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to execute B2B transfer'));
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getB2BTransfers() async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/finance/b2b_transfers');
+    final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to fetch B2B transfers'));
+    }
+    return jsonDecode(response.body)['transfers'] as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getC2BOverview() async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/finance/c2b_overview');
+    final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to fetch C2B collections'));
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 }

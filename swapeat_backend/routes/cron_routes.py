@@ -215,8 +215,8 @@ def harambee_payouts():
                     "PartyA": os.getenv('MPESA_SHORTCODE', ''),
                     "PartyB": phone_number,
                     "Remarks": f"Harambee Payout for {campaign.get('title', 'Campaign')}",
-                    "QueueTimeOutURL": os.getenv('DARAJA_B2C_TIMEOUT_URL', 'https://swapeatbackend.vercel.app/api/v1/mpesa/b2c_timeout'),
-                    "ResultURL": os.getenv('DARAJA_B2C_RESULT_URL', 'https://swapeatbackend.vercel.app/api/v1/mpesa/b2c_result'),
+                    "QueueTimeOutURL": os.getenv('DARAJA_B2C_TIMEOUT_URL', 'https://swapeatbackend-v2.vercel.app/api/v1/mpesa/b2c_timeout'),
+                    "ResultURL": os.getenv('DARAJA_B2C_RESULT_URL', 'https://swapeatbackend-v2.vercel.app/api/v1/mpesa/b2c_result'),
                     "Occasion": "Harambee Payout"
                 }
                 
@@ -249,8 +249,8 @@ def harambee_payouts():
                     "PartyB": party_b,
                     "AccountReference": account_ref[:12],
                     "Remarks": f"Harambee Payout for {campaign.get('title', 'Campaign')}",
-                    "QueueTimeOutURL": os.getenv('DARAJA_B2B_TIMEOUT_URL', 'https://swapeatbackend.vercel.app/api/v1/mpesa/b2b_timeout'),
-                    "ResultURL": os.getenv('DARAJA_B2B_RESULT_URL', 'https://swapeatbackend.vercel.app/api/v1/mpesa/b2b_result')
+                    "QueueTimeOutURL": os.getenv('DARAJA_B2B_TIMEOUT_URL', 'https://swapeatbackend-v2.vercel.app/api/v1/mpesa/b2b_timeout'),
+                    "ResultURL": os.getenv('DARAJA_B2B_RESULT_URL', 'https://swapeatbackend-v2.vercel.app/api/v1/mpesa/b2b_result')
                 }
                 
                 try:
