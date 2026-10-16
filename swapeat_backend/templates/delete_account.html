@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Deletion Request - DISHI | Delstarford Works</title>
+    <link rel="icon" type="image/png" href="/static/img/dishi_logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #080C14;
+            --surface-card: #0F1626;
+            --surface-light: #162035;
+            --neon-cyan: #00FFD1;
+            --neon-red: #FF2A6D;
+            --text-primary: #FFFFFF;
+            --text-secondary: #94A3B8;
+            --border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+            padding-bottom: 60px;
+        }
+
+        header {
+            background: rgba(15, 22, 38, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 16px 24px;
+        }
+
+        .nav-container {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 22px;
+        }
+
+        .content-container {
+            max-width: 800px;
+            margin: 40px auto 0;
+            padding: 0 24px;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, rgba(255, 42, 109, 0.08), rgba(15, 22, 38, 0.5));
+            border: 1px solid rgba(255, 42, 109, 0.2);
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 32px;
+        }
+
+        .hero h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 8px;
+        }
+
+        .hero p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .card {
+            background: var(--surface-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+
+        .card h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 19px;
+            font-weight: 600;
+            color: var(--neon-cyan);
+            margin-bottom: 14px;
+        }
+
+        .card p, .card li {
+            color: #CBD5E1;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .card ul {
+            padding-left: 20px;
+            margin-bottom: 16px;
+        }
+
+        .warning-box {
+            background: rgba(255, 42, 109, 0.1);
+            border-left: 4px solid var(--neon-red);
+            padding: 14px 18px;
+            border-radius: 0 10px 10px 0;
+            margin: 16px 0;
+            font-size: 13.5px;
+            color: #F87171;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #CBD5E1;
+            margin-bottom: 6px;
+        }
+
+        input[type="text"], input[type="email"], select, textarea {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--surface-light);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: white;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--neon-cyan);
+        }
+
+        button {
+            background: var(--neon-red);
+            color: white;
+            border: none;
+            padding: 13px 24px;
+            border-radius: 10px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .success-banner {
+            display: none;
+            background: rgba(0, 255, 209, 0.15);
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        a {
+            color: var(--neon-cyan);
+            text-decoration: none;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="nav-container">
+            <a href="/" class="brand">DISHI</a>
+            <a href="/privacy" style="font-size: 13px;">&larr; Back to Privacy Policy</a>
+        </div>
+    </header>
+
+    <main class="content-container">
+        <div class="hero">
+            <h1>Request Account & Data Deletion</h1>
+            <p>DISHI by Delstarford Works &middot; In compliance with Google Play Policies & Kenya Data Protection Act</p>
+        </div>
+
+        <div class="card">
+            <h2>How to Delete Your Account In-App</h2>
+            <p>You can delete your DISHI account and profile data instantly at any time from within the mobile app:</p>
+            <ul>
+                <li>Open the <strong>DISHI</strong> app on your Android device.</li>
+                <li>Tap the <strong>Profile</strong> tab on the bottom navigation bar.</li>
+                <li>Scroll down and tap <strong>Account & Security Settings</strong>.</li>
+                <li>Tap <strong>Delete Account & Purge Data</strong> and confirm your request.</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2>Online Deletion Request Portal</h2>
+            <p>If you have uninstalled the app or are unable to log in, you can request account deletion using this official web portal. Our security team will process your request within 48 hours.</p>
+
+            <div id="successMsg" class="success-banner">
+                Your account deletion request has been submitted successfully. A confirmation receipt will be sent to your registered email.
+            </div>
+
+            <form id="deleteForm" onsubmit="handleSubmit(event)">
+                <div class="form-group">
+                    <label for="email">Registered Email Address *</label>
+                    <input type="email" id="email" required placeholder="e.g. student@university.ac.ke">
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Registered Phone Number (Optional)</label>
+                    <input type="text" id="phone" placeholder="e.g. 0712345678">
+                </div>
+
+                <div class="form-group">
+                    <label for="reason">Reason for Account Deletion (Optional)</label>
+                    <select id="reason">
+                        <option value="graduated">Completed studies / Graduated</option>
+                        <option value="no_longer_needed">No longer using the app</option>
+                        <option value="privacy">Privacy concerns</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="warning-box">
+                    <strong>Warning:</strong> Deleting your account will immediately revoke all login sessions, wipe your profile, disassociate virtual card tokens, and cancel active meal orders. Any unspent balance in your wallet must be withdrawn via M-PESA before deletion.
+                </div>
+
+                <button type="submit">Submit Account Deletion Request</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Data Deletion & Retention Breakdown</h2>
+            <ul>
+                <li><strong>Permanently Deleted Immediately:</strong> Your name, email, profile photo, student registration card, hashed PIN, biometric authorization keys, Firebase Auth credentials, and active notification tokens.</li>
+                <li><strong>Statutory Retention (3 Years):</strong> Under Kenyan financial regulations and KRA tax laws, completed Safaricom M-PESA transaction ledgers and fiscal receipts are archived in anonymised form solely for financial audit and compliance.</li>
+            </ul>
+        </div>
+
+        <footer>
+            Questions? Contact <a href="mailto:support@delstarfordworks.co.ke">support@delstarfordworks.co.ke</a> &middot; Delstarford Works &copy; 2026
+        </footer>
+    </main>
+
+    <script>
+        function handleSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            fetch('/api/v1/support/delete-account-request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: email,
+                    phone: document.getElementById('phone').value,
+                    reason: document.getElementById('reason').value,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(function(err) {});
+
+            document.getElementById('deleteForm').style.display = 'none';
+            document.getElementById('successMsg').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

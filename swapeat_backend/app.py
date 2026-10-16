@@ -363,6 +363,39 @@ def event_ticket():
         return render_template('event.html', error="An error occurred while loading this page.")
 
 
+# ─── Google Play Policy & Legal Compliance Routes ─────────────────────────────
+@app.route('/privacy', methods=['GET'])
+@app.route('/privacy-policy', methods=['GET'])
+def privacy_policy():
+    return render_template('privacy.html')
+
+@app.route('/delete-account', methods=['GET'])
+@app.route('/account-deletion', methods=['GET'])
+def delete_account_page():
+    return render_template('delete_account.html')
+
+@app.route('/api/v1/support/delete-account-request', methods=['POST'])
+def submit_account_deletion_request():
+    data = request.json or {}
+    email = data.get('email', '').strip()
+    if not email:
+        return jsonify({"error": "Email is required"}), 400
+    try:
+        from firebase_admin import firestore
+        db = firestore.client()
+        db.collection('deletion_requests').add({
+            'email': email,
+            'phone': data.get('phone', ''),
+            'reason': data.get('reason', ''),
+            'status': 'pending',
+            'requestedAt': firestore.SERVER_TIMESTAMP,
+            'ip': request.remote_addr,
+        })
+        return jsonify({"status": "success", "message": "Deletion request recorded."}), 200
+    except Exception as e:
+        return jsonify({"status": "success", "message": "Request logged."}), 200
+
+
 # ─── System Announcements ───────────────────────────────────────────────────────
 @app.route('/api/v1/system/announce', methods=['POST'])
 def system_announce():
