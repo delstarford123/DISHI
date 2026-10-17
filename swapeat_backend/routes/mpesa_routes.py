@@ -62,6 +62,16 @@ def _send_notification(db, user_id: str, title: str, body: str):
                     apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                     token=token,
                 ))
+        # Store in Firestore notifications collection for in-app alert bell
+        db.collection('notifications').add({
+            'title': title,
+            'body': body,
+            'targetUserId': user_id,
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'readBy': [],
+            'dismissedBy': [],
+            'type': 'wallet_funding'
+        })
     except Exception as e:
         print(f"FCM generic error: {e}")
 
@@ -83,6 +93,18 @@ def _notify_parent(db, student_id: str, message_body: str):
                     apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
                     token=token,
                 ))
+            try:
+                db.collection('notifications').add({
+                    'title': "DISHI Wallet Update",
+                    'body': message_body,
+                    'targetUserId': p.id,
+                    'createdAt': firestore.SERVER_TIMESTAMP,
+                    'readBy': [],
+                    'dismissedBy': [],
+                    'type': 'student_funding'
+                })
+            except Exception:
+                pass
     except Exception as e:
         print(f"FCM parent error: {e}")
         print(f"FCM notify error (non-fatal): {e}")
@@ -171,8 +193,52 @@ def trigger_stk_push():
             print(f"Non-fatal rate limit warning: {rl_err}")
                     
         user_doc = db.collection('users').document(user_id).get()
+        if not user_doc.exists:
+            # Fallback 1: Resolve by dishiId (exact, upper, lower)
+            for did in [user_id, user_id.upper(), user_id.lower()]:
+                q = db.collection('users').where('dishiId', '==', did).limit(1).get()
+                if q:
+                    user_doc = q[0]
+                    user_id = user_doc.id
+                    break
+
+            # Fallback 2: Resolve by email (handling common typos like @gmial.com)
+            if not user_doc.exists and ('@' in user_id or '.' in user_id):
+                clean_email = user_id.lower().strip()
+                email_variants = [clean_email]
+                if '@gmial.com' in clean_email:
+                    email_variants.append(clean_email.replace('@gmial.com', '@gmail.com'))
+                elif '@gmail.com' in clean_email:
+                    email_variants.append(clean_email.replace('@gmail.com', '@gmial.com'))
+
+                for em in email_variants:
+                    q = db.collection('users').where('email', '==', em).limit(1).get()
+                    if q:
+                        user_doc = q[0]
+                        user_id = user_doc.id
+                        break
+
+            # Fallback 3: Resolve by phone number
+            if not user_doc.exists:
+                for ph in [user_id, '254' + user_id.lstrip('0'), '0' + user_id.replace('254', '', 1)]:
+                    for ph_field in ['phoneNumber', 'phone_number', 'phone']:
+                        q = db.collection('users').where(ph_field, '==', ph).limit(1).get()
+                        if q:
+                            user_doc = q[0]
+                            user_id = user_doc.id
+                            break
+                    if user_doc.exists:
+                        break
+
+            # Fallback 4: Resolve by legacy swapeatCode
+            if not user_doc.exists:
+                q = db.collection('users').where('swapeatCode', '==', user_id).limit(1).get()
+                if q:
+                    user_doc = q[0]
+                    user_id = user_doc.id
+
         if not user_doc.exists and not is_community_support and action not in ['harambee_donate', 'fund_vault']:
-            return jsonify({"error": f"No user found with ID '{user_id}'. Please check the student ID."}), 404
+            return jsonify({"error": f"No user found with identifier '{user_id}'. Please check the student link or ID."}), 404
     except Exception as e:
         print(f"Firestore lookup error: {e}")
         return jsonify({"error": "Database error while verifying user.", "details": str(e)}), 500
@@ -374,7 +440,30 @@ def mpesa_callback():
                 donor_email = metadata.get('donor_email')
                 donor_name = metadata.get('donor_name', 'Anonymous')
                 
-                # Update Harambee Campaign raised amount and donors
+                # Directly credit the student's wallet balance so the funds reflect immediately
+                user_ref.update({'walletBalance': firestore.Increment(credit_amt)})
+
+                # Log in transactions collection
+                try:
+                    db.collection('transactions').add({
+                        'type': 'harambee_donation',
+                        'studentId': user_id,
+                        'student_id': user_id,
+                        'user_id': user_id,
+                        'donor_name': donor_name,
+                        'donorName': donor_name,
+                        'senderPhone': metadata.get('funder_phone', ''),
+                        'amount': credit_amt,
+                        'campaign_id': campaign_id or '',
+                        'campaign_title': campaign_title,
+                        'status': 'completed',
+                        'description': f'Fund Me contribution of KES {credit_amt:,.0f} from {donor_name}',
+                        'timestamp': firestore.SERVER_TIMESTAMP
+                    })
+                except Exception as tx_err:
+                    print(f"Non-fatal transaction log error: {tx_err}")
+                
+                # Update Harambee Campaign raised amount and donors if linked to a campaign
                 if campaign_id:
                     campaign_ref = db.collection('harambee_campaigns').document(campaign_id)
                     try:
@@ -384,16 +473,18 @@ def mpesa_callback():
                             donors.append({
                                 'name': donor_name,
                                 'amount': credit_amt,
-                                'timestamp': datetime.utcnow() # Using datetime for instant list placement
+                                'timestamp': datetime.utcnow()
                             })
-                            # Note: UI expects 'raised' not 'raisedAmount'
                             campaign_ref.update({
                                 'raised': firestore.Increment(credit_amt),
                                 'donors': donors
                             })
                     except Exception as e:
                         print(f"Failed to update campaign donors: {e}")
-                        campaign_ref.update({'raised': firestore.Increment(credit_amt)})
+                        try:
+                            campaign_ref.update({'raised': firestore.Increment(credit_amt)})
+                        except Exception:
+                            pass
                 
                 # Send Thank You Email
                 if donor_email:
@@ -674,24 +765,31 @@ def mpesa_callback():
                     except Exception as e:
                         print(f"Failed to update match profile for user {user_id}: {e}")
                 else:
-                    # Standard Top-Up: Enforce 3,000 KES CBK Regulatory Ceiling
+                    # Wallet Top-Up / Student Upkeep / Parent Funding
                     if destination == 'walletBalance':
-                        @firestore.transactional
-                        def credit_student_wallet(transaction, user_ref_tx):
-                            user_snapshot = user_ref_tx.get(transaction=transaction)
-                            if not user_snapshot.exists:
-                                return
-                            current_balance = user_snapshot.to_dict().get('walletBalance', 0.0)
-                            if current_balance + credit_amt > 3000.0:
-                                # Too much money! Refund or hold logic goes here. For compliance, cap it.
-                                max_allowed = 3000.0 - current_balance
-                                if max_allowed > 0:
-                                    transaction.update(user_ref_tx, {destination: firestore.Increment(max_allowed)})
-                            else:
-                                transaction.update(user_ref_tx, {destination: firestore.Increment(credit_amt)})
-                        credit_student_wallet(db.transaction(), user_ref)
+                        user_ref.update({'walletBalance': firestore.Increment(credit_amt)})
                     else:
                         user_ref.update({destination: firestore.Increment(credit_amt)})
+                    
+                    # Record in student transactions collection
+                    try:
+                        supporter_name = metadata.get('donor_name') or metadata.get('funder_name') or metadata.get('funder_phone') or 'Supporter'
+                        db.collection('transactions').add({
+                            'type': 'wallet_funding',
+                            'studentId': user_id,
+                            'student_id': user_id,
+                            'user_id': user_id,
+                            'senderPhone': metadata.get('funder_phone', ''),
+                            'donor_name': supporter_name,
+                            'donorName': supporter_name,
+                            'amount': credit_amt,
+                            'destination': destination,
+                            'status': 'completed',
+                            'description': f"Wallet funded with KSH {credit_amt:,.0f} by {supporter_name}",
+                            'timestamp': firestore.SERVER_TIMESTAMP
+                        })
+                    except Exception as tx_e:
+                        print(f"Non-fatal transaction record warning: {tx_e}")
 
             # Mark tx as completed
             tx_ref.update({'status': 'completed'})
@@ -768,8 +866,8 @@ def mpesa_callback():
                     print(f"Receipt email failed: {e}")
 
             # ── Student notification ──────────────────────────────────
-            if is_fund_student:
-                funder_display = funder_phone if funder_phone else 'a supporter'
+            if is_fund_student or action == 'harambee_donate':
+                funder_display = funder_phone if funder_phone else (metadata.get('donor_name') or 'a supporter')
                 _send_notification(
                     db, user_id,
                     "🎉 Wallet Funded!",

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pdf/pdf.dart';
@@ -115,7 +116,7 @@ class _OfflineChildQrViewState extends State<OfflineChildQrView> {
 
   @override
   Widget build(BuildContext context) {
-    final qrPayload = 'swapeat://pay?uid=\${widget.uid}&offlinePinRequired=true';
+    final qrPayload = 'swapeat://pay?uid=${widget.uid}&offlinePinRequired=true';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -192,16 +193,45 @@ class _OfflineChildQrViewState extends State<OfflineChildQrView> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () => _printOrSavePdf(context, qrPayload),
-                    icon: const Icon(Icons.download, color: Colors.white),
-                    label: const Text('Download PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                      backgroundColor: Colors.blueAccent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  )
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            final fundId = _dishiId ?? widget.uid;
+                            final fundUrl = 'https://dishi.delstarfordworks.co.ke/fund?dishi_id=$fundId';
+                            Clipboard.setData(ClipboardData(text: fundUrl));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Web funding link copied! Share with friends or family.'),
+                                backgroundColor: Color(0xFF05D5AA),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.share, color: Colors.white, size: 18),
+                          label: const Text('Share Fund Link', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(0, 48),
+                            backgroundColor: const Color(0xFF10B981),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _printOrSavePdf(context, qrPayload),
+                          icon: const Icon(Icons.download, color: Colors.white, size: 18),
+                          label: const Text('Download PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(0, 48),
+                            backgroundColor: Colors.blueAccent,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),

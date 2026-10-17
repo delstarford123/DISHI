@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../core/services/firestore_service.dart';
 import '../../../core/models/transaction_model.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
@@ -17,7 +16,6 @@ class StudentLedgerView extends StatefulWidget {
 }
 
 class _StudentLedgerViewState extends State<StudentLedgerView> {
-  final FirestoreService _firestoreService = FirestoreService();
   final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
@@ -37,13 +35,18 @@ class _StudentLedgerViewState extends State<StudentLedgerView> {
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: _firestoreService.streamCollection(
-          'transactions',
-          whereField: 'student_id',
-          isEqualTo: _currentUserId.isEmpty ? 'MOCK_ID' : _currentUserId,
-          orderByField: 'timestamp',
-          descending: true,
-        ),
+        stream: _currentUserId.isNotEmpty
+            ? FirebaseFirestore.instance
+                .collection('transactions')
+                .where(
+                  Filter.or(
+                    Filter('student_id', isEqualTo: _currentUserId),
+                    Filter('studentId', isEqualTo: _currentUserId),
+                    Filter('user_id', isEqualTo: _currentUserId),
+                  ),
+                )
+                .snapshots()
+            : const Stream.empty(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: _neonCyan));
@@ -57,9 +60,17 @@ class _StudentLedgerViewState extends State<StudentLedgerView> {
             return _buildEmptyState();
           }
 
-          final transactions = snapshot.data!.docs.map((doc) => 
-            TransactionModel.fromJson(doc.data() as Map<String, dynamic>, doc.id)
-          ).toList();
+          final transactions = snapshot.data!.docs
+              .where((doc) => doc.data() != null)
+              .map((doc) => TransactionModel.fromJson(Map<String, dynamic>.from(doc.data() as Map), doc.id))
+              .toList();
+
+          transactions.sort((a, b) {
+            final tA = a.timestamp;
+            final tB = b.timestamp;
+            if (tA != null && tB != null) return tB.compareTo(tA);
+            return 0;
+          });
 
           return ListView.separated(
             padding: const EdgeInsets.all(16),
@@ -101,17 +112,24 @@ class _StudentLedgerViewState extends State<StudentLedgerView> {
           SizedBox(height: 16),
           Text('No transactions yet.', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           SizedBox(height: 8),
-          Text('When you pay for a meal, it will appear here.', style: TextStyle(color: _textSecondary, fontSize: 14)),
+          Text('When you receive support or pay for a meal, it will appear here.', style: TextStyle(color: _textSecondary, fontSize: 14)),
         ],
       ),
     );
   }
 
   Widget _buildTransactionCard(TransactionModel tx) {
-    bool isCredit = tx.type == 'topup' || tx.type == 'refund';
+    final typeLower = tx.type.toLowerCase();
+    bool isCredit = typeLower == 'topup' || 
+                    typeLower == 'refund' || 
+                    typeLower.contains('fund') || 
+                    typeLower.contains('donation') || 
+                    typeLower.contains('harambee') || 
+                    typeLower.contains('credit') ||
+                    typeLower.contains('deposit');
     Color amountColor = isCredit ? _neonCyan : Colors.white;
     IconData icon = Icons.payment;
-    if (tx.type == 'topup') icon = Icons.account_balance_wallet;
+    if (isCredit) icon = Icons.account_balance_wallet;
     if (tx.type == 'transfer') icon = Icons.send;
     
     return Container(

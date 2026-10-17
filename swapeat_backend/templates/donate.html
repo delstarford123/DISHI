@@ -1100,14 +1100,14 @@
             const metadata = {
                 action: action,
                 funder_phone: phone,
-                student_name: STUDENT_NAME
+                student_name: STUDENT_NAME,
+                donor_name: nameRaw,
+                donor_email: emailRaw
             };
 
             if (CAMPAIGN_ID) {
                 metadata.campaign_id = CAMPAIGN_ID;
                 metadata.campaign_title = CAMPAIGN_TITLE;
-                if (emailRaw) metadata.donor_email = emailRaw;
-                metadata.donor_name = nameRaw;
             }
 
             try {

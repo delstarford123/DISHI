@@ -225,18 +225,26 @@ def index():
 def about():
     return render_template('about.html')
 
+@app.route('/fund/<string:code>')
+@app.route('/fundme/<string:code>')
+def student_fund_shortlink(code):
+    return redirect(f"/fund?dishi_id={code}")
+
 @app.route('/harambee/<string:code>')
 def harambee_shortlink(code):
-    return redirect(f"/fund?campaign={code}&dishi_id={code}")
+    return redirect(f"/fund?code={code}&dishi_id={code}")
 
 @app.route('/fund')
 def harambee_fund():
-    dishi_id = request.args.get('dishi_id')
-    campaign_id = request.args.get('campaign')
+    raw_id = (request.args.get('dishi_id') or request.args.get('code') or 
+              request.args.get('student_id') or request.args.get('studentId') or 
+              request.args.get('uid') or request.args.get('id') or 
+              request.args.get('email') or '').strip()
+    campaign_id = (request.args.get('campaign') or request.args.get('campaign_id') or '').strip()
     dest = request.args.get('dest', 'walletBalance')
     
-    if not dishi_id and not campaign_id:
-        return render_template('harambee.html', error="Invalid or missing link.", student_name="Student", user_id="", dest=dest)
+    if not raw_id and not campaign_id:
+        return render_template('donate.html', error="Invalid or missing student funding link.", student_name="Student", user_id="", dest=dest, campaign=None)
     
     try:
         from firebase_admin import firestore
@@ -245,54 +253,106 @@ def harambee_fund():
         user_doc = None
         campaign_data = None
         
+        # 1. Check if an explicit campaign ID was provided
         if campaign_id:
             camp_doc = db.collection('harambee_campaigns').document(campaign_id).get()
             if camp_doc.exists:
                 campaign_data = camp_doc.to_dict()
                 campaign_data['id'] = camp_doc.id
                 
-                student_id = campaign_data.get('studentId')
-                if student_id:
-                    user_doc = db.collection('users').document(student_id).get()
-                    if not user_doc.exists:
-                        user_doc = None
+                s_id = (campaign_data.get('studentId') or campaign_data.get('student_id') or 
+                        campaign_data.get('creatorId') or campaign_data.get('creator_id') or 
+                        campaign_data.get('userId') or campaign_data.get('user_id'))
+                if s_id:
+                    u_snap = db.collection('users').document(s_id).get()
+                    if u_snap.exists:
+                        user_doc = u_snap
                         
-        if not user_doc and dishi_id:
-            # First check by document ID directly
-            doc = db.collection('users').document(dishi_id).get()
+        # 2. If no campaign or campaign didn't resolve user, look up student directly
+        if not user_doc and raw_id:
+            # 2a. Check by Firestore document ID (UID)
+            doc = db.collection('users').document(raw_id).get()
             if doc.exists:
                 user_doc = doc
             else:
-                # Fallback to dishiId
-                users_ref = db.collection('users').where('dishiId', '==', dishi_id).limit(1).get()
-                if not users_ref:
-                    # Fallback to legacy swapeatCode
-                    users_ref = db.collection('users').where('swapeatCode', '==', dishi_id).limit(1).get()
-                
-                if users_ref:
-                    user_doc = users_ref[0]
+                # 2b. Check by dishiId field (case-sensitive and case-insensitive)
+                for candidate in [raw_id, raw_id.upper(), raw_id.lower()]:
+                    users_ref = db.collection('users').where('dishiId', '==', candidate).limit(1).get()
+                    if users_ref:
+                        user_doc = users_ref[0]
+                        break
+
+                # 2c. Check by email (exact, lowercase, and common typos like gmial.com)
+                if not user_doc and ('@' in raw_id or '.' in raw_id):
+                    email_clean = raw_id.lower().strip()
+                    email_variants = [email_clean]
+                    if '@gmial.com' in email_clean:
+                        email_variants.append(email_clean.replace('@gmial.com', '@gmail.com'))
+                    elif '@gmail.com' in email_clean:
+                        email_variants.append(email_clean.replace('@gmail.com', '@gmial.com'))
+
+                    for em in email_variants:
+                        users_ref = db.collection('users').where('email', '==', em).limit(1).get()
+                        if users_ref:
+                            user_doc = users_ref[0]
+                            break
+
+                # 2d. Check by phone number
+                if not user_doc:
+                    phone_candidates = [raw_id]
+                    if raw_id.startswith('0'):
+                        phone_candidates.append('254' + raw_id[1:])
+                    elif raw_id.startswith('254'):
+                        phone_candidates.append('0' + raw_id[3:])
+                    for ph in phone_candidates:
+                        for ph_field in ['phoneNumber', 'phone_number', 'phone']:
+                            users_ref = db.collection('users').where(ph_field, '==', ph).limit(1).get()
+                            if users_ref:
+                                user_doc = users_ref[0]
+                                break
+                        if user_doc:
+                            break
+
+                # 2e. Check by legacy swapeatCode field
+                if not user_doc:
+                    users_ref = db.collection('users').where('swapeatCode', '==', raw_id).limit(1).get()
+                    if users_ref:
+                        user_doc = users_ref[0]
             
-        if not user_doc:
-            return render_template('harambee.html', error="We couldn't find a student or campaign for this link.", student_name="Student", user_id="", dest=dest)
+            # 2f. If still not found, check if raw_id was actually a campaign ID
+            if not user_doc and not campaign_data:
+                c_doc = db.collection('harambee_campaigns').document(raw_id).get()
+                if c_doc.exists:
+                    campaign_data = c_doc.to_dict()
+                    campaign_data['id'] = c_doc.id
+                    s_id = (campaign_data.get('studentId') or campaign_data.get('student_id') or 
+                            campaign_data.get('creatorId') or campaign_data.get('creator_id'))
+                    if s_id:
+                        u_snap = db.collection('users').document(s_id).get()
+                        if u_snap.exists:
+                            user_doc = u_snap
+
+        if not user_doc and not campaign_data:
+            return render_template('donate.html', error="We couldn't find a student account for this link. Please confirm the link with the student.", student_name="Student", user_id="", dest=dest, campaign=None)
             
-        user_data = user_doc.to_dict()
+        user_data = user_doc.to_dict() if user_doc else {}
         student_name = user_data.get('displayName') or user_data.get('name') or 'Student'
-        real_user_id = user_doc.id
-        
-        fund_type = "Student Fund"
-        if campaign_data:
+        real_user_id = user_doc.id if user_doc else ''
+
+        # If this is an explicit Harambee Campaign, render harambee.html
+        if campaign_data and campaign_data.get('title'):
+            fund_type = "Harambee Crowdfunding"
             c_type = str(campaign_data.get('type', '')).lower()
-            if 'harambee' in c_type:
-                fund_type = "Harambee"
-            elif 'crowdfund' in c_type:
-                fund_type = "Crowdfunding"
-            else:
-                fund_type = "Campaign"
-        
-        return render_template('harambee.html', student_name=student_name, user_id=real_user_id, dest=dest, campaign=campaign_data, fund_type=fund_type)
+            if 'crowdfund' in c_type:
+                fund_type = "Campus Crowdfunding"
+            return render_template('harambee.html', student_name=student_name, user_id=real_user_id, dest=dest, campaign=campaign_data, fund_type=fund_type)
+
+        # Otherwise, this is a DIRECT STUDENT FUNDING LINK:
+        # Render donate.html which is 100% focused exclusively on funding THIS STUDENT!
+        return render_template('donate.html', student_name=student_name, user_id=real_user_id, dest=dest, user_data=user_data, campaign=None)
     except Exception as e:
-        print(f"Harambee lookup error: {e}")
-        return render_template('harambee.html', error="An error occurred while loading this page. Please try again.", student_name="Student", user_id="", dest=dest)
+        print(f"Student fund lookup error: {e}")
+        return render_template('donate.html', error="An error occurred while loading this page. Please try again.", student_name="Student", user_id="", dest=dest, campaign=None)
 
 # ─── Parent Support Invite ──────────────────────────────────────────────────────
 @app.route('/support_invite')

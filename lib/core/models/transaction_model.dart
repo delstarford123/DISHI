@@ -24,11 +24,11 @@ class TransactionModel {
   factory TransactionModel.fromJson(Map<String, dynamic> json, String documentId) {
     return TransactionModel(
       id: documentId,
-      studentId: json['student_id'] ?? '',
-      vendorId: json['vendor_id'],
+      studentId: json['student_id'] ?? json['studentId'] ?? json['user_id'] ?? json['userId'] ?? '',
+      vendorId: json['vendor_id'] ?? json['vendorId'],
       amount: (json['amount'] ?? 0.0).toDouble(),
-      type: json['type'] ?? 'payment',
-      status: json['status'] ?? 'pending',
+      type: json['type'] ?? json['action'] ?? 'payment',
+      status: json['status'] ?? 'completed',
       description: json['description'] ?? '',
       timestamp: (json['timestamp'] as Timestamp?)?.toDate() ?? (json['createdAt'] as Timestamp?)?.toDate(),
     );
