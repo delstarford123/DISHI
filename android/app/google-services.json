@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "115680675766-g1itl5a4v8sall8nhim4b4qa4ejuc82u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "co.ke.delstarfordworks.dishi",
+            "certificate_hash": "20d25987adcbea2b1d4de0ae3c9de94ffb560fcc"
+          }
+        },
+        {
           "client_id": "115680675766-heo9a25vfps5mn863kevfffkqah3l5fo.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

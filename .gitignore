@@ -2,8 +2,13 @@
 *.class
 *.log
 *.pyc
+*.pyo
+*.pyd
 *.swp
+*.swo
+*~
 .DS_Store
+Thumbs.db
 .atom/
 .build/
 .buildlog/
@@ -12,57 +17,91 @@
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
+# IntelliJ / Android Studio
 *.iml
 *.ipr
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code
+.vscode/
 
-# Flutter/Dart/Pub related
+# Flutter / Dart / Pub
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
-/coverage/
+build/
+coverage/
 
-# Symbolication related
+# Symbolication & Obfuscation
 app.*.symbols
-
-# Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-extracted_apk/
+# Android Studio & Gradle
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+/android/build/
 android/build/
+android/.gradle/
+.gradle/
+local.properties
+**/android/**/generated/
+**/android/app/google-services123.json
+
+# iOS
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.framework
+
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
 swapeat_backend/venv/
-build/
-.dart_tool/
-*.zip
-*.apk
+swapeat_backend/.venv/
+.pytest_cache/
 
-extracted_apk/
-android/build/
-swapeat_backend/venv/
-build/
-.dart_tool/
-.vercel
-
-# Large files
-app-debug.zip
-extracted_apk/
-*.bin
-*.apk
-
+# Environment Variables & Secrets
+.env
+.env*
+*.env
+swapeat_backend/.env
+swapeat_backend/.env*
 ServiceAccountKey.json
+swapeat_backend/ServiceAccountKey.json
+service_account.json
+*.jks
+*.keystore
+key.properties
+
+# Vercel
+.vercel/
+swapeat_backend/.vercel/
+
+# Large Binary & Installation Files
+*.zip
+*.tar.gz
+*.apk
+*.aab
+*.msi
+*.exe
+*.bin
+extracted_apk/
+app-debug.zip

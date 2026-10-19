@@ -1,0 +1,13 @@
+Your Weekly Development Workflow (v3 to v4)
+When you begin developing Version 4 next week, follow this exact rule:
+
+swapeat_backend/
+  routes/
+    v3/             <-- Untouched! Keeps v3 users running smoothly.
+    v4/             <-- Put all your new v4 routes here!
+New Backend Features: Put them in routes/v4/ and register them as /api/v4/... in app.py. Leave /api/v3/... completely untouched.
+Firestore Additions: Always write default values (e.g. data['new_field'] ?? default_value) so old v3 documents don't crash.
+When Version 4 is Ready & Published:
+Change latest_version_code: 4 in Firestore.
+Keep min_supported_version_code: 2 (or 3) so v3 users can continue eating.
+When you are eventually ready to retire v3 months from now, simply change min_supported_version_code: 4 in Firestore, and all remaining users will be cleanly prompted to update!

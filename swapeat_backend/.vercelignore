@@ -1,0 +1,15 @@
+.env*
+__pycache__
+*.pyc
+.git
+.gitignore
+test_*.py
+seed_*.py
+clean_*.py
+dump_*.py
+create_*.py
+delete_*.py
+query_*.py
+append_*.py
+fix_*.py
+*.log

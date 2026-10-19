@@ -137,3 +137,7 @@ The shared profile bottom sheet widget.
 - Tap avatar → ProfileHubSheet slides up
 - Test logout from hub → goes to LoginView
 - Test delete account → confirm dialog, re-auth prompt shown
+
+
+
+

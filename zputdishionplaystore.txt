@@ -1,0 +1,119 @@
+Here is your complete, step-by-step guide to publishing DISHI to the Google Play Store.
+
+Because you have an Organisation Account (DELSTARFORD WORKS), you have a major advantage: you are NOT required to undergo the 20-tester / 14-day mandatory closed test enforced on new personal accounts. You can test and roll directly to Production once approved!
+
+Phase 1: All Files & Assets You Need to Have Ready
+Asset / File	Specifications	Location / Status in Project
+Android App Bundle (.aab)	Release signed bundle	build/app/outputs/bundle/release/app-release.aab (We will build this)
+Signing Keystore	upload-keystore.jks & key.properties	Already configured in 
+
+android/key.properties
+App Icon	512 × 512 px, PNG (32-bit), max 1MB	Can export from 
+
+assets/img/LOGO1.png
+Feature Graphic	1024 × 500 px, PNG/JPEG, max 15MB	Landscape banner showing DISHI branding & campus lifestyle
+Phone Screenshots	Min 2, recommended 4–8 screenshots (16:9 or 9:16 aspect ratio, min 320px, max 3840px)	Screenshots of Student Dashboard, Meal Swipes / VCC card, Cafeteria Menu, and M-PESA Wallet
+Privacy Policy URL	Live HTTPS link (Mandatory by Google)	https://dishi.delstarfordworks.co.ke/privacy
+Account Deletion URL	Live link or in-app instructions (Mandatory)	https://dishi.delstarfordworks.co.ke/delete-account
+Test Reviewer Credentials	Demo login for Google reviewers	student account credentials (email + password/PIN)
+Phase 2: In Google Play Console — Click "Create app"
+From the screen in your screenshot:
+
+Click the blue Create app button.
+Fill in the initial app details:
+App name: DISHI (or DISHI - Campus Food & Wallet) (Max 30 characters)
+Default language: English (United States) or English (Kenya)
+App or game: Select App
+Free or paid: Select Free
+Declarations:
+Check the box for Developer Program Policies.
+Check the box for US export laws.
+Click Create app at the bottom right.
+Phase 3: Complete the App Setup Tasks
+After creating the app, your dashboard will show "Set up your app". Click through each item:
+
+1. Privacy Policy
+Enter your privacy policy URL: https://dishi.delstarfordworks.co.ke/privacy
+Click Save.
+2. App Access (Crucial for Play Store Review!)
+Google's review team needs to log in to test the app without being blocked.
+
+Select: "All or some functionality is restricted"
+Click + Add instructions:
+Name: Student Test Account
+Username / Email: (e.g. teststudent@dishi.com or your test student email)
+Password / PIN: Provide the login password and security PIN.
+Explanation: "Students log in via email and PIN to access campus food ordering, virtual card wallet, and meal swipes."
+Click Save.
+3. Ads
+Select: "No, my app does not contain ads" → Save.
+4. Content Rating
+Start questionnaire → Enter your contact email (dishi@delstarfordworks.co.ke or support@delstarfordworks.co.ke).
+Category: Utility, Productivity, Communication, or Other.
+Answer the questions honestly (violence: No, offensive language: No, etc.).
+Review and submit → You will receive a PEGI 3 / Everyone rating.
+5. Target Audience & Content
+Target age groups: Select 18 and over (university students).
+Could your store listing appeal to children? Select No.
+6. News & COVID-19 & Government Apps
+News app: No
+COVID-19 contact tracing: No
+Government app: No
+7. Financial Features Declaration (Important!)
+Because DISHI includes M-PESA wallet top-up, peer transfers, and campus kiosks:
+
+Check: Mobile wallet / Peer-to-peer transfers / Payments.
+If asked for licensing: Select that payment processing is facilitated through authorized telecommunications partners (Safaricom M-PESA Daraja).
+8. Data Safety Questionnaire
+Google requires you to disclose what data is collected:
+
+Location: Approximate & Precise Location (used for campus delivery driver tracking & nearby cafeteria kiosk search).
+Personal Info: Name, Email address, Phone number, User ID (account management & verification).
+Financial Info: Purchase history, M-PESA transaction IDs (for wallet balance reconciliation).
+Photos and Videos: Profile photos & student ID verification.
+Audio: Optional voice memo SOS / audio notes.
+Is data encrypted in transit? Yes (all HTTPS/SSL to Firebase & Vercel backend).
+Can users request data deletion? Yes.
+Phase 4: Set up Your Store Listing (Copy & Paste Content)
+Go to Grow > Store presence > Main store listing:
+
+App Details:
+App name: DISHI: Campus Food & Wallet
+Short description:
+Smart campus dining, instant M-PESA meals, peer food transfers, and student discounts.
+
+Full description:
+Welcome to DISHI — the all-in-one smart campus lifestyle and dining ecosystem built for Kenyan universities and colleges.
+
+🍽️ Order Ahead & Skip the Lines Browse menus from your favourite on-campus cafeteria stalls and nearby restaurants. Order your meals in advance and pick them up hot with zero waiting time.
+
+💳 Virtual Campus Card & Wallet Top up your secure DISHI wallet instantly via Safaricom M-PESA. Pay at participating kiosks with a quick QR code scan or contactless NFC meal swipe.
+
+🤝 Peer-to-Peer Meal Transfers Share meals or split bills with campus roommates and friends in seconds with zero hidden fees.
+
+🛡️ Campus Safety & Community Hub Access the SOS campus safety dispatch, verified campus delivery riders, hostel listings, and student gigs all in one modern app.
+
+Designed with ❤️ by Delstarford Works.
+
+Graphics Upload:
+Upload App icon (512x512 px).
+Upload Feature graphic (1024x500 px).
+Upload at least 4 phone screenshots.
+Phase 5: Build the Release App Bundle (.aab)
+Your android/app/build.gradle.kts is already pre-configured to sign releases with upload-keystore.jks.
+
+To compile the production bundle, open your terminal and run:
+
+powershell
+flutter build appbundle --release
+Once compilation completes, your ready-to-upload bundle will be generated at:
+
+swapeat\build\app\outputs\bundle\release\app-release.aab
+Phase 6: Upload and Submit for Review
+In Play Console left sidebar, go to Release > Production (or Testing > Internal testing if you want to test on your own phone first).
+Click Create new release.
+Under App bundles, drag and drop: swapeat\build\app\outputs\bundle\release\app-release.aab
+Enter release notes (e.g. Initial production launch of DISHI Campus Dining & Wallet v1.0.0).
+Click Next > Review release.
+Click Start rollout to Production (or Submit for Review).
+Google will review your application within 2–5 business days and it will go live on the Google Play Store!

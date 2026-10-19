@@ -40,7 +40,11 @@ service cloud.firestore {
 
     // Check if the requester is a parent of the given studentId
     function isParentOf(studentId) {
-      return isAuth() && (request.auth.uid in get(/databases/$(database)/documents/users/$(studentId)).data.get('linkedParents', []));
+      return isAuth() && (
+        request.auth.uid in get(/databases/$(database)/documents/users/$(studentId)).data.get('linkedParents', []) ||
+        get(/databases/$(database)/documents/users/$(studentId)).data.get('parentUid', '') == request.auth.uid ||
+        studentId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('linkedStudents', [])
+      );
     }
 
     // ── Default Deny ──────────────────────────────────────────────────────────
@@ -577,7 +581,7 @@ service cloud.firestore {
     match /supplier_requests/{requestId}    { allow read, write: if isAuth(); }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 9. MARKETPLACE
+    // 9. MARKETPLACE & CAMPUS ITEMS
     // ─────────────────────────────────────────────────────────────────────────
     match /marketplace/{itemId} {
       allow read: if isAuth();
@@ -585,6 +589,17 @@ service cloud.firestore {
       allow update, delete: if isAuth() &&
         (resource == null ||
          request.auth.uid == resource.data.seller_id ||
+         request.auth.uid == resource.data.sellerId ||
+         isAdmin());
+    }
+    match /marketplace_items/{itemId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth();
+      allow delete: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.seller_id ||
+         request.auth.uid == resource.data.sellerId ||
          isAdmin());
     }
 
@@ -653,6 +668,16 @@ service cloud.firestore {
         (resource == null ||
          request.auth.uid == resource.data.user_id ||
          isAdmin());
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    match /admin_alerts/{alertId} {
+      allow read: if isAdmin();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    match /contact_messages/{msgId} {
+      allow read: if isAdmin() || (isAuth() && resource.data.user_id == request.auth.uid);
       allow create: if isAuth();
       allow update, delete: if isAdmin();
     }
@@ -780,21 +805,12 @@ service cloud.firestore {
     // 18. VIRTUAL CARD & CARD TRANSACTIONS
     // ─────────────────────────────────────────────────────────────────────────
     match /virtual_cards/{uid} {
-      // Only the card owner, parent, or vendor can read
-      allow read: if isSelf(uid) || isAdmin() || isParentOf(uid) || isVendor();
-      allow create: if isSelf(uid);
-      allow update: if isSelf(uid) || isAdmin();
-      allow delete: if isAdmin();
+      // Students, parents (for child/offline child), vendors, and admins can read/manage cards
+      allow read, write: if isAuth();
     }
     match /card_transactions/{txId} {
-      // Owner reads their own card transactions; backend writes
-      allow read: if isAuth() &&
-        (resource == null ||
-         request.auth.uid == resource.data.uid ||
-         isAdmin() ||
-         isParentOf(resource.data.uid));
-      allow create: if isAuth();
-      allow update, delete: if isAdmin();
+      // Students, parents, vendors, and admins can log and view card transactions
+      allow read, write: if isAuth();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -968,11 +984,7 @@ service cloud.firestore {
     match /escrow_items/{itemId} {
       allow read: if isAuth();
       allow create: if isAuth();
-      allow update: if isAuth() &&
-        (resource == null ||
-         request.auth.uid == resource.data.sellerId ||
-         request.auth.uid == resource.data.buyerId ||
-         isAdmin());
+      allow update: if isAuth();
       allow delete: if isAuth() &&
         (resource == null || request.auth.uid == resource.data.sellerId || isAdmin());
     }
@@ -1043,7 +1055,26 @@ service cloud.firestore {
     match /forums/{docId} {
       allow read: if isAuth();
       allow create: if isAuth();
-      allow update, delete: if isAuth() && (resource == null || request.auth.uid == resource.data.authorUid || isAdmin());
+      allow update: if isAuth();
+      allow delete: if isAuth() && (resource == null || request.auth.uid == resource.data.authorUid || isAdmin());
+      
+      match /replies/{replyId} {
+        allow read: if isAuth();
+        allow create: if isAuth();
+        allow update, delete: if isAuth() && (resource == null || request.auth.uid == resource.data.authorUid || isAdmin());
+      }
+      match /{allSubcollections=**} {
+        allow read, write: if isAuth();
+      }
+    }
+    match /parent_community/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth();
+      allow delete: if isAuth() && (resource == null || request.auth.uid == resource.data.authorUid || isAdmin());
+      match /{allSubcollections=**} {
+        allow read, write: if isAuth();
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

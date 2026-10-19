@@ -1,0 +1,62 @@
+DISHI • Designed & Created in Africa 🌍
+The Operating System for Campus Meals, Agency Banking & Universal Inclusion.
+
+DISHI is an African innovation engineered from the ground up to eliminate campus hunger, eliminate payment friction, and empower youth across universities, colleges, and schools. We transform everyday campus cafeterias into digital agency banking hubs, bring contactless offline tap-to-eat dignity to every student, and provide parents with total meal assurance.
+
+Whether you are a student rushing between lectures, a parent miles away, or a cafeteria food vendor managing the lunch rush, DISHI provides a purpose-built solution that transforms your daily campus life.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎓 1. FOR STUDENTS: DIGNITY, ZERO HUNGER & FLEXIBLE GIGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Your lecture ended at 12:55 PM and your next CAT is at 1:15 PM. Traditional cafeteria queues mean skipping lunch. DISHI changes the game.
+
+• Active Student Wallet & Pre-Orders: Browse live campus cafeteria menus, customize orders with allergen warnings, and pre-order meals to pick up without standing in line.
+• 100% Offline NFC Tap-to-Eat: No smartphone battery? No internet bundle? Tap your encrypted physical student card or DISHI wristband at any counter to eat in under 300 milliseconds.
+• DeLiv (Dorm Food Delivery): Craving hot meals during late-night study sessions? Have hot cafeteria food delivered straight to your hostel door or library desk by trusted student runners.
+• Comrade Fundi Marketplace: Are you skilled in phone/laptop repair, hair styling, barbering, plumbing, or academic tutoring? Monetize your talent on campus with 100% Escrow Protection—your earnings are guaranteed before you start work!
+• Campus Harambee Crowdfunding: When pocket money runs low before end of semester, launch a verified peer Harambee campaign where friends, alumni, and sponsors can micro-fund your meal balance.
+• Games Hub & Real Cash Rewards: Play 12 exciting campus arcade games (Bite Ninja, Delivery Dash, Hungry Fresher), earn Dishi Coins, and redeem them directly for real KES 50 & KES 100 wallet meal balances!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👨‍👩‍👧 2. FOR PARENTS: COMPLETE MEAL ASSURANCE & PEACE OF MIND
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Sending cash via general mobile money leaves parents wondering if funds were diverted, lost, or spent on non-nutritional items. DISHI gives parents complete transparency and care.
+
+• Direct Meal Allowance Funding: Top up your child’s student wallet from anywhere in Kenya instantly via Safaricom M-PESA STK Push.
+• Real-Time Spend Receipts: Receive automated instant SMS and push notifications whenever your student buys a hot meal or makes an agent deposit: "Your child dined at Main Hall Diner. Balance: KSh 1,450."
+• Protected Nutrition: Funds in the DISHI student wallet are safeguarded for hot cafeteria dining, educational resources, and campus services—protecting students from peer pressure and cash theft.
+• Dietary & Allergen Alerts: Review cafeteria menu ingredients and set custom dietary alerts to keep your child safe and nourished.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏪 3. FOR VENDORS: HIGH-SPEED POS & 0.5% AGENCY BANKING REVENUE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Campus food vendors lose up to 2 hours every lunch rush manually reading fake M-PESA SMS confirmations, giving coin change, and managing long queues. DISHI turns vendors into high-profit financial touchpoints.
+
+• 0.5% Cash-In Agency Banking: Double as a certified banking agent! When students hand you physical paper cash to deposit into their wallets, your terminal executes the deposit in seconds and credits you with an instant 0.5% commission.
+• Sub-300ms Lightning POS: Scan student QR codes or tap NFC cards in under 300 milliseconds. Queues move instantly, even during peak lunch rush or when campus internet goes offline.
+• Automated Float Management: Top up your digital E-Float directly via M-PESA STK Push or utilize your daily digital food revenues to maintain deposit liquidity.
+• Instant B2C Payouts: Zero waiting periods. Withdraw your cafeteria revenues and commissions directly to your Safaricom M-PESA till, paybill, or phone number whenever you choose.
+• Live Menu & Inventory Control: Update daily specials, change meal prices, mark sold-out dishes, and review daily sales analytics directly from your Vendor Dashboard.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+♿ 4. UNIVERSAL ACCESSIBILITY: RADICAL EMPATHY FOR EVERY COMRADE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Technology is only innovative when it includes everyone. DISHI is built with deep accessibility for comrades gifted differently:
+
+• Blind & Visually Impaired Comrades: Auditory voice navigation, screen-reader optimized order flows, cafeteria staff acoustic chimes, and tactile NFC passes allow blind students to explore menus, pre-order, and pay with complete independence.
+• Deaf & Hard-of-Hearing Comrades: High-contrast visual order readiness screens and synchronized wrist haptic vibration alerts inform deaf students the exact second their food is plated.
+• Mobility-Challenged Comrades: Wheelchair-height Point-of-Sale counters and priority dorm doorstep delivery by student couriers eliminate the barrier of steep cafeteria stairs.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛡️ SAFETY, SECURITY & TRUST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Safaricom M-PESA Daraja Production Certified
+• 100% Escrow Vault with Instant Cancel & Refund Protection
+• Military-grade AES-256 Offline NFC Tokenization
+• Biometric Fingerprint & PIN Authentication
+
+Designed & Created in Africa • Transforming Campus Life Every Day.
+Download DISHI today and experience the future of campus dining and student empowerment!
+
+Support & Partnership: dishi@delstarfordworks.co.ke
+Website: https://dishi.delstarfordworks.co.ke

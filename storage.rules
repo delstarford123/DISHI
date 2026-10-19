@@ -74,9 +74,19 @@ service firebase.storage {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 3. MARKETPLACE ITEM IMAGES
+    // 3. MARKETPLACE & ESCROW ITEM IMAGES
     // ─────────────────────────────────────────────────────────────────────────
-    match /marketplace/{imageId} {
+    match /marketplace/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuth() && isValidImage();
+      allow delete: if isAuth();
+    }
+    match /marketplace_items/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuth() && isValidImage();
+      allow delete: if isAuth();
+    }
+    match /escrow_items/{allPaths=**} {
       allow read: if true;
       allow write: if isAuth() && isValidImage();
       allow delete: if isAuth();
