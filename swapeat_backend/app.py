@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request, redirect
+from flask import Flask, jsonify, render_template, request, redirect, session, send_from_directory, abort
 from dotenv import load_dotenv
 import os
 import json
@@ -8,6 +8,8 @@ from firebase_admin import credentials
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dishi_enterprise_secret_key_2026_secured')
+
 
 # ─── Flask-Mail (optional – gracefully skipped if config is missing) ───────────
 # Rule: Never import flask_mail at module level
@@ -260,9 +262,80 @@ def fundi_deliv_page():
 def inclusion_page():
     return render_template('inclusion.html')
 
-@app.route('/constitution')
+CONSTITUTION_VIEW_PASSWORD = os.getenv('CONSTITUTION_VIEW_PASSWORD', 'DISHIID123D')
+
+@app.before_request
+def protect_charter_downloads():
+    sensitive_pdfs = (
+        'DISHI_Official_Constitution.pdf',
+        'DISHI_Enterprise_Business_Model.pdf',
+        'DISHI_Business_Model_and_Constitution.pdf',
+    )
+    req_path = request.path or ''
+    if req_path.startswith('/static/'):
+        for pdf in sensitive_pdfs:
+            if pdf in req_path:
+                key_param = (request.args.get('key') or request.args.get('pwd') or '').strip()
+                if not session.get('constitution_unlocked') and key_param != CONSTITUTION_VIEW_PASSWORD:
+                    return redirect('/constitution?error=locked&next=' + req_path)
+
+@app.route('/constitution', methods=['GET', 'POST'])
 def constitution_page():
-    return render_template('constitution.html')
+    error_msg = None
+
+    # Handle lock/logout action
+    if request.args.get('action') == 'lock':
+        session.pop('constitution_unlocked', None)
+        return redirect('/constitution')
+
+    # Allow unlock via URL parameter (e.g. ?key=DISHIID123D)
+    key_param = (request.args.get('key') or request.args.get('pwd') or '').strip()
+    if key_param == CONSTITUTION_VIEW_PASSWORD:
+        session['constitution_unlocked'] = True
+        return redirect('/constitution')
+
+    if request.method == 'POST':
+        submitted_pwd = (request.form.get('view_password') or 
+                         (request.get_json(silent=True) or {}).get('view_password') or '').strip()
+        
+        if submitted_pwd == CONSTITUTION_VIEW_PASSWORD:
+            session['constitution_unlocked'] = True
+            if request.is_json:
+                return jsonify({"status": "ok", "unlocked": True, "message": "Access granted"})
+            next_url = request.form.get('next') or '/constitution'
+            return redirect(next_url)
+        else:
+            if request.is_json:
+                return jsonify({"status": "error", "message": "Invalid View Password. Access denied."}), 401
+            error_msg = "Invalid View Password. Please enter the authorized DISHI access key."
+
+    if request.args.get('error') == 'locked':
+        error_msg = "This document is restricted. Please enter the Institutional View Password to access."
+
+    is_unlocked = bool(session.get('constitution_unlocked'))
+    return render_template('constitution.html', 
+                           is_unlocked=is_unlocked, 
+                           error=error_msg,
+                           next_url=request.args.get('next', ''))
+
+@app.route('/constitution/download/<doc_type>')
+def download_constitution_doc(doc_type):
+    key_param = (request.args.get('key') or request.args.get('pwd') or '').strip()
+    if not session.get('constitution_unlocked') and key_param != CONSTITUTION_VIEW_PASSWORD:
+        return redirect('/constitution?error=locked&next=' + request.path)
+
+    doc_files = {
+        'constitution': 'DISHI_Official_Constitution.pdf',
+        'business-model': 'DISHI_Enterprise_Business_Model.pdf',
+        'combined': 'DISHI_Business_Model_and_Constitution.pdf',
+    }
+    filename = doc_files.get(doc_type)
+    if not filename:
+        return abort(404)
+
+    static_dir = os.path.join(os.path.dirname(__file__), 'static')
+    return send_from_directory(static_dir, filename, as_attachment=True, download_name=filename)
+
 
 @app.route('/about')
 def about():
