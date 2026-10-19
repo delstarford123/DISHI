@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -98,6 +99,19 @@ class SecureStorageService {
     await prefs.setBool('has_pin', false);
   }
 
+  // --- Offline PIN ---
+  static const String _keyOfflinePin = 'offline_pin';
+
+  static Future<void> saveOfflinePin(String pin) async {
+    await _storage.write(key: _keyOfflinePin, value: pin);
+  }
+
+  static Future<String?> getOfflinePin() async {
+    final offline = await _storage.read(key: _keyOfflinePin);
+    if (offline != null && offline.isNotEmpty) return offline;
+    return await getHashedPin();
+  }
+
   // --- User Metadata ---
   // --- User Metadata ---
   static Future<void> saveUserData({
@@ -139,6 +153,95 @@ class SecureStorageService {
       'email': email,
       'phone': phone,
     };
+  }
+
+  // --- Admin Ghost Mode Session Management ---
+  static const String _keyIsGhostSession = 'is_ghost_session';
+  static const String _keyGhostAdminReturnToken = 'ghost_admin_return_token';
+  static const String _keyGhostAdminUid = 'ghost_admin_uid';
+  static const String _keyGhostAdminEmail = 'ghost_admin_email';
+  static const String _keyGhostAdminName = 'ghost_admin_name';
+  static const String _keyGhostAdminUserJson = 'ghost_admin_user_json';
+
+  static Future<void> startGhostSession({
+    required String adminUid,
+    required String adminEmail,
+    String? adminName,
+    String? adminReturnToken,
+    Map<String, dynamic>? adminUserMap,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyIsGhostSession, true);
+    await _storage.write(key: _keyIsGhostSession, value: 'true');
+    await _storage.write(key: _keyGhostAdminUid, value: adminUid);
+    await _storage.write(key: _keyGhostAdminEmail, value: adminEmail);
+    if (adminName != null) {
+      await _storage.write(key: _keyGhostAdminName, value: adminName);
+    }
+    if (adminReturnToken != null) {
+      await _storage.write(key: _keyGhostAdminReturnToken, value: adminReturnToken);
+    }
+    if (adminUserMap != null) {
+      await _storage.write(key: _keyGhostAdminUserJson, value: jsonEncode(adminUserMap));
+    }
+  }
+
+  static Future<bool> isGhostSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyIsGhostSession) ?? false;
+  }
+
+  static Future<String?> getGhostAdminReturnToken() async {
+    return await _storage.read(key: _keyGhostAdminReturnToken);
+  }
+
+  static Future<String?> getGhostAdminEmail() async {
+    return await _storage.read(key: _keyGhostAdminEmail);
+  }
+
+  static Future<Map<String, dynamic>?> getGhostAdminUserMap() async {
+    final raw = await _storage.read(key: _keyGhostAdminUserJson);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        return Map<String, dynamic>.from(jsonDecode(raw));
+      } catch (_) {}
+    }
+    final uid = await _storage.read(key: _keyGhostAdminUid);
+    final email = await _storage.read(key: _keyGhostAdminEmail);
+    final name = await _storage.read(key: _keyGhostAdminName);
+    if (uid != null) {
+      return {
+        'uid': uid,
+        'email': email ?? 'dishi@delstarfordworks.co.ke',
+        'name': name ?? 'Super Admin',
+        'roles': ['admin'],
+        'role': 'admin',
+      };
+    }
+    return null;
+  }
+
+  static Future<void> endGhostSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyIsGhostSession, false);
+    await prefs.setString('fast_role', 'admin');
+
+    final adminUid = await _storage.read(key: _keyGhostAdminUid);
+    final adminEmail = await _storage.read(key: _keyGhostAdminEmail);
+    final adminName = await _storage.read(key: _keyGhostAdminName);
+
+    await _storage.delete(key: _keyIsGhostSession);
+    await _storage.delete(key: _keyGhostAdminReturnToken);
+    await _storage.delete(key: _keyGhostAdminUserJson);
+
+    if (adminUid != null) {
+      await saveUserData(
+        userId: adminUid,
+        role: 'admin',
+        name: adminName ?? 'Super Admin',
+        email: adminEmail ?? 'dishi@delstarfordworks.co.ke',
+      );
+    }
   }
 
   // --- Clear All (Logout) ---

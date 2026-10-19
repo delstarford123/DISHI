@@ -166,15 +166,34 @@ class AdminService {
 
   Future<List<dynamic>> getFraudFlags() async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/fraud_flags');
-    final response = await http.get(url, headers: headers);
-    
-    if (response.statusCode != 200) {
-      throw Exception('Failed to get fraud flags: ${response.body}');
+    http.Response response;
+    try {
+      final v4Url = Uri.parse('${ApiConfig.baseUrl}/api/v4/fraud/flags');
+      response = await http.get(v4Url, headers: headers).timeout(const Duration(seconds: 30));
+    } catch (_) {
+      final v1Url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/fraud_flags');
+      response = await http.get(v1Url, headers: headers).timeout(const Duration(seconds: 30));
     }
-    
+
+    if (response.statusCode != 200) {
+      final v1Url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/fraud_flags');
+      response = await http.get(v1Url, headers: headers).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) {
+        throw Exception(_parseError(response, 'Failed to get fraud flags'));
+      }
+    }
+
     final data = jsonDecode(response.body);
-    return data['flags'] as List<dynamic>;
+    return (data['flags'] as List<dynamic>?) ?? [];
+  }
+
+  Future<void> dismissFraudFlag(String flagId) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v4/fraud/flags/$flagId');
+    final response = await http.post(url, headers: headers).timeout(const Duration(seconds: 30));
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to dismiss fraud flag'));
+    }
   }
 
   Future<List<dynamic>> getAuditLogs() async {
@@ -627,7 +646,19 @@ class AdminService {
     if (response.statusCode != 201 && response.statusCode != 200) {
       throw Exception(_parseError(response, 'Failed to add employee'));
     }
-    return jsonDecode(response.body)['id'] as String;
+    final body = jsonDecode(response.body);
+    return body['id']?.toString() ?? '';
+  }
+
+  Future<Map<String, dynamic>> resendStaffWelcomeEmail(String empId) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/employees/$empId/resend_welcome_email');
+    final response = await http.post(url, headers: headers).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to resend appointment email'));
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   Future<void> updateEmployee(String empId, Map<String, dynamic> data) async {
@@ -750,11 +781,67 @@ class AdminService {
 
   Future<Map<String, dynamic>> getC2BOverview() async {
     final headers = await _getHeaders();
-    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/finance/c2b_overview');
-    final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 30));
+    http.Response response;
+    try {
+      final v4Url = Uri.parse('${ApiConfig.baseUrl}/api/v4/c2b/overview');
+      response = await http.get(v4Url, headers: headers).timeout(const Duration(seconds: 30));
+    } catch (_) {
+      final v1Url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/finance/c2b_overview');
+      response = await http.get(v1Url, headers: headers).timeout(const Duration(seconds: 30));
+    }
 
     if (response.statusCode != 200) {
-      throw Exception(_parseError(response, 'Failed to fetch C2B collections'));
+      final v1Url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/finance/c2b_overview');
+      response = await http.get(v1Url, headers: headers).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) {
+        throw Exception(_parseError(response, 'Failed to fetch C2B collections'));
+      }
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> simulateC2B({
+    required String phone,
+    required double amount,
+    required String billRef,
+    String? customerName,
+  }) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v4/c2b/simulate');
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: jsonEncode({
+        'phone': phone,
+        'amount': amount,
+        'bill_ref': billRef,
+        'customer_name': customerName ?? 'Test Student',
+      }),
+    ).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to simulate C2B payment'));
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> reconcileC2B({
+    required String transId,
+    required String userId,
+  }) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v4/c2b/reconcile');
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: jsonEncode({
+        'trans_id': transId,
+        'user_id': userId,
+      }),
+    ).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception(_parseError(response, 'Failed to reconcile C2B transaction'));
     }
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
@@ -845,5 +932,117 @@ class AdminService {
       throw Exception(_parseError(response, 'Failed to update compensation'));
     }
     return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  // ==========================================
+  // PHASE 9: EXECUTIVE DATA INTELLIGENCE & COMMISSIONS (V4)
+  // ==========================================
+
+  Future<Map<String, dynamic>> getCommissionAnalytics() async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v4/analytics/commissions');
+    try {
+      final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) {
+        throw Exception(_parseError(response, 'Failed to fetch commissions'));
+      }
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } on TimeoutException {
+      throw Exception('Connection timed out while fetching commission analytics.');
+    }
+  }
+
+  Future<Map<String, dynamic>> getStudentDepositAndVendorFlow() async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v4/analytics/student_flow');
+    try {
+      final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) {
+        throw Exception(_parseError(response, 'Failed to fetch student flow'));
+      }
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } on TimeoutException {
+      throw Exception('Connection timed out while analyzing student vendor flow.');
+    }
+  }
+
+  Future<Map<String, dynamic>> getB2BLiquidityOverview() async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v4/analytics/b2b_liquidity_overview');
+    try {
+      final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) {
+        throw Exception(_parseError(response, 'Failed to fetch B2B liquidity overview'));
+      }
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } on TimeoutException {
+      throw Exception('Connection timed out while analyzing B2B liquidity.');
+    }
+  }
+
+  Future<Map<String, dynamic>> getPlatformSecurityConfig() async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v4/analytics/platform_security_config');
+    try {
+      final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) {
+        throw Exception(_parseError(response, 'Failed to fetch security config'));
+      }
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } on TimeoutException {
+      throw Exception('Connection timed out fetching platform security config.');
+    }
+  }
+
+  Future<void> updatePlatformSecurityConfig(Map<String, dynamic> config) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v4/analytics/platform_security_config');
+    try {
+      final response = await http.post(url, headers: headers, body: jsonEncode(config)).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) {
+        throw Exception(_parseError(response, 'Failed to update security config'));
+      }
+    } on TimeoutException {
+      throw Exception('Connection timed out updating platform security config.');
+    }
+  }
+
+  Future<Map<String, dynamic>> getAdminProfile() async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/profile');
+    try {
+      final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) {
+        throw Exception(_parseError(response, 'Failed to fetch admin profile'));
+      }
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } on TimeoutException {
+      throw Exception('Connection timed out fetching admin profile.');
+    }
+  }
+
+  Future<Map<String, dynamic>> updateAdminProfile({
+    String? name,
+    String? email,
+    String? profileImageUrl,
+    String? phone,
+  }) async {
+    final headers = await _getHeaders();
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/profile');
+    final body = jsonEncode({
+      if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+      if (profileImageUrl != null && profileImageUrl.trim().isNotEmpty) 'profileImageUrl': profileImageUrl.trim(),
+      if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+    });
+    try {
+      final response = await http.post(url, headers: headers, body: body).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) {
+        throw Exception(_parseError(response, 'Failed to update admin profile'));
+      }
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } on TimeoutException {
+      throw Exception('Connection timed out updating admin profile.');
+    }
   }
 }

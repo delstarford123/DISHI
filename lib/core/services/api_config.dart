@@ -23,6 +23,8 @@ class ApiConfig {
   static const String transactionCashout = '$baseUrl/api/v1/transaction/cashout';
   static const String transactionTopup = '$baseUrl/api/v1/transaction/topup';
   static const String transactionParentTransfer = '$baseUrl/api/v1/transaction/parent_transfer';
+  static const String transactionPreorder = '$baseUrl/api/v1/transaction/preorder';
+  static const String transactionPreorderCancel = '$baseUrl/api/v1/transaction/preorder/cancel';
   static const String vendorAgentTopup = '$baseUrl/api/v4/vendor/topup';
   
   // Games Hub endpoints

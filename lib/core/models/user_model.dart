@@ -118,7 +118,7 @@ class UserModel {
       email: json['email'] ?? '',
       phoneNumber: json['phoneNumber'] ?? json['phone'],
       roles: json['roles'] != null ? List<String>.from(json['roles']) : (json['role'] != null ? [json['role']] : ['student']),
-      profileImageUrl: json['profileImageUrl'],
+      profileImageUrl: json['profileImageUrl'] ?? json['photoUrl'] ?? json['photoURL'] ?? json['avatarUrl'] ?? json['studentImageUrl'] ?? json['image'],
       walletBalance: (json['walletBalance'] ?? 0.0).toDouble(),
       vaultBalance: (json['vaultBalance'] ?? 0.0).toDouble(),
       okoaBalance: (json['okoaBalance'] ?? 0.0).toDouble(),
@@ -151,14 +151,19 @@ class UserModel {
       autoTopUpThreshold: json['autoTopUpThreshold'] != null ? (json['autoTopUpThreshold'] as num).toDouble() : null,
       autoTopUpAmount: json['autoTopUpAmount'] != null ? (json['autoTopUpAmount'] as num).toDouble() : null,
       allergies: json['allergies'] != null ? List<String>.from(json['allergies']) : [],
-      categoryLimits: json['categoryLimits'] != null ? Map<String, int>.from(json['categoryLimits']) : {},
-      categorySpentToday: json['categorySpentToday'] != null ? Map<String, int>.from(json['categorySpentToday']) : {},
+      categoryLimits: json['categoryLimits'] != null
+          ? (json['categoryLimits'] as Map).map((k, v) => MapEntry(k.toString(), (v as num).toInt()))
+          : {},
+      categorySpentToday: json['categorySpentToday'] != null
+          ? (json['categorySpentToday'] as Map).map((k, v) => MapEntry(k.toString(), (v as num).toInt()))
+          : {},
       whitelistedVendors: json['whitelistedVendors'] != null ? List<String>.from(json['whitelistedVendors']) : [],
-      allowedTimeWindows: json['allowedTimeWindows'] != null ? List<Map<String, String>>.from(
-          (json['allowedTimeWindows'] as List).map((e) => Map<String, String>.from(e))) : [],
-      tempPin: json['tempPin'],
+      allowedTimeWindows: json['allowedTimeWindows'] != null
+          ? List<Map<String, String>>.from((json['allowedTimeWindows'] as List).map((e) => (e as Map).map((k, v) => MapEntry(k.toString(), v.toString()))))
+          : [],
+      tempPin: json['tempPin'] != null ? Map<String, dynamic>.from(json['tempPin'] as Map) : null,
       studentImageUrl: json['studentImageUrl'],
-      virtualCard: json['virtualCard'] != null ? Map<String, dynamic>.from(json['virtualCard']) : null,
+      virtualCard: json['virtualCard'] != null ? Map<String, dynamic>.from(json['virtualCard'] as Map) : null,
       diningSwipes: json['diningSwipes'] ?? 0,
     );
   }

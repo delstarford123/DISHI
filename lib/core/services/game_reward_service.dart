@@ -341,6 +341,12 @@ class GameRewardService {
 
     final userRef = FirebaseFirestore.instance.collection('users').doc(userModel.uid);
     final userSnap = await userRef.get();
+    final List<dynamic> paidGames = List.from(userSnap.data()?['paid_games'] ?? []);
+    if (paidGames.contains(gameId)) {
+      onConfirmed();
+      return;
+    }
+
     final double walletBal = (userSnap.data()?['walletBalance'] as num?)?.toDouble() ?? userModel.walletBalance;
 
     if (!context.mounted) return;
@@ -359,13 +365,12 @@ class GameRewardService {
 
             return Container(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-              decoration: const BoxDecoration(
-                color: Color(0xFF101726),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                border: Border(
-                  top: BorderSide(color: Color(0xFF05D5AA), width: 1.5),
-                  left: BorderSide(color: Colors.white12),
-                  right: BorderSide(color: Colors.white12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF101726),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                border: Border.all(
+                  color: const Color(0xFF05D5AA).withValues(alpha: 0.4),
+                  width: 1.5,
                 ),
               ),
               child: Column(
@@ -401,8 +406,8 @@ class GameRewardService {
                               style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                             const Text(
-                              'Arcade Match Entry Fee',
-                              style: TextStyle(color: Colors.white54, fontSize: 13),
+                              'One-Time Unlock • Play Forever',
+                              style: TextStyle(color: Color(0xFF05D5AA), fontSize: 13, fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
@@ -431,7 +436,7 @@ class GameRewardService {
                         const Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Entry Fee', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                            Text('One-Time Access Fee', style: TextStyle(color: Colors.white70, fontSize: 14)),
                             Text('KES 5.00', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                           ],
                         ),
@@ -489,7 +494,14 @@ class GameRewardService {
                                 final s = await tx.get(userRef);
                                 final b = (s.data()?['walletBalance'] as num?)?.toDouble() ?? 0.0;
                                 if (b < entryFeeAmount) throw Exception('Insufficient balance');
-                                tx.update(userRef, {'walletBalance': b - entryFeeAmount});
+                                final List<dynamic> currentPaid = List.from(s.data()?['paid_games'] ?? []);
+                                if (!currentPaid.contains(gameId)) {
+                                  currentPaid.add(gameId);
+                                }
+                                tx.update(userRef, {
+                                  'walletBalance': b - entryFeeAmount,
+                                  'paid_games': currentPaid,
+                                });
                                 final tRef = FirebaseFirestore.instance.collection('transactions').doc();
                                 tx.set(tRef, {
                                   'userId': userModel.uid,
@@ -497,11 +509,18 @@ class GameRewardService {
                                   'type': 'arcade_entry_fee',
                                   'amount': entryFeeAmount,
                                   'gameId': gameId,
-                                  'description': 'Arcade Entry: $gameTitle',
+                                  'description': 'Arcade Lifetime Unlock: $gameTitle',
                                   'timestamp': FieldValue.serverTimestamp(),
                                   'status': 'completed',
                                 });
                               });
+                            } else {
+                              // Ensure paid_games is recorded locally on user doc
+                              try {
+                                await userRef.update({
+                                  'paid_games': FieldValue.arrayUnion([gameId]),
+                                });
+                              } catch (_) {}
                             }
 
                             if (modalCtx.mounted) {
@@ -517,7 +536,7 @@ class GameRewardService {
                         },
                         child: isProcessing
                             ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2.5))
-                            : const Text('Pay KES 5.00 & Play', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            : const Text('Pay KES 5.00 & Unlock Forever', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       ),
                     ),
                   ] else ...[
@@ -602,13 +621,12 @@ class GameRewardService {
 
             return Container(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-              decoration: const BoxDecoration(
-                color: Color(0xFF101726),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                border: Border(
-                  top: BorderSide(color: Colors.amber, width: 1.5),
-                  left: BorderSide(color: Colors.white12),
-                  right: BorderSide(color: Colors.white12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF101726),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                border: Border.all(
+                  color: Colors.amber.withValues(alpha: 0.4),
+                  width: 1.5,
                 ),
               ),
               child: Column(

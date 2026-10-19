@@ -23,6 +23,7 @@ import 'features/match/presentation/widgets/incoming_call_listener.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'core/services/fcm_service.dart';
+import 'core/services/app_version_service.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 @pragma('vm:entry-point')
@@ -142,10 +143,27 @@ class _InitialRouterState extends State<InitialRouter> {
   }
 
   Future<void> _checkInitialRoute() async {
+    // 0. Remote Version Gate & Maintenance Check
+    if (mounted) {
+      final canProceed = await AppVersionService.enforceVersionCheck(context);
+      if (!canProceed) return;
+    }
+
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       // Sync FCM token in background
       FCMService.syncToken(user.uid);
+
+      // Restore admin session if previous ghost mode was unclosed
+      if (await SecureStorageService.isGhostSession()) {
+        final adminToken = await SecureStorageService.getGhostAdminReturnToken();
+        if (adminToken != null && adminToken.isNotEmpty) {
+          try {
+            await FirebaseAuth.instance.signInWithCustomToken(adminToken);
+          } catch (_) {}
+        }
+        await SecureStorageService.endGhostSession();
+      }
 
       // 1. Lightning Fast Boot Checks (L1 Cache)
       final hasPin = await SecureStorageService.hasPinFastCheck();

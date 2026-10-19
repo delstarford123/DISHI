@@ -68,12 +68,39 @@ class _ProfileHubSheetState extends State<ProfileHubSheet> {
     if (pickedFile != null && mounted) {
       setState(() => _isLoading = true);
       try {
+        final String uid = (widget.user['uid'] != null && widget.user['uid'].toString().isNotEmpty)
+            ? widget.user['uid'].toString()
+            : (FirebaseAuth.instance.currentUser?.uid ?? '');
         final File file = File(pickedFile.path);
-        final ref = FirebaseStorage.instance.ref().child('profile_images/${widget.user['uid']}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        final ref = FirebaseStorage.instance.ref().child('profile_images/${uid}_${DateTime.now().millisecondsSinceEpoch}.jpg');
         await ref.putFile(file);
         final url = await ref.getDownloadURL();
-        await _updateField('photoUrl', url);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile photo updated')));
+
+        // Update all profile photo keys in Firestore for total cross-app compatibility
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'photoUrl': url,
+          'profileImageUrl': url,
+          'photoURL': url,
+          'avatarUrl': url,
+          'studentImageUrl': url,
+          'image': url,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        // Update FirebaseAuth profile
+        try {
+          await FirebaseAuth.instance.currentUser?.updatePhotoURL(url);
+        } catch (_) {}
+
+        // Update local map & state
+        widget.user['photoUrl'] = url;
+        widget.user['profileImageUrl'] = url;
+        setState(() {
+          _userData?['photoUrl'] = url;
+          _userData?['profileImageUrl'] = url;
+        });
+
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile photo updated everywhere!')));
       } catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error uploading photo: $e')));
       } finally {

@@ -79,4 +79,61 @@ class VirtualCardService {
       throw Exception(data['error'] ?? 'Payment failed');
     }
   }
+
+  Future<Map<String, dynamic>> chargeOnlineCard({
+    required String pan,
+    required String cvv,
+    required String expiry,
+    required double amount,
+    required String merchantName,
+    String? category,
+    String? uid,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/card/online/charge');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'pan': pan,
+        'cvv': cvv,
+        'expiry': expiry,
+        'amount': amount,
+        'merchant_name': merchantName,
+        'category': category ?? 'Online Shopping',
+        'uid': ?uid,
+      }),
+    ).timeout(const Duration(seconds: 30));
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return data;
+    } else {
+      throw Exception(data['error'] ?? 'Online payment failed');
+    }
+  }
+
+  Future<Map<String, dynamic>> verifyOnlineCard({
+    required String pan,
+    required String cvv,
+    required String expiry,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/card/online/verify');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'pan': pan,
+        'cvv': cvv,
+        'expiry': expiry,
+      }),
+    ).timeout(const Duration(seconds: 30));
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return data;
+    } else {
+      throw Exception(data['error'] ?? 'Card verification failed');
+    }
+  }
 }
+

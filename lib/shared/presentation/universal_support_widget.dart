@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -24,26 +25,52 @@ class _UniversalSupportWidgetState extends State<UniversalSupportWidget> {
     setState(() => _isSubmitting = true);
 
     try {
-      final url = Uri.parse('https://dishi.delstarfordworks.co.ke/api/v2/match/support/create_ticket');
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_id': widget.userId,
-          'user_role': widget.userRole,
-          'message': text,
-        }),
-      ).timeout(const Duration(seconds: 30));
+      // 1. Direct Firestore write for instant real-time admin sync
+      final ticketRef = await FirebaseFirestore.instance.collection('support_tickets').add({
+        'user_id': widget.userId,
+        'user_role': widget.userRole,
+        'message': text,
+        'status': 'open',
+        'is_unread': true,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
 
-      if (response.statusCode == 200) {
-        if (mounted) {
-          _messageController.clear();
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Support ticket sent to Admins!')));
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to send ticket. Try again later.')));
-        }
+      // 2. Add to admin_alerts for instant notification badge
+      try {
+        await FirebaseFirestore.instance.collection('admin_alerts').add({
+          'type': 'support_ticket',
+          'title': 'New ${widget.userRole.toUpperCase()} Support Ticket',
+          'message': text,
+          'userId': widget.userId,
+          'userRole': widget.userRole,
+          'ticketId': ticketRef.id,
+          'status': 'unread',
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      } catch (_) {}
+
+      // 3. Notify backend for FCM broadcast to admin devices
+      try {
+        final url = Uri.parse('https://dishi.delstarfordworks.co.ke/api/v2/match/support/create_ticket');
+        await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'user_id': widget.userId,
+            'user_role': widget.userRole,
+            'message': text,
+          }),
+        ).timeout(const Duration(seconds: 15));
+      } catch (_) {}
+
+      if (mounted) {
+        _messageController.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Support ticket sent to Admins! Support team will assist you shortly.'),
+            backgroundColor: MPesaTheme.primaryGreen,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
