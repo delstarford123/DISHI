@@ -1,58 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About DISHI — Executive Pitch, Youth Employment & Architecture</title>
-    <meta name="description" content="Discover DISHI's African campus ecosystem: Smart meal logistics, 0.5% vendor commission, campus food delivery by comrade couriers, verified Fundi artisan services, and offline NFC smart cards.">
+{% extends "base.html" %}
 
-    <!-- Canonical & Favicons -->
-    <link rel="canonical" href="https://dishi.delstarfordworks.co.ke/about">
-    <link rel="icon" type="image/png" href="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
-    <link rel="shortcut icon" type="image/png" href="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
-    <link rel="apple-touch-icon" href="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
+{% block title %}About DISHI — Executive Pitch, Youth Employment & Architecture{% endblock %}
+{% block description %}Discover DISHI's African campus ecosystem: Smart meal logistics, 0.5% vendor commission, campus food delivery by comrade couriers, verified Fundi artisan services, and offline NFC smart cards.{% endblock %}
 
-    <!-- Open Graph / WhatsApp / Facebook / LinkedIn / Telegram -->
-    <meta property="og:site_name" content="DISHI">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://dishi.delstarfordworks.co.ke/about">
-    <meta property="og:title" content="About DISHI — Executive Pitch, Youth Employment & Architecture">
-    <meta property="og:description" content="Discover DISHI's African campus ecosystem: Smart meal logistics, 0.5% vendor commission, campus food delivery by comrade couriers, verified Fundi artisan services, and offline NFC smart cards.">
-    <meta property="og:image" content="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
-    <meta property="og:image:secure_url" content="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
-    <meta property="og:image:type" content="image/png">
-    <meta property="og:image:width" content="512">
-    <meta property="og:image:height" content="512">
-    <meta property="og:image:alt" content="DISHI Official Logo">
-
-    <!-- Twitter Card / X -->
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:site" content="@DishiAfrica">
-    <meta name="twitter:title" content="About DISHI — Executive Pitch, Youth Employment & Architecture">
-    <meta name="twitter:description" content="Discover DISHI's African campus ecosystem: Smart meal logistics, 0.5% vendor commission, campus food delivery by comrade couriers, verified Fundi artisan services, and offline NFC smart cards.">
-    <meta name="twitter:image" content="https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png">
-    <meta name="twitter:image:alt" content="DISHI Official Logo">
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+{% block head_extra %}
     <style>
         :root {
-            --bg: #090E1A;
-            --bg-card: #111827;
-            --bg-card-hover: #172238;
-            --mint: #05D5AA;
-            --mint-glow: rgba(5, 213, 170, 0.3);
-            --pink: #FF2A6D;
-            --purple: #9D4EDD;
-            --gold: #FFB703;
-            --blue: #2563EB;
-            --text-main: #FFFFFF;
-            --text-muted: #94A3B8;
-            --border: rgba(255, 255, 255, 0.08);
             --border-accent: rgba(5, 213, 170, 0.3);
-            --radius-lg: 24px;
-            --radius-md: 16px;
         }
 
         *, *::before, *::after {
@@ -497,21 +451,10 @@
             }
         }
     </style>
-</head>
-<body>
+{% endblock %}
 
-<div class="container">
-    <!-- TOP HEADER -->
-    <header class="header-wrap">
-        <a href="/" class="brand-link">
-            <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI Logo" class="brand-logo">
-            <span class="brand-text">DISHI</span>
-        </a>
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <a href="/events" class="nav-back" style="border-color: rgba(5, 213, 170, 0.4); color: var(--mint);">🎉 Campus Events</a>
-            <a href="/" class="nav-back">← Back to Portal</a>
-        </div>
-    </header>
+{% block content %}
+<div class="container" style="max-width: 1200px; margin: 40px auto 80px; padding: 0 24px;">
 
     <!-- PITCH HERO -->
     <div class="pitch-hero">
@@ -846,7 +789,7 @@
             We are actively partnering with Universities, Higher Education Boards, Cafeteria Caterers, NGOs, and Corporate Sponsors. Connect with our partnership desk directly:
         </p>
         <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
-            <a href="https://play.google.com/store/apps/details?id=com.delstarfordworks.dishi" target="_blank" rel="noopener" class="email-btn" style="background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03)); border: 1.5px solid var(--mint); color: #fff;">
+            <a href="https://play.google.com/store/apps/details?id=co.ke.delstarfordworks.dishi" target="_blank" rel="noopener" class="email-btn" style="background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03)); border: 1.5px solid var(--mint); color: #fff;">
                 <span>📲 Download DISHI App (Play Store)</span>
             </a>
             <a href="/#support" class="email-btn" style="background: linear-gradient(135deg, #05D5AA, #028A6E); color: #000;">
@@ -860,6 +803,4 @@
     </div>
 
 </div>
-
-</body>
-</html>
+{% endblock %}

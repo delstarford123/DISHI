@@ -235,6 +235,14 @@ def online_card_charge():
         if amount > daily_limit:
             return jsonify({'error': f'Amount KES {amount:.2f} exceeds your daily limit of KES {daily_limit:.2f}', 'code': 'LIMIT_EXCEEDED'}), 400
 
+        # Simulation safeguard: simulation must not deduct student wallet funds
+        if data.get('is_simulation') or merchant_name in ['Campus Bookstore', 'Coursera Student Pass', 'Spotify Student Plan', 'Kilimall Tech Gadget']:
+            return jsonify({
+                'status': 'coming_soon',
+                'message': 'Online purchase simulation is coming soon and disabled from deducting student wallet balance.',
+                'code': 'SIMULATION_COMING_SOON'
+            }), 400
+
         # 6. Check student wallet balance
         user_ref = db.collection('users').document(target_uid)
         user_doc = user_ref.get()

@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}Universal Inclusion & Radical Empathy — Blind, Deaf & Mobility Comrades | DISHI{% endblock %}
+{% block description %}Technology is only innovative when it includes everyone. Learn how DISHI provides barrier-free campus dining for blind, deaf, and mobility-challenged students.{% endblock %}
+
+{% block head_extra %}
+<style>
+    .inc-hero {
+        padding: 70px 24px 40px;
+        text-align: center;
+        max-width: 950px;
+        margin: 0 auto;
+    }
+
+    .inc-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 16px;
+        border-radius: 20px;
+        background: rgba(157, 78, 221, 0.1);
+        border: 1px solid rgba(157, 78, 221, 0.3);
+        color: var(--purple);
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 20px;
+    }
+
+    .inc-title {
+        font-size: 46px;
+        font-weight: 800;
+        line-height: 1.2;
+        margin-bottom: 20px;
+    }
+
+    .inc-desc {
+        font-size: 18px;
+        color: var(--text-muted);
+        line-height: 1.6;
+    }
+
+    .inc-container {
+        max-width: 1320px;
+        margin: 0 auto 90px;
+        padding: 0 24px;
+    }
+
+    .inc-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 50px;
+        align-items: center;
+        margin-bottom: 80px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: 40px;
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+    }
+
+    .inc-row.reverse {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .inc-photo-box {
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+        max-height: 480px;
+        position: relative;
+    }
+
+    .inc-photo-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: transform 0.4s ease;
+    }
+
+    .inc-photo-box:hover img {
+        transform: scale(1.04);
+    }
+
+    .inc-info-tag {
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .inc-info-title {
+        font-size: 32px;
+        font-weight: 800;
+        margin-bottom: 16px;
+        color: #fff;
+        line-height: 1.25;
+    }
+
+    .inc-info-desc {
+        font-size: 15px;
+        color: var(--text-muted);
+        line-height: 1.7;
+        margin-bottom: 24px;
+    }
+
+    .inc-hardware-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 28px;
+        margin-top: 50px;
+    }
+
+    .hw-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.3s ease;
+    }
+
+    .hw-card:hover {
+        transform: translateY(-6px);
+        border-color: var(--mint);
+        box-shadow: 0 15px 35px var(--mint-glow-subtle);
+    }
+
+    .hw-img-box {
+        height: 240px;
+        overflow: hidden;
+        background: #000;
+    }
+
+    .hw-img-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .hw-content {
+        padding: 22px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    @media (max-width: 992px) {
+        .inc-row, .inc-row.reverse {
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+        .inc-hardware-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="inc-hero">
+    <div class="inc-pill">♿ Radical African Empathy</div>
+    <h1 class="inc-title">Universal Inclusion.<br><span class="gradient-text">Barrier-Free Campus Dining.</span></h1>
+    <p class="inc-desc">
+        Technology is only truly innovative when it empowers every member of our society. DISHI is built from the ground up to ensure comrades gifted differently enjoy complete independence, dignity, and nutrition.
+    </p>
+</div>
+
+<div class="inc-container">
+    <!-- ROW 1: BLIND & VISUALLY IMPAIRED -->
+    <div class="inc-row">
+        <div class="inc-photo-box">
+            <img src="{{ url_for('static', filename='img/dishi_blind_student.jpg') }}" alt="Blind Comrade using DISHI Speech Assistive Technology">
+        </div>
+        <div>
+            <div class="inc-info-tag" style="color: var(--mint);">
+                <span>👁️ AUDITORY & TACTILE ACCESSIBILITY</span>
+            </div>
+            <h2 class="inc-info-title">Blind & Visually Impaired Comrades</h2>
+            <p class="inc-info-desc">
+                For visually impaired students, reading cafeteria handwritten chalkboard menus or navigating touchscreen keypads in noisy dining halls is a constant barrier. DISHI introduces acoustic guidance, screen-reader optimized layout architecture, and tactile offline NFC passes.
+            </p>
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px;">
+                <li style="display: flex; gap: 10px; font-size: 14px; color: #E2E8F0;">
+                    <span>🔊</span><span><strong>Acoustic Counter Chimes:</strong> Cafeteria pickup stations emit distinctive localized auditory tones when the student’s order is plated.</span>
+                </li>
+                <li style="display: flex; gap: 10px; font-size: 14px; color: #E2E8F0;">
+                    <span>🎙️</span><span><strong>Voice Navigation:</strong> Complete auditory menu exploration, budget calculation, and order confirmation in Swahili and English.</span>
+                </li>
+                <li style="display: flex; gap: 10px; font-size: 14px; color: #E2E8F0;">
+                    <span>💳</span><span><strong>Tactile Braille Notch Cards:</strong> Custom embossed tactile NFC cards allowing blind comrades to pay at counters in under 300ms without seeing the terminal.</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ROW 2: DEAF & HARD OF HEARING -->
+    <div class="inc-row reverse">
+        <div>
+            <div class="inc-info-tag" style="color: var(--pink);">
+                <span>🧏 VISUAL & HAPTIC SYNCHRONIZATION</span>
+            </div>
+            <h2 class="inc-info-title">Deaf & Hard-of-Hearing Comrades</h2>
+            <p class="inc-info-desc">
+                Cafeteria counter staff shouting order numbers across a crowded university dining hall leaves deaf comrades waiting indefinitely while meals grow cold. DISHI eliminates acoustic dependence through synchronized haptic pulses and visual queue screens.
+            </p>
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px;">
+                <li style="display: flex; gap: 10px; font-size: 14px; color: #E2E8F0;">
+                    <span>📳</span><span><strong>Haptic Vibration Alerts:</strong> Students feel distinct rhythmic vibration patterns on their smartphones or DISHI wearable passes the exact second food is ready.</span>
+                </li>
+                <li style="display: flex; gap: 10px; font-size: 14px; color: #E2E8F0;">
+                    <span>📺</span><span><strong>High-Contrast Kitchen Displays:</strong> Large, color-coded visual order numbers displayed on monitors at cafeteria collection windows.</span>
+                </li>
+                <li style="display: flex; gap: 10px; font-size: 14px; color: #E2E8F0;">
+                    <span>🤝</span><span><strong>Non-Verbal Counter Checkouts:</strong> One-tap QR and NFC token validation requires zero verbal back-and-forth at the till.</span>
+                </li>
+            </ul>
+        </div>
+        <div class="inc-photo-box">
+            <img src="{{ url_for('static', filename='img/dishi_deaf_student.jpg') }}" alt="Deaf Comrade using DISHI Haptic Alerts">
+        </div>
+    </div>
+
+    <!-- ROW 3: MOBILITY-CHALLENGED COMRADES -->
+    <div class="inc-row">
+        <div class="inc-photo-box">
+            <img src="{{ url_for('static', filename='img/dishi_wheelchair_student.jpg') }}" alt="Mobility-Challenged Comrade supported by DISHI Priority Delivery">
+        </div>
+        <div>
+            <div class="inc-info-tag" style="color: var(--blue);">
+                <span>♿ PHYSICAL BARRIER ELIMINATION</span>
+            </div>
+            <h2 class="inc-info-title">Mobility-Challenged Comrades</h2>
+            <p class="inc-info-desc">
+                Steep cafeteria staircases, overcrowded corridors, and counter heights built above wheelchair eye level are structural injustices. DISHI bridges the physical divide with low-elevation terminals and doorstep delivery.
+            </p>
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px;">
+                <li style="display: flex; gap: 10px; font-size: 14px; color: #E2E8F0;">
+                    <span>🚪</span><span><strong>Priority Hostel Doorstep Delivery:</strong> Subsidized delivery by verified student couriers straight to student rooms.</span>
+                </li>
+                <li style="display: flex; gap: 10px; font-size: 14px; color: #E2E8F0;">
+                    <span>📏</span><span><strong>Wheelchair-Friendly POS Mounts:</strong> Accessible tap-to-eat hardware mounted at compliant low elevations for seated students.</span>
+                </li>
+                <li style="display: flex; gap: 10px; font-size: 14px; color: #E2E8F0;">
+                    <span>⚡</span><span><strong>Zero-Queue Priority Pass:</strong> Mobile pre-orders allow comrades to bypass crowded physical lines entirely.</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- HARDWARE & WEARABLES SHOWCASE -->
+    <div style="text-align: center; margin: 70px 0 30px;">
+        <h2 style="font-size: 32px; font-weight: 800; color: #fff;">Custom African Hardware Innovation</h2>
+        <p style="color: var(--text-muted); font-size: 16px; margin-top: 8px;">Hardware designed and engineered specifically for African university cafeteria conditions</p>
+    </div>
+
+    <div class="inc-hardware-grid">
+        <div class="hw-card">
+            <div class="hw-img-box">
+                <img src="{{ url_for('static', filename='img/dishi_iot_design.jpg') }}" alt="DISHI Smart IoT Terminal Design">
+            </div>
+            <div class="hw-content">
+                <h3 style="font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 8px;">Smart IoT Cafeteria Terminal</h3>
+                <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
+                    Low-cost Raspberry Pi / ESP32 hardware terminal with dual NFC antenna, thermal receipt printing, and sub-300ms offline token verification.
+                </p>
+            </div>
+        </div>
+
+        <div class="hw-card">
+            <div class="hw-img-box">
+                <img src="{{ url_for('static', filename='img/dishi_watch.jpg') }}" alt="DISHI Smart Wearable Meal Watch">
+            </div>
+            <div class="hw-content">
+                <h3 style="font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 8px;">Wearable Smart NFC Watch</h3>
+                <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
+                    Waterproof wearable food pass wristband with embedded encrypted cryptographic chips, enabling instant tap-to-eat without needing a smartphone.
+                </p>
+            </div>
+        </div>
+
+        <div class="hw-card">
+            <div class="hw-img-box">
+                <img src="{{ url_for('static', filename='img/dishi_shirts_caps.jpg') }}" alt="DISHI Campus Ambassador Gear">
+            </div>
+            <div class="hw-content">
+                <h3 style="font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 8px;">Campus Ambassadors Gear</h3>
+                <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
+                    Student campus marshals equipped with branded gear assisting first-year comrades and differently gifted students at dining halls.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

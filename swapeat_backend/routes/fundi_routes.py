@@ -368,3 +368,97 @@ def accept_fundi_job():
         return jsonify({"status": "success"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@fundi_bp.route('/cancel_escrow', methods=['POST'])
+def cancel_escrow():
+    """
+    Step 2 (Alt): Cancel and Refund Escrow to Payer.
+    Called when Fundi fails to perform, cannot make it, or job is cancelled.
+    """
+    data = request.json or {}
+    job_id = data.get('job_id')
+    caller_id = data.get('caller_id') or data.get('payer_id') or data.get('fundi_id')
+    reason = data.get('reason', 'Fundi did not show up / service unfulfilled')
+
+    if not job_id or not caller_id:
+        return jsonify({"error": "Missing job_id or caller_id"}), 400
+
+    db = firestore.client()
+
+    try:
+        transaction_ref = db.transaction()
+        job_ref = db.collection('fundi_jobs').document(job_id)
+
+        @firestore.transactional
+        def process_cancel(transaction):
+            job_doc = job_ref.get(transaction=transaction)
+            if not job_doc.exists:
+                raise Exception("Job not found")
+
+            job_data = job_doc.to_dict()
+            if job_data.get('escrow_status') != 'HELD':
+                raise Exception("Funds are not currently in Escrow for this job")
+
+            payer_id = job_data.get('payer_id') or job_data.get('poster_id')
+            fundi_id = job_data.get('fundi_id')
+
+            if caller_id not in [payer_id, fundi_id, 'admin']:
+                raise Exception("Only the payer or assigned fundi can cancel the escrow job")
+
+            amount = float(job_data.get('paid_amount') or job_data.get('amount', 0))
+            payer_ref = db.collection('users').document(payer_id)
+            payer_doc = payer_ref.get(transaction=transaction)
+            if not payer_doc.exists:
+                raise Exception("Payer user record not found")
+
+            payer_balance = float(payer_doc.to_dict().get('walletBalance', 0))
+
+            transaction.update(payer_ref, {
+                'walletBalance': payer_balance + amount
+            })
+
+            transaction.update(job_ref, {
+                'status': 'Cancelled',
+                'escrow_status': 'REFUNDED',
+                'cancelled_at': firestore.SERVER_TIMESTAMP,
+                'cancelled_by': caller_id,
+                'cancellation_reason': reason,
+                'refunded_amount': amount
+            })
+
+            tx_id = str(uuid.uuid4())
+            tx_ref = payer_ref.collection('transactions').document(tx_id)
+            transaction.set(tx_ref, {
+                'type': 'ESCROW_REFUND',
+                'amount': amount,
+                'desc': f'Fundi Job Escrow Refund ({reason})',
+                'timestamp': firestore.SERVER_TIMESTAMP,
+                'job_id': job_id
+            })
+
+            try:
+                db.collection('transactions').add({
+                    'userId': payer_id,
+                    'type': 'escrow_refund',
+                    'amount': amount,
+                    'description': f'Fundi Escrow Refund ({reason})',
+                    'timestamp': firestore.SERVER_TIMESTAMP
+                })
+                db.collection('notifications').add({
+                    'targetUserId': payer_id,
+                    'title': 'Fundi Escrow Refunded 💰',
+                    'body': f'KES {amount:.2f} has been refunded to your wallet balance.',
+                    'type': 'escrow_refund',
+                    'createdAt': firestore.SERVER_TIMESTAMP,
+                    'readBy': []
+                })
+            except:
+                pass
+
+        process_cancel(transaction_ref)
+        return jsonify({"status": "success", "message": "Escrow cancelled and refunded to payer successfully"}), 200
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+

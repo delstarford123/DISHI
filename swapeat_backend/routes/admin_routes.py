@@ -686,21 +686,8 @@ def get_fraud_flags():
     if not admin_id:
         return jsonify({"error": "Unauthorized"}), 401
     try:
-        db = firestore.client()
-        docs = db.collection('transactions').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(100).get()
-        user_counts = {}
-        for d in docs:
-            tx = d.to_dict()
-            uid = tx.get('user_id') or tx.get('student_id') or tx.get('vendor_id') or 'unknown'
-            if uid != 'unknown':
-                user_counts[uid] = user_counts.get(uid, 0) + 1
-        
-        flags = []
-        for uid, count in user_counts.items():
-            if count >= 3:
-                flags.append({'user_id': uid, 'recent_tx_count': count, 'reason': 'High transaction velocity in recent history'})
-                
-        return jsonify({'flags': flags}), 200
+        from routes.v4.fraud_monitor_routes import get_all_fraud_flags
+        return get_all_fraud_flags()
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -872,18 +859,113 @@ def broadcast_notification():
         if not title or not message:
             return jsonify({'error': 'Title and message required'}), 400
             
+        db = firestore.client()
+        # Save to Firestore 'notifications' collection so Flutter real-time stream displays it immediately
+        notif_doc = {
+            'title': title,
+            'message': message,
+            'body': message,
+            'targetUserId': target_user_id if target_user_id else None,
+            'type': 'broadcast' if not target_user_id else 'direct',
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'created_at': datetime.datetime.utcnow().isoformat(),
+            'readBy': [],
+            'dismissedBy': [],
+            'senderId': admin_id,
+            'senderRole': 'admin'
+        }
+        db.collection('notifications').add(notif_doc)
+
         from firebase_admin import messaging
-        if target_user_id:
-            msg = messaging.Message(notification=messaging.Notification(title=title, body=message), topic=target_user_id)
-            log_admin_action(admin_id, "Send Direct Notification", f"Target: {target_user_id}, Title: {title}")
-        else:
-            msg = messaging.Message(notification=messaging.Notification(title=title, body=message), topic='all_users')
-            log_admin_action(admin_id, "Send Broadcast Notification", f"Title: {title}")
-            
-        response = messaging.send(msg)
-        return jsonify({'message': 'Notification sent', 'response': response}), 200
+        response_msg = "Saved to Firestore"
+        try:
+            if target_user_id:
+                msg = messaging.Message(notification=messaging.Notification(title=title, body=message), topic=target_user_id)
+                log_admin_action(admin_id, "Send Direct Notification", f"Target: {target_user_id}, Title: {title}")
+            else:
+                msg = messaging.Message(notification=messaging.Notification(title=title, body=message), topic='all_users')
+                log_admin_action(admin_id, "Send Broadcast Notification", f"Title: {title}")
+            response_msg = messaging.send(msg)
+        except Exception as fcm_err:
+            print(f"FCM messaging send warning: {fcm_err}")
+
+        return jsonify({'message': 'Notification sent and saved', 'response': str(response_msg)}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/profile', methods=['GET', 'POST'])
+def manage_admin_profile():
+    admin_id = verify_admin(request)
+    if not admin_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    db = firestore.client()
+    user_ref = db.collection('users').document(admin_id)
+    
+    if request.method == 'GET':
+        doc = user_ref.get()
+        if not doc.exists:
+            return jsonify({"status": "error", "message": "Admin user profile not found"}), 404
+        data = doc.to_dict() or {}
+        return jsonify({
+            "status": "success",
+            "profile": {
+                "uid": admin_id,
+                "name": data.get('displayName') or data.get('name') or "Super Admin",
+                "email": data.get('email') or "",
+                "profileImageUrl": data.get('profileImageUrl') or data.get('photoUrl') or "",
+                "role": data.get('role', 'admin'),
+                "phone": data.get('phoneNumber') or data.get('phone') or "",
+                "last_active": datetime.datetime.utcnow().isoformat()
+            }
+        }), 200
+
+    # POST: Update profile
+    try:
+        data = request.get_json() or {}
+        updates = {}
+        if 'name' in data and data['name']:
+            updates['name'] = str(data['name']).strip()
+            updates['displayName'] = str(data['name']).strip()
+        if 'email' in data and data['email']:
+            updates['email'] = str(data['email']).strip().lower()
+        if 'profileImageUrl' in data and data['profileImageUrl']:
+            img_url = str(data['profileImageUrl']).strip()
+            updates['profileImageUrl'] = img_url
+            updates['photoUrl'] = img_url
+            updates['photoURL'] = img_url
+            updates['avatarUrl'] = img_url
+        if 'phone' in data and data['phone']:
+            updates['phoneNumber'] = str(data['phone']).strip()
+            updates['phone'] = str(data['phone']).strip()
+
+        updates['updatedAt'] = firestore.SERVER_TIMESTAMP
+
+        user_ref.set(updates, merge=True)
+
+        # Also update FirebaseAuth displayName/photoURL if possible
+        try:
+            from firebase_admin import auth
+            auth_updates = {}
+            if 'displayName' in updates:
+                auth_updates['display_name'] = updates['displayName']
+            if 'profileImageUrl' in updates:
+                auth_updates['photo_url'] = updates['profileImageUrl']
+            if 'email' in updates:
+                auth_updates['email'] = updates['email']
+            if auth_updates:
+                auth.update_user(admin_id, **auth_updates)
+        except Exception as auth_err:
+            print(f"Auth user update warning: {auth_err}")
+
+        log_admin_action(admin_id, "Update Admin Profile", f"Fields: {list(updates.keys())}")
+        return jsonify({
+            "status": "success",
+            "message": "Admin profile updated successfully",
+            "updates": {k: v for k, v in updates.items() if k != 'updatedAt'}
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/transactions/rich', methods=['GET'])
 def get_rich_transactions():

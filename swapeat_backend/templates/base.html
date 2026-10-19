@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DISHI — Campus Meal & Youth OS | African Innovation{% endblock %}</title>
+    <meta name="description" content="{% block description %}DISHI is the African Operating System for Campus Meals, 0.5% Vendor Agency Banking, Comrade Fundi Escrow Gigs, DeLiv Couriers, and Universal Accessibility.{% endblock %}">
+
+    <!-- Canonical & Favicon -->
+    <link rel="canonical" href="{% block canonical %}https://dishi.delstarfordworks.co.ke/{% endblock %}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/dishi_logo.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='img/dishi_logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/dishi_logo.png') }}">
+
+    <!-- Open Graph & Social Cards -->
+    <meta property="og:site_name" content="DISHI">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{% block og_url %}https://dishi.delstarfordworks.co.ke/{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}DISHI — Campus Meals, Agency Banking & Youth OS{% endblock %}">
+    <meta property="og:description" content="{% block og_desc %}African startup transforming campus dining: Smart pre-orders, 0.5% vendor agent cash-in, DeLiv dorm delivery, verified Fundi gigs with escrow, and offline NFC tap-to-eat dignity.{% endblock %}">
+    <meta property="og:image" content="{{ url_for('static', filename='img/dishi_logo.png') }}">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@DishiAfrica">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #090E1A;
+            --bg-elevated: #101726;
+            --bg-card: #131C30;
+            --bg-card-hover: #192540;
+            --bg-glass: rgba(16, 23, 38, 0.82);
+            --mint: #05D5AA;
+            --mint-light: #52F7D4;
+            --mint-glow: rgba(5, 213, 170, 0.35);
+            --mint-glow-subtle: rgba(5, 213, 170, 0.15);
+            --pink: #FF2A6D;
+            --pink-glow: rgba(255, 42, 109, 0.35);
+            --purple: #9D4EDD;
+            --purple-glow: rgba(157, 78, 221, 0.35);
+            --blue: #38BDF8;
+            --blue-glow: rgba(56, 189, 248, 0.35);
+            --gold: #F59E0B;
+            --gold-glow: rgba(245, 158, 11, 0.35);
+            --text-main: #FFFFFF;
+            --text-muted: #94A3B8;
+            --text-subtle: #64748B;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(5, 213, 170, 0.4);
+            --border-card: rgba(255, 255, 255, 0.06);
+            --radius-xl: 28px;
+            --radius-lg: 20px;
+            --radius-md: 14px;
+            --radius-sm: 8px;
+            --shadow-subtle: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 35px var(--mint-glow-subtle);
+        }
+
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(ellipse 80% 50% at 15% 0%, rgba(5, 213, 170, 0.09), transparent 60%),
+                radial-gradient(ellipse 70% 50% at 85% 25%, rgba(255, 42, 109, 0.07), transparent 60%),
+                radial-gradient(ellipse 90% 60% at 50% 100%, rgba(157, 78, 221, 0.08), transparent 65%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ─── TYPOGRAPHY UTILITIES ────────────────────────────────────── */
+        h1, h2, h3, h4, h5, h6, .brand-font {
+            font-family: 'Space Grotesk', sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #FFFFFF 20%, var(--mint) 80%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gradient-text-alt {
+            background: linear-gradient(135deg, var(--mint) 0%, var(--blue) 50%, var(--purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gradient-text-pink {
+            background: linear-gradient(135deg, #FFFFFF 15%, var(--pink) 85%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* ─── GLOBAL NAVBAR ───────────────────────────────────────────── */
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            background: var(--bg-glass);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-container {
+            max-width: 1320px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .brand-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .brand-logo-img {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 2px solid var(--mint);
+            box-shadow: 0 0 18px var(--mint-glow);
+            transition: transform 0.3s ease;
+        }
+
+        .brand-link:hover .brand-logo-img {
+            transform: scale(1.05) rotate(-3deg);
+        }
+
+        .brand-text-block {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-title {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            background: linear-gradient(135deg, #fff 40%, var(--mint) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.1;
+        }
+
+        .brand-sub {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--mint);
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        /* ─── DESKTOP NAVIGATION MENU ─────────────────────────────────── */
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            list-style: none;
+        }
+
+        .nav-item {
+            position: relative;
+        }
+
+        .nav-link {
+            color: #E2E8F0;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 14px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.25s ease;
+            white-space: nowrap;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--mint);
+            background: rgba(5, 213, 170, 0.08);
+        }
+
+        .nav-link .caret {
+            font-size: 10px;
+            transition: transform 0.25s ease;
+            opacity: 0.7;
+        }
+
+        .nav-item:hover .nav-link .caret,
+        .nav-item.dropdown-open .nav-link .caret {
+            transform: rotate(180deg);
+            opacity: 1;
+            color: var(--mint);
+        }
+
+        /* ─── DROPDOWN MENU PANEL ────────────────────────────────────── */
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: rgba(16, 23, 38, 0.96);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(5, 213, 170, 0.25);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            min-width: 290px;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.65), 0 0 20px var(--mint-glow-subtle);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 1050;
+            pointer-events: none;
+            margin-top: 6px;
+        }
+
+        .dropdown-menu.wide {
+            min-width: 340px;
+        }
+
+        .dropdown-menu.align-right {
+            left: auto;
+            right: 0;
+        }
+
+        .nav-item:hover .dropdown-menu,
+        .nav-item:focus-within .dropdown-menu,
+        .nav-item.dropdown-open .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .dropdown-header-tag {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--mint);
+            padding: 4px 10px 8px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 6px;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 9px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #E2E8F0;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(5, 213, 170, 0.1);
+            color: var(--mint);
+            transform: translateX(3px);
+        }
+
+        .dropdown-item-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-item:hover .dropdown-item-icon {
+            background: rgba(5, 213, 170, 0.2);
+            border-color: var(--mint);
+        }
+
+        .dropdown-item-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dropdown-item-title {
+            font-weight: 600;
+            font-size: 13px;
+            line-height: 1.2;
+        }
+
+        .dropdown-item-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* ─── ACTION BUTTONS IN NAVBAR ───────────────────────────────── */
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .btn-playstore-nav {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            background: #000000;
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 7px 16px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-playstore-nav:hover {
+            border-color: var(--mint);
+            box-shadow: 0 0 20px var(--mint-glow);
+            transform: translateY(-2px);
+        }
+
+        .playstore-nav-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        .playstore-nav-text {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            line-height: 1.1;
+        }
+
+        .playstore-nav-text .sub {
+            font-size: 9px;
+            color: #94A3B8;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .playstore-nav-text .main {
+            font-size: 13px;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        /* ─── MOBILE HAMBURGER BUTTON ────────────────────────────────── */
+        .hamburger-btn {
+            display: none;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 10px;
+            cursor: pointer;
+            flex-direction: column;
+            gap: 5px;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .hamburger-btn:hover {
+            border-color: var(--mint);
+            background: rgba(5, 213, 170, 0.08);
+        }
+
+        .hamburger-btn .bar {
+            width: 22px;
+            height: 2px;
+            background-color: #FFFFFF;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        /* ─── MOBILE DRAWER & BACKDROP ───────────────────────────────── */
+        .mobile-drawer-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(6px);
+            z-index: 1998;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-drawer-backdrop.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .mobile-drawer {
+            position: fixed;
+            top: 0;
+            left: -320px;
+            width: 300px;
+            height: 100vh;
+            background: #0B111F;
+            border-right: 1px solid rgba(5, 213, 170, 0.3);
+            z-index: 1999;
+            display: flex;
+            flex-direction: column;
+            transition: left 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow-y: auto;
+            padding: 24px 20px;
+        }
+
+        .mobile-drawer.active {
+            left: 0;
+        }
+
+        .drawer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .drawer-close-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: #fff;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .drawer-close-btn:hover {
+            border-color: var(--pink);
+            color: var(--pink);
+        }
+
+        .drawer-group-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--mint);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 16px 0 8px;
+        }
+
+        .drawer-menu-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .drawer-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            color: #E2E8F0;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .drawer-link:hover {
+            background: rgba(5, 213, 170, 0.1);
+            color: var(--mint);
+        }
+
+        /* ─── MAIN CONTENT CONTAINER ─────────────────────────────────── */
+        main.main-content {
+            flex: 1;
+            width: 100%;
+        }
+
+        /* ─── GLOBAL FOOTER ──────────────────────────────────────────── */
+        .footer {
+            background: #060A13;
+            border-top: 1px solid var(--border);
+            padding: 70px 24px 30px;
+            margin-top: auto;
+            position: relative;
+        }
+
+        .footer-glow {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--mint), transparent);
+            box-shadow: 0 0 20px var(--mint);
+        }
+
+        .footer-grid {
+            max-width: 1320px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 2fr 1.2fr 1.2fr 1.4fr;
+            gap: 40px;
+            padding-bottom: 50px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .footer-col-brand .brand-link {
+            margin-bottom: 16px;
+        }
+
+        .footer-desc {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.7;
+            margin-bottom: 20px;
+            max-width: 360px;
+        }
+
+        .footer-meta-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: rgba(5, 213, 170, 0.08);
+            border: 1px solid rgba(5, 213, 170, 0.2);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--mint);
+            margin-bottom: 14px;
+        }
+
+        .footer-col-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #FFFFFF;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+            position: relative;
+            padding-bottom: 8px;
+        }
+
+        .footer-col-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 24px;
+            height: 2px;
+            background: var(--mint);
+            border-radius: 2px;
+        }
+
+        .footer-links {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .footer-links li a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .footer-links li a:hover {
+            color: var(--mint);
+            transform: translateX(4px);
+        }
+
+        .footer-contact-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .footer-bottom {
+            max-width: 1320px;
+            margin: 25px auto 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 13px;
+            color: var(--text-subtle);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            background: rgba(5, 213, 170, 0.1);
+            border: 1px solid rgba(5, 213, 170, 0.25);
+            color: var(--mint);
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .status-badge:hover {
+            background: rgba(5, 213, 170, 0.2);
+            box-shadow: 0 0 12px var(--mint-glow);
+        }
+
+        .status-pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--mint);
+            box-shadow: 0 0 8px var(--mint);
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(5, 213, 170, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(5, 213, 170, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(5, 213, 170, 0); }
+        }
+
+        /* ─── RESPONSIVE BREAKPOINTS ─────────────────────────────────── */
+        @media (max-width: 1024px) {
+            .nav-links, .nav-actions .btn-playstore-nav {
+                display: none;
+            }
+            .hamburger-btn {
+                display: flex;
+            }
+            .footer-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 30px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+            .footer-bottom {
+                flex-direction: column;
+                text-align: center;
+                gap: 12px;
+            }
+        }
+    </style>
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="navbar">
+        <div class="nav-container">
+            <!-- BRAND LOGO & TITLE -->
+            <a href="/" class="brand-link">
+                <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI Logo" class="brand-logo-img">
+                <div class="brand-text-block">
+                    <span class="brand-title">DISHI</span>
+                    <span class="brand-sub">Campus Meal & Youth OS</span>
+                </div>
+            </a>
+
+            <!-- DESKTOP NAV WITH SECTION DROPDOWNS -->
+            <nav>
+                <ul class="nav-links">
+                    <li class="nav-item">
+                        <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">Home</a>
+                    </li>
+
+                    <!-- DROPDOWN 1: ECOSYSTEM & SOLUTIONS -->
+                    <li class="nav-item" id="solutionsDropdown">
+                        <a href="/solutions" class="nav-link {% if request.path in ['/solutions', '/dashboards'] %}active{% endif %}">
+                            <span>Ecosystem & Dashboards</span>
+                            <span class="caret">▼</span>
+                        </a>
+                        <div class="dropdown-menu wide" aria-label="Ecosystem Dropdown">
+                            <div class="dropdown-header-tag">3-Level Solutions Architecture</div>
+                            <a href="/solutions#student" class="dropdown-item">
+                                <span class="dropdown-item-icon">🎓</span>
+                                <div class="dropdown-item-info">
+                                    <span class="dropdown-item-title">Student Dashboard</span>
+                                    <span class="dropdown-item-desc">Wallet, Pre-Orders & Offline NFC Tap-to-Eat</span>
+                                </div>
+                            </a>
+                            <a href="/solutions#parent" class="dropdown-item">
+                                <span class="dropdown-item-icon">👨‍👩‍👧</span>
+                                <div class="dropdown-item-info">
+                                    <span class="dropdown-item-title">Parent Dashboard</span>
+                                    <span class="dropdown-item-desc">M-PESA Top-Up, Spend Alerts & Nutrition Shield</span>
+                                </div>
+                            </a>
+                            <a href="/solutions#vendor" class="dropdown-item">
+                                <span class="dropdown-item-icon">🏪</span>
+                                <div class="dropdown-item-info">
+                                    <span class="dropdown-item-title">Vendor Dashboard</span>
+                                    <span class="dropdown-item-desc">0.5% Agency Cash-In, Fast POS & Float Control</span>
+                                </div>
+                            </a>
+                            <div class="dropdown-header-tag" style="margin-top: 6px;">Campus Gigs & Solidarity</div>
+                            <a href="/fundi-deliv" class="dropdown-item">
+                                <span class="dropdown-item-icon">🛵</span>
+                                <div class="dropdown-item-info">
+                                    <span class="dropdown-item-title">DeLiv & Comrade Fundi</span>
+                                    <span class="dropdown-item-desc">Dorm delivery & artisan gigs with 100% Escrow</span>
+                                </div>
+                            </a>
+                            <a href="/inclusion" class="dropdown-item">
+                                <span class="dropdown-item-icon">♿</span>
+                                <div class="dropdown-item-info">
+                                    <span class="dropdown-item-title">Universal Inclusion</span>
+                                    <span class="dropdown-item-desc">Assistive Blind, Deaf & Mobility comrade tools</span>
+                                </div>
+                            </a>
+                            <a href="/fund" class="dropdown-item">
+                                <span class="dropdown-item-icon">🤝</span>
+                                <div class="dropdown-item-info">
+                                    <span class="dropdown-item-title">Harambee Crowdfund</span>
+                                    <span class="dropdown-item-desc">Peer meal solidarity campaigns</span>
+                                </div>
+                            </a>
+                        </div>
+                    </li>
+
+                    <!-- DROPDOWN 2: PLATFORM & GOVERNANCE -->
+                    <li class="nav-item" id="platformDropdown">
+                        <a href="/gallery" class="nav-link {% if request.path in ['/gallery', '/constitution', '/about', '/events', '/health'] %}active{% endif %}">
+                            <span>Platform & Media</span>
+                            <span class="caret">▼</span>
+                        </a>
+                        <div class="dropdown-menu" aria-label="Platform Dropdown">
+                            <div class="dropdown-header-tag">Live Apps & Governance</div>
+                            <a href="/gallery" class="dropdown-item">
+                                <span class="dropdown-item-icon">📱</span>
+                                <div class="dropdown-item-info">
+                                    <span class="dropdown-item-title">App Gallery & Showcase</span>
+                                    <span class="dropdown-item-desc">Animated tour of 28 mobile screens</span>
+                                </div>
+                            </a>
+                            <a href="/constitution" class="dropdown-item">
+                                <span class="dropdown-item-icon">📜</span>
+                                <div class="dropdown-item-info">
+                                    <span class="dropdown-item-title">Business Model & Constitution</span>
+                                    <span class="dropdown-item-desc">5 Departments & Governance Charter</span>
+                                </div>
+                            </a>
+                            <a href="/about" class="dropdown-item">
+                                <span class="dropdown-item-icon">📊</span>
+                                <div class="dropdown-item-info">
+                                    <span class="dropdown-item-title">Executive Pitch & Story</span>
+                                    <span class="dropdown-item-desc">Our African mission & tech architecture</span>
+                                </div>
+                            </a>
+                            <a href="/events" class="dropdown-item">
+                                <span class="dropdown-item-icon">🎉</span>
+                                <div class="dropdown-item-info">
+                                    <span class="dropdown-item-title">Campus Events</span>
+                                    <span class="dropdown-item-desc">Web tickets & student event passes</span>
+                                </div>
+                            </a>
+                            <a href="/health" class="dropdown-item">
+                                <span class="dropdown-item-icon">🩺</span>
+                                <div class="dropdown-item-info">
+                                    <span class="dropdown-item-title">System Status & Health</span>
+                                    <span class="dropdown-item-desc">Real-time uptime & infrastructure</span>
+                                </div>
+                            </a>
+                        </div>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/about" class="nav-link {% if request.path == '/about' %}active{% endif %}">About</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/#contact" class="nav-link">Contact</a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- RIGHT ACTIONS -->
+            <div class="nav-actions">
+                <a href="https://play.google.com/store/apps/details?id=co.ke.delstarfordworks.dishi" target="_blank" rel="noopener" class="btn-playstore-nav" aria-label="Download DISHI on Google Play">
+                    <svg class="playstore-nav-icon" viewBox="0 0 512 512">
+                        <path fill="#4285F4" d="M32.5 16.5C30.2 18.9 28.8 22.8 28.8 28.2v455.6c0 5.4 1.4 9.3 3.7 11.7l1.3 1.2 254.9-254.9v-6L33.8 15.3l-1.3 1.2z"/>
+                        <path fill="#FBBC04" d="M380.1 369.3l-91.4-91.4v-6l91.4-91.4 2.1 1.2 108.3 61.5c30.9 17.5 30.9 46.2 0 63.8l-108.3 61.5-2.1 0.8z"/>
+                        <path fill="#EA4335" d="M288.7 271.9L33.8 526.8c10.2 10.8 27.2 12.1 46.5 1.1l208.4-118.4-91.4-91.4z"/>
+                        <path fill="#34A853" d="M288.7 240.1l91.4-91.4L171.7 30.3C152.4 19.3 135.4 20.6 125.2 31.4l163.5 208.7z"/>
+                    </svg>
+                    <div class="playstore-nav-text">
+                        <span class="sub">GET IT ON</span>
+                        <span class="main">Google Play</span>
+                    </div>
+                </a>
+
+                <!-- MOBILE HAMBURGER -->
+                <button type="button" class="hamburger-btn" id="mobileMenuToggle" aria-label="Open mobile menu" onclick="toggleMobileDrawer()">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MOBILE NAVIGATION DRAWER & BACKDROP -->
+    <div class="mobile-drawer-backdrop" id="mobileDrawerBackdrop" onclick="closeMobileDrawer()"></div>
+    <aside class="mobile-drawer" id="mobileDrawer">
+        <div class="drawer-header">
+            <a href="/" class="brand-link" onclick="closeMobileDrawer()">
+                <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI Logo" class="brand-logo-img" style="width: 36px; height: 36px;">
+                <span class="brand-title" style="font-size: 20px;">DISHI</span>
+            </a>
+            <button type="button" class="drawer-close-btn" onclick="closeMobileDrawer()" aria-label="Close menu">✕</button>
+        </div>
+
+        <div class="drawer-group-title">Ecosystem & Dashboards</div>
+        <ul class="drawer-menu-list">
+            <li><a href="/" class="drawer-link" onclick="closeMobileDrawer()"><span>🏠</span><span>Home</span></a></li>
+            <li><a href="/solutions#student" class="drawer-link" onclick="closeMobileDrawer()"><span>🎓</span><span>Student Dashboard</span></a></li>
+            <li><a href="/solutions#parent" class="drawer-link" onclick="closeMobileDrawer()"><span>👨‍👩‍👧</span><span>Parent Dashboard</span></a></li>
+            <li><a href="/solutions#vendor" class="drawer-link" onclick="closeMobileDrawer()"><span>🏪</span><span>Vendor Dashboard (0.5%)</span></a></li>
+            <li><a href="/fundi-deliv" class="drawer-link" onclick="closeMobileDrawer()"><span>🛵</span><span>DeLiv & Comrade Fundi</span></a></li>
+            <li><a href="/inclusion" class="drawer-link" onclick="closeMobileDrawer()"><span>♿</span><span>Universal Inclusion</span></a></li>
+            <li><a href="/fund" class="drawer-link" onclick="closeMobileDrawer()"><span>🤝</span><span>Harambee Fund</span></a></li>
+        </ul>
+
+        <div class="drawer-group-title">Platform & Resources</div>
+        <ul class="drawer-menu-list">
+            <li><a href="/gallery" class="drawer-link" onclick="closeMobileDrawer()"><span>📱</span><span>App Screenshots Gallery</span></a></li>
+            <li><a href="/constitution" class="drawer-link" onclick="closeMobileDrawer()"><span>📜</span><span>Constitution & Business Model</span></a></li>
+            <li><a href="/about" class="drawer-link" onclick="closeMobileDrawer()"><span>📊</span><span>About & Investor Pitch</span></a></li>
+            <li><a href="/events" class="drawer-link" onclick="closeMobileDrawer()"><span>🎉</span><span>Campus Events</span></a></li>
+            <li><a href="/health" class="drawer-link" onclick="closeMobileDrawer()"><span>🩺</span><span>System Status (Health)</span></a></li>
+            <li><a href="/#contact" class="drawer-link" onclick="closeMobileDrawer()"><span>✉️</span><span>Partner Contact</span></a></li>
+        </ul>
+
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);">
+            <a href="https://play.google.com/store/apps/details?id=co.ke.delstarfordworks.dishi" target="_blank" rel="noopener" class="btn-playstore-nav" style="justify-content: center; width: 100%;">
+                <svg class="playstore-nav-icon" viewBox="0 0 512 512">
+                    <path fill="#4285F4" d="M32.5 16.5C30.2 18.9 28.8 22.8 28.8 28.2v455.6c0 5.4 1.4 9.3 3.7 11.7l1.3 1.2 254.9-254.9v-6L33.8 15.3l-1.3 1.2z"/>
+                    <path fill="#FBBC04" d="M380.1 369.3l-91.4-91.4v-6l91.4-91.4 2.1 1.2 108.3 61.5c30.9 17.5 30.9 46.2 0 63.8l-108.3 61.5-2.1 0.8z"/>
+                    <path fill="#EA4335" d="M288.7 271.9L33.8 526.8c10.2 10.8 27.2 12.1 46.5 1.1l208.4-118.4-91.4-91.4z"/>
+                    <path fill="#34A853" d="M288.7 240.1l91.4-91.4L171.7 30.3C152.4 19.3 135.4 20.6 125.2 31.4l163.5 208.7z"/>
+                </svg>
+                <div class="playstore-nav-text">
+                    <span class="sub">GET IT ON</span>
+                    <span class="main">Google Play</span>
+                </div>
+            </a>
+            <div style="text-align: center; margin-top: 12px; font-size: 11px; color: var(--text-muted);">
+                Designed & Created in Africa 🌍
+            </div>
+        </div>
+    </aside>
+
+    <!-- PAGE MAIN BODY -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- GLOBAL FOOTER -->
+    <footer class="footer">
+        <div class="footer-glow"></div>
+        <div class="footer-grid">
+            <!-- COL 1: BRAND & MISSION -->
+            <div class="footer-col-brand">
+                <a href="/" class="brand-link">
+                    <img src="{{ url_for('static', filename='img/dishi_logo.png') }}" alt="DISHI Logo" class="brand-logo-img">
+                    <div class="brand-text-block">
+                        <span class="brand-title">DISHI</span>
+                        <span class="brand-sub">Campus Meal & Youth OS</span>
+                    </div>
+                </a>
+                <p class="footer-desc">
+                    African innovation engineered to eliminate campus hunger, bring dignity through contactless tap-to-eat, empower cafeteria vendors as 0.5% commission agents, and provide parents with total meal assurance.
+                </p>
+                <div class="footer-meta-pill">
+                    <span>🌍 Designed & Created in Africa</span>
+                </div>
+                <div class="footer-contact-item">
+                    <span>✉️</span>
+                    <a href="mailto:dishi@delstarfordworks.co.ke" style="color: var(--mint); text-decoration: none;">dishi@delstarfordworks.co.ke</a>
+                </div>
+                <div class="footer-contact-item">
+                    <span>📍</span>
+                    <span>Delstarford Works • Nairobi, Kenya</span>
+                </div>
+            </div>
+
+            <!-- COL 2: ECOSYSTEM SOLUTIONS -->
+            <div>
+                <h4 class="footer-col-title">Solutions</h4>
+                <ul class="footer-links">
+                    <li><a href="/solutions#student">🎓 Student Dashboard</a></li>
+                    <li><a href="/solutions#parent">👨‍👩‍👧 Parent Spend Shield</a></li>
+                    <li><a href="/solutions#vendor">🏪 Vendor 0.5% Agent POS</a></li>
+                    <li><a href="/fundi-deliv#deliv">🛵 DeLiv Dorm Couriers</a></li>
+                    <li><a href="/fundi-deliv#fundi">🛠️ Comrade Fundi Escrow Gigs</a></li>
+                    <li><a href="/inclusion">♿ Universal Accessibility</a></li>
+                    <li><a href="/solutions#games">🎮 12 Arcade Mini-Games</a></li>
+                </ul>
+            </div>
+
+            <!-- COL 3: PLATFORM & MEDIA -->
+            <div>
+                <h4 class="footer-col-title">Platform</h4>
+                <ul class="footer-links">
+                    <li><a href="/gallery">📱 Mobile App Gallery (28 Screens)</a></li>
+                    <li><a href="/constitution">📜 Business Model & Constitution</a></li>
+                    <li><a href="{{ url_for('static', filename='DISHI_Business_Model_and_Constitution.pdf') }}" target="_blank">📥 Official Constitution PDF</a></li>
+                    <li><a href="/about">📊 Investor Pitch & Mission</a></li>
+                    <li><a href="/events">🎉 Campus Event Passes</a></li>
+                    <li><a href="/fund">🤝 Campus Harambee Fund</a></li>
+                    <li><a href="/health">🩺 System Uptime & Health</a></li>
+                </ul>
+            </div>
+
+            <!-- COL 4: TRUST & COMPLIANCE -->
+            <div>
+                <h4 class="footer-col-title">Trust & Security</h4>
+                <ul class="footer-links">
+                    <li><a href="/privacy">🛡️ Privacy Policy</a></li>
+                    <li><a href="/delete-account">🗑️ Account Deletion Request</a></li>
+                    <li><a href="https://play.google.com/store/apps/details?id=co.ke.delstarfordworks.dishi" target="_blank" rel="noopener">📲 Google Play Store Listing</a></li>
+                    <li><span style="font-size: 13px; color: var(--text-muted);">🔒 Safaricom Daraja Production Certified</span></li>
+                    <li><span style="font-size: 13px; color: var(--text-muted);">⚡ 100% Escrow Protection Vault</span></li>
+                    <li><span style="font-size: 13px; color: var(--text-muted);">💳 Offline Sub-300ms NFC AES-256</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- FOOTER BOTTOM BAR -->
+        <div class="footer-bottom">
+            <div>
+                © 2026 <strong>DISHI</strong> by Delstarford Works. All Rights Reserved. Built with radical African empathy.
+            </div>
+            <div>
+                <a href="/health" class="status-badge" title="Check DISHI infrastructure health">
+                    <span class="status-pulse-dot"></span>
+                    <span>System Status: All Systems Operational</span>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- GLOBAL JAVASCRIPT -->
+    <script>
+        function toggleMobileDrawer() {
+            var drawer = document.getElementById('mobileDrawer');
+            var backdrop = document.getElementById('mobileDrawerBackdrop');
+            if (drawer && backdrop) {
+                var isOpen = drawer.classList.contains('active');
+                if (isOpen) {
+                    closeMobileDrawer();
+                } else {
+                    drawer.classList.add('active');
+                    backdrop.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+        }
+
+        function closeMobileDrawer() {
+            var drawer = document.getElementById('mobileDrawer');
+            var backdrop = document.getElementById('mobileDrawerBackdrop');
+            if (drawer && backdrop) {
+                drawer.classList.remove('active');
+                backdrop.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Close drawer with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeMobileDrawer();
+            }
+        });
+    </script>
+    {% block scripts_extra %}{% endblock %}
+</body>
+</html>

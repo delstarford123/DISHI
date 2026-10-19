@@ -1,0 +1,226 @@
+[
+  {
+    "id": 1,
+    "clean_filename": "dishi_screen_01.jpeg",
+    "original_filename": "Student dashboard.jpeg",
+    "title": "Student Dashboard & Active Meal Balance",
+    "description": "Real-time wallet balance, meal swipes, instant pre-order shortcuts, and quick M-PESA top-up.",
+    "category": "Student Dashboard"
+  },
+  {
+    "id": 2,
+    "clean_filename": "dishi_screen_02.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.18.jpeg",
+    "title": "Campus Food Pre-Order & Live Menus",
+    "description": "Browse cafeteria daily specials, diet filters, allergen tags, and estimated prep times.",
+    "category": "Student Dashboard"
+  },
+  {
+    "id": 3,
+    "clean_filename": "dishi_screen_03.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.19.jpeg",
+    "title": "Vendor 0.5% Agent Cash-In Terminal",
+    "description": "Cafeteria operators deposit paper cash into student wallets with instant 0.5% commission.",
+    "category": "Vendor POS & Agent"
+  },
+  {
+    "id": 4,
+    "clean_filename": "dishi_screen_04.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.25.jpeg",
+    "title": "Sub-300ms Offline NFC Tap-to-Eat",
+    "description": "High-speed contactless checkout that works even when campus internet goes offline.",
+    "category": "Inclusion & NFC"
+  },
+  {
+    "id": 5,
+    "clean_filename": "dishi_screen_05.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.28.jpeg",
+    "title": "DeLiv Dorm Food Couriers",
+    "description": "Student runners deliver hot dining hall meals straight to student hostel doors & library desks.",
+    "category": "Comrade Fundi & Gigs"
+  },
+  {
+    "id": 6,
+    "clean_filename": "dishi_screen_06.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.29 (1).jpeg",
+    "title": "Comrade Fundi Artisan Marketplace",
+    "description": "Campus gigs for phone repair, electronics, tutoring, and salon styling with 100% Escrow.",
+    "category": "Comrade Fundi & Gigs"
+  },
+  {
+    "id": 7,
+    "clean_filename": "dishi_screen_07.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.29.jpeg",
+    "title": "Parent Meal Allowance Shield",
+    "description": "Parents fund students directly via Safaricom M-PESA with protected food allocation.",
+    "category": "Parent Controls"
+  },
+  {
+    "id": 8,
+    "clean_filename": "dishi_screen_08.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.30 (1).jpeg",
+    "title": "Parent Live Spend Receipts & Alerts",
+    "description": "Instant SMS notifications when students dine: cafeteria name, time, and remaining balance.",
+    "category": "Parent Controls"
+  },
+  {
+    "id": 9,
+    "clean_filename": "dishi_screen_09.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.30 (2).jpeg",
+    "title": "Campus Harambee Crowdfunding",
+    "description": "Peer meal solidarity campaigns allowing comrades to support each other with meal funding.",
+    "category": "Student Dashboard"
+  },
+  {
+    "id": 10,
+    "clean_filename": "dishi_screen_10.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.30.jpeg",
+    "title": "Bite Ninja & Games Hub",
+    "description": "12 campus mini-games where students play, earn Dishi Coins, and redeem for real wallet cash.",
+    "category": "Games & Social"
+  },
+  {
+    "id": 11,
+    "clean_filename": "dishi_screen_11.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.31 (1).jpeg",
+    "title": "Digital Student ID & QR Pass",
+    "description": "Cryptographic dynamic QR code and NFC credentials for student meal verification.",
+    "category": "Inclusion & NFC"
+  },
+  {
+    "id": 12,
+    "clean_filename": "dishi_screen_12.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.31.jpeg",
+    "title": "Vendor Float & Liquidity Manager",
+    "description": "Automated STK push float replenishment and instant revenue payouts to M-PESA Till/Paybill.",
+    "category": "Vendor POS & Agent"
+  },
+  {
+    "id": 13,
+    "clean_filename": "dishi_screen_13.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.32 (1).jpeg",
+    "title": "Escrow Protection & Milestone Release",
+    "description": "Clients approve gig completion before funds release; instant cancel & refund guarantee.",
+    "category": "Comrade Fundi & Gigs"
+  },
+  {
+    "id": 14,
+    "clean_filename": "dishi_screen_14.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.32 (2).jpeg",
+    "title": "Universal Accessibility Voice Mode",
+    "description": "Auditory speech cues, high contrast screens, and acoustic cafeteria chimes for blind comrades.",
+    "category": "Inclusion & NFC"
+  },
+  {
+    "id": 15,
+    "clean_filename": "dishi_screen_15.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.32.jpeg",
+    "title": "Campus Events & Ticket Booking",
+    "description": "Explore upcoming student concerts, sports rallies, and academic summits with instant booking.",
+    "category": "Games & Social"
+  },
+  {
+    "id": 16,
+    "clean_filename": "dishi_screen_16.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.33 (1).jpeg",
+    "title": "Dietary & Allergen Customization",
+    "description": "Personalized food safety settings alerting cafeteria kitchens of peanut, gluten, or dairy allergies.",
+    "category": "Student Dashboard"
+  },
+  {
+    "id": 17,
+    "clean_filename": "dishi_screen_17.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.33 (2).jpeg",
+    "title": "Vendor Order Fulfillment Queue",
+    "description": "Live kitchen display system separating pending, preparing, and ready-to-collect food orders.",
+    "category": "Vendor POS & Agent"
+  },
+  {
+    "id": 18,
+    "clean_filename": "dishi_screen_18.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.33.jpeg",
+    "title": "Weekly Meal Budget & Savings Matcher",
+    "description": "Personal finance tracker encouraging comrades to hit weekly savings goals for bonus meal swipes.",
+    "category": "Student Dashboard"
+  },
+  {
+    "id": 19,
+    "clean_filename": "dishi_screen_19.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.35 (1).jpeg",
+    "title": "Campus Delivery Map & Tracker",
+    "description": "Live GPS tracking of student couriers bringing meals across university hostels.",
+    "category": "Comrade Fundi & Gigs"
+  },
+  {
+    "id": 20,
+    "clean_filename": "dishi_screen_20.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.35 (2).jpeg",
+    "title": "Multi-Wallet Breakdown",
+    "description": "Separated wallets for Cafeteria Meals, Agent Float, Gigs Escrow, and Harambee Aid.",
+    "category": "Student Dashboard"
+  },
+  {
+    "id": 21,
+    "clean_filename": "dishi_screen_21.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.35.jpeg",
+    "title": "Biometric & PIN Authentication",
+    "description": "Dual-factor security safeguarding student funds against unauthorized access or device loss.",
+    "category": "Inclusion & NFC"
+  },
+  {
+    "id": 22,
+    "clean_filename": "dishi_screen_22.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.36 (1).jpeg",
+    "title": "Daily Spin & Campus Rewards",
+    "description": "Gamified daily streak bonuses awarding discount vouchers and free cafeteria sides.",
+    "category": "Games & Social"
+  },
+  {
+    "id": 23,
+    "clean_filename": "dishi_screen_23.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.36.jpeg",
+    "title": "Hostel Roommate Split-Bill",
+    "description": "Instantly split meal costs or group delivery fees with roomies in two taps.",
+    "category": "Student Dashboard"
+  },
+  {
+    "id": 24,
+    "clean_filename": "dishi_screen_24.jpeg",
+    "original_filename": "WhatsApp Image 2026-10-16 at 17.29.37.jpeg",
+    "title": "Vendor Analytics & Revenue Reports",
+    "description": "Daily, weekly, and monthly sales graphs detailing best-selling dishes and peak rush hours.",
+    "category": "Vendor POS & Agent"
+  },
+  {
+    "id": 25,
+    "clean_filename": "dishi_screen_25.png",
+    "original_filename": "screenshot_1.png",
+    "title": "Campus Dining Reimagined (Feature Graphic)",
+    "description": "Official Play Store showcase: Instant pre-orders & zero queue waiting.",
+    "category": "Student Dashboard"
+  },
+  {
+    "id": 26,
+    "clean_filename": "dishi_screen_26.png",
+    "original_filename": "screenshot_2.png",
+    "title": "Zero-Fee Student Wallet (Feature Graphic)",
+    "description": "Official Play Store showcase: Seamless Safaricom M-PESA Daraja integration.",
+    "category": "Student Dashboard"
+  },
+  {
+    "id": 27,
+    "clean_filename": "dishi_screen_27.png",
+    "original_filename": "screenshot_3.png",
+    "title": "Virtual NFC Dining Card (Feature Graphic)",
+    "description": "Official Play Store showcase: Contactless checkout & offline validation.",
+    "category": "Inclusion & NFC"
+  },
+  {
+    "id": 28,
+    "clean_filename": "dishi_screen_28.png",
+    "original_filename": "screenshot_4.png",
+    "title": "Campus Vendor Map & Delivery (Feature Graphic)",
+    "description": "Official Play Store showcase: Live dining locations & hostel drops.",
+    "category": "Comrade Fundi & Gigs"
+  }
+]

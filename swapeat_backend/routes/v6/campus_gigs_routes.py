@@ -406,3 +406,117 @@ def release_escrow():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+@campus_gigs_v6_bp.route('/refund_escrow', methods=['POST'])
+def refund_escrow():
+    """
+    Refunds escrow back to the requester when a gig is cancelled,
+    the worker never showed up, or was unable to complete the job.
+    Can be initiated by either the requester or the worker.
+    """
+    data = request.json or {}
+    request_id = data.get('request_id')
+    caller_id = data.get('caller_id') or data.get('requester_id') or data.get('worker_id')
+    reason = data.get('reason', 'Worker did not show up / unable to complete')
+
+    if not request_id or not caller_id:
+        return jsonify({"error": "Missing request_id or caller_id"}), 400
+
+    db = firestore.client()
+
+    try:
+        transaction_ref = db.transaction()
+        req_ref = db.collection('campus_gig_requests').document(request_id)
+
+        @firestore.transactional
+        def process_refund(transaction):
+            req_doc = req_ref.get(transaction=transaction)
+            if not req_doc.exists:
+                raise Exception("Gig not found")
+
+            req_data = req_doc.to_dict()
+            escrow_status = req_data.get('escrow_status')
+            if escrow_status != 'HELD':
+                raise Exception(f"Cannot refund escrow: status is '{escrow_status}' (must be 'HELD')")
+
+            requester_id = req_data.get('requester_id')
+            worker_id = req_data.get('worker_id')
+
+            if caller_id not in [requester_id, worker_id, 'admin']:
+                raise Exception("Unauthorized: Only the requester or worker can cancel and refund escrow.")
+
+            price = float(req_data.get('net_amount') or req_data.get('price_offer', 0))
+            fee = float(req_data.get('fee_deducted', 3.0))
+            total_refund = price + fee
+            category = req_data.get('category', 'Gig')
+
+            requester_ref = db.collection('users').document(requester_id)
+            requester_doc = requester_ref.get(transaction=transaction)
+            if not requester_doc.exists:
+                raise Exception("Requester user record not found")
+
+            requester_balance = float(requester_doc.to_dict().get('walletBalance', 0))
+
+            transaction.update(requester_ref, {
+                'walletBalance': requester_balance + total_refund
+            })
+
+            transaction.update(req_ref, {
+                'status': 'cancelled',
+                'escrow_status': 'REFUNDED',
+                'cancellation_reason': reason,
+                'cancelled_by': caller_id,
+                'refunded_amount': total_refund,
+                'refunded_at': firestore.SERVER_TIMESTAMP
+            })
+
+            tx_id_refund = str(uuid.uuid4())
+            tx_refund_ref = requester_ref.collection('transactions').document(tx_id_refund)
+            transaction.set(tx_refund_ref, {
+                'type': 'ESCROW_REFUND',
+                'amount': total_refund,
+                'desc': f"Campus Gig Escrow Refund: {category} ({reason})",
+                'timestamp': firestore.SERVER_TIMESTAMP,
+                'request_id': request_id
+            })
+
+            try:
+                db.collection('transactions').add({
+                    'userId': requester_id,
+                    'type': 'escrow_refund',
+                    'amount': total_refund,
+                    'description': f"Campus Gig Escrow Refund: {category}",
+                    'reason': reason,
+                    'timestamp': firestore.SERVER_TIMESTAMP
+                })
+                db.collection('notifications').add({
+                    'targetUserId': requester_id,
+                    'title': 'Escrow Refunded 💰',
+                    'body': f'KES {total_refund:.2f} has been refunded to your wallet for "{category}". Reason: {reason}',
+                    'type': 'escrow_refund',
+                    'amount': total_refund,
+                    'createdAt': firestore.SERVER_TIMESTAMP,
+                    'readBy': []
+                })
+                if worker_id:
+                    db.collection('notifications').add({
+                        'targetUserId': worker_id,
+                        'title': 'Gig Cancelled ⚠️',
+                        'body': f'Gig for "{category}" was cancelled and escrow has been returned to the student.',
+                        'type': 'gig_cancelled',
+                        'createdAt': firestore.SERVER_TIMESTAMP,
+                        'readBy': []
+                    })
+            except:
+                pass
+
+        process_refund(transaction_ref)
+        return jsonify({
+            "status": "success",
+            "message": "Escrow successfully refunded back to student wallet."
+        }), 200
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+

@@ -463,6 +463,146 @@ def campus_gig_accepted_email(requester_name: str, worker_name: str, category: s
     return subject, _base_template(content, preheader=f"{w_name} has accepted your {category} gig request!")
 
 
+def generate_staff_appointment_email(
+    name: str,
+    role: str,
+    department: str,
+    base_salary: float,
+    salary_type: str = "MONTHLY",
+    expectations: str = "",
+    phone: str = ""
+) -> tuple:
+    """
+    Returns (subject, html_body, plain_body) for official staff onboarding and appointment letter.
+    """
+    staff_name = name or "Staff Member"
+    staff_role = role or "Operational Staff"
+    dept_name = department or "Operations Department"
+    salary_str = f"KES {base_salary:,.2f}"
+    cycle_str = salary_type.title() if salary_type else "Monthly"
+    phone_str = phone or "Registered Phone"
+    app_download_url = "https://dishi.delstarfordworks.co.ke"
+    play_store_url = "https://play.google.com/store/apps/details?id=co.ke.delstarfordworks.dishi"
+    
+    if not expectations.strip():
+        expectations_html = f"""
+        <ul style="margin-left: 20px; color: #CBD5E1; font-size: 14px; line-height: 1.8;">
+          <li>Support daily operational delivery across {dept_name}.</li>
+          <li>Ensure seamless customer experience and dignified student cafeteria meal distribution.</li>
+          <li>Reconcile operational logs and report key performance indicators to Department Leads.</li>
+          <li>Comply with DISHI enterprise governance standards and zero-tolerance wash trading policies.</li>
+        </ul>
+        """
+        expectations_plain = f"- Support daily operational delivery across {dept_name}.\n- Ensure seamless customer experience.\n- Reconcile operational logs and report KPIs."
+    else:
+        exp_lines = [line.strip() for line in expectations.strip().split('\n') if line.strip()]
+        if len(exp_lines) > 1:
+            list_items = "".join([f"<li>{l.lstrip('-*• ')}</li>" for l in exp_lines])
+            expectations_html = f"""<ul style="margin-left: 20px; color: #CBD5E1; font-size: 14px; line-height: 1.8;">{list_items}</ul>"""
+            expectations_plain = "\n".join([f"- {l.lstrip('-*• ')}" for l in exp_lines])
+        else:
+            expectations_html = f"""<p style="color: #CBD5E1; font-size: 14px; line-height: 1.7;">{expectations.strip()}</p>"""
+            expectations_plain = expectations.strip()
+
+    subject = f"Official DISHI Appointment: Welcome to {dept_name} as {staff_role}"
+    
+    content = f"""
+      <p class="greeting">Welcome to DISHI, {staff_name}! 🚀</p>
+      <p class="body-text" style="margin-top:8px;">
+        We are thrilled to officially welcome you to the <strong style="color:#FFFFFF;">DISHI Operations Team</strong> at Delstarford Works Ltd. 
+        Your appointment has been confirmed in our enterprise personnel register.
+      </p>
+
+      <div class="divider"></div>
+
+      <div class="highlight" style="border-left: 3px solid #05D5AA; background: #162033;">
+        <p style="font-size:11px;text-transform:uppercase;color:#05D5AA;letter-spacing:1.2px;margin-bottom:10px;font-weight:800;">
+          APPOINTMENT &amp; PAYROLL SUMMARY
+        </p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #E2E8F0;">
+          <tr>
+            <td style="padding: 6px 0; color: #94A3B8; width: 40%;">🏢 Department:</td>
+            <td style="padding: 6px 0; font-weight: 700; color: #FFFFFF;">{dept_name}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #94A3B8;">💼 Assigned Role:</td>
+            <td style="padding: 6px 0; font-weight: 700; color: #05D5AA;">{staff_role}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #94A3B8;">💵 Base Compensation:</td>
+            <td style="padding: 6px 0; font-weight: 700; color: #FFFFFF;">{salary_str} <span style="font-size: 11px; color: #94A3B8;">({cycle_str})</span></td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #94A3B8;">📱 M-PESA Payout:</td>
+            <td style="padding: 6px 0; font-weight: 600; color: #CBD5E1;">{phone_str}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 18px 20px; margin: 20px 0;">
+        <p style="font-size:11px;text-transform:uppercase;color:#FF6F00;letter-spacing:1.2px;margin-bottom:8px;font-weight:800;">
+          📋 EXPECTED DUTIES &amp; DELIVERABLES
+        </p>
+        {expectations_html}
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="body-text" style="font-weight: 600; color: #FFFFFF; margin-bottom: 6px;">
+        📲 Download the DISHI App &amp; Access Your Staff Portal
+      </p>
+      <p class="body-text" style="font-size: 13px;">
+        Install the DISHI mobile application or access our ecosystem to view operational tasks, review your daily shifts, and manage university meal workflows.
+      </p>
+
+      <div style="text-align:center; margin: 24px 0 10px;">
+        <a href="{play_store_url}" class="btn" style="background: linear-gradient(135deg, #05D5AA 0%, #00B48A 100%); margin-right: 8px;">
+          Download from Google Play &rarr;
+        </a>
+      </div>
+      <div style="text-align:center;">
+        <a href="{app_download_url}" style="font-size: 12px; color: #05D5AA; text-decoration: underline;">
+          Or open DISHI Web Ecosystem ({app_download_url})
+        </a>
+      </div>
+
+      <div class="highlight" style="margin-top: 24px; border-left: 3px solid #3B82F6;">
+        <p style="font-size:11px;text-transform:uppercase;color:#3B82F6;letter-spacing:1px;margin-bottom:6px;font-weight:700;">Getting Started</p>
+        <p>1. Open the DISHI App &rarr; Log in with your registered phone number (<strong>{phone_str}</strong>).</p>
+        <p>2. Complete identity confirmation via SMS OTP.</p>
+        <p>3. If you require assistance, contact <strong>dishi@delstarfordworks.co.ke</strong>.</p>
+      </div>
+    """
+
+    plain_body = f"""Dear {staff_name},
+
+Welcome to DISHI at Delstarford Works Ltd!
+You have been appointed to {dept_name} as {staff_role}.
+
+APPOINTMENT DETAILS:
+- Department: {dept_name}
+- Role: {staff_role}
+- Base Compensation: {salary_str} ({cycle_str})
+- M-PESA Phone: {phone_str}
+
+EXPECTED DUTIES & DELIVERABLES:
+{expectations_plain}
+
+DOWNLOAD THE APP:
+Install the DISHI App from Google Play: {play_store_url}
+Or visit our web ecosystem: {app_download_url}
+
+Log in using your registered phone number: {phone_str}.
+
+Best regards,
+DISHI Operations Team
+Delstarford Works Ltd
+dishi@delstarfordworks.co.ke
+"""
+
+    return subject, _base_template(content, preheader=f"Welcome to DISHI! Official appointment details for {staff_name} as {staff_role}."), plain_body
+
+
 def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: str, user_id: str = None, otp_code: str = None) -> tuple:
     """
     Sends email via available channels in priority order:

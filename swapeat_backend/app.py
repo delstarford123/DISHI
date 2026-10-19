@@ -94,6 +94,8 @@ from routes.v3 import v3_bp
 
 from routes.v4.vendor_agent_routes import vendor_agent_bp
 from routes.v4.fraud_monitor_routes import fraud_bp
+from routes.v4.c2b_routes import c2b_v4_bp
+from routes.v4.analytics_routes import analytics_v4_bp
 from routes.v5.admin_advanced_routes import admin_v5_bp
 from routes.auth_pin_routes import auth_pin_bp
 from routes.cron_routes import cron_bp
@@ -117,10 +119,12 @@ from routes.vibe_routes import vibe_bp
 from routes.v6.campus_gigs_routes import campus_gigs_v6_bp
 from routes.sos_notify_routes import sos_notify_bp
 from routes.games_routes import games_bp
+from routes.system_routes import system_bp
 
 
 
 
+app.register_blueprint(system_bp,          url_prefix='/api/v1/system')
 app.register_blueprint(transaction_bp,      url_prefix='/api/v1/transaction')
 app.register_blueprint(security_bp,         url_prefix='/api/v1/security')
 app.register_blueprint(audit_bp,            url_prefix='/api/v1/audit')
@@ -146,6 +150,8 @@ app.register_blueprint(fundi_bp,            url_prefix='/api/v1/fundi')
 app.register_blueprint(v3_bp)
 app.register_blueprint(vendor_agent_bp,     url_prefix='/api/v4/vendor')
 app.register_blueprint(fraud_bp,            url_prefix='/api/v4/fraud')
+app.register_blueprint(c2b_v4_bp,            url_prefix='/api/v4/c2b')
+app.register_blueprint(analytics_v4_bp,      url_prefix='/api/v4/analytics')
 app.register_blueprint(admin_v5_bp,         url_prefix='/api/v5/admin')
 app.register_blueprint(auth_pin_bp,         url_prefix='/api/v1/auth/pin')
 app.register_blueprint(cron_bp,             url_prefix='/cron')
@@ -215,11 +221,48 @@ def debug_firebase():
         "init_error": firebase_init_error,
     })
 
-# ─── Public Landing & Pitch Pages ─────────────────────────────────────────────
+# ─── Public Landing, Solutions & Showcase Pages ──────────────────────────────
+def get_screenshots_meta():
+    try:
+        meta_path = os.path.join(os.path.dirname(__file__), 'static', 'screenshots', 'screenshots_meta.json')
+        if os.path.exists(meta_path):
+            with open(meta_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Error loading screenshots metadata: {e}")
+    return []
+
 @app.route('/')
 @app.route('/index')
 def index():
-    return render_template('index.html')
+    screens = get_screenshots_meta()
+    return render_template('index.html', screens=screens)
+
+@app.route('/solutions')
+@app.route('/dashboards')
+def solutions_page():
+    return render_template('dashboards.html')
+
+@app.route('/gallery')
+@app.route('/app-tour')
+@app.route('/screenshots')
+def gallery_page():
+    screens = get_screenshots_meta()
+    return render_template('gallery.html', screens=screens)
+
+@app.route('/fundi-deliv')
+@app.route('/gigs')
+def fundi_deliv_page():
+    return render_template('fundi_deliv.html')
+
+@app.route('/inclusion')
+@app.route('/accessibility')
+def inclusion_page():
+    return render_template('inclusion.html')
+
+@app.route('/constitution')
+def constitution_page():
+    return render_template('constitution.html')
 
 @app.route('/about')
 def about():

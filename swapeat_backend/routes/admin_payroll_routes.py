@@ -94,6 +94,9 @@ def add_employee():
         data = request.json or {}
         name = data.get('name', '').strip()
         phone = data.get('phone', '').strip().replace('+', '')
+        email = data.get('email', '').strip().lower()
+        expectations = data.get('expectations', data.get('responsibilities', '')).strip()
+        send_welcome_email = data.get('send_welcome_email', True)
         department = data.get('department', 'Operations')
         role = data.get('role', 'Staff')
         base_salary = float(data.get('base_salary', 0))
@@ -120,6 +123,8 @@ def add_employee():
             'name': name,
             'phone': phone,
             'mpesa_number': phone,
+            'email': email,
+            'expectations': expectations,
             'department': department,
             'role': role,
             'base_salary': base_salary,
@@ -137,9 +142,39 @@ def add_employee():
             'last_paid_at': None
         }
         emp_ref.set(emp_data)
-        log_admin_action(admin_id, 'add_employee', {'employee_id': emp_ref.id, 'name': name, 'department': department})
+        log_admin_action(admin_id, 'add_employee', {'employee_id': emp_ref.id, 'name': name, 'department': department, 'email': email})
 
-        return jsonify({'message': 'Employee added successfully', 'id': emp_ref.id}), 201
+        email_sent = False
+        delivery_channel = None
+        if email and send_welcome_email:
+            try:
+                from routes.email_utils import generate_staff_appointment_email, send_multi_channel_email
+                subject, html_body, plain_body = generate_staff_appointment_email(
+                    name=name,
+                    role=role,
+                    department=department,
+                    base_salary=base_salary,
+                    salary_type=salary_type,
+                    expectations=expectations,
+                    phone=phone
+                )
+                success, delivery_channel = send_multi_channel_email(
+                    to=email,
+                    subject=subject,
+                    html_body=html_body,
+                    plain_body=plain_body
+                )
+                email_sent = success
+                print(f"[StaffOnboarding] Appointment email to {email}: {delivery_channel}")
+            except Exception as mail_err:
+                print(f"[StaffOnboarding] Error sending appointment email: {mail_err}")
+
+        return jsonify({
+            'message': 'Employee added successfully',
+            'id': emp_ref.id,
+            'email_sent': email_sent,
+            'delivery_channel': delivery_channel
+        }), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -156,7 +191,7 @@ def update_employee(emp_id):
             return jsonify({'error': 'Employee not found'}), 404
 
         updates = {'updated_at': firestore.SERVER_TIMESTAMP, 'updated_by': admin_id}
-        for field in ['name', 'phone', 'department', 'role', 'base_salary', 'salary_type', 'national_id', 'bank_name', 'bank_account', 'status', 'shif_deduction', 'nssf_deduction', 'housing_levy']:
+        for field in ['name', 'phone', 'email', 'expectations', 'department', 'role', 'base_salary', 'salary_type', 'national_id', 'bank_name', 'bank_account', 'status', 'shif_deduction', 'nssf_deduction', 'housing_levy']:
             if field in data:
                 if field in ['base_salary', 'shif_deduction', 'nssf_deduction', 'housing_levy']:
                     updates[field] = float(data[field])
@@ -166,6 +201,42 @@ def update_employee(emp_id):
         emp_ref.update(updates)
         log_admin_action(admin_id, 'update_employee', {'employee_id': emp_id, 'updates': str(updates)})
         return jsonify({'message': 'Employee updated successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@payroll_bp.route('/employees/<emp_id>/resend_welcome_email', methods=['POST'])
+def resend_welcome_email(emp_id):
+    admin_id = verify_admin(request)
+    if not admin_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        db = firestore.client()
+        emp_doc = db.collection('employees').document(emp_id).get()
+        if not emp_doc.exists:
+            return jsonify({'error': 'Employee not found'}), 404
+        emp = emp_doc.to_dict()
+        email = emp.get('email', '').strip()
+        if not email:
+            return jsonify({'error': 'Employee has no registered email address'}), 400
+
+        from routes.email_utils import generate_staff_appointment_email, send_multi_channel_email
+        subject, html_body, plain_body = generate_staff_appointment_email(
+            name=emp.get('name', 'Staff Member'),
+            role=emp.get('role', 'Staff'),
+            department=emp.get('department', 'Operations'),
+            base_salary=float(emp.get('base_salary', 0)),
+            salary_type=emp.get('salary_type', 'MONTHLY'),
+            expectations=emp.get('expectations', ''),
+            phone=emp.get('phone', '')
+        )
+        success, channel = send_multi_channel_email(
+            to=email,
+            subject=subject,
+            html_body=html_body,
+            plain_body=plain_body
+        )
+        log_admin_action(admin_id, 'resend_staff_email', {'employee_id': emp_id, 'email': email, 'channel': channel})
+        return jsonify({'message': f'Appointment email resent to {email} via {channel}', 'success': success, 'channel': channel}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -274,15 +345,20 @@ def get_departments():
         departments = []
 
         if not dept_docs:
+            now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
             for d in DEFAULT_DEPARTMENTS:
                 new_ref = db.collection('departments').document()
-                item = {
+                new_ref.set({
                     **d,
                     'created_at': firestore.SERVER_TIMESTAMP,
                     'created_by': admin_id
+                })
+                item = {
+                    **d,
+                    'id': new_ref.id,
+                    'created_at': now_iso,
+                    'created_by': admin_id
                 }
-                new_ref.set(item)
-                item['id'] = new_ref.id
                 departments.append(item)
         else:
             for d in dept_docs:
@@ -290,6 +366,8 @@ def get_departments():
                 item['id'] = d.id
                 if 'created_at' in item and hasattr(item['created_at'], 'isoformat'):
                     item['created_at'] = item['created_at'].isoformat()
+                else:
+                    item['created_at'] = str(item.get('created_at', ''))
                 departments.append(item)
 
         emp_docs = db.collection('employees').where('status', '==', 'active').get()
@@ -341,7 +419,20 @@ def create_department():
         }
         new_ref.set(dept_data)
         log_admin_action(admin_id, 'create_department', {'department_id': new_ref.id, 'name': name})
-        return jsonify({'message': f'Department {name} created successfully', 'id': new_ref.id, 'department': dept_data}), 201
+
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        res_dept = {
+            'id': new_ref.id,
+            'name': name,
+            'code': code,
+            'description': description,
+            'budget': budget,
+            'roles': roles,
+            'created_at': now_iso,
+            'created_by': admin_id,
+            'updated_at': now_iso
+        }
+        return jsonify({'message': f'Department {name} created successfully', 'id': new_ref.id, 'department': res_dept}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -854,33 +945,98 @@ def get_c2b_overview():
         return jsonify({"error": "Unauthorized"}), 401
     try:
         db = firestore.client()
-        # Query recent M-PESA deposits
-        docs = db.collection('mpesa_transactions').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(50).get()
         collections = []
+        seen_tx_ids = set()
         total_volume = 0.0
         success_count = 0
 
+        # 1. Query dedicated C2B Paybill Inbound transactions
+        c2b_docs = db.collection('c2b_transactions').order_by('created_at', direction=firestore.Query.DESCENDING).limit(50).get()
+        for d in c2b_docs:
+            item = d.to_dict()
+            tx_id = item.get('trans_id') or d.id
+            if tx_id in seen_tx_ids:
+                continue
+            seen_tx_ids.add(tx_id)
+
+            amt = float(item.get('amount') or item.get('trans_amount') or 0.0)
+            status = item.get('status', 'completed')
+            if status in ['completed', 'reconciled']:
+                total_volume += amt
+                success_count += 1
+
+            ts = item.get('created_at') or item.get('timestamp')
+            ts_str = ts.isoformat() if hasattr(ts, 'isoformat') else str(ts or '')
+
+            collections.append({
+                'id': d.id,
+                'trans_id': tx_id,
+                'amount': amt,
+                'trans_amount': amt,
+                'msisdn': item.get('phone') or item.get('msisdn', ''),
+                'phoneNumber': item.get('phone') or item.get('msisdn', ''),
+                'bill_ref_number': item.get('bill_ref') or item.get('bill_ref_number', 'WALLET-TOPUP'),
+                'accountReference': item.get('bill_ref') or item.get('bill_ref_number', 'WALLET-TOPUP'),
+                'first_name': item.get('customer_name', '').split()[0] if item.get('customer_name') else item.get('first_name', ''),
+                'last_name': " ".join(item.get('customer_name', '').split()[1:]) if item.get('customer_name') else item.get('last_name', ''),
+                'status': status,
+                'reconciled': item.get('reconciled', True),
+                'matched_user_name': item.get('matched_user_name', ''),
+                'matched_user_id': item.get('matched_user_id', ''),
+                'trans_time': ts_str,
+                'timestamp': ts_str,
+                'source': 'C2B Paybill Webhook'
+            })
+
+        # 2. Query recent M-PESA deposits as supplementary stream
+        docs = db.collection('mpesa_transactions').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(30).get()
         for d in docs:
             item = d.to_dict()
-            item['id'] = d.id
-            amt = float(item.get('amount') or item.get('Amount') or 0)
+            tx_id = item.get('receipt') or item.get('MpesaReceiptNumber') or d.id
+            if tx_id in seen_tx_ids:
+                continue
+            seen_tx_ids.add(tx_id)
+
+            amt = float(item.get('amount') or item.get('Amount') or 0.0)
             status = item.get('status', 'completed')
             if status == 'completed':
                 total_volume += amt
                 success_count += 1
 
-            if 'timestamp' in item and hasattr(item['timestamp'], 'isoformat'):
-                item['timestamp'] = item['timestamp'].isoformat()
-            else:
-                item['timestamp'] = str(item.get('timestamp'))
-            collections.append(item)
+            ts = item.get('timestamp')
+            ts_str = ts.isoformat() if hasattr(ts, 'isoformat') else str(ts or '')
+
+            u_name = item.get('user_name', '')
+            collections.append({
+                'id': d.id,
+                'trans_id': tx_id,
+                'amount': amt,
+                'trans_amount': amt,
+                'msisdn': item.get('phone', ''),
+                'phoneNumber': item.get('phone', ''),
+                'bill_ref_number': item.get('destination', 'WALLET-TOPUP'),
+                'accountReference': item.get('destination', 'WALLET-TOPUP'),
+                'first_name': u_name.split()[0] if u_name else '',
+                'last_name': " ".join(u_name.split()[1:]) if u_name else '',
+                'status': status,
+                'reconciled': True,
+                'matched_user_name': u_name,
+                'matched_user_id': item.get('user_id', ''),
+                'trans_time': ts_str,
+                'timestamp': ts_str,
+                'source': 'M-PESA Direct'
+            })
+
+        # Sort combined stream by timestamp descending
+        collections.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
 
         return jsonify({
             'paybill_number': os.getenv('MPESA_SHORTCODE', '4050545'),
+            'total_collected': total_volume,
             'total_volume': total_volume,
             'total_transactions': len(collections),
             'success_rate': f"{(success_count / max(1, len(collections))) * 100:.1f}%",
-            'recent_collections': collections
+            'recent_collections': collections[:50]
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500

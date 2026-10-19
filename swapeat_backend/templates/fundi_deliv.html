@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}DeLiv & Comrade Fundi — Campus Gigs & Escrow Protection | DISHI{% endblock %}
+{% block description %}Monetize student skills safely: DeLiv dorm food couriers and Comrade Fundi artisan marketplace with 100% Escrow Vault protection and instant dispute refund guarantee.{% endblock %}
+
+{% block head_extra %}
+<style>
+    .gigs-hero {
+        padding: 70px 24px 40px;
+        text-align: center;
+        max-width: 950px;
+        margin: 0 auto;
+    }
+
+    .gigs-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 16px;
+        border-radius: 20px;
+        background: rgba(56, 189, 248, 0.1);
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        color: var(--blue);
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 20px;
+    }
+
+    .gigs-title {
+        font-size: 46px;
+        font-weight: 800;
+        line-height: 1.2;
+        margin-bottom: 20px;
+    }
+
+    .gigs-desc {
+        font-size: 18px;
+        color: var(--text-muted);
+        line-height: 1.6;
+    }
+
+    .gigs-container {
+        max-width: 1320px;
+        margin: 0 auto 80px;
+        padding: 0 24px;
+    }
+
+    .dual-gig-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        margin-bottom: 70px;
+    }
+
+    .gig-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: 40px;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .gig-card:hover {
+        transform: translateY(-6px);
+        border-color: var(--blue);
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6), 0 0 30px rgba(56, 189, 248, 0.15);
+    }
+
+    .gig-card-badge {
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--blue);
+        margin-bottom: 12px;
+    }
+
+    .gig-card-title {
+        font-size: 28px;
+        font-weight: 800;
+        margin-bottom: 14px;
+        color: #fff;
+    }
+
+    .gig-card-desc {
+        font-size: 15px;
+        color: var(--text-muted);
+        line-height: 1.6;
+        margin-bottom: 24px;
+    }
+
+    .gig-feature-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 30px;
+        flex: 1;
+    }
+
+    .gig-feature-list li {
+        font-size: 14px;
+        color: #E2E8F0;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    /* ─── ESCROW PROTECTION VAULT ─────────────────────────────────── */
+    .escrow-vault-card {
+        background: linear-gradient(135deg, rgba(16, 23, 38, 0.95), rgba(14, 30, 50, 0.95));
+        border: 2px solid var(--mint);
+        border-radius: var(--radius-xl);
+        padding: 50px 40px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 35px var(--mint-glow-subtle);
+        margin-bottom: 80px;
+    }
+
+    .escrow-steps-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+        margin-top: 40px;
+    }
+
+    .escrow-step {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 24px 20px;
+        text-align: center;
+        position: relative;
+    }
+
+    .step-number {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--mint);
+        color: #000;
+        font-weight: 800;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 14px;
+    }
+
+    .step-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 8px;
+    }
+
+    .step-desc {
+        font-size: 13px;
+        color: var(--text-muted);
+        line-height: 1.5;
+    }
+
+    @media (max-width: 900px) {
+        .dual-gig-grid {
+            grid-template-columns: 1fr;
+        }
+        .escrow-steps-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .escrow-steps-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gigs-hero">
+    <div class="gigs-pill">🛵 Youth Work & Skill Monetization</div>
+    <h1 class="gigs-title">Earn with Dignity.<br><span class="gradient-text">100% Escrow Protected.</span></h1>
+    <p class="gigs-desc">
+        DISHI powers peer-to-peer economic dignity on campus. Whether you deliver lunch during study sessions or offer laptop and hair styling services, your earnings are locked in trust before work begins.
+    </p>
+</div>
+
+<div class="gigs-container">
+    <div class="dual-gig-grid">
+        <!-- DELIV: DORM FOOD COURIERS -->
+        <div class="gig-card" id="deliv">
+            <div class="gig-card-badge">🛵 MODULE 1 • COURIER LOGISTICS</div>
+            <h2 class="gig-card-title">DeLiv: Dorm Food Delivery</h2>
+            <p class="gig-card-desc">
+                Rushing for an evening assignment or revising late into the night at the university library? Get hot cafeteria meals delivered right to your hostel door or study carrel by trusted student runners.
+            </p>
+            <ul class="gig-feature-list">
+                <li><span>✅</span><span><strong>Flat Campus Courier Fee:</strong> KES 30–50 hostel doorstep delivery fees kept affordable for students.</span></li>
+                <li><span>✅</span><span><strong>Live Order Tracking:</strong> Real-time status from cafeteria kitchen dispatch to runner pickup and dorm arrival.</span></li>
+                <li><span>✅</span><span><strong>Flexible Student Hours:</strong> Couriers work between lecture breaks with zero minimum shift requirements.</span></li>
+                <li><span>✅</span><span><strong>Thermal Insulation:</strong> Food reaches comrades steaming hot, hygiene-sealed with cafeteria tamper tags.</span></li>
+            </ul>
+            <a href="https://play.google.com/store/apps/details?id=co.ke.delstarfordworks.dishi" target="_blank" rel="noopener" class="btn-playstore-nav" style="justify-content: center;">
+                <span>🛵 Order Dorm Delivery on DISHI</span>
+            </a>
+        </div>
+
+        <!-- COMRADE FUNDI: ARTISAN MARKETPLACE -->
+        <div class="gig-card" id="fundi">
+            <div class="gig-card-badge" style="color: var(--mint);">🛠️ MODULE 2 • VERIFIED SKILLS</div>
+            <h2 class="gig-card-title">Comrade Fundi: Artisan Gigs</h2>
+            <p class="gig-card-desc">
+                Are you an expert in smartphone screen replacements, laptop software troubleshooting, braiding, barbering, plumbing, or chemistry tutoring? Monetize your talents with verified campus comrades.
+            </p>
+            <ul class="gig-feature-list">
+                <li><span>✅</span><span><strong>No Unpaid Labor:</strong> 100% Escrow guarantees your money is securely locked before you lift a finger.</span></li>
+                <li><span>✅</span><span><strong>Verified Student Badges:</strong> Client and artisan university admission IDs cross-checked for campus safety.</span></li>
+                <li><span>✅</span><span><strong>Instant Job Settlement:</strong> Once the client verifies completion, payment lands in your Active Student Wallet in seconds.</span></li>
+                <li><span>✅</span><span><strong>Dispute & Cancellation Policy:</strong> Client cancel or no-show protection with automatic funds refund flow.</span></li>
+            </ul>
+            <a href="https://play.google.com/store/apps/details?id=co.ke.delstarfordworks.dishi" target="_blank" rel="noopener" class="btn-playstore-nav" style="justify-content: center; border-color: var(--mint); color: var(--mint);">
+                <span>🛠️ List Your Skills as a Fundi</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- 100% ESCROW VAULT EXPLANATION -->
+    <div class="escrow-vault-card">
+        <div style="text-align: center; max-width: 750px; margin: 0 auto;">
+            <div style="font-size: 13px; font-weight: 800; color: var(--mint); text-transform: uppercase; letter-spacing: 1px;">VAULT PROTOCOL</div>
+            <h2 style="font-size: 34px; font-weight: 800; color: #fff; margin: 10px 0 16px;">How DISHI 100% Escrow Protects You</h2>
+            <p style="font-size: 15px; color: var(--text-muted); line-height: 1.6;">
+                Eliminating mistrust between student clients and comrade workers with military-grade programmatic escrow protection.
+            </p>
+        </div>
+
+        <div class="escrow-steps-grid">
+            <div class="escrow-step">
+                <div class="step-number">1</div>
+                <div class="step-title">Gig Agreement & Lock</div>
+                <div class="step-desc">The client agrees on the price. DISHI locks the funds from the client's wallet into the Escrow Vault.</div>
+            </div>
+
+            <div class="escrow-step">
+                <div class="step-number">2</div>
+                <div class="step-title">Work Commences</div>
+                <div class="step-desc">The Fundi or Courier receives instant notification that 100% of the funds are locked and begins work.</div>
+            </div>
+
+            <div class="escrow-step">
+                <div class="step-number">3</div>
+                <div class="step-title">Client Verification</div>
+                <div class="step-desc">Upon job completion or delivery, the client tests the repair or receives the meal and confirms satisfaction.</div>
+            </div>
+
+            <div class="escrow-step">
+                <div class="step-number">4</div>
+                <div class="step-title">Instant Release / Refund</div>
+                <div class="step-desc">Funds release directly into the worker's wallet. If the worker fails to show, 100% of escrow is refunded to the client.</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

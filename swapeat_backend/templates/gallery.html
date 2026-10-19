@@ -1,0 +1,626 @@
+{% extends "base.html" %}
+
+{% block title %}DISHI App Gallery — 28 Mobile Screens & Interactive Showcase{% endblock %}
+{% block description %}Explore DISHI's live mobile app screens: Active student wallet, 0.5% vendor agent banking, offline NFC tap-to-eat, parent spend controls, and Comrade Fundi escrow gigs.{% endblock %}
+
+{% block head_extra %}
+<style>
+    .gallery-hero {
+        padding: 60px 24px 30px;
+        text-align: center;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .gallery-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(5, 213, 170, 0.1);
+        border: 1px solid rgba(5, 213, 170, 0.3);
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--mint);
+        margin-bottom: 20px;
+    }
+
+    .gallery-title {
+        font-size: 42px;
+        font-weight: 800;
+        line-height: 1.2;
+        margin-bottom: 16px;
+    }
+
+    .gallery-subtitle {
+        font-size: 17px;
+        color: var(--text-muted);
+        line-height: 1.6;
+        margin-bottom: 30px;
+    }
+
+    /* ─── CONTINUOUS ANIMATED SCREEN MARQUEE (LEFT TO RIGHT) ──── */
+    .marquee-section {
+        width: 100%;
+        overflow: hidden;
+        padding: 30px 0 50px;
+        position: relative;
+        background: rgba(16, 23, 38, 0.4);
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .marquee-fade-left, .marquee-fade-right {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 120px;
+        z-index: 10;
+        pointer-events: none;
+    }
+
+    .marquee-fade-left {
+        left: 0;
+        background: linear-gradient(90deg, var(--bg), transparent);
+    }
+
+    .marquee-fade-right {
+        right: 0;
+        background: linear-gradient(270deg, var(--bg), transparent);
+    }
+
+    .marquee-hint {
+        text-align: center;
+        font-size: 13px;
+        color: var(--mint);
+        font-weight: 600;
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    /* Interactive horizontal scroll rail */
+    .marquee-container {
+        display: flex;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: var(--mint) transparent;
+        padding: 15px 24px;
+        cursor: grab;
+    }
+
+    .marquee-container:active {
+        cursor: grabbing;
+    }
+
+    .marquee-track {
+        display: flex;
+        gap: 22px;
+        /* Automated animation moving from left to right */
+        animation: scrollLeftToRight 55s linear infinite;
+        width: max-content;
+    }
+
+    /* Pause animation on hover or when user touches/drags */
+    .marquee-container:hover .marquee-track,
+    .marquee-container:focus .marquee-track,
+    .marquee-container.is-scrolling .marquee-track {
+        animation-play-state: paused;
+    }
+
+    /* Keyframes animating from left to right (moving content towards right) */
+    @keyframes scrollLeftToRight {
+        0% {
+            transform: translateX(-50%);
+        }
+        100% {
+            transform: translateX(0%);
+        }
+    }
+
+    .screen-card-marquee {
+        flex: 0 0 240px;
+        width: 240px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 10px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .screen-card-marquee:hover {
+        transform: translateY(-8px) scale(1.02);
+        border-color: var(--mint);
+        box-shadow: 0 15px 35px var(--mint-glow-subtle);
+    }
+
+    .screen-img-box {
+        width: 100%;
+        height: 480px;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #000;
+        position: relative;
+    }
+
+    .screen-img-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: top center;
+        display: block;
+        transition: transform 0.4s ease;
+    }
+
+    .screen-card-marquee:hover .screen-img-box img {
+        transform: scale(1.04);
+    }
+
+    .screen-card-info {
+        padding: 10px 4px 4px;
+    }
+
+    .screen-cat-badge {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--mint);
+        letter-spacing: 0.5px;
+    }
+
+    .screen-card-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #FFFFFF;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 2px;
+    }
+
+    /* ─── FILTER TABS & FULL GALLERY GRID ─────────────────────── */
+    .gallery-body {
+        max-width: 1320px;
+        margin: 50px auto 80px;
+        padding: 0 24px;
+    }
+
+    .filter-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 40px;
+    }
+
+    .filter-btn {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        color: #E2E8F0;
+        padding: 8px 18px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+
+    .filter-btn:hover {
+        background: rgba(5, 213, 170, 0.1);
+        border-color: var(--mint);
+        color: var(--mint);
+    }
+
+    .filter-btn.active {
+        background: var(--mint);
+        color: #000000;
+        border-color: var(--mint);
+        font-weight: 700;
+        box-shadow: 0 4px 15px var(--mint-glow);
+    }
+
+    .gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 28px;
+    }
+
+    .gallery-item {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .gallery-item:hover {
+        transform: translateY(-8px);
+        border-color: var(--mint);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 20px var(--mint-glow-subtle);
+    }
+
+    .gallery-thumb-container {
+        width: 100%;
+        height: 540px;
+        background: #050811;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .gallery-thumb-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: top center;
+        transition: transform 0.4s ease;
+    }
+
+    .gallery-item:hover .gallery-thumb-container img {
+        transform: scale(1.05);
+    }
+
+    .gallery-item-content {
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .gallery-item-cat {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--mint);
+        letter-spacing: 0.8px;
+        margin-bottom: 6px;
+    }
+
+    .gallery-item-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        line-height: 1.3;
+        margin-bottom: 8px;
+    }
+
+    .gallery-item-desc {
+        font-size: 13px;
+        color: var(--text-muted);
+        line-height: 1.5;
+        flex: 1;
+    }
+
+    .gallery-item-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--mint);
+    }
+
+    /* ─── LIGHTBOX MODAL ──────────────────────────────────────── */
+    .lightbox-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.92);
+        backdrop-filter: blur(16px);
+        z-index: 2100;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .lightbox-modal.active {
+        display: flex;
+        opacity: 1;
+    }
+
+    .lightbox-content {
+        background: #0F172A;
+        border: 1px solid rgba(5, 213, 170, 0.3);
+        border-radius: var(--radius-lg);
+        max-width: 900px;
+        width: 100%;
+        max-height: 90vh;
+        display: flex;
+        overflow: hidden;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px var(--mint-glow-subtle);
+        position: relative;
+    }
+
+    .lightbox-img-wrapper {
+        flex: 1;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .lightbox-img-wrapper img {
+        max-height: 85vh;
+        max-width: 100%;
+        object-fit: contain;
+    }
+
+    .lightbox-details {
+        width: 340px;
+        padding: 32px 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        background: #0F172A;
+        border-left: 1px solid var(--border);
+    }
+
+    .lightbox-close {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: #fff;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        z-index: 10;
+    }
+
+    .lightbox-close:hover {
+        background: var(--pink);
+        color: #fff;
+    }
+
+    @media (max-width: 768px) {
+        .gallery-title {
+            font-size: 32px;
+        }
+        .lightbox-content {
+            flex-direction: column;
+            max-height: 95vh;
+            overflow-y: auto;
+        }
+        .lightbox-details {
+            width: 100%;
+            border-left: none;
+            border-top: 1px solid var(--border);
+            padding: 20px;
+        }
+        .screen-card-marquee {
+            flex: 0 0 200px;
+            width: 200px;
+        }
+        .screen-img-box {
+            height: 400px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gallery-hero">
+    <div class="gallery-badge">📱 Live App Showcase • 28 Verified Screens</div>
+    <h1 class="gallery-title">Experience the Complete <span class="gradient-text">DISHI Mobile OS</span></h1>
+    <p class="gallery-subtitle">
+        Take an interactive visual tour of the native Flutter Android production application. From the Active Student Wallet and 0.5% Agent Cash-In POS to Parent Spend Receipts and Comrade Fundi Escrow Gigs—see how DISHI makes campus life better.
+    </p>
+</div>
+
+<!-- CONTINUOUS HORIZONTAL MARQUEE MOVING FROM LEFT TO RIGHT -->
+<section class="marquee-section" aria-label="Animated mobile screenshots showcase">
+    <div class="marquee-fade-left"></div>
+    <div class="marquee-fade-right"></div>
+    <div class="marquee-hint">
+        <span>↔️ Auto-animating left-to-right • Hover to pause • Drag or scroll horizontally to inspect</span>
+    </div>
+
+    <div class="marquee-container" id="marqueeScrollContainer">
+        <div class="marquee-track" id="marqueeTrack">
+            <!-- First set of 28 screens -->
+            {% for s in screens %}
+            <div class="screen-card-marquee" onclick="openLightbox('{{ url_for('static', filename='screenshots/' ~ s.clean_filename) }}', '{{ s.title|escape }}', '{{ s.category|escape }}', '{{ s.description|escape }}')">
+                <div class="screen-img-box">
+                    <img src="{{ url_for('static', filename='screenshots/' ~ s.clean_filename) }}" alt="{{ s.title }}" loading="lazy">
+                </div>
+                <div class="screen-card-info">
+                    <div class="screen-cat-badge">{{ s.category }}</div>
+                    <div class="screen-card-title">{{ s.title }}</div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Duplicate set for seamless continuous infinite marquee loop -->
+            {% for s in screens %}
+            <div class="screen-card-marquee" onclick="openLightbox('{{ url_for('static', filename='screenshots/' ~ s.clean_filename) }}', '{{ s.title|escape }}', '{{ s.category|escape }}', '{{ s.description|escape }}')">
+                <div class="screen-img-box">
+                    <img src="{{ url_for('static', filename='screenshots/' ~ s.clean_filename) }}" alt="{{ s.title }}" loading="lazy">
+                </div>
+                <div class="screen-card-info">
+                    <div class="screen-cat-badge">{{ s.category }}</div>
+                    <div class="screen-card-title">{{ s.title }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- FULL CATEGORIZED GALLERY WITH FILTER TABS -->
+<div class="gallery-body">
+    <div style="text-align: center; margin-bottom: 24px;">
+        <h2 style="font-size: 28px; font-weight: 700; color: #fff;">Explore Screens by Category</h2>
+        <p style="color: var(--text-muted); font-size: 15px; margin-top: 6px;">Filter across all user dashboards and functional modules</p>
+    </div>
+
+    <div class="filter-tabs">
+        <button class="filter-btn active" onclick="filterGallery('all', this)">All Screens ({{ screens|length }})</button>
+        <button class="filter-btn" onclick="filterGallery('Student Dashboard', this)">🎓 Student Dashboard</button>
+        <button class="filter-btn" onclick="filterGallery('Vendor POS & Agent', this)">🏪 Vendor POS & Agent Float</button>
+        <button class="filter-btn" onclick="filterGallery('Parent Controls', this)">👨‍👩‍👧 Parent Controls</button>
+        <button class="filter-btn" onclick="filterGallery('Comrade Fundi & Gigs', this)">🛵 Comrade Fundi & DeLiv</button>
+        <button class="filter-btn" onclick="filterGallery('Inclusion & NFC', this)">♿ Inclusion & NFC</button>
+        <button class="filter-btn" onclick="filterGallery('Games & Social', this)">🎮 Games & Arcade</button>
+    </div>
+
+    <div class="gallery-grid" id="galleryGrid">
+        {% for s in screens %}
+        <div class="gallery-item" data-category="{{ s.category }}" onclick="openLightbox('{{ url_for('static', filename='screenshots/' ~ s.clean_filename) }}', '{{ s.title|escape }}', '{{ s.category|escape }}', '{{ s.description|escape }}')">
+            <div class="gallery-thumb-container">
+                <img src="{{ url_for('static', filename='screenshots/' ~ s.clean_filename) }}" alt="{{ s.title }}" loading="lazy">
+            </div>
+            <div class="gallery-item-content">
+                <div class="gallery-item-cat">{{ s.category }}</div>
+                <h3 class="gallery-item-title">{{ s.title }}</h3>
+                <p class="gallery-item-desc">{{ s.description }}</p>
+                <div class="gallery-item-footer">
+                    <span>Inspect Screen</span>
+                    <span>🔍</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- INTERACTIVE LIGHTBOX MODAL -->
+<div class="lightbox-modal" id="lightboxModal" onclick="closeLightboxOnBackdrop(event)">
+    <div class="lightbox-content" onclick="event.stopPropagation()">
+        <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close modal">✕</button>
+        <div class="lightbox-img-wrapper">
+            <img src="" id="lightboxImg" alt="DISHI Screenshot Preview">
+        </div>
+        <div class="lightbox-details">
+            <div>
+                <span class="gallery-item-cat" id="lightboxCat">CATEGORY</span>
+                <h2 style="font-size: 22px; font-weight: 700; color: #fff; margin: 10px 0 14px;" id="lightboxTitle">Screen Title</h2>
+                <p style="font-size: 14px; color: var(--text-muted); line-height: 1.6;" id="lightboxDesc">Detailed feature explanation.</p>
+            </div>
+            <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border);">
+                <a href="https://play.google.com/store/apps/details?id=co.ke.delstarfordworks.dishi" target="_blank" rel="noopener" class="btn-playstore-nav" style="width: 100%; justify-content: center;">
+                    <svg class="playstore-nav-icon" viewBox="0 0 512 512">
+                        <path fill="#4285F4" d="M32.5 16.5C30.2 18.9 28.8 22.8 28.8 28.2v455.6c0 5.4 1.4 9.3 3.7 11.7l1.3 1.2 254.9-254.9v-6L33.8 15.3l-1.3 1.2z"/>
+                        <path fill="#FBBC04" d="M380.1 369.3l-91.4-91.4v-6l91.4-91.4 2.1 1.2 108.3 61.5c30.9 17.5 30.9 46.2 0 63.8l-108.3 61.5-2.1 0.8z"/>
+                        <path fill="#EA4335" d="M288.7 271.9L33.8 526.8c10.2 10.8 27.2 12.1 46.5 1.1l208.4-118.4-91.4-91.4z"/>
+                        <path fill="#34A853" d="M288.7 240.1l91.4-91.4L171.7 30.3C152.4 19.3 135.4 20.6 125.2 31.4l163.5 208.7z"/>
+                    </svg>
+                    <div class="playstore-nav-text">
+                        <span class="sub">TRY ON YOUR PHONE</span>
+                        <span class="main">Get on Google Play</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    function filterGallery(category, btn) {
+        var buttons = document.querySelectorAll('.filter-btn');
+        buttons.forEach(function(b) { b.classList.remove('active'); });
+        if (btn) btn.classList.add('active');
+
+        var items = document.querySelectorAll('.gallery-item');
+        items.forEach(function(item) {
+            var itemCat = item.getAttribute('data-category');
+            if (category === 'all' || itemCat === category) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    function openLightbox(imgSrc, title, category, desc) {
+        var modal = document.getElementById('lightboxModal');
+        var img = document.getElementById('lightboxImg');
+        var catEl = document.getElementById('lightboxCat');
+        var titleEl = document.getElementById('lightboxTitle');
+        var descEl = document.getElementById('lightboxDesc');
+
+        img.src = imgSrc;
+        catEl.innerText = category;
+        titleEl.innerText = title;
+        descEl.innerText = desc;
+
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+        var modal = document.getElementById('lightboxModal');
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    function closeLightboxOnBackdrop(e) {
+        if (e.target.id === 'lightboxModal') {
+            closeLightbox();
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeLightbox();
+        }
+    });
+
+    // Touch & Mouse Drag Scroll Support on Marquee Track
+    var container = document.getElementById('marqueeScrollContainer');
+    var isDown = false;
+    var startX, scrollLeft;
+
+    if (container) {
+        container.addEventListener('mousedown', function(e) {
+            isDown = true;
+            container.classList.add('is-scrolling');
+            startX = e.pageX - container.offsetLeft;
+            scrollLeft = container.scrollLeft;
+        });
+        container.addEventListener('mouseleave', function() {
+            isDown = false;
+            container.classList.remove('is-scrolling');
+        });
+        container.addEventListener('mouseup', function() {
+            isDown = false;
+            container.classList.remove('is-scrolling');
+        });
+        container.addEventListener('mousemove', function(e) {
+            if (!isDown) return;
+            e.preventDefault();
+            var x = e.pageX - container.offsetLeft;
+            var walk = (x - startX) * 2;
+            container.scrollLeft = scrollLeft - walk;
+        });
+    }
+</script>
+{% endblock %}

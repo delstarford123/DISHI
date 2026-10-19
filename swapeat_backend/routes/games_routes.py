@@ -132,12 +132,21 @@ def pay_game_entry():
         if not snap.exists:
             return False, "User not found", 0.0
         u_data = snap.to_dict()
+        paid_games = u_data.get('paid_games', [])
         current_bal = float(u_data.get('walletBalance', 0.0))
+
+        # If user already paid for this game, remember it permanently!
+        if game_id in paid_games:
+            return True, "Game already purchased", current_bal
+
         if current_bal < ENTRY_FEE:
             return False, f"Insufficient wallet balance. KES {ENTRY_FEE:.2f} is required to play.", current_bal
 
         new_bal = current_bal - ENTRY_FEE
-        transaction.update(u_ref, {'walletBalance': new_bal})
+        transaction.update(u_ref, {
+            'walletBalance': new_bal,
+            'paid_games': firestore.ArrayUnion([game_id])
+        })
 
         # Record arcade entry fee transaction
         tx_ref = db.collection('transactions').document()

@@ -128,6 +128,10 @@ def fulfill_preorder():
         db = firestore.client()
         order_ref = db.collection('orders').document(order_id)
         order_ref.update({'status': 'fulfilled', 'fulfilledAt': firestore.SERVER_TIMESTAMP})
+        try:
+            db.collection('preorders').document(order_id).update({'status': 'fulfilled', 'fulfilledAt': firestore.SERVER_TIMESTAMP})
+        except Exception:
+            pass
         
         return jsonify({"status": "success", "message": "Order fulfilled."}), 200
     except Exception as e:

@@ -1,0 +1,617 @@
+{% extends "base.html" %}
+
+{% block title %}DISHI Solutions — Student, Parent & Vendor Dashboards{% endblock %}
+{% block description %}Discover how DISHI transforms campus life across all 3 user levels: Student Wallet & Pre-orders, Parent Meal Allowance Shield, and Vendor 0.5% Agency Banking.{% endblock %}
+
+{% block head_extra %}
+<style>
+    .sol-hero {
+        padding: 70px 24px 40px;
+        text-align: center;
+        max-width: 950px;
+        margin: 0 auto;
+    }
+
+    .sol-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 16px;
+        border-radius: 20px;
+        background: rgba(5, 213, 170, 0.1);
+        border: 1px solid rgba(5, 213, 170, 0.3);
+        color: var(--mint);
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 20px;
+    }
+
+    .sol-title {
+        font-size: 46px;
+        font-weight: 800;
+        line-height: 1.2;
+        margin-bottom: 20px;
+    }
+
+    .sol-desc {
+        font-size: 18px;
+        color: var(--text-muted);
+        line-height: 1.6;
+    }
+
+    /* ─── LEVEL NAVIGATION TABS ───────────────────────────────────── */
+    .level-tabs {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        max-width: 800px;
+        margin: 30px auto 60px;
+        padding: 6px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: 50px;
+    }
+
+    .level-tab-btn {
+        flex: 1;
+        padding: 14px 20px;
+        border-radius: 40px;
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+
+    .level-tab-btn:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .level-tab-btn.active {
+        background: var(--mint);
+        color: #000;
+        box-shadow: 0 4px 20px var(--mint-glow);
+    }
+
+    /* ─── LEVEL SECTION CARD ─────────────────────────────────────── */
+    .level-section {
+        max-width: 1320px;
+        margin: 0 auto 90px;
+        padding: 0 24px;
+        scroll-margin-top: 100px;
+    }
+
+    .level-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: 50px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .level-card.student-theme {
+        border-color: rgba(5, 213, 170, 0.3);
+    }
+
+    .level-card.parent-theme {
+        border-color: rgba(56, 189, 248, 0.3);
+    }
+
+    .level-card.vendor-theme {
+        border-color: rgba(255, 42, 109, 0.3);
+    }
+
+    .level-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 50px;
+        align-items: center;
+    }
+
+    .level-header-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
+    }
+
+    .level-header-tag.mint { color: var(--mint); }
+    .level-header-tag.blue { color: var(--blue); }
+    .level-header-tag.pink { color: var(--pink); }
+
+    .level-heading {
+        font-size: 36px;
+        font-weight: 800;
+        line-height: 1.25;
+        margin-bottom: 18px;
+    }
+
+    .level-story {
+        font-size: 16px;
+        color: #CBD5E1;
+        line-height: 1.7;
+        margin-bottom: 30px;
+        padding: 16px 20px;
+        background: rgba(255, 255, 255, 0.03);
+        border-left: 3px solid var(--mint);
+        border-radius: 0 12px 12px 0;
+    }
+
+    .level-features-list {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        margin-bottom: 32px;
+    }
+
+    .feature-point {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .feature-point-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+        border: 1px solid var(--border);
+    }
+
+    .feature-point-text h4 {
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 4px;
+    }
+
+    .feature-point-text p {
+        font-size: 14px;
+        color: var(--text-muted);
+        line-height: 1.5;
+    }
+
+    /* Device Preview Frame */
+    .device-preview-wrapper {
+        position: relative;
+        display: flex;
+        justify-content: center;
+    }
+
+    .device-frame {
+        width: 320px;
+        border-radius: 36px;
+        background: #000;
+        border: 4px solid #222E42;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px var(--mint-glow-subtle);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .device-frame img {
+        width: 100%;
+        display: block;
+        object-fit: cover;
+    }
+
+    .floating-card {
+        position: absolute;
+        background: rgba(16, 23, 38, 0.95);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--mint);
+        border-radius: 14px;
+        padding: 12px 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        z-index: 5;
+    }
+
+    .floating-card.top-right {
+        top: -15px;
+        right: -20px;
+    }
+
+    .floating-card.bottom-left {
+        bottom: -20px;
+        left: -20px;
+    }
+
+    /* ─── COMPARISON MATRIX TABLE ────────────────────────────────── */
+    .matrix-section {
+        max-width: 1320px;
+        margin: 60px auto 100px;
+        padding: 0 24px;
+    }
+
+    .matrix-title {
+        text-align: center;
+        font-size: 32px;
+        font-weight: 800;
+        margin-bottom: 30px;
+    }
+
+    .matrix-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .matrix-table th {
+        background: #0D1424;
+        padding: 18px 24px;
+        font-size: 15px;
+        font-weight: 700;
+        text-align: left;
+        color: #fff;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .matrix-table td {
+        padding: 16px 24px;
+        font-size: 14px;
+        color: #CBD5E1;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        vertical-align: middle;
+    }
+
+    .matrix-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .tag-old {
+        color: #F87171;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .tag-new {
+        color: var(--mint);
+        font-weight: 700;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    @media (max-width: 1024px) {
+        .level-grid {
+            grid-template-columns: 1fr;
+            gap: 40px;
+        }
+        .device-preview-wrapper {
+            margin-top: 20px;
+        }
+        .floating-card {
+            display: none;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .sol-title { font-size: 32px; }
+        .level-card { padding: 30px 20px; }
+        .level-heading { font-size: 26px; }
+        .level-tabs { flex-direction: column; border-radius: 20px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sol-hero">
+    <div class="sol-pill">🛡️ Purpose-Built African Campus Ecosystem</div>
+    <h1 class="sol-title">Three User Levels.<br><span class="gradient-text">One Unified Operating System.</span></h1>
+    <p class="sol-desc">
+        Campus hunger, cashier congestion, and parental anxiety are solved when everyone in the ecosystem has purpose-built digital tools. Explore how DISHI powers students, parents, and cafeteria vendors every day.
+    </p>
+
+    <!-- LEVEL NAVIGATION TABS -->
+    <div class="level-tabs">
+        <a href="#student" class="level-tab-btn active" onclick="switchLevelTab(this)">
+            <span>🎓</span>
+            <span>Student Dashboard</span>
+        </a>
+        <a href="#parent" class="level-tab-btn" onclick="switchLevelTab(this)">
+            <span>👨‍👩‍👧</span>
+            <span>Parent Dashboard</span>
+        </a>
+        <a href="#vendor" class="level-tab-btn" onclick="switchLevelTab(this)">
+            <span>🏪</span>
+            <span>Vendor Dashboard</span>
+        </a>
+    </div>
+</div>
+
+<!-- SECTION 1: STUDENT DASHBOARD -->
+<section class="level-section" id="student">
+    <div class="level-card student-theme">
+        <div class="level-grid">
+            <div>
+                <div class="level-header-tag mint">
+                    <span>🎓 Level 1 • Student Ecosystem</span>
+                </div>
+                <h2 class="level-heading">Dignity, Zero Hunger & Flexible Campus Earnings</h2>
+                <div class="level-story">
+                    "Your 2-hour lecture ended at 12:55 PM and your next continuous assessment test begins at 1:15 PM. Traditional cafeteria queues mean going hungry. DISHI changes the rules."
+                </div>
+
+                <div class="level-features-list">
+                    <div class="feature-point">
+                        <div class="feature-point-icon">⚡</div>
+                        <div class="feature-point-text">
+                            <h4>Active Student Wallet & Smart Pre-Orders</h4>
+                            <p>Browse live campus menus with ingredient tags, customize dietary needs, and order ahead so lunch is plated and waiting for you.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-point">
+                        <div class="feature-point-icon">💳</div>
+                        <div class="feature-point-text">
+                            <h4>Offline Sub-300ms NFC Tap-to-Eat</h4>
+                            <p>No phone battery? Out of mobile internet bundles? Simply tap your physical DISHI student smart card or wearable wristband at the terminal to eat instantly.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-point">
+                        <div class="feature-point-icon">🛵</div>
+                        <div class="feature-point-text">
+                            <h4>DeLiv & Comrade Fundi Escrow Gigs</h4>
+                            <p>Order dorm meal delivery during late-night revision or monetize your artisan talents (phone repair, braiding, plumbing) with guaranteed 100% escrow vault payment.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-point">
+                        <div class="feature-point-icon">🎮</div>
+                        <div class="feature-point-text">
+                            <h4>12 Campus Games Hub & Real Cash Rewards</h4>
+                            <p>Play Bite Ninja, Delivery Dash, and Hungry Fresher to earn Dishi Coins, redeemable directly for real KES 50 & KES 100 meal balances!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+                    <a href="https://play.google.com/store/apps/details?id=co.ke.delstarfordworks.dishi" target="_blank" rel="noopener" class="btn-playstore-nav">
+                        <svg class="playstore-nav-icon" viewBox="0 0 512 512"><path fill="#4285F4" d="M32.5 16.5C30.2 18.9 28.8 22.8 28.8 28.2v455.6c0 5.4 1.4 9.3 3.7 11.7l1.3 1.2 254.9-254.9v-6L33.8 15.3l-1.3 1.2z"/><path fill="#FBBC04" d="M380.1 369.3l-91.4-91.4v-6l91.4-91.4 2.1 1.2 108.3 61.5c30.9 17.5 30.9 46.2 0 63.8l-108.3 61.5-2.1 0.8z"/><path fill="#EA4335" d="M288.7 271.9L33.8 526.8c10.2 10.8 27.2 12.1 46.5 1.1l208.4-118.4-91.4-91.4z"/><path fill="#34A853" d="M288.7 240.1l91.4-91.4L171.7 30.3C152.4 19.3 135.4 20.6 125.2 31.4l163.5 208.7z"/></svg>
+                        <div class="playstore-nav-text"><span class="sub">FOR STUDENTS</span><span class="main">Get DISHI App</span></div>
+                    </a>
+                    <a href="/gallery" class="btn-playstore-nav" style="background: transparent; border-color: var(--mint); color: var(--mint);">
+                        <span>📱 Inspect Student Screens</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="device-preview-wrapper">
+                <div class="floating-card top-right">
+                    <div style="font-size: 11px; color: var(--mint); font-weight: 700;">TAP-TO-EAT SPEED</div>
+                    <div style="font-size: 18px; font-weight: 800; color: #fff;">⚡ &lt;300ms</div>
+                </div>
+                <div class="device-frame">
+                    <img src="{{ url_for('static', filename='img/student_dashboard.jpeg') }}" alt="DISHI Student Dashboard Screen" loading="lazy">
+                </div>
+                <div class="floating-card bottom-left">
+                    <div style="font-size: 11px; color: #38BDF8; font-weight: 700;">ACTIVE MEAL BALANCE</div>
+                    <div style="font-size: 16px; font-weight: 800; color: #fff;">Safeguarded Dining</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SECTION 2: PARENT DASHBOARD -->
+<section class="level-section" id="parent">
+    <div class="level-card parent-theme">
+        <div class="level-grid">
+            <div class="device-preview-wrapper" style="order: 2;">
+                <div class="floating-card top-right" style="border-color: #38BDF8;">
+                    <div style="font-size: 11px; color: #38BDF8; font-weight: 700;">INSTANT SMS RECEIPT</div>
+                    <div style="font-size: 14px; font-weight: 700; color: #fff;">"Dined at Main Hall"</div>
+                </div>
+                <div class="device-frame" style="border-color: rgba(56, 189, 248, 0.4); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(56, 189, 248, 0.2);">
+                    <img src="{{ url_for('static', filename='screenshots/dishi_screen_07.jpeg') }}" alt="DISHI Parent Spend Dashboard">
+                </div>
+            </div>
+
+            <div style="order: 1;">
+                <div class="level-header-tag blue">
+                    <span>👨‍👩‍👧 Level 2 • Parent Ecosystem</span>
+                </div>
+                <h2 class="level-heading">Complete Meal Assurance & Parental Peace of Mind</h2>
+                <div class="level-story" style="border-color: var(--blue);">
+                    "Sending unmonitored cash via general mobile money leaves parents wondering if funds were diverted or lost. DISHI gives parents 100% visibility and nutritional security."
+                </div>
+
+                <div class="level-features-list">
+                    <div class="feature-point">
+                        <div class="feature-point-icon">📲</div>
+                        <div class="feature-point-text">
+                            <h4>Direct Meal Allowance Funding via M-PESA</h4>
+                            <p>Fund your child’s student wallet from anywhere in Kenya instantly via official Safaricom M-PESA STK Push—no third-party middleman fees.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-point">
+                        <div class="feature-point-icon">🔔</div>
+                        <div class="feature-point-text">
+                            <h4>Real-Time Spend Receipts & Balance Updates</h4>
+                            <p>Receive immediate automated notifications whenever your child dines: <em>"Your student dined at Science Diner. Meal: KSh 120. Balance: KSh 1,450."</em></p>
+                        </div>
+                    </div>
+
+                    <div class="feature-point">
+                        <div class="feature-point-icon">🛡️</div>
+                        <div class="feature-point-text">
+                            <h4>Protected Nutritional Allocation</h4>
+                            <p>Funds allocated to the student meal wallet are ring-fenced strictly for authorized cafeteria dining and wholesome nourishment, protecting students from peer pressure.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-point">
+                        <div class="feature-point-icon">🥑</div>
+                        <div class="feature-point-text">
+                            <h4>Dietary & Allergen Oversight</h4>
+                            <p>Inspect cafeteria menu nutritional values, see meal portions, and establish custom allergen warnings to protect your student’s health from miles away.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+                    <a href="/support_invite" class="btn-playstore-nav" style="border-color: var(--blue); color: #fff;">
+                        <span>👨‍👩‍👧 Connect to Student Wallet</span>
+                    </a>
+                    <a href="/gallery" class="btn-playstore-nav" style="background: transparent; border-color: rgba(255, 255, 255, 0.2);">
+                        <span>View Parent Receipts</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SECTION 3: VENDOR DASHBOARD -->
+<section class="level-section" id="vendor">
+    <div class="level-card vendor-theme">
+        <div class="level-grid">
+            <div>
+                <div class="level-header-tag pink">
+                    <span>🏪 Level 3 • Vendor Ecosystem</span>
+                </div>
+                <h2 class="level-heading">Sub-300ms POS Speed & 0.5% Agency Banking Revenue</h2>
+                <div class="level-story" style="border-color: var(--pink);">
+                    "Cafeteria managers lose up to 2 hours every lunch rush manually verifying fake M-PESA SMS screenshots, handling coins, and watching impatient students walk away. DISHI turns vendors into high-profit financial hubs."
+                </div>
+
+                <div class="level-features-list">
+                    <div class="feature-point">
+                        <div class="feature-point-icon">🏦</div>
+                        <div class="feature-point-text">
+                            <h4>0.5% Cash-In Agency Banking Commission</h4>
+                            <p>Turn cafeteria counters into deposit agents! When students hand you physical paper cash to fund their accounts, your terminal deposits it in seconds and pays you a direct 0.5% commission.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-point">
+                        <div class="feature-point-icon">⚡</div>
+                        <div class="feature-point-text">
+                            <h4>Sub-300ms Lightning POS Terminal</h4>
+                            <p>Scan encrypted QR codes or tap NFC student passes in under 300 milliseconds. Lunch queues move instantaneously without network delays.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-point">
+                        <div class="feature-point-icon">💵</div>
+                        <div class="feature-point-text">
+                            <h4>Instant B2C Payouts & Float Liquidity</h4>
+                            <p>Withdraw accumulated meal earnings and agent commissions directly to your Safaricom M-PESA Till, Paybill, or mobile number with zero holding periods.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-point">
+                        <div class="feature-point-icon">📊</div>
+                        <div class="feature-point-text">
+                            <h4>Live Menu & Inventory Kitchen Display</h4>
+                            <p>Update daily specials, mark sold-out meals instantly, view prep order queues, and access daily accounting summaries with zero paperwork.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+                    <a href="mailto:dishi@delstarfordworks.co.ke?subject=Vendor%20Onboarding%20Inquiry" class="btn-playstore-nav" style="border-color: var(--pink); color: #fff;">
+                        <span>🏪 Onboard Your Cafeteria</span>
+                    </a>
+                    <a href="/gallery" class="btn-playstore-nav" style="background: transparent; border-color: rgba(255, 255, 255, 0.2);">
+                        <span>View Vendor POS Terminal</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="device-preview-wrapper">
+                <div class="floating-card top-right" style="border-color: var(--pink);">
+                    <div style="font-size: 11px; color: var(--pink); font-weight: 700;">AGENT COMMISSION</div>
+                    <div style="font-size: 18px; font-weight: 800; color: #fff;">💰 0.5% Cash-In</div>
+                </div>
+                <div class="device-frame" style="border-color: rgba(255, 42, 109, 0.4); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 42, 109, 0.2);">
+                    <img src="{{ url_for('static', filename='screenshots/dishi_screen_03.jpeg') }}" alt="DISHI Vendor POS & Agent Terminal">
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- COMPARISON MATRIX: OLD CAMPUS VS DISHI OS -->
+<div class="matrix-section">
+    <h2 class="matrix-title">How DISHI <span class="gradient-text">Eliminates Friction</span> Across Campus</h2>
+    <table class="matrix-table">
+        <thead>
+            <tr>
+                <th style="width: 25%;">Campus Dimension</th>
+                <th style="width: 37%;">Legacy Campus Reality</th>
+                <th style="width: 38%;">The DISHI Innovation</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Peak Lunch Queues</strong></td>
+                <td><span class="tag-old">❌ 25-40 min line; missed CATs and lectures</span></td>
+                <td><span class="tag-new">✅ &lt;300ms tap-to-eat &amp; smart order pickup</span></td>
+            </tr>
+            <tr>
+                <td><strong>Parent Cash Remittance</strong></td>
+                <td><span class="tag-old">❌ Diverted cash, theft, unmonitored spending</span></td>
+                <td><span class="tag-new">✅ Protected nutrition wallet &amp; instant SMS receipts</span></td>
+            </tr>
+            <tr>
+                <td><strong>Cafeteria Payment Verification</strong></td>
+                <td><span class="tag-old">❌ Manual SMS reading; fake M-PESA SMS fraud</span></td>
+                <td><span class="tag-new">✅ Cryptographic QR &amp; NFC token validation</span></td>
+            </tr>
+            <tr>
+                <td><strong>Vendor Revenue Streams</strong></td>
+                <td><span class="tag-old">❌ Food sales only; high transaction fees</span></td>
+                <td><span class="tag-new">✅ +0.5% Agency banking cash-in commissions</span></td>
+            </tr>
+            <tr>
+                <td><strong>Campus Student Gigs</strong></td>
+                <td><span class="tag-old">❌ Unpaid gigs, client disputes, no safety</span></td>
+                <td><span class="tag-new">✅ 100% Escrow Vault &amp; Comrade Fundi platform</span></td>
+            </tr>
+            <tr>
+                <td><strong>Differently Gifted Students</strong></td>
+                <td><span class="tag-old">❌ Steep cafeteria stairs, no blind/deaf aids</span></td>
+                <td><span class="tag-new">✅ Acoustic chimes, haptics &amp; dorm doorstep delivery</span></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    function switchLevelTab(btn) {
+        var buttons = document.querySelectorAll('.level-tab-btn');
+        buttons.forEach(function(b) { b.classList.remove('active'); });
+        if (btn) btn.classList.add('active');
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}DISHI Enterprise Constitution & Business Model — Official Charters{% endblock %}
+{% block description %}Official Enterprise Institutional Constitution (25 Pages) and Sustainable African Business Model for DISHI Platform. Download the legally certified enterprise documents.{% endblock %}
+
+{% block head_extra %}
+<style>
+    .const-hero {
+        padding: 70px 24px 40px;
+        text-align: center;
+        max-width: 950px;
+        margin: 0 auto;
+    }
+
+    .const-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 16px;
+        border-radius: 20px;
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        color: var(--gold);
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 20px;
+    }
+
+    .const-title {
+        font-size: 46px;
+        font-weight: 800;
+        line-height: 1.2;
+        margin-bottom: 20px;
+    }
+
+    .const-desc {
+        font-size: 18px;
+        color: var(--text-muted);
+        line-height: 1.6;
+        margin-bottom: 30px;
+    }
+
+    .const-container {
+        max-width: 1200px;
+        margin: 0 auto 90px;
+        padding: 0 24px;
+    }
+
+    /* ─── DUAL PDF DOWNLOAD CARDS ────────────────────────────────── */
+    .dual-pdf-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px;
+        margin-bottom: 60px;
+    }
+
+    .pdf-download-card {
+        background: var(--bg-card);
+        border: 2px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: 36px 32px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+        transition: all 0.3s ease;
+    }
+
+    .pdf-download-card.gold-theme {
+        border-color: var(--gold);
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5), 0 0 30px var(--gold-glow);
+    }
+
+    .pdf-download-card.mint-theme {
+        border-color: var(--mint);
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5), 0 0 30px var(--mint-glow-subtle);
+    }
+
+    .pdf-download-card:hover {
+        transform: translateY(-6px);
+    }
+
+    .pdf-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
+    }
+
+    .pdf-badge.gold { color: var(--gold); }
+    .pdf-badge.mint { color: var(--mint); }
+
+    .pdf-info h3 {
+        font-size: 24px;
+        font-weight: 800;
+        color: #fff;
+        line-height: 1.25;
+        margin-bottom: 10px;
+    }
+
+    .pdf-info p {
+        font-size: 14px;
+        color: #CBD5E1;
+        line-height: 1.6;
+        margin-bottom: 24px;
+    }
+
+    .btn-download-pdf {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-weight: 800;
+        font-size: 15px;
+        padding: 14px 24px;
+        border-radius: 12px;
+        text-decoration: none;
+        transition: all 0.25s ease;
+    }
+
+    .btn-download-pdf.gold {
+        background: var(--gold);
+        color: #000000;
+        box-shadow: 0 4px 20px var(--gold-glow);
+    }
+
+    .btn-download-pdf.gold:hover {
+        background: #FFC038;
+        transform: translateY(-2px);
+    }
+
+    .btn-download-pdf.mint {
+        background: var(--mint);
+        color: #000000;
+        box-shadow: 0 4px 20px var(--mint-glow);
+    }
+
+    .btn-download-pdf.mint:hover {
+        background: var(--mint-light);
+        transform: translateY(-2px);
+    }
+
+    /* ─── HIGHLIGHT CLAUSES BOX ─────────────────────────────────── */
+    .statute-clauses-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 24px;
+        margin: 40px 0 70px;
+    }
+
+    .clause-box {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 28px;
+        border-left: 4px solid var(--mint);
+        transition: all 0.3s ease;
+    }
+
+    .clause-box:hover {
+        transform: translateY(-4px);
+        border-color: var(--mint);
+    }
+
+    .clause-box.gold { border-left-color: var(--gold); }
+    .clause-box.pink { border-left-color: var(--pink); }
+    .clause-box.blue { border-left-color: var(--blue); }
+
+    .clause-tag {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+    }
+
+    .clause-title {
+        font-size: 18px;
+        font-weight: 800;
+        color: #fff;
+        margin-bottom: 10px;
+    }
+
+    .clause-desc {
+        font-size: 13.5px;
+        color: #CBD5E1;
+        line-height: 1.6;
+    }
+
+    @media (max-width: 850px) {
+        .dual-pdf-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="const-hero">
+    <div class="const-pill">📜 Institutional Charter & Enterprise Governance</div>
+    <h1 class="const-title">The DISHI Constitution &<br><span class="gradient-text">Sustainable Enterprise Business Model</span></h1>
+    <p class="const-desc">
+        A legally aligned, transparent, and enterprise-grade statutory governance charter certified under the Constitution of Kenya, 2010, the Companies Act, 2015, and the Employment Act, 2007.
+    </p>
+</div>
+
+<div class="const-container">
+    <!-- DUAL PDF DOWNLOAD CARDS -->
+    <div class="dual-pdf-grid">
+        <!-- DOCUMENT 1: OFFICIAL CONSTITUTION (25 PAGES) -->
+        <div class="pdf-download-card gold-theme">
+            <div>
+                <div class="pdf-badge gold">DOCUMENT 1 • EXACT 25 PAGES • LEGAL CHARTER</div>
+                <div class="pdf-info">
+                    <h3>The Official Constitution of DISHI Platform</h3>
+                    <p>
+                        Comprehensive enterprise governance framework covering Article 43 right to food, Article 54 disability inclusion, 5 operational departments, 1st January 2027 salary start (KES 5,000–10,000), the 3-week employee desertion rule, the 1-month inactive shareholder buyout rule, and the 90% executive vote mandate for partnerships and new rules.
+                    </p>
+                </div>
+            </div>
+            <a href="{{ url_for('static', filename='DISHI_Official_Constitution.pdf') }}" target="_blank" class="btn-download-pdf gold">
+                <span>📥 Download Official Constitution PDF</span>
+                <span>(25 Pages)</span>
+            </a>
+        </div>
+
+        <!-- DOCUMENT 2: ENTERPRISE BUSINESS MODEL -->
+        <div class="pdf-download-card mint-theme">
+            <div>
+                <div class="pdf-badge mint">DOCUMENT 2 • COMMERCIAL ARCHITECTURE • FINANCIAL PLAN</div>
+                <div class="pdf-info">
+                    <h3>Sustainable Enterprise Business Model</h3>
+                    <p>
+                        Complete commercial feasibility and financial logistics plan detailing 6 diversified revenue streams (0.5% vendor cash-in float, pre-order MDR, DeLiv courier share, Fundi escrow fees, ticketing, Harambee), unit economics, 5-year growth forecasts, and university onboarding playbooks.
+                    </p>
+                </div>
+            </div>
+            <a href="{{ url_for('static', filename='DISHI_Enterprise_Business_Model.pdf') }}" target="_blank" class="btn-download-pdf mint">
+                <span>📥 Download Business Model PDF</span>
+                <span>(Financial Plan)</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- FOUR KEY CODIFIED CLAUSES -->
+    <div style="text-align: center; margin-bottom: 25px;">
+        <h2 style="font-size: 32px; font-weight: 800; color: #fff;">Four Core Entrenched Statutes</h2>
+        <p style="color: var(--text-muted); font-size: 15px; margin-top: 6px;">Constitutional clauses governing employment, equity shareholding, compensation, and institutional partnerships</p>
+    </div>
+
+    <div class="statute-clauses-grid">
+        <!-- CLAUSE 1: SALARIES START JAN 1 2027 -->
+        <div class="clause-box gold">
+            <div class="clause-tag" style="color: var(--gold);">ARTICLE VII • COMPENSATION SCHEDULE</div>
+            <h3 class="clause-title">Salaried Payments Commencing 1st January 2027</h3>
+            <p class="clause-desc">
+                Structured monthly compensation officially starts on <strong>1st of January, 2027</strong>, paying <strong>KES 5,000.00 – KES 10,000.00 per month</strong> across foundational operational tiers plus transaction performance bonuses. The period prior constitutes foundation volunteer incubation.
+            </p>
+        </div>
+
+        <!-- CLAUSE 2: 3-WEEK NEGLECT RULE -->
+        <div class="clause-box pink">
+            <div class="clause-tag" style="color: var(--pink);">ARTICLE VIII • THE 3-WEEK DESERTION RULE</div>
+            <h3 class="clause-title">Automatic Removal for 3 Weeks of Neglect</h3>
+            <p class="clause-desc">
+                If an employee or officer ceases responsibility and neglects duties for <strong>three (3) consecutive weeks (21 days)</strong> without written approval or force majeure, they are <strong>automatically taken out of the business</strong> under Section 44 of the Employment Act, 2007 (abandonment of duty).
+            </p>
+        </div>
+
+        <!-- CLAUSE 3: 1-MONTH SHAREHOLDER BUYOUT -->
+        <div class="clause-box mint">
+            <div class="clause-tag" style="color: var(--mint);">ARTICLE IX • THE 1-MONTH BUYOUT RULE</div>
+            <h3 class="clause-title">Mandatory Capital Refund & Exit for Inactive Shareholders</h3>
+            <p class="clause-desc">
+                Shareholders who cease active participation have <strong>one (1) month (30 days)</strong> from formal notice to write an official explanatory letter to the Executive Wing. Failure to do so triggers an automatic <strong>full capital refund</strong> and compulsory surrender of shares (Companies Act 2015).
+            </p>
+        </div>
+
+        <!-- CLAUSE 4: 90% SUPERMAJORITY VOTE -->
+        <div class="clause-box blue">
+            <div class="clause-tag" style="color: var(--blue);">ARTICLES X & XI • 90% SUPERMAJORITY THRESHOLD</div>
+            <h3 class="clause-title">90% Executive Wing Vote for Partnerships & Rules</h3>
+            <p class="clause-desc">
+                In any event of entering into an institutional or commercial partnership, contract, or MoU, the contract must receive an affirmative vote of at least <strong>90% of the Executive Wing's shares/seats</strong>. Any new platform rule or constitutional amendment must also be approved by a <strong>90% supermajority</strong>.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

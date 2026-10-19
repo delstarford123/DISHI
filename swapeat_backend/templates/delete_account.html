@@ -1,294 +1,185 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Account Deletion Request - DISHI | Delstarford Works</title>
-    <link rel="icon" type="image/png" href="/static/img/dishi_logo.png">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-dark: #080C14;
-            --surface-card: #0F1626;
-            --surface-light: #162035;
-            --neon-cyan: #00FFD1;
-            --neon-red: #FF2A6D;
-            --text-primary: #FFFFFF;
-            --text-secondary: #94A3B8;
-            --border-color: rgba(255, 255, 255, 0.08);
-        }
+{% extends "base.html" %}
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% block title %}Account Deletion Request — DISHI{% endblock %}
+{% block description %}Request permanent deletion of your DISHI user account and associated personal data.{% endblock %}
 
-        body {
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-primary);
-            line-height: 1.7;
-            padding-bottom: 60px;
-        }
+{% block head_extra %}
+<style>
+    .del-container {
+        max-width: 700px;
+        margin: 50px auto 80px;
+        padding: 0 24px;
+    }
 
-        header {
-            background: rgba(15, 22, 38, 0.85);
-            backdrop-filter: blur(16px);
-            border-bottom: 1px solid var(--border-color);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            padding: 16px 24px;
-        }
+    .del-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: 40px;
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6);
+    }
 
-        .nav-container {
-            max-width: 800px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
+    .del-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 14px;
+        border-radius: 20px;
+        background: rgba(255, 42, 109, 0.1);
+        border: 1px solid rgba(255, 42, 109, 0.3);
+        color: var(--pink);
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 16px;
+    }
 
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            text-decoration: none;
-            color: white;
-            font-family: 'Outfit', sans-serif;
-            font-weight: 800;
-            font-size: 22px;
-        }
+    .form-group {
+        margin-bottom: 20px;
+    }
 
-        .content-container {
-            max-width: 800px;
-            margin: 40px auto 0;
-            padding: 0 24px;
-        }
+    .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 8px;
+    }
 
-        .hero {
-            background: linear-gradient(135deg, rgba(255, 42, 109, 0.08), rgba(15, 22, 38, 0.5));
-            border: 1px solid rgba(255, 42, 109, 0.2);
-            border-radius: 20px;
-            padding: 32px;
-            margin-bottom: 32px;
-        }
+    .form-input, .form-textarea {
+        width: 100%;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 16px;
+        color: #fff;
+        font-family: inherit;
+        font-size: 14px;
+        transition: border-color 0.2s ease;
+    }
 
-        .hero h1 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 28px;
-            font-weight: 700;
-            color: white;
-            margin-bottom: 8px;
-        }
+    .form-input:focus, .form-textarea:focus {
+        outline: none;
+        border-color: var(--mint);
+    }
 
-        .hero p {
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
+    .btn-submit-delete {
+        width: 100%;
+        background: var(--pink);
+        color: #fff;
+        font-weight: 800;
+        font-size: 15px;
+        padding: 14px;
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 20px var(--pink-glow);
+        transition: all 0.25s ease;
+    }
 
-        .card {
-            background: var(--surface-card);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 28px;
-            margin-bottom: 24px;
-        }
+    .btn-submit-delete:hover {
+        transform: translateY(-2px);
+        background: #FF4D85;
+    }
 
-        .card h2 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 19px;
-            font-weight: 600;
-            color: var(--neon-cyan);
-            margin-bottom: 14px;
-        }
+    .alert-box {
+        padding: 16px;
+        border-radius: 10px;
+        font-size: 14px;
+        margin-bottom: 20px;
+        display: none;
+    }
 
-        .card p, .card li {
-            color: #CBD5E1;
-            font-size: 14px;
-            margin-bottom: 12px;
-        }
+    .alert-success {
+        background: rgba(5, 213, 170, 0.15);
+        border: 1px solid var(--mint);
+        color: var(--mint);
+    }
 
-        .card ul {
-            padding-left: 20px;
-            margin-bottom: 16px;
-        }
+    .alert-error {
+        background: rgba(255, 42, 109, 0.15);
+        border: 1px solid var(--pink);
+        color: var(--pink);
+    }
+</style>
+{% endblock %}
 
-        .warning-box {
-            background: rgba(255, 42, 109, 0.1);
-            border-left: 4px solid var(--neon-red);
-            padding: 14px 18px;
-            border-radius: 0 10px 10px 0;
-            margin: 16px 0;
-            font-size: 13.5px;
-            color: #F87171;
-        }
+{% block content %}
+<div class="del-container">
+    <div class="del-card">
+        <div class="del-pill">🗑️ Data Privacy & Erasure</div>
+        <h1 style="font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 12px;">Request Account Deletion</h1>
+        <p style="font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 24px;">
+            In compliance with the Kenya Data Protection Act 2019 and Google Play user data policies, submit your registered account details below to request permanent deletion of your profile and data.
+        </p>
 
-        .form-group {
-            margin-bottom: 18px;
-        }
-
-        label {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            color: #CBD5E1;
-            margin-bottom: 6px;
-        }
-
-        input[type="text"], input[type="email"], select, textarea {
-            width: 100%;
-            padding: 12px 14px;
-            background: var(--surface-light);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            color: white;
-            font-family: inherit;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        input:focus, select:focus, textarea:focus {
-            border-color: var(--neon-cyan);
-        }
-
-        button {
-            background: var(--neon-red);
-            color: white;
-            border: none;
-            padding: 13px 24px;
-            border-radius: 10px;
-            font-family: 'Outfit', sans-serif;
-            font-weight: 700;
-            font-size: 14px;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        button:hover {
-            opacity: 0.9;
-        }
-
-        .success-banner {
-            display: none;
-            background: rgba(0, 255, 209, 0.15);
-            border: 1px solid var(--neon-cyan);
-            color: var(--neon-cyan);
-            padding: 16px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            text-align: center;
-        }
-
-        a {
-            color: var(--neon-cyan);
-            text-decoration: none;
-        }
-
-        footer {
-            text-align: center;
-            margin-top: 40px;
-            color: var(--text-secondary);
-            font-size: 13px;
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <div class="nav-container">
-            <a href="/" class="brand">DISHI</a>
-            <a href="/privacy" style="font-size: 13px;">&larr; Back to Privacy Policy</a>
-        </div>
-    </header>
-
-    <main class="content-container">
-        <div class="hero">
-            <h1>Request Account & Data Deletion</h1>
-            <p>DISHI by Delstarford Works &middot; In compliance with Google Play Policies & Kenya Data Protection Act</p>
+        <div id="alertSuccess" class="alert-box alert-success">
+            ✅ Your deletion request has been recorded. Our team will verify and purge all profile credentials within 48 hours.
         </div>
 
-        <div class="card">
-            <h2>How to Delete Your Account In-App</h2>
-            <p>You can delete your DISHI account and profile data instantly at any time from within the mobile app:</p>
-            <ul>
-                <li>Open the <strong>DISHI</strong> app on your Android device.</li>
-                <li>Tap the <strong>Profile</strong> tab on the bottom navigation bar.</li>
-                <li>Scroll down and tap <strong>Account & Security Settings</strong>.</li>
-                <li>Tap <strong>Delete Account & Purge Data</strong> and confirm your request.</li>
-            </ul>
-        </div>
+        <div id="alertError" class="alert-box alert-error"></div>
 
-        <div class="card">
-            <h2>Online Deletion Request Portal</h2>
-            <p>If you have uninstalled the app or are unable to log in, you can request account deletion using this official web portal. Our security team will process your request within 48 hours.</p>
-
-            <div id="successMsg" class="success-banner">
-                Your account deletion request has been submitted successfully. A confirmation receipt will be sent to your registered email.
+        <form id="deleteForm" onsubmit="submitDeletion(event)">
+            <div class="form-group">
+                <label class="form-label" for="delEmail">Registered Email Address *</label>
+                <input type="email" id="delEmail" class="form-input" required placeholder="name@university.ac.ke">
             </div>
 
-            <form id="deleteForm" onsubmit="handleSubmit(event)">
-                <div class="form-group">
-                    <label for="email">Registered Email Address *</label>
-                    <input type="email" id="email" required placeholder="e.g. student@university.ac.ke">
-                </div>
+            <div class="form-group">
+                <label class="form-label" for="delPhone">Phone Number (M-PESA / Registered)</label>
+                <input type="tel" id="delPhone" class="form-input" placeholder="0712345678">
+            </div>
 
-                <div class="form-group">
-                    <label for="phone">Registered Phone Number (Optional)</label>
-                    <input type="text" id="phone" placeholder="e.g. 0712345678">
-                </div>
+            <div class="form-group">
+                <label class="form-label" for="delReason">Reason for Deletion (Optional)</label>
+                <textarea id="delReason" class="form-textarea" rows="3" placeholder="Tell us why you are leaving..."></textarea>
+            </div>
 
-                <div class="form-group">
-                    <label for="reason">Reason for Account Deletion (Optional)</label>
-                    <select id="reason">
-                        <option value="graduated">Completed studies / Graduated</option>
-                        <option value="no_longer_needed">No longer using the app</option>
-                        <option value="privacy">Privacy concerns</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
+            <button type="submit" class="btn-submit-delete" id="submitBtn">
+                Submit Account Deletion Request
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
 
-                <div class="warning-box">
-                    <strong>Warning:</strong> Deleting your account will immediately revoke all login sessions, wipe your profile, disassociate virtual card tokens, and cancel active meal orders. Any unspent balance in your wallet must be withdrawn via M-PESA before deletion.
-                </div>
+{% block scripts_extra %}
+<script>
+    async function submitDeletion(e) {
+        e.preventDefault();
+        var email = document.getElementById('delEmail').value.trim();
+        var phone = document.getElementById('delPhone').value.trim();
+        var reason = document.getElementById('delReason').value.trim();
+        var btn = document.getElementById('submitBtn');
+        var alertSucc = document.getElementById('alertSuccess');
+        var alertErr = document.getElementById('alertError');
 
-                <button type="submit">Submit Account Deletion Request</button>
-            </form>
-        </div>
+        alertSucc.style.display = 'none';
+        alertErr.style.display = 'none';
 
-        <div class="card">
-            <h2>Data Deletion & Retention Breakdown</h2>
-            <ul>
-                <li><strong>Permanently Deleted Immediately:</strong> Your name, email, profile photo, student registration card, hashed PIN, biometric authorization keys, Firebase Auth credentials, and active notification tokens.</li>
-                <li><strong>Statutory Retention (3 Years):</strong> Under Kenyan financial regulations and KRA tax laws, completed Safaricom M-PESA transaction ledgers and fiscal receipts are archived in anonymised form solely for financial audit and compliance.</li>
-            </ul>
-        </div>
+        btn.disabled = true;
+        btn.innerText = 'Submitting Request...';
 
-        <footer>
-            Questions? Contact <a href="mailto:support@delstarfordworks.co.ke">support@delstarfordworks.co.ke</a> &middot; Delstarford Works &copy; 2026
-        </footer>
-    </main>
-
-    <script>
-        function handleSubmit(e) {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            fetch('/api/v1/support/delete-account-request', {
+        try {
+            var res = await fetch('/api/v1/support/delete-account-request', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: email,
-                    phone: document.getElementById('phone').value,
-                    reason: document.getElementById('reason').value,
-                    timestamp: new Date().toISOString()
-                })
-            }).catch(function(err) {});
-
-            document.getElementById('deleteForm').style.display = 'none';
-            document.getElementById('successMsg').style.display = 'block';
+                body: JSON.stringify({ email: email, phone: phone, reason: reason })
+            });
+            var data = await res.json();
+            if (res.ok) {
+                alertSucc.style.display = 'block';
+                document.getElementById('deleteForm').reset();
+            } else {
+                alertErr.innerText = data.error || 'Failed to submit request.';
+                alertErr.style.display = 'block';
+            }
+        } catch (err) {
+            alertErr.innerText = 'Network error. Please try again or email dishi@delstarfordworks.co.ke.';
+            alertErr.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Submit Account Deletion Request';
         }
-    </script>
-</body>
-</html>
+    }
+</script>
+{% endblock %}

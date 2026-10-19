@@ -653,21 +653,40 @@ def preorder():
         wallet_balance = float(student_data.get('walletBalance', 0.0))
         okoa_food_eligible = student_data.get('okoaFoodEligible', True)
 
+        parent_uid = data.get('parentUid')
         used_okoa = False
-        if wallet_balance < amount:
-            if okoa_food_eligible and (amount - wallet_balance) <= 500:
-                used_okoa = True
-            else:
-                return jsonify({"error": "Insufficient funds"}), 400
+        remaining_balance = wallet_balance
 
-        batch = db.batch()
-        # Deduct from student
-        batch.update(student_ref, {'walletBalance': firestore.Increment(-amount)})
+        if parent_uid:
+            parent_ref = db.collection('users').document(parent_uid)
+            parent_doc = parent_ref.get()
+            if not parent_doc.exists:
+                return jsonify({"error": "Parent account not found"}), 404
+            parent_data = parent_doc.to_dict() or {}
+            parent_vault = float(parent_data.get('vaultBalance', 0.0) or 0.0)
+            if parent_vault < amount:
+                return jsonify({"error": f"Insufficient funds in Family Vault (Available: Ksh {parent_vault:,.2f})"}), 400
+            
+            batch = db.batch()
+            batch.update(parent_ref, {'vaultBalance': firestore.Increment(-amount)})
+            remaining_balance = parent_vault - amount
+        else:
+            if wallet_balance < amount:
+                if okoa_food_eligible and (amount - wallet_balance) <= 500:
+                    used_okoa = True
+                else:
+                    return jsonify({"error": "Insufficient funds"}), 400
+
+            batch = db.batch()
+            batch.update(student_ref, {'walletBalance': firestore.Increment(-amount)})
+            remaining_balance = wallet_balance - amount
         
         # Credit vendor immediately (minus 0.4 Ksh fee)
         vendor_earned = amount - 0.4
         vendor_ref = db.collection('vendors').document(vendor_id)
         batch.set(vendor_ref, {'walletBalance': firestore.Increment(vendor_earned)}, merge=True)
+        vendor_user_ref = db.collection('users').document(vendor_id)
+        batch.set(vendor_user_ref, {'walletBalance': firestore.Increment(vendor_earned)}, merge=True)
         
         # Log system revenue
         system_ref = db.collection('system_revenue').document()
@@ -680,16 +699,34 @@ def preorder():
         
         # Create top-level preorder document
         preorder_ref = db.collection('preorders').document(tx_id)
-        batch.set(preorder_ref, {
+        student_display_name = student_data.get('displayName') or student_data.get('name') or 'Student'
+        preorder_data = {
+            'id': tx_id,
             'studentId': uid,
-            'studentName': student_data.get('displayName', 'Student'),
+            'student_id': uid,
+            'studentName': student_display_name,
+            'student_name': student_display_name,
             'vendorId': vendor_id,
+            'vendor_id': vendor_id,
+            'vendorUid': vendor_id,
             'vendorName': vendor_name,
+            'vendor_name': vendor_name,
             'mealName': meal_name,
+            'meal_name': meal_name,
             'price': amount,
+            'quantity': data.get('quantity', 1),
+            'dayOfWeek': data.get('dayOfWeek', 'Today'),
+            'pickupTime': data.get('pickupTime'),
             'status': 'pending',
             'createdAt': firestore.SERVER_TIMESTAMP
-        })
+        }
+        if parent_uid:
+            preorder_data['parentUid'] = parent_uid
+        batch.set(preorder_ref, preorder_data)
+
+        # Mirror into orders collection for KDS and live kitchen queues
+        order_ref = db.collection('orders').document(tx_id)
+        batch.set(order_ref, preorder_data)
         
         # Process Gamification Bounties
         vendor_name = data.get('vendorName', '')
@@ -717,7 +754,7 @@ def preorder():
             "status": "success",
             "message": "Preorder placed successfully",
             "student": {
-                "remainingBalance": wallet_balance - amount,
+                "remainingBalance": remaining_balance,
                 "usedOkoa": used_okoa
             }
         }), 200
@@ -728,6 +765,52 @@ def preorder():
             "details": str(e),
             "trace": traceback.format_exc()
         }), 500
+
+@transaction_bp.route('/preorder/cancel', methods=['POST'])
+def cancel_preorder():
+    data = request.json or {}
+    preorder_id = data.get('preorderId') or data.get('id')
+
+    if not preorder_id:
+        return jsonify({"error": "Missing preorderId"}), 400
+
+    try:
+        db = firestore.client()
+        preorder_ref = db.collection('preorders').document(preorder_id)
+        preorder_doc = preorder_ref.get()
+
+        if not preorder_doc.exists:
+            return jsonify({"error": "Preorder not found"}), 404
+
+        order_data = preorder_doc.to_dict() or {}
+        if order_data.get('status') == 'cancelled':
+            return jsonify({"error": "Preorder already cancelled"}), 400
+
+        price = float(order_data.get('price', 0.0) or 0.0)
+        vendor_id = order_data.get('vendorId')
+        parent_uid = order_data.get('parentUid')
+        student_id = order_data.get('studentId')
+
+        batch = db.batch()
+        if parent_uid:
+            parent_ref = db.collection('users').document(parent_uid)
+            batch.update(parent_ref, {'vaultBalance': firestore.Increment(price)})
+        elif student_id:
+            student_ref = db.collection('users').document(student_id)
+            batch.update(student_ref, {'walletBalance': firestore.Increment(price)})
+
+        if vendor_id:
+            vendor_ref = db.collection('vendors').document(vendor_id)
+            batch.set(vendor_ref, {'walletBalance': firestore.Increment(-price)}, merge=True)
+            vendor_user_ref = db.collection('users').document(vendor_id)
+            batch.set(vendor_user_ref, {'walletBalance': firestore.Increment(-price)}, merge=True)
+
+        batch.delete(preorder_ref)
+        batch.commit()
+
+        return jsonify({"status": "success", "message": "Preorder cancelled and refunded."}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @transaction_bp.route('/sos', methods=['POST'])
 def sos():
