@@ -11,3 +11,21 @@ When Version 4 is Ready & Published:
 Change latest_version_code: 4 in Firestore.
 Keep min_supported_version_code: 2 (or 3) so v3 users can continue eating.
 When you are eventually ready to retire v3 months from now, simply change min_supported_version_code: 4 in Firestore, and all remaining users will be cleanly prompted to update!
+
+----------------------------------------------------
+Branching Strategy (dishi_development_branch vs main)
+----------------------------------------------------
+1. Active Development & Testing:
+   - Always do new work on: dishi_development_branch
+   - Switch branch: git checkout dishi_development_branch
+   - Stage & commit: git add . && git commit -m "feat/fix: description"
+   - Push to test: git push origin dishi_development_branch
+   - Vercel Preview Deploy (staging): Run `vercel` (without --prod) to get an isolated preview endpoint to test!
+
+2. Promoting & Merging to Production:
+   - Once all endpoints and mobile screens pass testing:
+     git checkout main
+     git pull origin main
+     git merge dishi_development_branch
+     git push origin main
+   - Production Deploy: Run `vercel --prod` to deploy to https://dishi.delstarfordworks.co.ke
