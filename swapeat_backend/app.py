@@ -277,7 +277,8 @@ def protect_charter_downloads():
             if pdf in req_path:
                 key_param = (request.args.get('key') or request.args.get('pwd') or '').strip()
                 if not session.get('constitution_unlocked') and key_param != CONSTITUTION_VIEW_PASSWORD:
-                    return redirect('/constitution?error=locked&next=' + req_path)
+                    target_gate = '/business-model' if 'Business_Model' in pdf else '/constitution'
+                    return redirect(f"{target_gate}?error=locked&next={req_path}")
 
 @app.route('/constitution', methods=['GET', 'POST'])
 def constitution_page():
@@ -318,11 +319,52 @@ def constitution_page():
                            error=error_msg,
                            next_url=request.args.get('next', ''))
 
+@app.route('/business-model', methods=['GET', 'POST'])
+@app.route('/business_model', methods=['GET', 'POST'])
+def business_model_page():
+    error_msg = None
+
+    # Handle lock/logout action
+    if request.args.get('action') == 'lock':
+        session.pop('constitution_unlocked', None)
+        return redirect('/business-model')
+
+    # Allow unlock via URL parameter (e.g. ?key=DISHIID123D)
+    key_param = (request.args.get('key') or request.args.get('pwd') or '').strip()
+    if key_param == CONSTITUTION_VIEW_PASSWORD:
+        session['constitution_unlocked'] = True
+        return redirect('/business-model')
+
+    if request.method == 'POST':
+        submitted_pwd = (request.form.get('view_password') or 
+                         (request.get_json(silent=True) or {}).get('view_password') or '').strip()
+        
+        if submitted_pwd == CONSTITUTION_VIEW_PASSWORD:
+            session['constitution_unlocked'] = True
+            if request.is_json:
+                return jsonify({"status": "ok", "unlocked": True, "message": "Access granted"})
+            next_url = request.form.get('next') or '/business-model'
+            return redirect(next_url)
+        else:
+            if request.is_json:
+                return jsonify({"status": "error", "message": "Invalid View Password. Access denied."}), 401
+            error_msg = "Invalid View Password. Please enter the authorized DISHI access key."
+
+    if request.args.get('error') == 'locked':
+        error_msg = "The Business Model is restricted. Please enter the Institutional View Password to access."
+
+    is_unlocked = bool(session.get('constitution_unlocked'))
+    return render_template('business_model.html', 
+                           is_unlocked=is_unlocked, 
+                           error=error_msg,
+                           next_url=request.args.get('next', ''))
+
 @app.route('/constitution/download/<doc_type>')
 def download_constitution_doc(doc_type):
     key_param = (request.args.get('key') or request.args.get('pwd') or '').strip()
     if not session.get('constitution_unlocked') and key_param != CONSTITUTION_VIEW_PASSWORD:
-        return redirect('/constitution?error=locked&next=' + request.path)
+        target_gate = '/business-model' if doc_type == 'business-model' else '/constitution'
+        return redirect(f"{target_gate}?error=locked&next={request.path}")
 
     doc_files = {
         'constitution': 'DISHI_Official_Constitution.pdf',
@@ -335,6 +377,7 @@ def download_constitution_doc(doc_type):
 
     static_dir = os.path.join(os.path.dirname(__file__), 'static')
     return send_from_directory(static_dir, filename, as_attachment=True, download_name=filename)
+
 
 
 @app.route('/about')

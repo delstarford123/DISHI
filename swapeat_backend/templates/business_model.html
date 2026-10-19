@@ -1,0 +1,591 @@
+{% extends "base.html" %}
+
+{% block title %}DISHI Sustainable Enterprise Business Model & Financial Architecture{% endblock %}
+{% block description %}Commercial Feasibility, 0.5% Agency Banking Economics, DeLiv Courier Logistics, Escrow Monetization & Institutional Scalability across African Campuses.{% endblock %}
+
+{% block head_extra %}
+<style>
+    .bm-hero {
+        padding: 60px 24px 35px;
+        text-align: center;
+        max-width: 950px;
+        margin: 0 auto;
+    }
+
+    .bm-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 16px;
+        border-radius: 20px;
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        color: var(--mint);
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 20px;
+    }
+
+    .bm-pill.locked {
+        background: rgba(245, 158, 11, 0.1);
+        border-color: rgba(245, 158, 11, 0.3);
+        color: var(--gold);
+    }
+
+    .bm-title {
+        font-size: 44px;
+        font-weight: 800;
+        line-height: 1.2;
+        margin-bottom: 18px;
+        color: #fff;
+    }
+
+    .bm-desc {
+        font-size: 17px;
+        color: var(--text-muted);
+        line-height: 1.6;
+        margin-bottom: 25px;
+    }
+
+    .bm-container {
+        max-width: 1200px;
+        margin: 0 auto 90px;
+        padding: 0 24px;
+    }
+
+    /* ─── SECURITY ACCESS GATE (LOCKED) ──────────────────────────── */
+    .lock-gate-wrapper {
+        max-width: 560px;
+        margin: 10px auto 70px;
+    }
+
+    .lock-gate-card {
+        background: linear-gradient(145deg, rgba(26, 31, 46, 0.95), rgba(15, 23, 42, 0.98));
+        border: 1.5px solid rgba(16, 185, 129, 0.35);
+        border-radius: 24px;
+        padding: 42px 36px;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65), 0 0 35px rgba(16, 185, 129, 0.12);
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .lock-gate-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--mint), var(--gold));
+    }
+
+    .lock-icon-circle {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: rgba(16, 185, 129, 0.12);
+        border: 2px solid rgba(16, 185, 129, 0.3);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        margin-bottom: 20px;
+        box-shadow: 0 0 25px rgba(16, 185, 129, 0.2);
+    }
+
+    .lock-gate-title {
+        font-size: 24px;
+        font-weight: 800;
+        color: #fff;
+        margin-bottom: 10px;
+    }
+
+    .lock-gate-desc {
+        font-size: 14.5px;
+        color: #94A3B8;
+        line-height: 1.6;
+        margin-bottom: 26px;
+    }
+
+    .lock-input-group {
+        position: relative;
+        margin-bottom: 20px;
+        text-align: left;
+    }
+
+    .lock-input-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        color: #CBD5E1;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 8px;
+    }
+
+    .lock-input-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .lock-input {
+        width: 100%;
+        padding: 14px 48px 14px 16px;
+        background: rgba(10, 15, 29, 0.85);
+        border: 1.5px solid rgba(148, 163, 184, 0.25);
+        border-radius: 12px;
+        color: #fff;
+        font-size: 16px;
+        font-family: inherit;
+        letter-spacing: 1px;
+        outline: none;
+        transition: all 0.25s ease;
+    }
+
+    .lock-input:focus {
+        border-color: var(--mint);
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+        background: rgba(10, 15, 29, 0.95);
+    }
+
+    .lock-toggle-eye {
+        position: absolute;
+        right: 14px;
+        background: none;
+        border: none;
+        color: #94A3B8;
+        cursor: pointer;
+        font-size: 18px;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s ease;
+    }
+
+    .lock-toggle-eye:hover {
+        color: #fff;
+    }
+
+    .btn-unlock-gate {
+        width: 100%;
+        padding: 15px;
+        background: linear-gradient(135deg, #05D5AA, #049f7e);
+        color: #000;
+        font-weight: 800;
+        font-size: 15.5px;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        transition: all 0.25s ease;
+        box-shadow: 0 4px 20px rgba(5, 213, 170, 0.35);
+    }
+
+    .btn-unlock-gate:hover {
+        background: linear-gradient(135deg, #1fe5be, #05D5AA);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(5, 213, 170, 0.45);
+    }
+
+    .error-banner {
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        color: #FCA5A5;
+        padding: 12px 16px;
+        border-radius: 10px;
+        font-size: 13.5px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-align: left;
+    }
+
+    .hint-chip {
+        margin-top: 22px;
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px dashed rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        font-size: 12.5px;
+        color: #94A3B8;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .hint-pwd-badge {
+        font-family: monospace;
+        background: rgba(16, 185, 129, 0.2);
+        color: var(--mint);
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 13px;
+        cursor: pointer;
+        user-select: all;
+    }
+
+    /* ─── UNLOCKED BUSINESS ARCHITECTURE ─────────────────────────── */
+    .session-status-bar {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 14px;
+        padding: 12px 20px;
+        margin-bottom: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .session-status-text {
+        color: var(--mint);
+        font-size: 14px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-lock-session {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #CBD5E1;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 12.5px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .btn-lock-session:hover {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.4);
+        color: #FCA5A5;
+    }
+
+    .market-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+        margin-bottom: 40px;
+    }
+
+    .market-stat-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 24px 20px;
+        text-align: center;
+    }
+
+    .stat-number {
+        font-size: 32px;
+        font-weight: 800;
+        color: var(--mint);
+        margin-bottom: 6px;
+    }
+
+    .stat-label {
+        font-size: 13px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+
+    /* Revenue Streams Grid */
+    .streams-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 24px;
+        margin: 30px 0 60px;
+    }
+
+    .stream-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 28px;
+        border-top: 4px solid var(--mint);
+        transition: all 0.3s ease;
+    }
+
+    .stream-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        border-color: var(--mint);
+    }
+
+    .stream-tag {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+        color: var(--mint);
+    }
+
+    .stream-title {
+        font-size: 19px;
+        font-weight: 800;
+        color: #fff;
+        margin-bottom: 10px;
+    }
+
+    .stream-desc {
+        font-size: 14px;
+        color: #CBD5E1;
+        line-height: 1.6;
+    }
+
+    .btn-download-bm {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-weight: 800;
+        font-size: 15px;
+        padding: 16px 28px;
+        border-radius: 12px;
+        text-decoration: none;
+        background: var(--mint);
+        color: #000;
+        box-shadow: 0 4px 20px var(--mint-glow);
+        transition: all 0.25s ease;
+    }
+
+    .btn-download-bm:hover {
+        background: var(--mint-light);
+        transform: translateY(-2px);
+    }
+
+    .nav-cross-links {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-top: 50px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bm-hero">
+    {% if is_unlocked %}
+        <div class="bm-pill">💼 Commercial Model Decrypted & Verified</div>
+        <h1 class="bm-title">DISHI Sustainable Enterprise<br><span class="gradient-text">Business Model & Unit Economics</span></h1>
+        <p class="bm-desc">
+            Commercial feasibility, 0.5% agency banking float, DeLiv courier logistics, escrow monetization, and 5-year institutional scalability across Kenyan universities.
+        </p>
+    {% else %}
+        <div class="bm-pill locked">🔒 Restricted Commercial Architecture</div>
+        <h1 class="bm-title">Sustainable Business Model &<br><span class="gradient-text">Financial Logistics Portal</span></h1>
+        <p class="bm-desc">
+            Proprietary market opportunity metrics (TAM/SAM/SOM), 6 diversified revenue channels, and financial forecasts are restricted to verified institutional partners and university administrations.
+        </p>
+    {% endif %}
+</div>
+
+<div class="bm-container">
+    {% if not is_unlocked %}
+        <!-- ─── INSTITUTIONAL ACCESS GATE ─── -->
+        <div class="lock-gate-wrapper">
+            <div class="lock-gate-card">
+                <div class="lock-icon-circle">💼</div>
+                <h2 class="lock-gate-title">Institutional View Password Required</h2>
+                <p class="lock-gate-desc">
+                    Enter the authorized access key to view the Sustainable Enterprise Business Model, unit economics, revenue architecture, and download the official PDF.
+                </p>
+
+                {% if error %}
+                    <div class="error-banner">
+                        <span>⚠️</span>
+                        <span>{{ error }}</span>
+                    </div>
+                {% endif %}
+
+                <form method="POST" action="/business-model" id="bmUnlockForm">
+                    <input type="hidden" name="next" value="{{ next_url }}">
+                    
+                    <div class="lock-input-group">
+                        <label for="bmPasswordInput" class="lock-input-label">Authorized View Password</label>
+                        <div class="lock-input-container">
+                            <input 
+                                type="password" 
+                                id="bmPasswordInput" 
+                                name="view_password" 
+                                class="lock-input" 
+                                placeholder="Enter View Password..." 
+                                autocomplete="off"
+                                required
+                                autofocus
+                            >
+                            <button type="button" class="lock-toggle-eye" id="bmTogglePasswordBtn" aria-label="Toggle password visibility">
+                                👁️
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-unlock-gate" id="bmUnlockSubmitBtn">
+                        <span>🔓</span>
+                        <span>Authenticate & View Business Model</span>
+                    </button>
+
+                    <div class="hint-chip">
+                        <span>Authorized View Password:</span>
+                        <span class="hint-pwd-badge" id="bmPwdHintBadge" title="Click to fill password">DISHIID123D</span>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% else %}
+        <!-- ─── UNLOCKED BUSINESS ARCHITECTURE ─── -->
+        <div class="session-status-bar">
+            <div class="session-status-text">
+                <span>🛡️</span>
+                <span>Active Authorized View Session • Sustainable Business Model Unlocked</span>
+            </div>
+            <a href="/business-model?action=lock" class="btn-lock-session">
+                <span>🔒 Lock Session</span>
+            </a>
+        </div>
+
+        <!-- KEY MARKET MACRO METRICS -->
+        <div class="market-stats-grid">
+            <div class="market-stat-card">
+                <div class="stat-number">600,000+</div>
+                <div class="stat-label">Students in Higher Ed (Kenya)</div>
+            </div>
+            <div class="market-stat-card">
+                <div class="stat-number">KES 18B</div>
+                <div class="stat-label">Annual Campus Food Economy</div>
+            </div>
+            <div class="market-stat-card">
+                <div class="stat-number">0.5%</div>
+                <div class="stat-label">Vendor Float Agency Banking</div>
+            </div>
+            <div class="market-stat-card">
+                <div class="stat-number">6</div>
+                <div class="stat-label">Entrenched Revenue Streams</div>
+            </div>
+        </div>
+
+        <!-- DOWNLOAD BANNER CARD -->
+        <div style="background: var(--bg-card); border: 2px solid var(--mint); border-radius: var(--radius-xl); padding: 36px 32px; margin-bottom: 50px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px; box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5), 0 0 30px var(--mint-glow-subtle);">
+            <div>
+                <div style="color: var(--mint); font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;">OFFICIAL INSTITUTIONAL WHITEPAPER • VERIFIED FINANCIAL ARCHITECTURE</div>
+                <h3 style="font-size: 24px; font-weight: 800; color: #fff; margin-bottom: 8px;">DISHI Sustainable Enterprise Business Model PDF</h3>
+                <p style="font-size: 14.5px; color: #CBD5E1; max-width: 650px; line-height: 1.6;">
+                    Complete commercial feasibility plan detailing TAM/SAM/SOM market metrics, 5-year growth forecasts, Safaricom Daraja C2B/B2C integration, unit economics, and campus dining operational SLAs.
+                </p>
+            </div>
+            <a href="/constitution/download/business-model" class="btn-download-bm">
+                <span>📥 Download Business Model PDF</span>
+            </a>
+        </div>
+
+        <!-- SIX DIVERSIFIED REVENUE STREAMS -->
+        <div style="text-align: center; margin-bottom: 25px;">
+            <h2 style="font-size: 32px; font-weight: 800; color: #fff;">Six Codified Diversified Revenue Streams</h2>
+            <p style="color: var(--text-muted); font-size: 15px; margin-top: 6px;">Multi-channel unit economics ensuring robust profitability without predatory student markups</p>
+        </div>
+
+        <div class="streams-grid">
+            <div class="stream-card">
+                <div class="stream-tag">STREAM 1 • AGENCY BANKING</div>
+                <h3 class="stream-title">0.5% Vendor Cash-In Agency Float</h3>
+                <p class="stream-desc">
+                    Cafeteria counters double as agency banking touchpoints. When students deposit cash at vendor stalls, the vendor earns 0.5% and DISHI pools the commercial float for daily settlement clearance.
+                </p>
+            </div>
+
+            <div class="stream-card">
+                <div class="stream-tag">STREAM 2 • PRE-ORDER MDR</div>
+                <h3 class="stream-title">2.5% Pre-Order Merchant Discount Rate</h3>
+                <p class="stream-desc">
+                    A minimal 2.5% MDR on smart pre-orders and kiosk meal pickups, saving vendors an average of 40 minutes per queue and eliminating fake M-PESA SMS fraud.
+                </p>
+            </div>
+
+            <div class="stream-card">
+                <div class="stream-tag">STREAM 3 • COURIER LOGISTICS</div>
+                <h3 class="stream-title">15% DeLiv Courier Share</h3>
+                <p class="stream-desc">
+                    Comrade runners deliver food directly from cafeterias to dorm rooms. DISHI takes a 15% platform dispatch fee while students retain 85% of each delivery charge.
+                </p>
+            </div>
+
+            <div class="stream-card">
+                <div class="stream-tag">STREAM 4 • ESCROW MARKETPLACE</div>
+                <h3 class="stream-title">5% Comrade Fundi Artisan Escrow</h3>
+                <p class="stream-desc">
+                    Student fundi mechanics, laptop technicians, tutors, and hair stylists perform campus services with funds secured in an escrow vault until satisfactory completion.
+                </p>
+            </div>
+
+            <div class="stream-card">
+                <div class="stream-tag">STREAM 5 • CAMPUS TICKETING</div>
+                <h3 class="stream-title">Event Passes & Ticketing (KES 30/pass)</h3>
+                <p class="stream-desc">
+                    Web-based QR ticketing for campus bashes, culture weeks, varsity sports, and academic symposiums with instant QR validator scanners for student gatekeepers.
+                </p>
+            </div>
+
+            <div class="stream-card">
+                <div class="stream-tag">STREAM 6 • MEAL SOLIDARITY</div>
+                <h3 class="stream-title">1.5% Campus Harambee Meal Support</h3>
+                <p class="stream-desc">
+                    Transparent crowdfunding where alumni, parents, and sponsors fund student meal wallets. A modest 1.5% processing fee maintains the transparent ledger and audit logs.
+                </p>
+            </div>
+        </div>
+
+        <!-- CROSS LINK TO CONSTITUTION -->
+        <div class="nav-cross-links">
+            <a href="/constitution" class="btn-hero-secondary">
+                <span>📜 View Official 25-Page Constitution</span>
+            </a>
+            <a href="mailto:dishi@delstarfordworks.co.ke?subject=Institutional%20Partnership" class="btn-hero-primary">
+                <span>✉️ Contact Institutional Legal Affairs</span>
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    var bmToggleBtn = document.getElementById('bmTogglePasswordBtn');
+    var bmPwdInput = document.getElementById('bmPasswordInput');
+    if (bmToggleBtn && bmPwdInput) {
+        bmToggleBtn.addEventListener('click', function() {
+            if (bmPwdInput.type === 'password') {
+                bmPwdInput.type = 'text';
+                bmToggleBtn.textContent = '🙈';
+            } else {
+                bmPwdInput.type = 'password';
+                bmToggleBtn.textContent = '👁️';
+            }
+        });
+    }
+
+    var bmHintBadge = document.getElementById('bmPwdHintBadge');
+    if (bmHintBadge && bmPwdInput) {
+        bmHintBadge.addEventListener('click', function() {
+            bmPwdInput.value = 'DISHIID123D';
+            bmPwdInput.focus();
+        });
+    }
+</script>
+{% endblock %}
