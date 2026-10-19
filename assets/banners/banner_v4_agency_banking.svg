@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#03160c"/>
+      <stop offset="50%" stop-color="#082b18"/>
+      <stop offset="100%" stop-color="#021008"/>
+    </linearGradient>
+    <radialGradient id="standoffGrad4" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="40%" stop-color="#d1d5db"/>
+      <stop offset="70%" stop-color="#6b7280"/>
+      <stop offset="100%" stop-color="#1f2937"/>
+    </radialGradient>
+  </defs>
+
+  <rect x="20" y="20" width="1160" height="760" rx="36" fill="url(#bgGrad4)" stroke="#10B981" stroke-width="8"/>
+  <rect x="38" y="38" width="1124" height="724" rx="26" fill="none" stroke="#F59E0B" stroke-width="2"/>
+
+  <!-- Standoffs -->
+  <circle cx="65" cy="65" r="18" fill="url(#standoffGrad4)" stroke="#111827" stroke-width="2"/><circle cx="65" cy="65" r="6" fill="#374151"/>
+  <circle cx="1135" cy="65" r="18" fill="url(#standoffGrad4)" stroke="#111827" stroke-width="2"/><circle cx="1135" cy="65" r="6" fill="#374151"/>
+  <circle cx="65" cy="735" r="18" fill="url(#standoffGrad4)" stroke="#111827" stroke-width="2"/><circle cx="65" cy="735" r="6" fill="#374151"/>
+  <circle cx="1135" cy="735" r="18" fill="url(#standoffGrad4)" stroke="#111827" stroke-width="2"/><circle cx="1135" cy="735" r="6" fill="#374151"/>
+
+  <!-- Header -->
+  <rect x="220" y="55" width="760" height="46" rx="23" fill="#10B981" fill-opacity="0.2"/>
+  <text x="600" y="85" text-anchor="middle" font-family="'Montserrat', sans-serif" font-weight="800" font-size="22" fill="#34D399" letter-spacing="3">
+    WAKALA WA FEDHA NA CHAKULA • DISHI AGENT
+  </text>
+
+  <text x="600" y="165" text-anchor="middle" font-family="'Montserrat', 'Arial Black', sans-serif" font-weight="900" font-size="52" fill="#FFFFFF" letter-spacing="2">
+    DISHI NA SISI
+  </text>
+  <text x="600" y="210" text-anchor="middle" font-family="'Montserrat', sans-serif" font-weight="700" font-size="28" fill="#FBBF24">
+    PESA, CHAKULA NA FURSA ZA CHUONI MAHALI PAMOJA
+  </text>
+
+  <!-- 4 Grid Service Boxes -->
+  <g transform="translate(160, 260)">
+    <!-- Box 1: Kuweka na Kutoa -->
+    <rect x="0" y="0" width="410" height="150" rx="18" fill="#02140a" stroke="#10B981" stroke-width="2"/>
+    <circle cx="60" cy="75" r="34" fill="#05D5AA" fill-opacity="0.15"/>
+    <text x="60" y="87" text-anchor="middle" font-size="36">💰</text>
+    <text x="120" y="55" font-family="'Montserrat', sans-serif" font-weight="800" font-size="20" fill="#FFFFFF">Kuweka &amp; Kutoa Salio</text>
+    <text x="120" y="85" font-family="'Inter', sans-serif" font-size="14" fill="#9CA3AF">0.5% Commission kwa Wakala</text>
+    <text x="120" y="110" font-family="'Inter', sans-serif" font-weight="600" font-size="13" fill="#34D399">Top-up DISHI Wallet Papo Hapo</text>
+
+    <!-- Box 2: Milo Safi -->
+    <rect x="470" y="0" width="410" height="150" rx="18" fill="#02140a" stroke="#10B981" stroke-width="2"/>
+    <circle cx="530" cy="75" r="34" fill="#F59E0B" fill-opacity="0.15"/>
+    <text x="530" y="87" text-anchor="middle" font-size="36">🍲</text>
+    <text x="590" y="55" font-family="'Montserrat', sans-serif" font-weight="800" font-size="20" fill="#FFFFFF">Milo &amp; Vinywaji Chuoni</text>
+    <text x="590" y="85" font-family="'Inter', sans-serif" font-size="14" fill="#9CA3AF">Chakula Safi cha Wanafunzi</text>
+    <text x="590" y="110" font-family="'Inter', sans-serif" font-weight="600" font-size="13" fill="#FBBF24">Lipia kwa Simu au Kadi</text>
+
+    <!-- Box 3: Ajira za DeLiv & Fundi -->
+    <rect x="0" y="180" width="410" height="150" rx="18" fill="#02140a" stroke="#10B981" stroke-width="2"/>
+    <circle cx="60" cy="255" r="34" fill="#F59E0B" fill-opacity="0.15"/>
+    <text x="60" y="267" text-anchor="middle" font-size="36">🛵</text>
+    <text x="120" y="235" font-family="'Montserrat', sans-serif" font-weight="800" font-size="20" fill="#FFFFFF">Sajili Ajira ya Chuo</text>
+    <text x="120" y="265" font-family="'Inter', sans-serif" font-size="14" fill="#9CA3AF">DeLiv Riders (Usafirishaji)</text>
+    <text x="120" y="290" font-family="'Inter', sans-serif" font-weight="600" font-size="13" fill="#34D399">DISHI Fundi (Gigs &amp; Ufundi)</text>
+
+    <!-- Box 4: Gonga Kadi -->
+    <rect x="470" y="180" width="410" height="150" rx="18" fill="#02140a" stroke="#10B981" stroke-width="2"/>
+    <circle cx="530" cy="255" r="34" fill="#05D5AA" fill-opacity="0.15"/>
+    <text x="530" y="267" text-anchor="middle" font-size="36">💳</text>
+    <text x="590" y="235" font-family="'Montserrat', sans-serif" font-weight="800" font-size="20" fill="#FFFFFF">Kadi ya DISHI (NFC)</text>
+    <text x="590" y="265" font-family="'Inter', sans-serif" font-size="14" fill="#9CA3AF">Gonga Ulishe (Tap-to-Eat)</text>
+    <text x="590" y="290" font-family="'Inter', sans-serif" font-weight="600" font-size="13" fill="#FBBF24">Bila Intaneti, Hakuna Foleni</text>
+  </g>
+
+  <!-- Google Play Footer (Large & Prominent) -->
+  <g transform="translate(600, 672)">
+    <rect x="-160" y="-28" width="320" height="56" rx="14" fill="#000000" stroke="#34D399" stroke-width="2"/>
+    <path d="M -135 -14 L -110 0 L -135 14 Z" fill="#00E5FF"/>
+    <path d="M -135 -14 L -122 -3 L -117 -7 Z" fill="#34D399"/>
+    <path d="M -135 14 L -122 3 L -117 7 Z" fill="#F87171"/>
+    <path d="M -110 0 L -117 -7 L -117 7 Z" fill="#FBBF24"/>
+    <text x="-65" y="-5" font-family="'Inter', sans-serif" font-weight="700" font-size="11" fill="#9CA3AF" letter-spacing="1.5">DOWNLOAD DISHI IN</text>
+    <text x="-65" y="16" font-family="'Montserrat', sans-serif" font-weight="900" font-size="20" fill="#FFFFFF" letter-spacing="0.5">Play Store</text>
+  </g>
+
+  <!-- Website Link at the Very Bottom -->
+  <text x="600" y="742" text-anchor="middle" font-family="'Montserrat', 'Inter', sans-serif" font-weight="700" font-size="18" fill="#FCD34D" letter-spacing="2">
+    dishi.delstarfordworks.co.ke • WAKALA WA KAMPASI
+  </text>
+</svg>

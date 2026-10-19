@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mabango ya Mawakala wa DISHI (Matoleo 10 - PNG, JPEG & SVG)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #030d07;
+      --card-bg: #071c11;
+      --border-color: #0d3822;
+      --emerald-dark: #072414;
+      --mint: #05D5AA;
+      --gold: #F59E0B;
+      --gold-light: #FCD34D;
+      --text: #F3F4F6;
+      --text-muted: #9CA3AF;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #082d1a 0%, #030d07 70%);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .container {
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 8px 18px;
+      border-radius: 999px;
+      background: rgba(5, 213, 170, 0.15);
+      border: 1px solid var(--mint);
+      color: var(--mint);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 900;
+      color: #FFFFFF;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+
+    h1 span {
+      background: linear-gradient(135deg, #FCD34D 0%, #F59E0B 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 16px;
+      max-width: 780px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* Tabs Bar */
+    .tabs-wrapper {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 16px;
+      margin-bottom: 30px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--mint) transparent;
+    }
+
+    .tab-btn {
+      flex-shrink: 0;
+      padding: 12px 20px;
+      border-radius: 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab-btn:hover {
+      border-color: var(--mint);
+      color: #FFFFFF;
+      transform: translateY(-2px);
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, #072e1a 0%, #031c10 100%);
+      border-color: var(--gold);
+      color: #FFFFFF;
+      box-shadow: 0 4px 16px rgba(245, 158, 11, 0.25);
+    }
+
+    /* Banner Showcase Viewport */
+    .banner-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 30px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .banner-card.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .banner-preview-box {
+      width: 100%;
+      background: #020905;
+      border-radius: 18px;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border: 1px dashed rgba(5, 213, 170, 0.3);
+      margin-bottom: 24px;
+    }
+
+    .banner-preview-box img {
+      width: 100%;
+      max-width: 950px;
+      height: auto;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    }
+
+    .banner-details {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 860px) {
+      .banner-details {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .detail-heading {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+    }
+
+    .detail-slogan {
+      font-size: 16px;
+      color: var(--gold-light);
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .detail-desc {
+      color: #D1D5DB;
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .specs-box {
+      background: rgba(2, 20, 10, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 18px;
+    }
+
+    .specs-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--mint);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    .specs-list {
+      list-style: none;
+      font-size: 13px;
+      color: #9CA3AF;
+      line-height: 1.8;
+    }
+
+    .specs-list strong {
+      color: #FFFFFF;
+    }
+
+    .actions-bar {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .btn-gold {
+      background: linear-gradient(135deg, #FCD34D 0%, #F59E0B 100%);
+      color: #000000;
+    }
+
+    .btn-gold:hover {
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .btn-mint {
+      background: var(--mint);
+      color: #021208;
+    }
+
+    .btn-mint:hover {
+      box-shadow: 0 4px 14px rgba(5, 213, 170, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text);
+    }
+
+    .btn-outline:hover {
+      border-color: #FFFFFF;
+      background: rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div class="badge">DISHI Official Signage Suite</div>
+      <h1>Mabango ya Mawakala wa <span>DISHI</span> (10 Versions)</h1>
+      <p class="subtitle">
+        Picha halisi za mabango (PNG & JPEG) yasiyo na ukuta wala jengo, yakiwa na beji rasmi ya <strong>Download DISHI in Google Play</strong> na anwani ya tovuti <strong>dishi.delstarfordworks.co.ke</strong> chini kabisa.
+      </p>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-wrapper">
+      <button class="tab-btn active" onclick="switchBanner(1)">V1: Sovereign Gold</button>
+      <button class="tab-btn" onclick="switchBanner(2)">V2: Youth Hub</button>
+      <button class="tab-btn" onclick="switchBanner(3)">V3: Dignity Point</button>
+      <button class="tab-btn" onclick="switchBanner(4)">V4: Agency Banking</button>
+      <button class="tab-btn" onclick="switchBanner(5)">V5: Smart Tech</button>
+      <button class="tab-btn" onclick="switchBanner(6)">V6: Hospitality Care</button>
+      <button class="tab-btn" onclick="switchBanner(7)">V7: Enterprise Tier</button>
+      <button class="tab-btn" onclick="switchBanner(8)">V8: Comrade Hub</button>
+      <button class="tab-btn" onclick="switchBanner(9)">V9: Food Security</button>
+      <button class="tab-btn" onclick="switchBanner(10)">V10: Minimalist Plate</button>
+    </div>
+
+    <!-- 10 Banner Cards -->
+
+    <!-- Card 1 -->
+    <div id="banner-card-1" class="banner-card active">
+      <div class="banner-preview-box">
+        <img src="assets/banners/png/banner_v1_sovereign_gold.png" alt="DISHI Banner 1 - Sovereign Gold Standard">
+      </div>
+      <div class="banner-details">
+        <div>
+          <h2 class="detail-heading">Toleo 1: Sovereign Gold Standard</h2>
+          <div class="detail-slogan">LISHE BORA, AJIRA HALISI KAMPASINI</div>
+          <p class="detail-desc">
+            Muundo wa kifalme wenye ukingo wa dhahabu, beji kubwa ya Google Play katikati, na link ya tovuti chini kabisa.
+          </p>
+          <div class="actions-bar">
+            <a href="assets/banners/png/banner_v1_sovereign_gold.png" download="DISHI_Banner_V1.png" class="btn btn-mint">📥 Pakua PNG (HD)</a>
+            <a href="assets/banners/jpg/banner_v1_sovereign_gold.jpg" download="DISHI_Banner_V1.jpg" class="btn btn-gold">📥 Pakua JPEG</a>
+            <a href="assets/banners/banner_v1_sovereign_gold.svg" download="DISHI_Banner_V1.svg" class="btn btn-outline">Pakua SVG</a>
+          </div>
+        </div>
+        <div class="specs-box">
+          <div class="specs-title">Sifa za Picha & Print</div>
+          <ul class="specs-list">
+            <li><strong>Upana wa Picha:</strong> 1600px Ultra-HD</li>
+            <li><strong>Muundo:</strong> PNG (Isiyo na Ubora Uliopotea) & JPEG</li>
+            <li><strong>Vipimo vya Print:</strong> 400mm x 300mm / 600mm x 400mm</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div id="banner-card-2" class="banner-card">
+      <div class="banner-preview-box">
+        <img src="assets/banners/png/banner_v2_youth_empowerment.png" alt="DISHI Banner 2 - Youth Empowerment">
+      </div>
+      <div class="banner-details">
+        <div>
+          <h2 class="detail-heading">Toleo 2: Youth Empowerment Hub</h2>
+          <div class="detail-slogan">CHAKULA CHA HESHIMA • AJIRA YA UHAKIKA</div>
+          <p class="detail-desc">
+            Linabainisha fursa za ajira kwa wanafunzi wa vyuo (DeLiv Riders na DISHI Fundi) pamoja na beji kuu ya Play Store.
+          </p>
+          <div class="actions-bar">
+            <a href="assets/banners/png/banner_v2_youth_empowerment.png" download="DISHI_Banner_V2.png" class="btn btn-mint">📥 Pakua PNG (HD)</a>
+            <a href="assets/banners/jpg/banner_v2_youth_empowerment.jpg" download="DISHI_Banner_V2.jpg" class="btn btn-gold">📥 Pakua JPEG</a>
+            <a href="assets/banners/banner_v2_youth_empowerment.svg" download="DISHI_Banner_V2.svg" class="btn btn-outline">Pakua SVG</a>
+          </div>
+        </div>
+        <div class="specs-box">
+          <div class="specs-title">Sifa za Picha & Print</div>
+          <ul class="specs-list">
+            <li><strong>Upana wa Picha:</strong> 1600px Ultra-HD</li>
+            <li><strong>Matumizi:</strong> Maduka na Vibanda vya Wanafunzi</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3 -->
+    <div id="banner-card-3" class="banner-card">
+      <div class="banner-preview-box">
+        <img src="assets/banners/png/banner_v3_dignity_solidarity.png" alt="DISHI Banner 3 - Dignity & Solidarity">
+      </div>
+      <div class="banner-details">
+        <div>
+          <h2 class="detail-heading">Toleo 3: Dignity & Solidarity Point</h2>
+          <div class="detail-slogan">KULA KWA UTU, JENGA MAISHA YA CHUO — HAKUNA ANAYELALA NJAA</div>
+          <p class="detail-desc">
+            Beji kubwa ya Google Play katikati ya ubao wa chini, na anwani ya tovuti chini kabisa kwa uwazi mkubwa.
+          </p>
+          <div class="actions-bar">
+            <a href="assets/banners/png/banner_v3_dignity_solidarity.png" download="DISHI_Banner_V3.png" class="btn btn-mint">📥 Pakua PNG (HD)</a>
+            <a href="assets/banners/jpg/banner_v3_dignity_solidarity.jpg" download="DISHI_Banner_V3.jpg" class="btn btn-gold">📥 Pakua JPEG</a>
+            <a href="assets/banners/banner_v3_dignity_solidarity.svg" download="DISHI_Banner_V3.svg" class="btn btn-outline">Pakua SVG</a>
+          </div>
+        </div>
+        <div class="specs-box">
+          <div class="specs-title">Sifa za Picha & Print</div>
+          <ul class="specs-list">
+            <li><strong>Upana wa Picha:</strong> 1600px Ultra-HD</li>
+            <li><strong>Matumizi:</strong> Cafeteria & Dining Halls</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4 -->
+    <div id="banner-card-4" class="banner-card">
+      <div class="banner-preview-box">
+        <img src="assets/banners/png/banner_v4_agency_banking.png" alt="DISHI Banner 4 - Agency Banking">
+      </div>
+      <div class="banner-details">
+        <div>
+          <h2 class="detail-heading">Toleo 4: Wakala wa Fedha na Chakula</h2>
+          <div class="detail-slogan">PESA, CHAKULA NA FURSA ZA CHUONI MAHALI PAMOJA</div>
+          <p class="detail-desc">
+            Huduma 4 za msingi: Kuweka/Kutoa Salio (0.5% Commission), Milo, DeLiv/Fundi, na Kadi ya Tap-to-Eat.
+          </p>
+          <div class="actions-bar">
+            <a href="assets/banners/png/banner_v4_agency_banking.png" download="DISHI_Banner_V4.png" class="btn btn-mint">📥 Pakua PNG (HD)</a>
+            <a href="assets/banners/jpg/banner_v4_agency_banking.jpg" download="DISHI_Banner_V4.jpg" class="btn btn-gold">📥 Pakua JPEG</a>
+          </div>
+        </div>
+        <div class="specs-box">
+          <div class="specs-title">Sifa za Picha & Print</div>
+          <ul class="specs-list">
+            <li><strong>Upana wa Picha:</strong> 1600px Ultra-HD</li>
+            <li><strong>Matumizi:</strong> Cyber Cafes & Agency Points</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 5 -->
+    <div id="banner-card-5" class="banner-card">
+      <div class="banner-preview-box">
+        <img src="assets/banners/png/banner_v5_smart_tech.png" alt="DISHI Banner 5 - Smart Campus Tech">
+      </div>
+      <div class="banner-details">
+        <div>
+          <h2 class="detail-heading">Toleo 5: DISHI Smart Campus Agent</h2>
+          <div class="detail-slogan">KULA KISASA • KAZI KISASA</div>
+          <p class="detail-desc">
+            Muundo wa kidijitali unaosisitiza kadi ya Tap-to-Eat bila intaneti na kazi za mtandaoni chuoni.
+          </p>
+          <div class="actions-bar">
+            <a href="assets/banners/png/banner_v5_smart_tech.png" download="DISHI_Banner_V5.png" class="btn btn-mint">📥 Pakua PNG (HD)</a>
+            <a href="assets/banners/jpg/banner_v5_smart_tech.jpg" download="DISHI_Banner_V5.jpg" class="btn btn-gold">📥 Pakua JPEG</a>
+          </div>
+        </div>
+        <div class="specs-box">
+          <div class="specs-title">Sifa za Picha & Print</div>
+          <ul class="specs-list">
+            <li><strong>Upana wa Picha:</strong> 1600px Ultra-HD</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 6 -->
+    <div id="banner-card-6" class="banner-card">
+      <div class="banner-preview-box">
+        <img src="assets/banners/png/banner_v6_hospitality_welfare.png" alt="DISHI Banner 6 - Hospitality">
+      </div>
+      <div class="banner-details">
+        <div>
+          <h2 class="detail-heading">Toleo 6: Mgahawa Shirika wa DISHI</h2>
+          <div class="detail-slogan">HAKUNA MWANAFUNZI ANAYELALA NJAA — DISHI NA SISI</div>
+          <p class="detail-desc">
+            Linalenga migahawa ya familia na vyakula vya kienyeji vyenye ukarimu mkubwa chuoni.
+          </p>
+          <div class="actions-bar">
+            <a href="assets/banners/png/banner_v6_hospitality_welfare.png" download="DISHI_Banner_V6.png" class="btn btn-mint">📥 Pakua PNG (HD)</a>
+            <a href="assets/banners/jpg/banner_v6_hospitality_welfare.jpg" download="DISHI_Banner_V6.jpg" class="btn btn-gold">📥 Pakua JPEG</a>
+          </div>
+        </div>
+        <div class="specs-box">
+          <div class="specs-title">Sifa za Picha & Print</div>
+          <ul class="specs-list">
+            <li><strong>Upana wa Picha:</strong> 1600px Ultra-HD</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 7 -->
+    <div id="banner-card-7" class="banner-card">
+      <div class="banner-preview-box">
+        <img src="assets/banners/png/banner_v7_corporate_enterprise.png" alt="DISHI Banner 7 - Enterprise Tier">
+      </div>
+      <div class="banner-details">
+        <div>
+          <h2 class="detail-heading">Toleo 7: DISHI Enterprise Agent</h2>
+          <div class="detail-slogan">UBIA IMARA • LISHE ENDELEVU • AJIRA ZA VIJANA</div>
+          <p class="detail-desc">
+            Muundo thabiti wa kibiashara unaofaa supermarkets za chuo na vituo vikubwa vya biashara.
+          </p>
+          <div class="actions-bar">
+            <a href="assets/banners/png/banner_v7_corporate_enterprise.png" download="DISHI_Banner_V7.png" class="btn btn-mint">📥 Pakua PNG (HD)</a>
+            <a href="assets/banners/jpg/banner_v7_corporate_enterprise.jpg" download="DISHI_Banner_V7.jpg" class="btn btn-gold">📥 Pakua JPEG</a>
+          </div>
+        </div>
+        <div class="specs-box">
+          <div class="specs-title">Sifa za Picha & Print</div>
+          <ul class="specs-list">
+            <li><strong>Upana wa Picha:</strong> 1600px Ultra-HD</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 8 -->
+    <div id="banner-card-8" class="banner-card">
+      <div class="banner-preview-box">
+        <img src="assets/banners/png/banner_v8_comrade_hub.png" alt="DISHI Banner 8 - Comrade Hub">
+      </div>
+      <div class="banner-details">
+        <div>
+          <h2 class="detail-heading">Toleo 8: Kituo cha Makomredi</h2>
+          <div class="detail-slogan">KAZI MKONONI • CHAKULA MEZANI — DISHI NA SISI</div>
+          <p class="detail-desc">
+            Msosi wa bei nafuu ya comrade chuoni na ajira za DeLiv & Fundi kupiga pesa ya pocket money.
+          </p>
+          <div class="actions-bar">
+            <a href="assets/banners/png/banner_v8_comrade_hub.png" download="DISHI_Banner_V8.png" class="btn btn-mint">📥 Pakua PNG (HD)</a>
+            <a href="assets/banners/jpg/banner_v8_comrade_hub.jpg" download="DISHI_Banner_V8.jpg" class="btn btn-gold">📥 Pakua JPEG</a>
+          </div>
+        </div>
+        <div class="specs-box">
+          <div class="specs-title">Sifa za Picha & Print</div>
+          <ul class="specs-list">
+            <li><strong>Upana wa Picha:</strong> 1600px Ultra-HD</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 9 -->
+    <div id="banner-card-9" class="banner-card">
+      <div class="banner-preview-box">
+        <img src="assets/banners/png/banner_v9_food_security.png" alt="DISHI Banner 9 - Food Security">
+      </div>
+      <div class="banner-details">
+        <div>
+          <h2 class="detail-heading">Toleo 9: Wakala wa Uhakika wa DISHI</h2>
+          <div class="detail-slogan">LISHE SALAMA • MAPATO IMARA CHUONI</div>
+          <p class="detail-desc">
+            Maduka ya vyakula na mabakery yanayowapa wanafunzi lishe bora na fursa za kujitegemea.
+          </p>
+          <div class="actions-bar">
+            <a href="assets/banners/png/banner_v9_food_security.png" download="DISHI_Banner_V9.png" class="btn btn-mint">📥 Pakua PNG (HD)</a>
+            <a href="assets/banners/jpg/banner_v9_food_security.jpg" download="DISHI_Banner_V9.jpg" class="btn btn-gold">📥 Pakua JPEG</a>
+          </div>
+        </div>
+        <div class="specs-box">
+          <div class="specs-title">Sifa za Picha & Print</div>
+          <ul class="specs-list">
+            <li><strong>Upana wa Picha:</strong> 1600px Ultra-HD</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 10 -->
+    <div id="banner-card-10" class="banner-card">
+      <div class="banner-preview-box">
+        <img src="assets/banners/png/banner_v10_sleek_minimalist.png" alt="DISHI Banner 10 - Sleek Minimalist">
+      </div>
+      <div class="banner-details">
+        <div>
+          <h2 class="detail-heading">Toleo 10: Sleek Modern Minimalist Acrylic</h2>
+          <div class="detail-slogan">HAPA NI WAKALA WA DISHI • OFFICIAL DISHI AGENT</div>
+          <p class="detail-desc">
+            Muundo safi wa mstari (line-art) usio na mambo mengi, wenye alama za chakula, ajira, na kadi ya DISHI.
+          </p>
+          <div class="actions-bar">
+            <a href="assets/banners/png/banner_v10_sleek_minimalist.png" download="DISHI_Banner_V10.png" class="btn btn-mint">📥 Pakua PNG (HD)</a>
+            <a href="assets/banners/jpg/banner_v10_sleek_minimalist.jpg" download="DISHI_Banner_V10.jpg" class="btn btn-gold">📥 Pakua JPEG</a>
+          </div>
+        </div>
+        <div class="specs-box">
+          <div class="specs-title">Sifa za Picha & Print</div>
+          <ul class="specs-list">
+            <li><strong>Upana wa Picha:</strong> 1600px Ultra-HD</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function switchBanner(num) {
+      document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
+        btn.classList.toggle('active', (idx + 1) === num);
+      });
+      document.querySelectorAll('.banner-card').forEach((card, idx) => {
+        card.classList.toggle('active', (idx + 1) === num);
+      });
+    }
+  </script>
+</body>
+</html>

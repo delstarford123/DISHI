@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#051c11"/>
+      <stop offset="50%" stop-color="#0a2e1d"/>
+      <stop offset="100%" stop-color="#03130b"/>
+    </linearGradient>
+    <linearGradient id="bronzeGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="50%" stop-color="#D97706"/>
+      <stop offset="100%" stop-color="#78350F"/>
+    </linearGradient>
+    <radialGradient id="standoffGrad3" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="40%" stop-color="#d1d5db"/>
+      <stop offset="70%" stop-color="#6b7280"/>
+      <stop offset="100%" stop-color="#1f2937"/>
+    </radialGradient>
+  </defs>
+
+  <rect x="20" y="20" width="1160" height="760" rx="36" fill="url(#bgGrad3)" stroke="url(#bronzeGold)" stroke-width="8"/>
+  <rect x="38" y="38" width="1124" height="724" rx="26" fill="none" stroke="url(#bronzeGold)" stroke-width="2" stroke-opacity="0.5"/>
+
+  <!-- Corner Standoffs -->
+  <circle cx="65" cy="65" r="18" fill="url(#standoffGrad3)" stroke="#111827" stroke-width="2"/><circle cx="65" cy="65" r="6" fill="#374151"/>
+  <circle cx="1135" cy="65" r="18" fill="url(#standoffGrad3)" stroke="#111827" stroke-width="2"/><circle cx="1135" cy="65" r="6" fill="#374151"/>
+  <circle cx="65" cy="735" r="18" fill="url(#standoffGrad3)" stroke="#111827" stroke-width="2"/><circle cx="65" cy="735" r="6" fill="#374151"/>
+  <circle cx="1135" cy="735" r="18" fill="url(#standoffGrad3)" stroke="#111827" stroke-width="2"/><circle cx="1135" cy="735" r="6" fill="#374151"/>
+
+  <!-- Titles -->
+  <text x="600" y="120" text-anchor="middle" font-family="'Cinzel', 'Georgia', serif" font-weight="900" font-size="52" fill="#FFFFFF" letter-spacing="4">
+    UBIA WA DISHI NA SISI
+  </text>
+  <text x="600" y="165" text-anchor="middle" font-family="'Montserrat', sans-serif" font-weight="700" font-size="28" fill="#FDE68A" letter-spacing="2">
+    KULA KWA UTU, JENGA MAISHA YA CHUO
+  </text>
+
+  <!-- Central Emblem: Hands of Dignity & Graduation Cap -->
+  <g transform="translate(600, 310)">
+    <circle cx="0" cy="0" r="90" fill="#04160c" stroke="url(#bronzeGold)" stroke-width="4"/>
+    <!-- Mortarboard Cap -->
+    <path d="M 0 -45 L 45 -25 L 0 -5 L -45 -25 Z" fill="#FDE68A"/>
+    <path d="M 30 -18 L 30 10" stroke="#FDE68A" stroke-width="3"/>
+    <circle cx="30" cy="14" r="4" fill="#FDE68A"/>
+    <!-- Bowl in hands -->
+    <path d="M -35 15 Q 0 45 35 15 Z" fill="#D97706"/>
+    <path d="M -40 12 L 40 12" stroke="#FDE68A" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- Sub-statement banner -->
+  <rect x="180" y="445" width="840" height="95" rx="16" fill="#021208" stroke="#D97706" stroke-width="1.5"/>
+  <text x="600" y="482" text-anchor="middle" font-family="'Montserrat', sans-serif" font-weight="700" font-size="20" fill="#FFFFFF">
+    HAPA KILA MWANAFUNZI ANAPATA CHAKULA KWA BEI RAFIKI
+  </text>
+  <text x="600" y="515" text-anchor="middle" font-family="'Inter', sans-serif" font-weight="500" font-size="16" fill="#D1D5DB">
+    Hakuna Anayelala Njaa Chuoni • Fursa za Kazi na Huduma Zinapatikana Hapa Kila Siku
+  </text>
+
+  <!-- Key Services Badges -->
+  <g transform="translate(600, 595)">
+    <rect x="-350" y="0" width="210" height="50" rx="12" fill="#062415" stroke="#FDE68A" stroke-width="1.5"/>
+    <text x="-245" y="32" text-anchor="middle" font-family="'Montserrat', sans-serif" font-weight="700" font-size="16" fill="#FFFFFF">🥗 Milo ya Afya</text>
+
+    <rect x="-105" y="0" width="210" height="50" rx="12" fill="#062415" stroke="#FDE68A" stroke-width="1.5"/>
+    <text x="0" y="32" text-anchor="middle" font-family="'Montserrat', sans-serif" font-weight="700" font-size="16" fill="#FFFFFF">💼 Ajira za Vijana</text>
+
+    <rect x="140" y="0" width="210" height="50" rx="12" fill="#062415" stroke="#FDE68A" stroke-width="1.5"/>
+    <text x="245" y="32" text-anchor="middle" font-family="'Montserrat', sans-serif" font-weight="700" font-size="16" fill="#FFFFFF">💳 Gonga Kadi DISHI</text>
+  </g>
+
+  <!-- Bottom Bar: Google Play Store (Large & Prominent) -->
+  <rect x="20" y="675" width="1160" height="105" rx="20" fill="#020e06" stroke="#D97706" stroke-width="2"/>
+  <g transform="translate(600, 715)">
+    <!-- Big High-Contrast Google Play Badge -->
+    <rect x="-160" y="-26" width="320" height="52" rx="14" fill="#000000" stroke="#FDE68A" stroke-width="2"/>
+    <!-- Vibrant Google Play Triangle -->
+    <path d="M -135 -13 L -110 0 L -135 13 Z" fill="#00E5FF"/>
+    <path d="M -135 -13 L -122 -3 L -117 -6 Z" fill="#34D399"/>
+    <path d="M -135 13 L -122 3 L -117 6 Z" fill="#F87171"/>
+    <path d="M -110 0 L -117 -6 L -117 6 Z" fill="#FBBF24"/>
+    <text x="-65" y="-4" font-family="'Inter', sans-serif" font-weight="700" font-size="11" fill="#9CA3AF" letter-spacing="1.5">DOWNLOAD DISHI IN</text>
+    <text x="-65" y="15" font-family="'Montserrat', sans-serif" font-weight="900" font-size="19" fill="#FFFFFF" letter-spacing="0.5">Google Play</text>
+  </g>
+
+  <!-- Website Link & Community Tagline at the Bottom -->
+  <text x="600" y="765" text-anchor="middle" font-family="'Montserrat', sans-serif" font-weight="700" font-size="16" fill="#FDE68A" letter-spacing="1.5">
+    dishi.delstarfordworks.co.ke • HAKUNA ANAYELALA NJAA
+  </text>
+</svg>
