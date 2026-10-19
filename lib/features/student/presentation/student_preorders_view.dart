@@ -33,12 +33,10 @@ class _StudentPreordersViewState extends State<StudentPreordersView> {
         elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: _firestoreService.streamCollection(
-          'orders',
-          whereField: 'student_id',
-          isEqualTo: _currentUserId.isEmpty ? 'MOCK_ID' : _currentUserId,
-          orderByField: 'pickupTime',
-        ),
+        stream: FirebaseFirestore.instance
+            .collection('preorders')
+            .where('studentId', isEqualTo: _currentUserId.isEmpty ? 'MOCK_ID' : _currentUserId)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: _neonCyan));
@@ -52,9 +50,10 @@ class _StudentPreordersViewState extends State<StudentPreordersView> {
             return _buildEmptyState();
           }
 
-          final orders = snapshot.data!.docs.map((doc) => 
-            PreorderModel.fromJson(doc.data() as Map<String, dynamic>, doc.id)
-          ).toList();
+          final orders = snapshot.data!.docs
+              .where((doc) => doc.data() != null)
+              .map((doc) => PreorderModel.fromJson(Map<String, dynamic>.from(doc.data() as Map), doc.id))
+              .toList();
 
           // Filter out completed ones unless we want history
           final activeOrders = orders.where((o) => o.status != 'completed' && o.status != 'cancelled').toList();

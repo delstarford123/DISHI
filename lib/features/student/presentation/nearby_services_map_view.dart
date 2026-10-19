@@ -5,7 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/geofence_service.dart';
-import '../../../core/theme/mpesa_theme.dart';
+import '../../../core/utils/map_marker_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -88,6 +88,12 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
   final Set<Marker> _markers = {};
   final Set<Circle> _circles = {};
 
+  // Student Profile for Custom Avatar Marker
+  String? _studentProfileUrl;
+  String? _studentName;
+  MapType _currentMapType = MapType.normal;
+  LatLng? _driverPos;
+
   // Reminders state
   List<_LocationReminder> _reminders = [];
   final _reminderMsgController = TextEditingController();
@@ -96,15 +102,64 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
   @override
   void initState() {
     super.initState();
+    _loadStudentProfile();
     _startPositionWatch();
   }
 
   @override
   void dispose() {
     _posSub?.cancel();
+    _deliverySub?.cancel();
     _mapController?.dispose();
     _reminderMsgController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadStudentProfile() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.studentUid)
+          .get();
+      if (doc.exists && mounted) {
+        final data = doc.data() ?? {};
+        setState(() {
+          _studentProfileUrl =
+              (data['profileImageUrl'] ?? data['photoUrl']) as String?;
+          _studentName =
+              (data['name'] ?? data['displayName'] ?? 'You') as String?;
+        });
+        _loadTabData();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _appendStudentLocationAndHalo(
+      Set<Marker> markers, Set<Circle> circles) async {
+    if (_myPosition == null) return;
+    final avatarIcon = await MapMarkerHelper.createStudentAvatarMarker(
+      name: _studentName ?? 'You',
+      profileImageUrl: _studentProfileUrl,
+      borderColor: _neonCyan,
+    );
+    markers.add(Marker(
+      markerId: const MarkerId('me'),
+      position: LatLng(_myPosition!.latitude, _myPosition!.longitude),
+      icon: avatarIcon,
+      zIndex: 10,
+      infoWindow: InfoWindow(
+        title: '📍 ${_studentName ?? "You"}',
+        snippet: 'Your current location',
+      ),
+    ));
+    circles.add(Circle(
+      circleId: const CircleId('my_accuracy_halo'),
+      center: LatLng(_myPosition!.latitude, _myPosition!.longitude),
+      radius: 25,
+      fillColor: _neonCyan.withValues(alpha: 0.15),
+      strokeColor: _neonCyan.withValues(alpha: 0.6),
+      strokeWidth: 2,
+    ));
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -160,6 +215,30 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
         backgroundColor: _bgColor,
         elevation: 0,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Icon(
+              _currentMapType == MapType.satellite
+                  ? Icons.map
+                  : Icons.satellite_alt,
+              color: _neonCyan,
+            ),
+            tooltip: _currentMapType == MapType.satellite
+                ? 'Switch to Dark Mode'
+                : 'Switch to Satellite View',
+            onPressed: () {
+              setState(() {
+                if (_currentMapType == MapType.normal) {
+                  _currentMapType = MapType.satellite;
+                  _mapController?.setMapStyle(null);
+                } else {
+                  _currentMapType = MapType.normal;
+                  _mapController?.setMapStyle(MapMarkerHelper.darkMapStyle);
+                }
+              });
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -177,9 +256,12 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
                         : _campusCenter,
                     zoom: 15,
                   ),
+                  mapType: _currentMapType,
                   onMapCreated: (ctrl) {
                     _mapController = ctrl;
-                    _mapController?.setMapStyle(_darkMapStyle);
+                    if (_currentMapType == MapType.normal) {
+                      _mapController?.setMapStyle(MapMarkerHelper.darkMapStyle);
+                    }
                     if (_myPosition != null && !_isCameraInitialized) {
                       _mapController!.animateCamera(
                         CameraUpdate.newCameraPosition(CameraPosition(
@@ -193,7 +275,7 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
                   },
                   markers: _markers,
                   circles: _circles,
-                  myLocationEnabled: true,
+                  myLocationEnabled: false,
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
                   mapToolbarEnabled: false,
@@ -213,6 +295,21 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
                     child: const Icon(Icons.my_location, color: _neonCyan),
                   ),
                 ),
+
+                // Fit driver & customer route button
+                if (_activeTab == _ServicesTab.dishi && _driverPos != null && _myPosition != null)
+                  Positioned(
+                    bottom: 16,
+                    left: 16,
+                    child: FloatingActionButton.extended(
+                      heroTag: 'services_fit_route',
+                      backgroundColor: _cardColor,
+                      onPressed: _fitDriverAndMe,
+                      icon: const Icon(Icons.two_wheeler, color: _neonOrange, size: 18),
+                      label: const Text('Fit Route',
+                          style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
 
                 // Reminders tap-to-set instruction
                 if (_activeTab == _ServicesTab.reminders)
@@ -333,6 +430,7 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
       setState(() {
         _markers.clear();
         _circles.clear();
+        _driverPos = null;
       });
       return;
     }
@@ -341,7 +439,7 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
         .collection('deliveries')
         .doc(widget.activeOrderId)
         .snapshots()
-        .listen((snap) {
+        .listen((snap) async {
       if (!snap.exists) return;
       final data = snap.data()!;
       final driverLat = (data['driverLat'] as num?)?.toDouble();
@@ -349,38 +447,40 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
       if (driverLat == null || driverLng == null) return;
 
       final driverPos = LatLng(driverLat, driverLng);
-      final driverName = data['driverName'] as String? ?? 'Driver';
+      _driverPos = driverPos;
+      final driverName = data['driverName'] as String? ?? 'Courier';
       final etaMinutes = data['etaMinutes'] as int? ?? 0;
 
       final newMarkers = <Marker>{};
+      final newCircles = <Circle>{};
+
+      // Custom Courier Motorbike Marker
+      final courierIcon =
+          await MapMarkerHelper.createCourierMarker(riderName: driverName);
       newMarkers.add(Marker(
         markerId: const MarkerId('driver'),
         position: driverPos,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        icon: courierIcon,
+        zIndex: 5,
         infoWindow: InfoWindow(
           title: '🛵 $driverName',
           snippet: 'ETA: $etaMinutes min',
         ),
       ));
 
-      // Student position
-      if (_myPosition != null) {
-        newMarkers.add(Marker(
-          markerId: const MarkerId('me'),
-          position: LatLng(_myPosition!.latitude, _myPosition!.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          infoWindow: const InfoWindow(title: '📍 You'),
-        ));
+      // Student custom avatar marker + accuracy halo
+      await _appendStudentLocationAndHalo(newMarkers, newCircles);
+
+      if (mounted) {
+        setState(() {
+          _markers
+            ..clear()
+            ..addAll(newMarkers);
+          _circles
+            ..clear()
+            ..addAll(newCircles);
+        });
       }
-
-      setState(() {
-        _markers
-          ..clear()
-          ..addAll(newMarkers);
-        _circles.clear();
-      });
-
-      _mapController?.animateCamera(CameraUpdate.newLatLng(driverPos));
     });
   }
 
@@ -422,21 +522,19 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
         ));
       }
 
-      if (_myPosition != null) {
-        newMarkers.add(Marker(
-          markerId: const MarkerId('me'),
-          position: LatLng(_myPosition!.latitude, _myPosition!.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          infoWindow: const InfoWindow(title: '📍 You'),
-        ));
-      }
+      final newCircles = <Circle>{};
+      await _appendStudentLocationAndHalo(newMarkers, newCircles);
 
-      setState(() {
-        _markers
-          ..clear()
-          ..addAll(newMarkers);
-        _circles.clear();
-      });
+      if (mounted) {
+        setState(() {
+          _markers
+            ..clear()
+            ..addAll(newMarkers);
+          _circles
+            ..clear()
+            ..addAll(newCircles);
+        });
+      }
     } catch (e) {
       debugPrint('NearbyServicesMapView: Error loading vendors — $e');
     }
@@ -558,21 +656,19 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
         ));
       }
 
-      if (_myPosition != null) {
-        newMarkers.add(Marker(
-          markerId: const MarkerId('me'),
-          position: LatLng(_myPosition!.latitude, _myPosition!.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          infoWindow: const InfoWindow(title: '📍 You'),
-        ));
-      }
+      final newCircles = <Circle>{};
+      await _appendStudentLocationAndHalo(newMarkers, newCircles);
 
-      setState(() {
-        _markers
-          ..clear()
-          ..addAll(newMarkers);
-        _circles.clear();
-      });
+      if (mounted) {
+        setState(() {
+          _markers
+            ..clear()
+            ..addAll(newMarkers);
+          _circles
+            ..clear()
+            ..addAll(newCircles);
+        });
+      }
     } catch (e) {
       debugPrint('NearbyServicesMapView: Housing error — $e');
     }
@@ -617,24 +713,25 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
         ));
       }
 
-      setState(() {
-        _reminders = reminders;
-        _markers
-          ..clear()
-          ..addAll(newMarkers);
-        _circles
-          ..clear()
-          ..addAll(newCircles);
-      });
+      await _appendStudentLocationAndHalo(newMarkers, newCircles);
+
+      if (mounted) {
+        setState(() {
+          _reminders = reminders;
+          _markers
+            ..clear()
+            ..addAll(newMarkers);
+          _circles
+            ..clear()
+            ..addAll(newCircles);
+        });
+      }
     } catch (e) {
       debugPrint('NearbyServicesMapView: Reminders error — $e');
     }
   }
 
-  LatLng? _pendingReminderPos;
-
   void _onMapTapForReminder(LatLng pos) {
-    setState(() => _pendingReminderPos = pos);
     _showAddReminderSheet(pos);
   }
 
@@ -939,21 +1036,20 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
       );
     }
   }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DARK MAP STYLE
-// ─────────────────────────────────────────────────────────────────────────────
-const String _darkMapStyle = '''
-[
-  {"elementType":"geometry","stylers":[{"color":"#1d2c4d"}]},
-  {"elementType":"labels.text.fill","stylers":[{"color":"#8ec3b9"}]},
-  {"elementType":"labels.text.stroke","stylers":[{"color":"#1a3646"}]},
-  {"featureType":"landscape.natural","elementType":"geometry","stylers":[{"color":"#023e58"}]},
-  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#283d6a"}]},
-  {"featureType":"poi.park","elementType":"geometry.fill","stylers":[{"color":"#023e58"}]},
-  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#304a7d"}]},
-  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#2c6675"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#0e1626"}]}
-]
-''';
+  void _fitDriverAndMe() {
+    if (_myPosition == null || _driverPos == null || _mapController == null) return;
+    final myLatLng = LatLng(_myPosition!.latitude, _myPosition!.longitude);
+    final bounds = LatLngBounds(
+      southwest: LatLng(
+        myLatLng.latitude < _driverPos!.latitude ? myLatLng.latitude : _driverPos!.latitude,
+        myLatLng.longitude < _driverPos!.longitude ? myLatLng.longitude : _driverPos!.longitude,
+      ),
+      northeast: LatLng(
+        myLatLng.latitude > _driverPos!.latitude ? myLatLng.latitude : _driverPos!.latitude,
+        myLatLng.longitude > _driverPos!.longitude ? myLatLng.longitude : _driverPos!.longitude,
+      ),
+    );
+    _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
+  }
+}

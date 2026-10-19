@@ -209,34 +209,78 @@ class _SignupViewState extends State<SignupView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                const SizedBox(height: 12),
+
+                // ── Hero 512 DISHI Logo Squircle Card ────────────────
                 Center(
-                  child: Image.asset(
-                    'assets/img/dishi_logo.png', 
-                    height: 60,
-                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.fastfood, size: 60, color: MPesaTheme.primaryGreen),
+                  child: Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0A2216),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: MPesaTheme.neonCyan.withOpacity(0.55),
+                        width: 1.8,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: MPesaTheme.neonCyan.withOpacity(0.25),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.asset(
+                        'assets/img/app_icon_512.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          'assets/img/dishi_logo_512.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Image.asset(
+                            'assets/img/dishi_logo.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.restaurant_rounded,
+                              size: 40,
+                              color: MPesaTheme.primaryGreen,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+                const Center(
+                  child: Text(
+                    'Create Your Account',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Outfit',
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: Text(
+                    'Join the DISHI campus dining community',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.65),
+                      fontSize: 14,
+                      fontFamily: 'Outfit',
+                    ),
                   ),
                 ),
                 const SizedBox(height: 30),
-                const Text(
-                  'Create\nAccount', 
-                  style: TextStyle(
-                    color: Colors.white, 
-                    fontSize: 28, 
-                    fontWeight: FontWeight.bold, 
-                    fontFamily: 'Outfit',
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Join the DISHI community today.',
-                  style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 16,
-                    fontFamily: 'Outfit',
-                  ),
-                ),
-                const SizedBox(height: 40),
                 
                 if (_errorMessage != null)
                   Container(

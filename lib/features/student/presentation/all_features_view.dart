@@ -17,6 +17,7 @@ import 'campus_employment_hub.dart';
 import 'campus_map_view.dart';
 import 'nearby_services_map_view.dart';
 import 'gift_meal_dialog.dart';
+import 'request_funds_view.dart';
 
 // Academic / Smarti
 import '../../smartimer/presentation/smarti_chatbot_view.dart';
@@ -168,7 +169,7 @@ class _AllFeaturesViewState extends State<AllFeaturesView> {
         icon: Icons.monetization_on,
         color: const Color(0xFF10B981),
         badge: 'M-PESA',
-        onTap: () => _showFundMeDialog(context, userModel),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestFundsView(userModel: userModel))),
       ),
       AppFeature(
         id: 'subscriptions',
@@ -487,15 +488,6 @@ class _AllFeaturesViewState extends State<AllFeaturesView> {
         icon: Icons.shield,
         color: Colors.redAccent,
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SafetyPinsView())),
-      ),
-      AppFeature(
-        id: 'parent_security',
-        title: 'Parent Security Hub',
-        subtitle: 'Emergency notification & family guardian oversight status',
-        category: 'Safety & Maps',
-        icon: Icons.family_restroom,
-        color: Colors.indigoAccent,
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ParentSecurityHub())),
       ),
     ];
   }

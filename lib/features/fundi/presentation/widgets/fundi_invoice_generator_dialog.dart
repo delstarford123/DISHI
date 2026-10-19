@@ -226,22 +226,27 @@ class _FundiInvoiceGeneratorDialogState extends State<FundiInvoiceGeneratorDialo
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF05D5AA).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(10),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF05D5AA).withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.receipt_long, color: Color(0xFF05D5AA), size: 22),
                         ),
-                        child: const Icon(Icons.receipt_long, color: Color(0xFF05D5AA), size: 22),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Smart Fundi Quote',
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        const Flexible(
+                          child: Text(
+                            'Smart Fundi Quote',
+                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white54, size: 20),
@@ -426,30 +431,48 @@ class _FundiInvoiceGeneratorDialogState extends State<FundiInvoiceGeneratorDialo
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.chat, color: Colors.white, size: 18),
-                      label: const Text('Send WhatsApp', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF25D366),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: _sendViaWhatsApp,
+                      child: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.chat, color: Colors.white, size: 16),
+                            SizedBox(width: 6),
+                            Text('Send WhatsApp', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.check_circle_outline, color: Colors.black, size: 18),
-                      label: _isSavingGig
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                          : const Text('Save to Gigs', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                    child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: MPesaTheme.primaryGreen,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: _isSavingGig ? null : _saveAsDishiJob,
+                      child: _isSavingGig
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                          : const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle_outline, color: Colors.black, size: 16),
+                                  SizedBox(width: 6),
+                                  Text('Save to Gigs', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
                     ),
                   ),
                 ],

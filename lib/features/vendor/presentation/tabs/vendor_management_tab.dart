@@ -340,14 +340,23 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildSectionHeader('Shop Management', Icons.store, Colors.white),
+            Expanded(
+              child: _buildSectionHeader('Shop Management', Icons.store, Colors.white),
+            ),
+            const SizedBox(width: 8),
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _neonCyan,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               onPressed: () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorMenuEditor()));
               },
-              icon: const Icon(Icons.fastfood, size: 18),
-              label: const Text('Manage Menu'),
+              icon: const Icon(Icons.fastfood, size: 16),
+              label: const Text('Manage Menu', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -567,13 +576,21 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildSectionHeader('Health & Safety Vault', Icons.verified_user, Colors.white),
+            Expanded(
+              child: _buildSectionHeader('Health & Safety Vault', Icons.verified_user, Colors.white),
+            ),
+            const SizedBox(width: 8),
             TextButton.icon(
               onPressed: _isVaultUploading ? null : _handleVaultUpload,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               icon: _isVaultUploading 
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: _neonCyan, strokeWidth: 2))
-                  : const Icon(Icons.upload_file, color: _neonCyan),
-              label: const Text('Upload Doc', style: TextStyle(color: _neonCyan)),
+                  : const Icon(Icons.upload_file, color: _neonCyan, size: 18),
+              label: const Text('Upload Doc', style: TextStyle(color: _neonCyan, fontSize: 12)),
             )
           ],
         ),
@@ -709,10 +726,18 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
 
   Widget _buildSectionHeader(String title, IconData icon, Color color) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, color: color),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        Flexible(
+          child: Text(
+            title,
+            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }
@@ -737,7 +762,13 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
               children: [
                 Icon(icon, color: color, size: 16),
                 const SizedBox(width: 4),
-                Text(marketPrice, style: TextStyle(color: color, fontSize: 12)),
+                Expanded(
+                  child: Text(
+                    marketPrice,
+                    style: TextStyle(color: color, fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
           )
@@ -761,7 +792,9 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
             children: [
               Icon(Icons.store, color: _neonCyan),
               const SizedBox(width: 8),
-              const Text('Multi-Branch Management', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const Expanded(
+                child: Text('Multi-Branch Management', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
           const SizedBox(height: 8),

@@ -25,7 +25,7 @@ class _FundiMarketplaceViewState extends State<FundiMarketplaceView> {
 
   @override
   Widget build(BuildContext context) {
-    bool isFundi = widget.userModel.roles.contains('Fundi');
+    bool isFundi = widget.userModel.roles.any((r) => r.toLowerCase() == 'fundi');
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C101B),

@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/geofence_service.dart';
+import '../../../core/utils/map_marker_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -51,11 +52,19 @@ class _MeetupShareViewState extends State<MeetupShareView> {
   final Set<Circle> _circles = {};
   final Set<Polyline> _polylines = {};
 
+  // Profile and Map Type
+  String? _studentProfileUrl;
+  MapType _currentMapType = MapType.normal;
+
   // Meetup share state
   String? _activeMeetupShareId;
   Timer? _meetupTimer;
   int _meetupSecondsLeft = 0;
   StreamSubscription<DocumentSnapshot>? _meetupSub;
+  String? _peerName;
+  String? _peerPhotoUrl;
+  LatLng? _peerPosition;
+  StreamSubscription<DocumentSnapshot>? _peerLocSub;
 
   // Proximity alerts
   bool _proximityAlertsEnabled = false;
@@ -66,6 +75,7 @@ class _MeetupShareViewState extends State<MeetupShareView> {
   @override
   void initState() {
     super.initState();
+    _loadStudentProfile();
     _startPositionWatch();
     _loadProximitySettings();
   }
@@ -74,12 +84,49 @@ class _MeetupShareViewState extends State<MeetupShareView> {
   void dispose() {
     _posSub?.cancel();
     _meetupSub?.cancel();
+    _peerLocSub?.cancel();
     _meetupTimer?.cancel();
     _mapController?.dispose();
     if (_activeMeetupShareId != null) {
       GeofenceService.cancelMeetupShare(_activeMeetupShareId!);
     }
     super.dispose();
+  }
+
+  Future<void> _loadStudentProfile() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.studentUid)
+          .get();
+      if (doc.exists && mounted) {
+        final data = doc.data() ?? {};
+        setState(() {
+          _studentProfileUrl =
+              (data['profileImageUrl'] ?? data['photoUrl']) as String?;
+        });
+        _rebuildMeetupLayer();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadPeerProfile(String peerUid) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(peerUid)
+          .get();
+      if (doc.exists && mounted) {
+        final data = doc.data() ?? {};
+        setState(() {
+          _peerName =
+              (data['name'] ?? data['displayName'] ?? 'Buddy') as String?;
+          _peerPhotoUrl =
+              (data['profileImageUrl'] ?? data['photoUrl']) as String?;
+        });
+        _rebuildMeetupLayer();
+      }
+    } catch (_) {}
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -169,6 +216,8 @@ class _MeetupShareViewState extends State<MeetupShareView> {
       return;
     }
 
+    _loadPeerProfile(targetUid);
+
     final shareId = await GeofenceService.createMeetupShare(
         widget.studentUid, targetUid, _myPosition!);
     setState(() {
@@ -182,6 +231,26 @@ class _MeetupShareViewState extends State<MeetupShareView> {
         .doc(shareId)
         .snapshots()
         .listen(_onMeetupShareUpdate);
+
+    // Also listen to peer's live GPS in users collection
+    _peerLocSub?.cancel();
+    _peerLocSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(targetUid)
+        .snapshots()
+        .listen((snap) {
+      if (!snap.exists) return;
+      final data = snap.data();
+      if (data == null) return;
+      final lat = (data['lastLat'] ?? data['latitude'] ?? data['lat']) as num?;
+      final lng = (data['lastLng'] ?? data['longitude'] ?? data['lng']) as num?;
+      if (lat != null && lng != null) {
+        setState(() {
+          _peerPosition = LatLng(lat.toDouble(), lng.toDouble());
+        });
+        _rebuildMeetupLayer();
+      }
+    });
 
     // Countdown timer
     _meetupTimer = Timer.periodic(const Duration(seconds: 1), (t) {
@@ -229,23 +298,42 @@ class _MeetupShareViewState extends State<MeetupShareView> {
     await GeofenceService.cancelMeetupShare(_activeMeetupShareId!);
     _meetupTimer?.cancel();
     _meetupSub?.cancel();
+    _peerLocSub?.cancel();
     setState(() {
       _activeMeetupShareId = null;
       _meetupSecondsLeft = 0;
+      _peerPosition = null;
     });
     _rebuildMeetupLayer();
   }
 
-  void _rebuildMeetupLayer() {
+  Future<void> _rebuildMeetupLayer() async {
     final newMarkers = <Marker>{};
     final newCircles = <Circle>{};
+    final newPolylines = <Polyline>{};
 
     if (_myPosition != null) {
+      final myAvatarIcon = await MapMarkerHelper.createStudentAvatarMarker(
+        name: widget.studentName,
+        profileImageUrl: _studentProfileUrl,
+        borderColor: _neonCyan,
+      );
+
       newMarkers.add(Marker(
         markerId: const MarkerId('me'),
         position: LatLng(_myPosition!.latitude, _myPosition!.longitude),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        icon: myAvatarIcon,
+        zIndex: 10,
         infoWindow: InfoWindow(title: '📍 ${widget.studentName} (You)'),
+      ));
+
+      newCircles.add(Circle(
+        circleId: const CircleId('my_halo'),
+        center: LatLng(_myPosition!.latitude, _myPosition!.longitude),
+        radius: 25,
+        fillColor: _neonCyan.withValues(alpha: 0.15),
+        strokeColor: _neonCyan.withValues(alpha: 0.6),
+        strokeWidth: 2,
       ));
 
       if (_activeMeetupShareId != null) {
@@ -254,21 +342,69 @@ class _MeetupShareViewState extends State<MeetupShareView> {
           circleId: const CircleId('share_radius'),
           center: LatLng(_myPosition!.latitude, _myPosition!.longitude),
           radius: 100,
-          fillColor: _neonCyan.withOpacity(0.1),
+          fillColor: _neonCyan.withValues(alpha: 0.08),
           strokeColor: _neonCyan,
           strokeWidth: 2,
         ));
       }
     }
 
-    setState(() {
-      _markers
-        ..clear()
-        ..addAll(newMarkers);
-      _circles
-        ..clear()
-        ..addAll(newCircles);
-    });
+    if (_peerPosition != null) {
+      final peerAvatarIcon = await MapMarkerHelper.createStudentAvatarMarker(
+        name: _peerName ?? 'Buddy',
+        profileImageUrl: _peerPhotoUrl,
+        borderColor: _neonPink,
+      );
+
+      double distM = 0;
+      if (_myPosition != null) {
+        distM = GeofenceService.haversineMeters(
+            _myPosition!.latitude,
+            _myPosition!.longitude,
+            _peerPosition!.latitude,
+            _peerPosition!.longitude);
+      }
+
+      newMarkers.add(Marker(
+        markerId: const MarkerId('peer'),
+        position: _peerPosition!,
+        icon: peerAvatarIcon,
+        zIndex: 9,
+        infoWindow: InfoWindow(
+          title: '🤝 ${_peerName ?? "Buddy"}',
+          snippet: distM > 0
+              ? '${distM.round()}m away'
+              : 'Sharing live location',
+        ),
+      ));
+
+      if (_myPosition != null) {
+        newPolylines.add(Polyline(
+          polylineId: const PolylineId('meetup_route'),
+          points: [
+            LatLng(_myPosition!.latitude, _myPosition!.longitude),
+            _peerPosition!,
+          ],
+          color: _neonCyan,
+          width: 3,
+          patterns: [PatternItem.dash(15), PatternItem.gap(10)],
+        ));
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _markers
+          ..clear()
+          ..addAll(newMarkers);
+        _circles
+          ..clear()
+          ..addAll(newCircles);
+        _polylines
+          ..clear()
+          ..addAll(newPolylines);
+      });
+    }
   }
 
   String _formatCountdown(int seconds) {
@@ -448,6 +584,30 @@ class _MeetupShareViewState extends State<MeetupShareView> {
         backgroundColor: _bgColor,
         elevation: 0,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Icon(
+              _currentMapType == MapType.satellite
+                  ? Icons.map
+                  : Icons.satellite_alt,
+              color: _neonCyan,
+            ),
+            tooltip: _currentMapType == MapType.satellite
+                ? 'Switch to Dark Mode'
+                : 'Switch to Satellite View',
+            onPressed: () {
+              setState(() {
+                if (_currentMapType == MapType.normal) {
+                  _currentMapType = MapType.satellite;
+                  _mapController?.setMapStyle(null);
+                } else {
+                  _currentMapType = MapType.normal;
+                  _mapController?.setMapStyle(MapMarkerHelper.darkMapStyle);
+                }
+              });
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -465,9 +625,12 @@ class _MeetupShareViewState extends State<MeetupShareView> {
                         : _campusCenter,
                     zoom: 15,
                   ),
+                  mapType: _currentMapType,
                   onMapCreated: (ctrl) {
                     _mapController = ctrl;
-                    _mapController?.setMapStyle(_darkMapStyle);
+                    if (_currentMapType == MapType.normal) {
+                      _mapController?.setMapStyle(MapMarkerHelper.darkMapStyle);
+                    }
                     if (_myPosition != null && !_isCameraInitialized) {
                       _mapController!.animateCamera(
                         CameraUpdate.newCameraPosition(CameraPosition(
@@ -486,11 +649,29 @@ class _MeetupShareViewState extends State<MeetupShareView> {
                   markers: _markers,
                   circles: _circles,
                   polylines: _polylines,
-                  myLocationEnabled: true,
+                  myLocationEnabled: false,
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
                   mapToolbarEnabled: false,
                 ),
+
+                // Fit both students button
+                if (_peerPosition != null && _myPosition != null)
+                  Positioned(
+                    bottom: 16,
+                    left: 16,
+                    child: FloatingActionButton.extended(
+                      heroTag: 'social_fit',
+                      backgroundColor: _cardColor,
+                      onPressed: _fitBoth,
+                      icon: const Icon(Icons.people, color: _neonCyan, size: 18),
+                      label: const Text('Fit Both',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                  ),
 
                 // My location button
                 Positioned(
@@ -759,21 +940,20 @@ class _MeetupShareViewState extends State<MeetupShareView> {
       ],
     );
   }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DARK MAP STYLE
-// ─────────────────────────────────────────────────────────────────────────────
-const String _darkMapStyle = '''
-[
-  {"elementType":"geometry","stylers":[{"color":"#1d2c4d"}]},
-  {"elementType":"labels.text.fill","stylers":[{"color":"#8ec3b9"}]},
-  {"elementType":"labels.text.stroke","stylers":[{"color":"#1a3646"}]},
-  {"featureType":"landscape.natural","elementType":"geometry","stylers":[{"color":"#023e58"}]},
-  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#283d6a"}]},
-  {"featureType":"poi.park","elementType":"geometry.fill","stylers":[{"color":"#023e58"}]},
-  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#304a7d"}]},
-  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#2c6675"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#0e1626"}]}
-]
-''';
+  void _fitBoth() {
+    if (_myPosition == null || _peerPosition == null || _mapController == null) return;
+    final myLatLng = LatLng(_myPosition!.latitude, _myPosition!.longitude);
+    final bounds = LatLngBounds(
+      southwest: LatLng(
+        myLatLng.latitude < _peerPosition!.latitude ? myLatLng.latitude : _peerPosition!.latitude,
+        myLatLng.longitude < _peerPosition!.longitude ? myLatLng.longitude : _peerPosition!.longitude,
+      ),
+      northeast: LatLng(
+        myLatLng.latitude > _peerPosition!.latitude ? myLatLng.latitude : _peerPosition!.latitude,
+        myLatLng.longitude > _peerPosition!.longitude ? myLatLng.longitude : _peerPosition!.longitude,
+      ),
+    );
+    _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
+  }
+}

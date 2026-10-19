@@ -10,6 +10,7 @@ import '../../deliv/presentation/deliv_registration_view.dart';
 import '../../auth/presentation/data_consent_view.dart';
 import '../../match/presentation/match_profile_setup.dart';
 import '../../fundi/presentation/fundi_registration_view.dart';
+import '../../fundi/presentation/fundi_dashboard_view.dart';
 import '../../../core/models/user_model.dart';
 import '../../auth/presentation/login_view.dart';
 import '../../../core/services/secure_storage_service.dart';
@@ -117,7 +118,9 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
 
       setState(() => _isUploading = true);
 
-      final String actualUid = FirebaseAuth.instance.currentUser?.uid ?? widget.userModel.uid;
+      final String actualUid = (FirebaseAuth.instance.currentUser?.uid != null && FirebaseAuth.instance.currentUser!.uid.isNotEmpty)
+          ? FirebaseAuth.instance.currentUser!.uid
+          : widget.userModel.uid;
       final String fileName = 'profile_${actualUid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final Reference storageRef = FirebaseStorage.instance.ref().child('profile_images').child(fileName);
 
@@ -125,15 +128,27 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
       final TaskSnapshot snapshot = await uploadTask;
       final String downloadUrl = await snapshot.ref.getDownloadURL();
 
-      await FirebaseFirestore.instance.collection('users').doc(widget.userModel.uid).update({
+      // Update Firestore user document with all common photo fields for cross-app compatibility
+      await FirebaseFirestore.instance.collection('users').doc(actualUid).set({
         'profileImageUrl': downloadUrl,
-      });
-      
+        'photoUrl': downloadUrl,
+        'photoURL': downloadUrl,
+        'avatarUrl': downloadUrl,
+        'studentImageUrl': downloadUrl,
+        'image': downloadUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Also update FirebaseAuth user profile photo
+      try {
+        await FirebaseAuth.instance.currentUser?.updatePhotoURL(downloadUrl);
+      } catch (_) {}
+
       // Send in-app notification
       await FirebaseFirestore.instance.collection('notifications').add({
         'title': 'Profile Updated',
         'message': 'Looking good! Your new profile picture is live.',
-        'targetUserId': widget.userModel.uid,
+        'targetUserId': actualUid,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -213,8 +228,9 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
           return StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance.collection('users').doc(actualUid).snapshots(),
         builder: (context, snapshot) {
-          final liveImageUrl = snapshot.hasData && snapshot.data!.exists 
-              ? (snapshot.data!.data() as Map<String, dynamic>)['profileImageUrl'] 
+          final rawProfile = snapshot.hasData && snapshot.data!.exists ? snapshot.data!.data() : null;
+          final liveImageUrl = rawProfile != null
+              ? (Map<String, dynamic>.from(rawProfile as Map))['profileImageUrl'] 
               : _localProfileImageUrl;
               
           return ListView(
@@ -356,14 +372,20 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
           
           _buildToggleCard(
             'Comrade Fundi Profile',
-            'Provide services to students and earn extra cash.',
+            widget.userModel.roles.any((r) => r.toLowerCase() == 'fundi')
+                ? 'Manage your active campus gigs, escrow & rate card.'
+                : 'Provide services to students and earn extra cash.',
             Icons.handyman,
             Colors.orangeAccent,
             _isFundiMode,
             (val) {
               setState(() => _isFundiMode = val);
               if (val) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => FundiRegistrationView(userModel: widget.userModel))).then((_) {
+                final bool isAlreadyFundi = widget.userModel.roles.any((r) => r.toLowerCase() == 'fundi');
+                final target = isAlreadyFundi
+                    ? FundiDashboardView(user: widget.userModel.toJson())
+                    : FundiRegistrationView(userModel: widget.userModel);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => target)).then((_) {
                   if (mounted) setState(() => _isFundiMode = false);
                 });
               }

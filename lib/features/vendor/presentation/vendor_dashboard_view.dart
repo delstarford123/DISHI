@@ -51,8 +51,6 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
       return;
     }
 
-    final phoneController = TextEditingController(text: widget.user['phone'] ?? '');
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -363,6 +361,51 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
               VendorSalesTabView(user: widget.user),
               VendorManagementTabView(user: widget.user),
             ];
+
+            final bool isCompact = MediaQuery.of(context).size.width < 640;
+
+            if (isCompact) {
+              return Scaffold(
+                backgroundColor: _bgColor,
+                body: IndexedStack(
+                  index: _selectedIndex,
+                  children: tabs,
+                ),
+                bottomNavigationBar: Container(
+                  decoration: BoxDecoration(
+                    color: _cardColor,
+                    border: Border(
+                      top: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: BottomNavigationBar(
+                    currentIndex: _selectedIndex,
+                    onTap: (int index) {
+                      setState(() {
+                        _selectedIndex = index;
+                      });
+                    },
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    type: BottomNavigationBarType.fixed,
+                    selectedItemColor: _neonOrange,
+                    unselectedItemColor: _textSecondary,
+                    selectedFontSize: 11,
+                    unselectedFontSize: 10,
+                    items: const [
+                      BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+                      BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'Finance'),
+                      BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Operations'),
+                      BottomNavigationBarItem(icon: Icon(Icons.campaign), label: 'Sales & CX'),
+                      BottomNavigationBarItem(icon: Icon(Icons.badge), label: 'Management'),
+                    ],
+                  ),
+                ),
+              );
+            }
 
             return Scaffold(
               backgroundColor: _bgColor,
@@ -680,13 +723,35 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           backgroundColor: _cardColor,
-          title: const Text('Simulate Biometric Scan', style: TextStyle(color: Colors.white)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: _neonPink.withOpacity(0.5))),
+          title: const Row(
+            children: [
+              Icon(Icons.fingerprint, color: _neonPink, size: 28),
+              SizedBox(width: 8),
+              Text('Biometric Hardware Simulation', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.fingerprint, size: 64, color: _neonPink),
-              const SizedBox(height: 16),
-              const Text('Since standard phones block raw fingerprint access, we simulate a hardware match here. Enter the student DISHI ID to simulate a successful hardware match.', style: TextStyle(color: _textSecondary, fontSize: 12)),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: _neonPink.withOpacity(0.12), borderRadius: BorderRadius.circular(12), border: Border.all(color: _neonPink.withOpacity(0.3))),
+                child: const Row(
+                  children: [
+                    Icon(Icons.new_releases, color: _neonPink, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Hardware POS Biometric Reader: Coming Soon!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Phones do not share raw fingerprint sensors with third-party apps. We simulate the external hardware reader here. Enter student DISHI ID to test simulation.',
+                style: TextStyle(color: _textSecondary, fontSize: 12),
+              ),
               const SizedBox(height: 16),
               TextField(
                 controller: dishiIdController,
@@ -694,8 +759,9 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                 decoration: InputDecoration(
                   labelText: 'DISHI ID (Simulated Scan)',
                   labelStyle: const TextStyle(color: _neonPink),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _neonPink.withOpacity(0.5))),
-                  focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _neonPink)),
+                  prefixIcon: const Icon(Icons.badge, color: _neonPink),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _neonPink.withOpacity(0.5))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _neonPink)),
                 ),
               ),
             ],
@@ -707,45 +773,117 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
             ),
             ElevatedButton(
               onPressed: isProcessing ? null : () async {
-                final dishiId = dishiIdController.text.trim();
-                if (dishiId.isEmpty) return;
-
                 setState(() => isProcessing = true);
 
-                try {
-                  final query = await FirebaseFirestore.instance.collection('users').where('dishiId', isEqualTo: dishiId).get();
-                  String? uid;
-                  
-                  if (query.docs.isEmpty) {
-                    final uidQuery = await FirebaseFirestore.instance.collection('users').get();
-                    for (var doc in uidQuery.docs) {
-                      if (doc.id.toUpperCase().startsWith(dishiId.toUpperCase())) {
-                        uid = doc.id;
-                        break;
+                // Simulate hardware reader communication delay
+                await Future.delayed(const Duration(milliseconds: 1400));
+
+                final dishiId = dishiIdController.text.trim();
+                String? uid;
+                String? studentName;
+
+                if (dishiId.isNotEmpty) {
+                  try {
+                    final query = await FirebaseFirestore.instance.collection('users').where('dishiId', isEqualTo: dishiId).get();
+                    if (query.docs.isEmpty) {
+                      final uidQuery = await FirebaseFirestore.instance.collection('users').get();
+                      for (var doc in uidQuery.docs) {
+                        if (doc.id.toUpperCase().startsWith(dishiId.toUpperCase())) {
+                          uid = doc.id;
+                          studentName = (doc.data()['displayName'] as String?) ?? 'Student';
+                          break;
+                        }
                       }
+                    } else {
+                      uid = query.docs.first.id;
+                      studentName = (query.docs.first.data()['displayName'] as String?) ?? 'Student';
                     }
-                  } else {
-                    uid = query.docs.first.id;
-                  }
-
-                  if (uid == null) {
-                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student not found.')));
-                    setState(() => isProcessing = false);
-                    return;
-                  }
-
-                  if (mounted) {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => VendorTopupView(studentUid: uid!)));
-                  }
-                } catch (e) {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                  setState(() => isProcessing = false);
+                  } catch (_) {}
                 }
+
+                if (!context.mounted) return;
+                Navigator.pop(context);
+
+                // Show Simulation Result Dialog: Coming Soon!
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: _cardColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: _neonCyan)),
+                    title: const Row(
+                      children: [
+                        Icon(Icons.check_circle_outline, color: _neonCyan, size: 28),
+                        SizedBox(width: 8),
+                        Text('Simulation Completed', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                      ],
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _neonCyan.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: _neonCyan.withOpacity(0.3)),
+                          ),
+                          child: const Text(
+                            '🚀 Physical Biometric POS Terminal Integration is Coming Soon!',
+                            style: TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Hardware optical fingerprint modules for campus cafeterias are currently in rollout testing. In production, students can pay instantly by touching the stall fingerprint pad.',
+                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
+                        if (uid != null) ...[
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(color: Colors.white.withOpacity(0.06), borderRadius: BorderRadius.circular(10)),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.person, color: _neonCyan, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text('Matched: ${studentName ?? 'Student'}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Dismiss', style: TextStyle(color: _textSecondary)),
+                      ),
+                      if (uid != null)
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => VendorTopupView(studentUid: uid!)));
+                          },
+                          child: const Text('Open Student Profile', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                        ),
+                    ],
+                  ),
+                );
               },
               style: ElevatedButton.styleFrom(backgroundColor: _neonPink),
               child: isProcessing 
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white))
+                ? const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+                      SizedBox(width: 8),
+                      Text('Simulating...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ],
+                  )
                 : const Text('Simulate Match', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],

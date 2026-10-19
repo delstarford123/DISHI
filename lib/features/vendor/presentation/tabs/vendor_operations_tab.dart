@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/services/api_config.dart';
 import '../../../../core/services/secure_http_client.dart';
 import 'dart:convert';
@@ -25,8 +26,17 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
   final _wasteQtyController = TextEditingController();
   bool _isWasteLoading = false;
 
-  // Costing State
+  // Costing State - Beef Stew & Rice & Custom Meals
+  String _selectedMealName = 'Beef Stew & Rice';
+  double _mealSellingPrice = 180.0;
+  List<Map<String, dynamic>> _mealIngredients = [
+    {'name': 'Rice (Grade 1, 200g)', 'cost': 30.0},
+    {'name': 'Beef Cubes (150g)', 'cost': 60.0},
+    {'name': 'Cooking Oil / Gas Energy', 'cost': 15.0},
+    {'name': 'Tomatoes, Onions & Seasoning', 'cost': 10.0},
+  ];
   bool _isCostingLoading = false;
+  bool _isSyncingToMenu = false;
   Map<String, dynamic>? _costingResult;
 
   // Supplier Bidding Controllers
@@ -63,6 +73,19 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
   void initState() {
     super.initState();
     _predictivePrepFuture = _fetchPredictions();
+    _recalculateLocalCosting();
+  }
+
+  void _recalculateLocalCosting() {
+    final totalCost = _mealIngredients.fold<double>(0.0, (acc, i) => acc + (i['cost'] as num).toDouble());
+    final profit = _mealSellingPrice - totalCost;
+    final margin = _mealSellingPrice > 0 ? (profit / _mealSellingPrice) * 100 : 0.0;
+    _costingResult = {
+      'totalCost': totalCost,
+      'profit': profit,
+      'marginPercentage': margin.toStringAsFixed(1),
+      'sellingPrice': _mealSellingPrice,
+    };
   }
 
   Future<List<dynamic>> _fetchPredictions() async {
@@ -81,31 +104,161 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
 
   Future<void> _handleDynamicCosting() async {
     setState(() => _isCostingLoading = true);
+    final totalCost = _mealIngredients.fold<double>(0.0, (acc, i) => acc + (i['cost'] as num).toDouble());
+    final profit = _mealSellingPrice - totalCost;
+    final margin = _mealSellingPrice > 0 ? (profit / _mealSellingPrice) * 100 : 0.0;
+
     try {
       final response = await SecureHttpClient.post(
         '${ApiConfig.baseUrl}/api/v1/vendor_operations/inventory/costing',
         body: {
-          'sellingPrice': 180.0,
-          'ingredients': [
-            {'name': 'Rice (200g)', 'cost': 30},
-            {'name': 'Beef (100g)', 'cost': 60},
-            {'name': 'Cooking Oil / Gas', 'cost': 15}
-          ]
+          'sellingPrice': _mealSellingPrice,
+          'ingredients': _mealIngredients.map((i) => {'name': i['name'], 'cost': i['cost']}).toList(),
         },
       );
 
       if (response.statusCode == 200) {
-        setState(() {
-          _costingResult = jsonDecode(response.body);
-        });
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _costingResult = {
+              'totalCost': (data['totalCost'] ?? totalCost).toDouble(),
+              'profit': (data['profit'] ?? profit).toDouble(),
+              'marginPercentage': (data['marginPercentage'] ?? margin.toStringAsFixed(1)).toString(),
+              'sellingPrice': _mealSellingPrice,
+            };
+          });
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to calculate costing')));
+        if (mounted) {
+          setState(() {
+            _costingResult = {
+              'totalCost': totalCost,
+              'profit': profit,
+              'marginPercentage': margin.toStringAsFixed(1),
+              'sellingPrice': _mealSellingPrice,
+            };
+          });
+        }
       }
     } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error calculating costing')));
+      if (mounted) {
+        setState(() {
+          _costingResult = {
+            'totalCost': totalCost,
+            'profit': profit,
+            'marginPercentage': margin.toStringAsFixed(1),
+            'sellingPrice': _mealSellingPrice,
+          };
+        });
+      }
     } finally {
-      setState(() => _isCostingLoading = false);
+      if (mounted) setState(() => _isCostingLoading = false);
     }
+  }
+
+  Future<void> _handleSyncToMenu() async {
+    setState(() => _isSyncingToMenu = true);
+    try {
+      final vendorId = widget.user['uid'] ?? '';
+      final totalCost = _mealIngredients.fold<double>(0.0, (acc, i) => acc + (i['cost'] as num).toDouble());
+      final profit = _mealSellingPrice - totalCost;
+      final margin = _mealSellingPrice > 0 ? (profit / _mealSellingPrice) * 100 : 0.0;
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('vendor_menus')
+          .where('vendorId', isEqualTo: vendorId)
+          .where('name', isEqualTo: _selectedMealName)
+          .limit(1)
+          .get();
+
+      final data = {
+        'vendorId': vendorId,
+        'name': _selectedMealName,
+        'price': _mealSellingPrice,
+        'description': 'Hearty tender beef slow-braised in savoury tomato gravy served over fragrant steamed white rice.',
+        'imageUrl': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+        'costPerPlate': totalCost,
+        'profitMargin': double.parse(margin.toStringAsFixed(1)),
+        'isAvailable': true,
+        'category': 'Hot Meals',
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (snapshot.docs.isNotEmpty) {
+        await snapshot.docs.first.reference.update(data);
+      } else {
+        data['createdAt'] = FieldValue.serverTimestamp();
+        await FirebaseFirestore.instance.collection('vendor_menus').add(data);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$_selectedMealName synced to Student & Parent Dashboards at KSH ${_mealSellingPrice.toStringAsFixed(0)}!'),
+            backgroundColor: _neonCyan,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to sync to menu: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSyncingToMenu = false);
+    }
+  }
+
+  void _showAddIngredientDialog() {
+    final nameCtrl = TextEditingController();
+    final costCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: _neonOrange)),
+        title: const Text('Add Ingredient / Side', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(labelText: 'Ingredient (e.g. Potatoes, Packaging)', labelStyle: TextStyle(color: _textSecondary)),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: costCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(labelText: 'Cost per Plate (KSH)', labelStyle: TextStyle(color: _textSecondary)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: _textSecondary))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _neonOrange, foregroundColor: Colors.black),
+            onPressed: () {
+              final name = nameCtrl.text.trim();
+              final cost = double.tryParse(costCtrl.text.trim()) ?? 0.0;
+              if (name.isNotEmpty && cost > 0) {
+                setState(() {
+                  _mealIngredients.add({'name': name, 'cost': cost});
+                  _recalculateLocalCosting();
+                });
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Add', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleWasteLog() async {
@@ -276,57 +429,215 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
         
         const SizedBox(height: 32),
 
-        // Dynamic Recipe Costing
-        _buildSectionHeader('Dynamic Costing & Profit Margin', Icons.calculate, _neonOrange),
+        // Dynamic Recipe Costing - Beef Stew & Rice
+        _buildSectionHeader('Dynamic Recipe Costing: $_selectedMealName', Icons.calculate, _neonOrange),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: _cardColor,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _neonOrange.withOpacity(0.3)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Meal Header & Calculate trigger
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Current Meal: Beef Stew & Rice', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  TextButton(
-                    onPressed: _isCostingLoading ? null : _handleDynamicCosting, 
-                    child: _isCostingLoading 
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: _neonOrange, strokeWidth: 2))
-                      : const Text('Calculate', style: TextStyle(color: _neonOrange))
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.restaurant_menu, color: _neonCyan, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedMealName,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        tooltip: 'Add Ingredient',
+                        icon: const Icon(Icons.add_circle, color: _neonOrange, size: 22),
+                        onPressed: _showAddIngredientDialog,
+                      ),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          backgroundColor: _neonOrange.withOpacity(0.12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: _isCostingLoading ? null : _handleDynamicCosting, 
+                        icon: _isCostingLoading 
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: _neonOrange, strokeWidth: 2))
+                          : const Icon(Icons.refresh, size: 16, color: _neonOrange),
+                        label: const Text('Calculate', style: TextStyle(color: _neonOrange, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const Divider(color: _textSecondary),
-              _buildCostRow('Rice (200g)', 'KSH 30'),
-              _buildCostRow('Beef (100g)', 'KSH 60'),
-              _buildCostRow('Cooking Oil / Gas', 'KSH 15'),
-              const Divider(color: _textSecondary),
+              const Divider(color: _textSecondary, height: 20),
               
-              if (_costingResult != null) ...[
-                _buildCostRow('Total Cost', 'KSH ${_costingResult!['totalCost']}', isBold: true),
-                _buildCostRow('Selling Price', 'KSH 180.0', isBold: true, color: _neonCyan),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: _neonCyan.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+              // Ingredients List
+              const Text('Recipe Ingredients & Cost Breakdown:', style: TextStyle(color: _textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              ..._mealIngredients.map((ing) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Profit Margin', style: TextStyle(color: _neonCyan, fontWeight: FontWeight.bold)),
-                      Text('${_costingResult!['marginPercentage']}%', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 18)),
+                      Expanded(
+                        child: Text(
+                          ing['name'],
+                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            'KSH ${(ing['cost'] as num).toStringAsFixed(0)}',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                          ),
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            onTap: () {
+                              if (_mealIngredients.length > 1) {
+                                setState(() {
+                                  _mealIngredients.remove(ing);
+                                  _recalculateLocalCosting();
+                                });
+                              }
+                            },
+                            child: const Icon(Icons.close, color: Colors.white30, size: 16),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                )
-              ] else ...[
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16.0),
-                  child: Center(child: Text('Tap Calculate to see margins.', style: TextStyle(color: _textSecondary))),
-                )
-              ]
+                );
+              }),
+              const Divider(color: _textSecondary, height: 20),
+
+              // Selling Price Adjustment Stepper
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Selling Price per Plate:', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                  Row(
+                    children: [
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.remove_circle_outline, color: _neonCyan, size: 22),
+                        onPressed: () {
+                          if (_mealSellingPrice > 50) {
+                            setState(() {
+                              _mealSellingPrice -= 10;
+                              _recalculateLocalCosting();
+                            });
+                          }
+                        },
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _bgColor,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: _neonCyan.withOpacity(0.5)),
+                        ),
+                        child: Text('KSH ${_mealSellingPrice.toStringAsFixed(0)}', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 15)),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.add_circle_outline, color: _neonCyan, size: 22),
+                        onPressed: () {
+                          setState(() {
+                            _mealSellingPrice += 10;
+                            _recalculateLocalCosting();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Profitability & Margin Results
+              if (_costingResult != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: _bgColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildCostRow('Total Cost per Plate', 'KSH ${_costingResult!['totalCost']}'),
+                      _buildCostRow('Selling Price', 'KSH ${_mealSellingPrice.toStringAsFixed(0)}', color: _neonCyan),
+                      _buildCostRow('Net Profit per Plate', 'KSH ${_costingResult!['profit']}', isBold: true, color: Colors.greenAccent),
+                      const Divider(color: Colors.white12, height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Gross Profit Margin', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: (double.tryParse(_costingResult!['marginPercentage'].toString()) ?? 0) >= 30 
+                                  ? Colors.green.withOpacity(0.2) 
+                                  : Colors.orange.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${_costingResult!['marginPercentage']}%',
+                              style: TextStyle(
+                                color: (double.tryParse(_costingResult!['marginPercentage'].toString()) ?? 0) >= 30 
+                                    ? Colors.greenAccent 
+                                    : Colors.orangeAccent,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Sync to Menu & Student Dashboard Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _neonCyan,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _isSyncingToMenu ? null : _handleSyncToMenu,
+                    icon: _isSyncingToMenu 
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                      : const Icon(Icons.sync_alt, size: 20),
+                    label: Text(
+                      _isSyncingToMenu ? 'Syncing to Student Hub...' : 'Sync $_selectedMealName to Menu & Student App',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -579,11 +890,20 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
       decoration: BoxDecoration(
         color: _cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border(left: BorderSide(color: _neonCyan, width: 4)),
+        border: Border.all(color: _neonCyan.withOpacity(0.3), width: 1),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Container(
+            width: 4,
+            height: 36,
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              color: _neonCyan,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,7 +931,8 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: isBold ? color : _textSecondary, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Expanded(child: Text(label, style: TextStyle(color: isBold ? color : _textSecondary, fontWeight: isBold ? FontWeight.bold : FontWeight.normal))),
+          const SizedBox(width: 8),
           Text(value, style: TextStyle(color: color, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
         ],
       ),

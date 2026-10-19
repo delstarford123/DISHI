@@ -1,6 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crypto/crypto.dart';
+import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
+import '../../../core/services/api_config.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF161B29);
@@ -125,72 +130,114 @@ class _LunchboxPlannerState extends State<LunchboxPlanner> {
 
     try {
       setState(() => _isLoading = true);
-      
-      final parentDoc = await FirebaseFirestore.instance.collection('users').doc(widget.parentUid).get();
-      double vaultBalance = (parentDoc.data()?['vaultBalance'] ?? 0.0).toDouble();
-      
-      if (vaultBalance < item['price']) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient funds in Vault')));
-        return;
-      }
-      
+
       final txId = const Uuid().v4();
-      final batch = FirebaseFirestore.instance.batch();
-      
-      // Deduct from parent
-      batch.update(parentDoc.reference, {'vaultBalance': FieldValue.increment(-item['price'])});
-      
-      // Add to Vendor Wallet instantly
-      final vendorRef = FirebaseFirestore.instance.collection('users').doc(item['vendorId']);
-      batch.update(vendorRef, {'walletBalance': FieldValue.increment(item['price'])});
-      
-      // Add Preorder
-      final preorderRef = FirebaseFirestore.instance.collection('preorders').doc(txId);
-      batch.set(preorderRef, {
-        'studentId': widget.studentUid,
-        'studentName': widget.studentName,
+      final double price = (item['price'] as num).toDouble();
+      final timestamp = DateTime.now().toUtc().toIso8601String();
+
+      // Sign request with HMAC matching backend transaction_routes.py
+      final rawData = '${widget.studentUid}:$price:${item['vendorId']}:$txId:$timestamp';
+      final hmac = Hmac(sha256, utf8.encode('super-secret-vendor-key'));
+      final signature = hmac.convert(utf8.encode(rawData)).toString();
+
+      final payload = {
+        'uid': widget.studentUid,
         'parentUid': widget.parentUid,
+        'amount': price,
         'vendorId': item['vendorId'],
         'vendorName': item['vendorName'],
         'mealName': item['name'],
-        'price': item['price'],
+        'txId': txId,
+        'timestamp': timestamp,
+        'signature': signature,
         'dayOfWeek': _selectedDay,
-        'status': 'pending', // Will be changed to 'fulfilled' by vendor
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      
-      await batch.commit();
-      
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pre-order placed successfully')));
-      _loadData(); // Refresh
+      };
+
+      final response = await http.post(
+        Uri.parse(ApiConfig.transactionPreorder),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Pre-order placed successfully')),
+          );
+        }
+        _loadData();
+      } else {
+        String errMsg = 'Failed to place preorder';
+        try {
+          final parsed = jsonDecode(response.body);
+          errMsg = parsed['error'] ?? 'Server error (${response.statusCode})';
+        } catch (_) {
+          errMsg = 'Server returned error (${response.statusCode})';
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errMsg), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } on TimeoutException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Request timed out. Please try again.'), backgroundColor: Colors.red),
+        );
+      }
     } catch (e) {
-       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
     } finally {
-       if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   void _cancelPreorder(String id, double price, String vendorId) async {
-    // We should refund the parent and deduct from vendor
     try {
       setState(() => _isLoading = true);
-      final batch = FirebaseFirestore.instance.batch();
-      batch.update(FirebaseFirestore.instance.collection('users').doc(widget.parentUid), {
-        'vaultBalance': FieldValue.increment(price)
-      });
-      if (vendorId.isNotEmpty) {
-        batch.update(FirebaseFirestore.instance.collection('users').doc(vendorId), {
-          'walletBalance': FieldValue.increment(-price)
-        });
+
+      final response = await http.post(
+        Uri.parse(ApiConfig.transactionPreorderCancel),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'preorderId': id}),
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Pre-order cancelled and refunded successfully.')),
+          );
+        }
+        _loadData();
+      } else {
+        String errMsg = 'Failed to cancel preorder';
+        try {
+          final parsed = jsonDecode(response.body);
+          errMsg = parsed['error'] ?? 'Server error (${response.statusCode})';
+        } catch (_) {
+          errMsg = 'Server returned error (${response.statusCode})';
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errMsg), backgroundColor: Colors.red),
+          );
+        }
       }
-      batch.delete(FirebaseFirestore.instance.collection('preorders').doc(id));
-      await batch.commit();
-      
-      _loadData();
+    } on TimeoutException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Request timed out. Please try again.'), backgroundColor: Colors.red),
+        );
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
     } finally {
-       if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

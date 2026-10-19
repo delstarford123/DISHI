@@ -522,7 +522,14 @@ class _VendorSalesTabViewState extends State<VendorSalesTabView> {
       children: [
         Icon(icon, color: color),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }
@@ -537,7 +544,7 @@ class _VendorSalesTabViewState extends State<VendorSalesTabView> {
       decoration: BoxDecoration(
         color: _cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border(left: BorderSide(color: sourceColor, width: 4)),
+        border: Border.all(color: sourceColor.withOpacity(0.35), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

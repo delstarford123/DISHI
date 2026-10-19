@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/services/admin_service.dart';
-import '../../../core/theme/mpesa_theme.dart';
 import 'widgets/admin_record_details_dialog.dart';
 import 'admin_b2b_finance_view.dart';
 import 'admin_employee_payroll_view.dart';
@@ -28,7 +27,7 @@ class _AdminC2BCollectionsViewState extends State<AdminC2BCollectionsView> {
   String? _error;
   Map<String, dynamic>? _overview;
   String _searchQuery = '';
-  String _filterType = 'all';
+  String _filterType = 'all'; // all, credited, unmatched
 
   @override
   void initState() {
@@ -71,6 +70,7 @@ class _AdminC2BCollectionsViewState extends State<AdminC2BCollectionsView> {
     final phoneCtrl = TextEditingController(text: '254712345678');
     final amountCtrl = TextEditingController(text: '100');
     final billRefCtrl = TextEditingController(text: 'WALLET-TOPUP');
+    final nameCtrl = TextEditingController(text: 'Comrade Student');
     bool isSimulating = false;
 
     showModalBottomSheet(
@@ -86,93 +86,223 @@ class _AdminC2BCollectionsViewState extends State<AdminC2BCollectionsView> {
             right: 20,
             top: 24,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.bolt, color: Colors.amberAccent, size: 24),
-                      SizedBox(width: 8),
-                      Text('Test C2B Paybill Simulation', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                    ],
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.bolt, color: Colors.amberAccent, size: 24),
+                        SizedBox(width: 8),
+                        Text('Test C2B Paybill Simulation', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white54),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Simulate an inbound Paybill payment to test account resolution, wallet crediting, and ledger updates live.',
+                  style: TextStyle(color: _textSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: phoneCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Customer MSISDN (Phone) *',
+                    labelStyle: const TextStyle(color: _textSecondary),
+                    filled: true,
+                    fillColor: _surfaceLight,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white54),
-                    onPressed: () => Navigator.pop(ctx),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: billRefCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'BillRefNumber (Account Reference) *',
+                    hintText: 'e.g. Phone, Reg No, Student ID, or WALLET',
+                    hintStyle: const TextStyle(color: Colors.white30, fontSize: 11),
+                    labelStyle: const TextStyle(color: _textSecondary),
+                    filled: true,
+                    fillColor: _surfaceLight,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Simulate an inbound Paybill payment to verify confirmation webhook and wallet crediting flow.',
-                style: TextStyle(color: _textSecondary, fontSize: 12),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: phoneCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Customer MSISDN (Phone)',
-                  labelStyle: const TextStyle(color: _textSecondary),
-                  filled: true,
-                  fillColor: _surfaceLight,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: billRefCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'BillRefNumber (Account Reference)',
-                  labelStyle: const TextStyle(color: _textSecondary),
-                  filled: true,
-                  fillColor: _surfaceLight,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Customer Name (Optional)',
+                    labelStyle: const TextStyle(color: _textSecondary),
+                    filled: true,
+                    fillColor: _surfaceLight,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: amountCtrl,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Amount (KES)',
-                  labelStyle: const TextStyle(color: _textSecondary),
-                  filled: true,
-                  fillColor: _surfaceLight,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Amount (KES) *',
+                    labelStyle: const TextStyle(color: _textSecondary),
+                    filled: true,
+                    fillColor: _surfaceLight,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              isSimulating
-                  ? const Center(child: CircularProgressIndicator(color: _neonCyan))
-                  : ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amberAccent,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 20),
+                isSimulating
+                    ? const Center(child: CircularProgressIndicator(color: _neonCyan))
+                    : ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amberAccent,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () async {
+                          final phone = phoneCtrl.text.trim();
+                          final billRef = billRefCtrl.text.trim();
+                          final amount = double.tryParse(amountCtrl.text.trim()) ?? 100.0;
+                          final custName = nameCtrl.text.trim();
+
+                          if (phone.isEmpty || billRef.isEmpty || amount <= 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter valid phone, account reference, and amount'), backgroundColor: _neonRed),
+                            );
+                            return;
+                          }
+
+                          setModalState(() => isSimulating = true);
+                          try {
+                            final result = await _adminService.simulateC2B(
+                              phone: phone,
+                              amount: amount,
+                              billRef: billRef,
+                              customerName: custName.isNotEmpty ? custName : null,
+                            );
+
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx);
+                              final msg = result['message'] ?? 'Simulation completed';
+                              final matched = result['matched'] == true;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(msg),
+                                  backgroundColor: matched ? _neonCyan : Colors.amberAccent,
+                                  duration: const Duration(seconds: 4),
+                                ),
+                              );
+                              _fetchC2BData();
+                            }
+                          } catch (e) {
+                            setModalState(() => isSimulating = false);
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Simulation error: $e'), backgroundColor: _neonRed),
+                              );
+                            }
+                          }
+                        },
+                        child: const Text('Simulate Webhook Inbound', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
-                      onPressed: () async {
-                        setModalState(() => isSimulating = true);
-                        await Future.delayed(const Duration(seconds: 1));
-                        if (ctx.mounted) {
-                          Navigator.pop(ctx);
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showReconcileDialog(Map<String, dynamic> c) {
+    final transId = (c['trans_id'] ?? c['id'] ?? '').toString();
+    final amount = (c['amount'] ?? c['trans_amount'] as num?)?.toDouble() ?? 0.0;
+    final userCtrl = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (dlgCtx, setDlgState) => AlertDialog(
+          backgroundColor: _cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: Row(
+            children: [
+              const Icon(Icons.link, color: _neonCyan),
+              const SizedBox(width: 8),
+              const Text('Link Unmatched Deposit', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Transaction ID: $transId', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              Text('Amount: KES ${amount.toStringAsFixed(2)}', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 14),
+              const Text('Enter target student or vendor User ID to credit their wallet:', style: TextStyle(color: _textSecondary, fontSize: 11)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: userCtrl,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Target User ID (UID) *',
+                  labelStyle: const TextStyle(color: _neonCyan, fontSize: 12),
+                  filled: true,
+                  fillColor: _surfaceLight,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dlgCtx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            ),
+            isSubmitting
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: _neonCyan, strokeWidth: 2))
+                : ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+                    onPressed: () async {
+                      final uid = userCtrl.text.trim();
+                      if (uid.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User ID is required'), backgroundColor: _neonRed));
+                        return;
+                      }
+                      setDlgState(() => isSubmitting = true);
+                      try {
+                        final res = await _adminService.reconcileC2B(transId: transId, userId: uid);
+                        if (dlgCtx.mounted) {
+                          Navigator.pop(dlgCtx);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Simulation packet broadcasted to validation endpoint.'), backgroundColor: _neonCyan),
+                            SnackBar(content: Text(res['message'] ?? 'Deposit reconciled successfully!'), backgroundColor: _neonCyan),
                           );
                           _fetchC2BData();
                         }
-                      },
-                      child: const Text('Simulate Webhook Inbound', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-            ],
-          ),
+                      } catch (e) {
+                        setDlgState(() => isSubmitting = false);
+                        if (dlgCtx.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: _neonRed));
+                        }
+                      }
+                    },
+                    child: const Text('Reconcile & Credit', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+          ],
         ),
       ),
     );
@@ -181,19 +311,30 @@ class _AdminC2BCollectionsViewState extends State<AdminC2BCollectionsView> {
   @override
   Widget build(BuildContext context) {
     final paybill = _overview?['paybill_number'] ?? '4050545';
-    final totalCollected = (_overview?['total_collected'] as num?)?.toDouble() ?? 0.0;
+    final totalCollected = (_overview?['total_collected'] ?? _overview?['total_volume'] as num?)?.toDouble() ?? 0.0;
     final totalTransactions = _overview?['total_transactions'] ?? 0;
+    final unmatchedCount = _overview?['unmatched_count'] ?? 0;
     final collections = (_overview?['recent_collections'] as List<dynamic>?) ?? [];
 
     final filtered = collections.where((c) {
       final receipt = (c['trans_id'] ?? c['mpesaReceiptNumber'] ?? '').toString().toLowerCase();
       final phone = (c['msisdn'] ?? c['phoneNumber'] ?? '').toString().toLowerCase();
       final ref = (c['bill_ref_number'] ?? c['accountReference'] ?? '').toString().toLowerCase();
+      final name = (c['customer_name'] ?? c['first_name'] ?? '').toString().toLowerCase();
+      final status = (c['status'] ?? '').toString().toLowerCase();
+      final isUnmatched = status == 'unmatched' || c['reconciled'] == false;
 
-      return _searchQuery.isEmpty ||
+      final matchesSearch = _searchQuery.isEmpty ||
           receipt.contains(_searchQuery) ||
           phone.contains(_searchQuery) ||
-          ref.contains(_searchQuery);
+          ref.contains(_searchQuery) ||
+          name.contains(_searchQuery);
+
+      if (!matchesSearch) return false;
+
+      if (_filterType == 'credited') return !isUnmatched;
+      if (_filterType == 'unmatched') return isUnmatched;
+      return true;
     }).toList();
 
     return Scaffold(
@@ -319,11 +460,16 @@ class _AdminC2BCollectionsViewState extends State<AdminC2BCollectionsView> {
                         ),
                         Container(width: 1, height: 30, color: Colors.white12),
                         Expanded(
-                          child: _buildCollectionStat('Avg Deposit', totalTransactions > 0 ? 'KES ${(totalCollected / totalTransactions).toStringAsFixed(0)}' : 'KES 0', Icons.analytics, _neonBlue),
+                          child: _buildCollectionStat(
+                            'Avg Deposit',
+                            totalTransactions > 0 ? 'KES ${(totalCollected / totalTransactions).toStringAsFixed(0)}' : 'KES 0',
+                            Icons.analytics,
+                            _neonBlue,
+                          ),
                         ),
                         Container(width: 1, height: 30, color: Colors.white12),
                         Expanded(
-                          child: _buildCollectionStat('Webhooks', '100% OK', Icons.verified, Colors.greenAccent),
+                          child: _buildCollectionStat('Unmatched', '$unmatchedCount', Icons.warning_amber_rounded, unmatchedCount > 0 ? _neonOrange : Colors.greenAccent),
                         ),
                       ],
                     ),
@@ -332,13 +478,13 @@ class _AdminC2BCollectionsViewState extends State<AdminC2BCollectionsView> {
               ),
             ),
 
-            // Search Bar
+            // Search Bar & Filter Tabs
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: TextField(
                 style: const TextStyle(color: Colors.white, fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'Search Receipt (e.g. TI...), Phone, or Account...',
+                  hintText: 'Search Receipt, Customer, Phone, or Account...',
                   hintStyle: const TextStyle(color: _textSecondary, fontSize: 13),
                   filled: true,
                   fillColor: _surfaceLight,
@@ -350,7 +496,20 @@ class _AdminC2BCollectionsViewState extends State<AdminC2BCollectionsView> {
                 onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  _buildFilterChip('all', 'All Deposits (${collections.length})'),
+                  _buildFilterChip('credited', 'Auto-Credited'),
+                  _buildFilterChip('unmatched', 'Unmatched ($unmatchedCount)'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
 
             // Inbound Collections Stream
             Expanded(
@@ -404,6 +563,20 @@ class _AdminC2BCollectionsViewState extends State<AdminC2BCollectionsView> {
     );
   }
 
+  Widget _buildFilterChip(String filterKey, String label) {
+    final isSelected = _filterType == filterKey;
+    return Padding(
+      padding: const EdgeInsets.only(right: 6.0),
+      child: ChoiceChip(
+        label: Text(label, style: TextStyle(color: isSelected ? Colors.black : Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+        selected: isSelected,
+        selectedColor: _neonCyan,
+        backgroundColor: _surfaceLight,
+        onSelected: (val) => setState(() => _filterType = filterKey),
+      ),
+    );
+  }
+
   Widget _buildCollectionStat(String label, String value, IconData icon, Color color) {
     return Column(
       children: [
@@ -423,12 +596,15 @@ class _AdminC2BCollectionsViewState extends State<AdminC2BCollectionsView> {
     final account = c['bill_ref_number'] ?? c['accountReference'] ?? 'General Deposit';
     final name = '${c['first_name'] ?? ''} ${c['last_name'] ?? ''}'.trim();
     final time = c['trans_time']?.toString() ?? c['timestamp']?.toString() ?? 'Recent';
+    final status = (c['status'] ?? '').toString();
+    final isUnmatched = status == 'unmatched' || c['reconciled'] == false;
+    final matchedUser = c['matched_user_name']?.toString() ?? '';
 
     return Card(
       color: _cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: Colors.greenAccent.withOpacity(0.2)),
+        side: BorderSide(color: isUnmatched ? _neonOrange.withOpacity(0.5) : Colors.greenAccent.withOpacity(0.2)),
       ),
       margin: const EdgeInsets.only(bottom: 10),
       child: InkWell(
@@ -454,8 +630,15 @@ class _AdminC2BCollectionsViewState extends State<AdminC2BCollectionsView> {
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.12), shape: BoxShape.circle),
-                          child: const Icon(Icons.arrow_downward, color: Colors.greenAccent, size: 18),
+                          decoration: BoxDecoration(
+                            color: (isUnmatched ? _neonOrange : Colors.greenAccent).withOpacity(0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isUnmatched ? Icons.help_outline : Icons.arrow_downward,
+                            color: isUnmatched ? _neonOrange : Colors.greenAccent,
+                            size: 18,
+                          ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -477,8 +660,18 @@ class _AdminC2BCollectionsViewState extends State<AdminC2BCollectionsView> {
                       const SizedBox(height: 2),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
-                        child: const Text('AUTO-CREDITED', style: TextStyle(color: Colors.greenAccent, fontSize: 9, fontWeight: FontWeight.bold)),
+                        decoration: BoxDecoration(
+                          color: (isUnmatched ? _neonOrange : Colors.greenAccent).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          isUnmatched ? 'UNMATCHED DEPOSIT' : 'AUTO-CREDITED',
+                          style: TextStyle(
+                            color: isUnmatched ? _neonOrange : Colors.greenAccent,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -491,11 +684,34 @@ class _AdminC2BCollectionsViewState extends State<AdminC2BCollectionsView> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Account: $account', style: const TextStyle(color: _textSecondary, fontSize: 11)),
+                    Flexible(
+                      child: Text(
+                        'Account: $account${matchedUser.isNotEmpty ? " • User: $matchedUser" : ""}',
+                        style: const TextStyle(color: _textSecondary, fontSize: 11),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     Text(time, style: const TextStyle(color: _textSecondary, fontSize: 10)),
                   ],
                 ),
               ),
+              if (isUnmatched) ...[
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _neonOrange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => _showReconcileDialog(c),
+                    icon: const Icon(Icons.link, size: 14),
+                    label: const Text('Link to Student / Vendor', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

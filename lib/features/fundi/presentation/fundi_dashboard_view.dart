@@ -9,6 +9,7 @@ import 'widgets/fundi_payout_dialog.dart';
 import 'widgets/fundi_invoice_generator_dialog.dart';
 import 'widgets/fundi_service_manager_dialog.dart';
 import 'widgets/fundi_profile_sheet.dart';
+import '../../student/presentation/student_main_scaffold.dart';
 
 // -- CUSTOM DESIGN COLORS --
 const Color _bgColor = Color(0xFF0C101B);
@@ -479,23 +480,42 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
           ),
           child: Row(
             children: [
+              // Return / Back to Student Dashboard Button
+              IconButton(
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(),
+                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white70, size: 18),
+                onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => StudentMainScaffold(user: widget.user)),
+                    );
+                  }
+                },
+                tooltip: 'Student Dashboard',
+              ),
+              const SizedBox(width: 8),
+
               // Avatar with Online Indicator Dot
               Stack(
                 children: [
                   CircleAvatar(
-                    radius: 20,
+                    radius: 18,
                     backgroundColor: _surfaceLight,
                     child: Text(
                       _fundiName.isNotEmpty ? _fundiName[0].toUpperCase() : 'F',
-                      style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 16),
+                      style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                   ),
                   Positioned(
                     right: 0,
                     bottom: 0,
                     child: Container(
-                      width: 12,
-                      height: 12,
+                      width: 10,
+                      height: 10,
                       decoration: BoxDecoration(
                         color: isOnline ? _neonCyan : Colors.grey,
                         shape: BoxShape.circle,
@@ -505,7 +525,7 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
                   ),
                 ],
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
 
               // Title & Greeting
               Expanded(
@@ -515,14 +535,20 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
                   children: [
                     Row(
                       children: [
-                        Text('${_getGreeting()},', style: const TextStyle(color: _textSecondary, fontSize: 11)),
+                        Flexible(
+                          child: Text(
+                            '${_getGreeting()},',
+                            style: const TextStyle(color: _textSecondary, fontSize: 11),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         const SizedBox(width: 4),
                         const Icon(Icons.verified, color: _neonCyan, size: 12),
                       ],
                     ),
                     Text(
                       _fundiName,
-                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -535,7 +561,7 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
                 onTap: _toggleAvailability,
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: isOnline ? _neonCyan.withOpacity(0.15) : Colors.white.withOpacity(0.06),
                     borderRadius: BorderRadius.circular(20),
@@ -548,19 +574,19 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 7,
-                        height: 7,
+                        width: 6,
+                        height: 6,
                         decoration: BoxDecoration(
                           color: isOnline ? _neonCyan : Colors.grey,
                           shape: BoxShape.circle,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 5),
                       Text(
                         isOnline ? 'Online' : 'Offline',
                         style: TextStyle(
                           color: isOnline ? _neonCyan : Colors.white60,
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -568,17 +594,22 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
 
               // Search Icon
               IconButton(
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(),
                 icon: const Icon(Icons.search, color: Colors.white70, size: 20),
                 onPressed: () => setState(() => _isSearching = true),
                 tooltip: 'Search Gigs',
               ),
+              const SizedBox(width: 4),
 
               // Settings / Profile Sheet
               IconButton(
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(),
                 icon: const Icon(Icons.tune, color: Colors.white70, size: 20),
                 onPressed: () => _openProfileSheet(profile),
                 tooltip: 'Fundi Settings',
@@ -749,20 +780,29 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: MPesaTheme.primaryGreen.withOpacity(0.18),
-                      shape: BoxShape.circle,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: MPesaTheme.primaryGreen.withOpacity(0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.account_balance_wallet, color: MPesaTheme.primaryGreen, size: 18),
                     ),
-                    child: const Icon(Icons.account_balance_wallet, color: MPesaTheme.primaryGreen, size: 20),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text('Withdrawable Balance', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
-                ],
+                    const SizedBox(width: 8),
+                    const Flexible(
+                      child: Text(
+                        'Withdrawable Balance',
+                        style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -789,23 +829,26 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Locked in DISHI Escrow', style: TextStyle(color: _textSecondary, fontSize: 11)),
-                  const SizedBox(height: 2),
-                  Text('KES ${inEscrow.toStringAsFixed(2)}', style: const TextStyle(color: _neonCyan, fontSize: 14, fontWeight: FontWeight.bold)),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Locked in DISHI Escrow', style: TextStyle(color: _textSecondary, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 2),
+                    Text('KES ${inEscrow.toStringAsFixed(2)}', style: const TextStyle(color: _neonCyan, fontSize: 14, fontWeight: FontWeight.bold)),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               ElevatedButton.icon(
                 onPressed: balance >= 50 ? () => _openPayoutDialog(balance) : null,
-                icon: const Icon(Icons.bolt, color: Colors.black, size: 16),
-                label: const Text('Withdraw M-PESA', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                icon: const Icon(Icons.bolt, color: Colors.black, size: 15),
+                label: const Text('Withdraw M-PESA', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: MPesaTheme.primaryGreen,
                   disabledBackgroundColor: Colors.white12,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 ),
               ),
             ],
@@ -819,11 +862,11 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
     return Row(
       children: [
         Expanded(child: _metricCard('Active Gigs', '$active', Icons.work, _neonCyan)),
-        const SizedBox(width: 8),
-        Expanded(child: _metricCard('Pending Requests', '$pending', Icons.notifications_active, pending > 0 ? _neonOrange : _textSecondary)),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
+        Expanded(child: _metricCard('Pending', '$pending', Icons.notifications_active, pending > 0 ? _neonOrange : _textSecondary)),
+        const SizedBox(width: 6),
         Expanded(child: _metricCard('Completed', '$completed', Icons.task_alt, MPesaTheme.primaryGreen)),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         Expanded(child: _metricCard('Rating', rating.toStringAsFixed(1), Icons.star, Colors.amber)),
       ],
     );
@@ -831,7 +874,7 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
 
   Widget _metricCard(String title, String val, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
       decoration: BoxDecoration(
         color: _cardColor,
         borderRadius: BorderRadius.circular(14),
@@ -840,15 +883,20 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
       child: Column(
         children: [
           Icon(icon, color: color, size: 18),
-          const SizedBox(height: 6),
-          Text(val, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(val, style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.bold)),
+          ),
           const SizedBox(height: 2),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: _textSecondary, fontSize: 10),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _textSecondary, fontSize: 10),
+              maxLines: 1,
+            ),
           ),
         ],
       ),
@@ -893,19 +941,23 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: color.withOpacity(0.25)),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 6),
-            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
-          ],
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 4),
+              Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+            ],
+          ),
         ),
       ),
     );
@@ -941,42 +993,54 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _neonCyan,
-                      borderRadius: BorderRadius.circular(6),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _neonCyan,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text('CURRENT TASK', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 10)),
                     ),
-                    child: const Text('CURRENT TASK', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 10)),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(6),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          status.toUpperCase(),
+                          style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ),
-                    child: Text(status.toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 6),
               Text(
                 'KES ${amount.toStringAsFixed(0)}',
-                style: const TextStyle(color: _neonCyan, fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: _neonCyan, fontSize: 17, fontWeight: FontWeight.bold),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(title, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+          Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Row(
             children: [
               const Icon(Icons.person, color: _textSecondary, size: 14),
               const SizedBox(width: 4),
-              Text('Client: $clientName', style: const TextStyle(color: _textSecondary, fontSize: 12)),
-              const SizedBox(width: 12),
+              Flexible(
+                child: Text('Client: $clientName', style: const TextStyle(color: _textSecondary, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+              const SizedBox(width: 10),
               const Icon(Icons.location_on, color: _textSecondary, size: 14),
               const SizedBox(width: 4),
               Expanded(
@@ -991,57 +1055,93 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
             children: [
               if (phone.isNotEmpty) ...[
                 Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.phone, size: 14, color: _neonCyan),
-                    label: const Text('Call', style: TextStyle(color: _neonCyan, fontSize: 12)),
+                  child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: _neonCyan),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: () => _callPhone(phone),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.phone, size: 14, color: _neonCyan),
+                          SizedBox(width: 4),
+                          Text('Call', style: TextStyle(color: _neonCyan, fontSize: 12)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.chat, size: 14, color: Colors.white),
-                    label: const Text('WhatsApp', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF25D366),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: () => _launchWhatsApp(phone, customMessage: 'Hi $clientName! I am on my way for your DISHI gig: $title.'),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.chat, size: 14, color: Colors.white),
+                          SizedBox(width: 4),
+                          Text('WhatsApp', style: TextStyle(color: Colors.white, fontSize: 12)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
               ],
               if (status == 'accepted')
                 Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.play_arrow, color: Colors.black, size: 16),
-                    label: const Text('Start Work', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                  child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _neonBlue,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: () => _updateJobProgress(jobId, 'in_progress'),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.play_arrow, color: Colors.black, size: 15),
+                          SizedBox(width: 4),
+                          Text('Start', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                        ],
+                      ),
+                    ),
                   ),
                 )
               else
                 Expanded(
                   flex: phone.isNotEmpty ? 1 : 2,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.check_circle_outline, color: Colors.black, size: 16),
-                    label: const Text('Complete', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                  child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _neonCyan,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: () => _markJobComplete(jobId, amount),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle_outline, color: Colors.black, size: 15),
+                          SizedBox(width: 4),
+                          Text('Complete', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -1058,13 +1158,22 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.notifications_active, color: _neonOrange, size: 18),
-                const SizedBox(width: 6),
-                const Text('Action Needed: New Gig Requests', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-              ],
+            const Expanded(
+              child: Row(
+                children: [
+                  Icon(Icons.notifications_active, color: _neonOrange, size: 18),
+                  SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'Action Needed: New Gig Requests',
+                      style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(color: _neonOrange, borderRadius: BorderRadius.circular(10)),
@@ -1746,28 +1855,31 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(color: _neonCyan.withOpacity(0.15), shape: BoxShape.circle),
-                  child: const Icon(Icons.price_check, color: _neonCyan, size: 28),
+                  child: const Icon(Icons.price_check, color: _neonCyan, size: 24),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
+                const SizedBox(width: 10),
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('My Public Rate Card', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Services listed here are visible to students and staff hiring you on DISHI.',
+                      Text('My Public Rate Card', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                      SizedBox(height: 2),
+                      Text(
+                        'Services visible to students hiring you.',
                         style: TextStyle(color: _textSecondary, fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 ElevatedButton.icon(
                   onPressed: _openServiceManagerDialog,
-                  icon: const Icon(Icons.add, size: 16, color: Colors.black),
-                  label: const Text('Add Service', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11)),
+                  icon: const Icon(Icons.add, size: 14, color: Colors.black),
+                  label: const Text('Add', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _neonCyan,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

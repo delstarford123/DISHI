@@ -236,7 +236,7 @@ class _DailyFocusViewState extends State<DailyFocusView> {
               decoration: BoxDecoration(
                 color: Colors.grey.shade50,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                border: Border.all(color: Colors.grey.shade200),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,

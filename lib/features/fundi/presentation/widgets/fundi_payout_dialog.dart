@@ -251,22 +251,27 @@ class _FundiPayoutDialogState extends State<FundiPayoutDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: MPesaTheme.primaryGreen.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(10),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: MPesaTheme.primaryGreen.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.account_balance_wallet, color: MPesaTheme.primaryGreen, size: 22),
                         ),
-                        child: const Icon(Icons.account_balance_wallet, color: MPesaTheme.primaryGreen, size: 22),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Withdraw Earnings',
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        const Flexible(
+                          child: Text(
+                            'Withdraw Earnings',
+                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white54, size: 20),
@@ -474,9 +479,12 @@ class _FundiPayoutDialogState extends State<FundiPayoutDialog> {
                               width: 20,
                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                             )
-                          : const Text(
-                              'Confirm Withdrawal',
-                              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14),
+                          : const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'Confirm Withdrawal',
+                                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
                             ),
                     ),
                   ),

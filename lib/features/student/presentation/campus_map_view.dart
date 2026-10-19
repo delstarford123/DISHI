@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/geofence_service.dart';
 import '../../../core/theme/mpesa_theme.dart';
+import '../../../core/utils/map_marker_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -131,14 +132,31 @@ class _CampusMapViewState extends State<CampusMapView> {
 
   // Danger zone warning
   bool _showDangerWarning = false;
-  String _dangerZoneName = '';
+  String _studentName = 'Student';
+  String? _studentProfileUrl;
+  MapType _currentMapType = MapType.normal;
 
   @override
   void initState() {
     super.initState();
+    _loadStudentProfile();
     _startLocationWatch();
     _loadCampusEvents();
     _loadDangerZones();
+  }
+
+  Future<void> _loadStudentProfile() async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(widget.studentUid).get();
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        setState(() {
+          _studentName = (data['displayName'] ?? data['name'] ?? 'Student') as String;
+          _studentProfileUrl = (data['profileImageUrl'] ?? data['photoUrl']) as String?;
+        });
+        _rebuildMap();
+      }
+    } catch (_) {}
   }
 
   @override
@@ -275,7 +293,6 @@ class _CampusMapViewState extends State<CampusMapView> {
           .get();
       for (final doc in snap.docs) {
         final data = doc.data();
-        final name = data['name'] as String? ?? 'Restricted';
         final vertices = (data['polygon'] as List<dynamic>? ?? [])
             .map((v) => LatLng(
                   (v['lat'] as num).toDouble(),
@@ -301,7 +318,7 @@ class _CampusMapViewState extends State<CampusMapView> {
   // MAP OBJECT BUILDER
   // ─────────────────────────────────────────────────────────────────────────
 
-  void _rebuildMap() {
+  Future<void> _rebuildMap() async {
     final newMarkers = <Marker>{};
     final newPolylines = <Polyline>{};
     final newCircles = <Circle>{};
@@ -370,8 +387,8 @@ class _CampusMapViewState extends State<CampusMapView> {
           ? LatLng(_myPosition!.latitude, _myPosition!.longitude) 
           : _campusCenter,
       radius: _campusRadius,
-      fillColor: _neonCyan.withOpacity(0.04),
-      strokeColor: _neonCyan.withOpacity(0.3),
+      fillColor: _neonCyan.withValues(alpha: 0.04),
+      strokeColor: _neonCyan.withValues(alpha: 0.3),
       strokeWidth: 1,
     ));
 
@@ -393,34 +410,50 @@ class _CampusMapViewState extends State<CampusMapView> {
           circleId: CircleId('event_zone_${event['id']}'),
           center: LatLng(lat, lng),
           radius: (event['radiusMeters'] as num?)?.toDouble() ?? 50,
-          fillColor: Colors.purple.withOpacity(0.12),
+          fillColor: Colors.purple.withValues(alpha: 0.12),
           strokeColor: Colors.purple,
           strokeWidth: 1,
         ));
       }
     }
 
-    // My position marker
+    // My position avatar marker
     if (_myPosition != null) {
+      final avatarIcon = await MapMarkerHelper.createStudentAvatarMarker(
+        name: _studentName,
+        profileImageUrl: _studentProfileUrl,
+        borderColor: _neonCyan,
+      );
       newMarkers.add(Marker(
         markerId: const MarkerId('me'),
         position: LatLng(_myPosition!.latitude, _myPosition!.longitude),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-        infoWindow: const InfoWindow(title: '📍 You are here'),
+        icon: avatarIcon,
+        zIndex: 10,
+        infoWindow: InfoWindow(title: '📍 $_studentName', snippet: 'Your current location'),
+      ));
+      newCircles.add(Circle(
+        circleId: const CircleId('my_accuracy_halo'),
+        center: LatLng(_myPosition!.latitude, _myPosition!.longitude),
+        radius: 25,
+        fillColor: _neonCyan.withValues(alpha: 0.16),
+        strokeColor: _neonCyan.withValues(alpha: 0.6),
+        strokeWidth: 2,
       ));
     }
 
-    setState(() {
-      _markers
-        ..clear()
-        ..addAll(newMarkers);
-      _polylines
-        ..clear()
-        ..addAll(newPolylines);
-      _circles
-        ..clear()
-        ..addAll(newCircles);
-    });
+    if (mounted) {
+      setState(() {
+        _markers
+          ..clear()
+          ..addAll(newMarkers);
+        _polylines
+          ..clear()
+          ..addAll(newPolylines);
+        _circles
+          ..clear()
+          ..addAll(newCircles);
+      });
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -570,9 +603,6 @@ class _CampusMapViewState extends State<CampusMapView> {
 
   @override
   Widget build(BuildContext context) {
-    // Rebuild map when filter changes
-    _rebuildMap();
-
     return Scaffold(
       backgroundColor: _bgColor,
       extendBodyBehindAppBar: true,
@@ -588,14 +618,35 @@ class _CampusMapViewState extends State<CampusMapView> {
             prefixIcon: Icon(Icons.search, color: _textSecondary),
           ),
         ),
-        backgroundColor: _bgColor.withOpacity(0.92),
+        backgroundColor: _bgColor.withValues(alpha: 0.92),
         elevation: 0,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Icon(
+              _currentMapType == MapType.satellite ? Icons.map : Icons.satellite_alt,
+              color: _neonCyan,
+            ),
+            tooltip: _currentMapType == MapType.satellite ? 'Switch to Dark Mode' : 'Switch to Satellite View',
+            onPressed: () {
+              setState(() {
+                if (_currentMapType == MapType.normal) {
+                  _currentMapType = MapType.satellite;
+                  _mapController?.setMapStyle(null);
+                } else {
+                  _currentMapType = MapType.normal;
+                  _mapController?.setMapStyle(MapMarkerHelper.darkMapStyle);
+                }
+              });
+            },
+          ),
+        ],
       ),
       body: Stack(
         children: [
           // ── GOOGLE MAP ────────────────────────────────────────────────────
           GoogleMap(
+            mapType: _currentMapType,
             initialCameraPosition: CameraPosition(
               target: _myPosition != null
                   ? LatLng(_myPosition!.latitude, _myPosition!.longitude)
@@ -604,7 +655,9 @@ class _CampusMapViewState extends State<CampusMapView> {
             ),
             onMapCreated: (ctrl) {
               _mapController = ctrl;
-              _mapController?.setMapStyle(_darkMapStyle);
+              if (_currentMapType == MapType.normal) {
+                _mapController?.setMapStyle(MapMarkerHelper.darkMapStyle);
+              }
               if (_myPosition != null && !_isCameraInitialized) {
                 _mapController!.animateCamera(
                   CameraUpdate.newCameraPosition(CameraPosition(
@@ -677,25 +730,45 @@ class _CampusMapViewState extends State<CampusMapView> {
             ),
           ),
 
-          // ── MY LOCATION BUTTON ────────────────────────────────────────────
+          // ── FLOATING CAMERA CONTROLS ─────────────────────────────────────
           Positioned(
-            bottom: 160,
+            bottom: 155,
             right: 16,
-            child: FloatingActionButton.small(
-              heroTag: 'campus_locate',
-              backgroundColor: _cardColor,
-              onPressed: () {
-                if (_myPosition != null) {
-                  _mapController?.animateCamera(
-                    CameraUpdate.newCameraPosition(CameraPosition(
-                      target: LatLng(
-                          _myPosition!.latitude, _myPosition!.longitude),
-                      zoom: 17,
-                    )),
-                  );
-                }
-              },
-              child: const Icon(Icons.my_location, color: _neonCyan),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton.small(
+                  heroTag: 'campus_locate_me',
+                  backgroundColor: _cardColor,
+                  tooltip: 'Center on Me',
+                  onPressed: () {
+                    if (_myPosition != null) {
+                      _mapController?.animateCamera(
+                        CameraUpdate.newCameraPosition(CameraPosition(
+                          target: LatLng(_myPosition!.latitude, _myPosition!.longitude),
+                          zoom: 17,
+                        )),
+                      );
+                    }
+                  },
+                  child: const Icon(Icons.my_location, color: _neonCyan),
+                ),
+                const SizedBox(height: 8),
+                FloatingActionButton.small(
+                  heroTag: 'campus_center_btn',
+                  backgroundColor: _cardColor,
+                  tooltip: 'Center on Campus',
+                  onPressed: () {
+                    _mapController?.animateCamera(
+                      CameraUpdate.newCameraPosition(const CameraPosition(
+                        target: _campusCenter,
+                        zoom: 15.5,
+                      )),
+                    );
+                  },
+                  child: const Icon(Icons.school, color: _neonBlue),
+                ),
+              ],
             ),
           ),
 
@@ -773,7 +846,10 @@ class _CampusMapViewState extends State<CampusMapView> {
   Widget _filterPill(_MapFilter filter, String label) {
     final isActive = _activeFilter == filter;
     return GestureDetector(
-      onTap: () => setState(() => _activeFilter = filter),
+      onTap: () {
+        setState(() => _activeFilter = filter);
+        _rebuildMap();
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(right: 8),
@@ -797,19 +873,4 @@ class _CampusMapViewState extends State<CampusMapView> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DARK MAP STYLE
-// ─────────────────────────────────────────────────────────────────────────────
-const String _darkMapStyle = '''
-[
-  {"elementType":"geometry","stylers":[{"color":"#1d2c4d"}]},
-  {"elementType":"labels.text.fill","stylers":[{"color":"#8ec3b9"}]},
-  {"elementType":"labels.text.stroke","stylers":[{"color":"#1a3646"}]},
-  {"featureType":"landscape.natural","elementType":"geometry","stylers":[{"color":"#023e58"}]},
-  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#283d6a"}]},
-  {"featureType":"poi.park","elementType":"geometry.fill","stylers":[{"color":"#023e58"}]},
-  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#304a7d"}]},
-  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#2c6675"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#0e1626"}]}
-]
-''';
+

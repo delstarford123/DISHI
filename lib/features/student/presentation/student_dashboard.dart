@@ -11,7 +11,7 @@ import '../../auth/presentation/login_view.dart';
 import '../../match/presentation/match_hub_view.dart';
 import '../../deliv/presentation/deliv_driver_dashboard.dart';
 import '../../deliv/presentation/deliv_registration_view.dart';
-import '../../../core/services/secure_storage_service.dart';
+import '../../../core/security/secure_storage_service.dart';
 import 'student_ledger_view.dart';
 import 'student_preorders_view.dart';
 import 'student_transfers_view.dart';
@@ -21,6 +21,8 @@ import 'split_bill_view.dart';
 import 'okoa_food_view.dart';
 import 'all_features_view.dart';
 import 'virtual_card_view.dart';
+import 'request_funds_view.dart';
+import '../../marketplace/presentation/escrow_market_view.dart';
 import 'student_profile_settings.dart';
 import '../../games/presentation/games_hub_view.dart';
 import '../../games/presentation/redeem_store_view.dart';
@@ -32,6 +34,9 @@ import '../../../shared/presentation/universal_support_widget.dart';
 import '../../../core/services/fcm_service.dart';
 import '../../../core/services/location_service.dart';
 import 'campus_map_view.dart';
+import '../../fundi/presentation/fundi_dashboard_view.dart';
+import '../../fundi/presentation/fundi_registration_view.dart';
+import '../../fundi/presentation/fundi_marketplace_view.dart';
 
 import 'dart:convert';
 import 'dart:async';
@@ -98,8 +103,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
   @override
   void initState() {
     super.initState();
-    _userProfileStream = FirebaseAuth.instance.currentUser != null 
-        ? _firestoreService.streamCurrentUserProfile() 
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? widget.user['uid'] as String? ?? '';
+    _userProfileStream = uid.isNotEmpty
+        ? FirebaseFirestore.instance.collection('users').doc(uid).snapshots()
         : const Stream.empty();
     _loadFeatureOrder();
     
@@ -244,84 +250,109 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
           builder: (context, snapshot) {
             UserModel userModel;
             
-            if (FirebaseAuth.instance.currentUser == null || snapshot.hasError || (!snapshot.hasData && snapshot.connectionState != ConnectionState.waiting)) {
-              // OFFLINE FALLBACK: Use the user data passed in the constructor
-              userModel = UserModel.fromJson(widget.user, widget.user['uid'] ?? 'offline_user');
-            } else if (snapshot.connectionState == ConnectionState.waiting) {
+            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
               return const Center(child: CircularProgressIndicator(color: _neonCyan));
-            } else if (!snapshot.data!.exists) {
-              return const Center(child: Text('Profile not found', style: TextStyle(color: Colors.white)));
-            } else {
-              // Parse live Firestore data into UserModel
+            }
+
+            if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
               userModel = UserModel.fromJson(
                 Map<String, dynamic>.from(snapshot.data!.data() as Map), 
-                snapshot.data!.id
+                snapshot.data!.id,
               );
+            } else {
+              userModel = UserModel.fromJson(widget.user, widget.user['uid'] ?? 'offline_user');
             }
 
             return Stack(
               children: [
-                CustomScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  slivers: [
-                    SliverAppBar(
-                      expandedHeight: 80,
-                      floating: true,
-                      pinned: false,
-                      automaticallyImplyLeading: false,
-                      backgroundColor: _bgColor,
-                      elevation: 0,
-                      flexibleSpace: FlexibleSpaceBar(
-                        background: Padding(
-                          padding: EdgeInsets.only(left: 16, right: 16, top: MediaQuery.of(context).padding.top + 8),
-                          child: _buildCustomAppBar(userModel),
+                RefreshIndicator(
+                  color: _neonCyan,
+                  backgroundColor: _cardColor,
+                  onRefresh: () async {
+                    final uid = FirebaseAuth.instance.currentUser?.uid ?? widget.user['uid'] as String? ?? '';
+                    if (uid.isNotEmpty) {
+                      try {
+                        await FirebaseFirestore.instance.collection('users').doc(uid).get(const GetOptions(source: Source.server));
+                      } catch (_) {}
+                    }
+                  },
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+                    slivers: [
+                      SliverAppBar(
+                        expandedHeight: 80,
+                        floating: true,
+                        pinned: false,
+                        automaticallyImplyLeading: false,
+                        backgroundColor: _bgColor,
+                        elevation: 0,
+                        flexibleSpace: FlexibleSpaceBar(
+                          background: Padding(
+                            padding: EdgeInsets.only(left: 16, right: 16, top: MediaQuery.of(context).padding.top + 8),
+                            child: _buildCustomAppBar(userModel),
+                          ),
                         ),
                       ),
-                    ),
-                    SliverPadding(
-                      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
-                      sliver: SliverList(
-                        delegate: SliverChildListDelegate([
-                          const SizedBox(height: 16),
-                          _buildSmartCampusContextBar(),
-                          const SizedBox(height: 14),
-                          _buildDriverModeToggle(userModel),
-                          const SizedBox(height: 14),
-                          _buildVipBadge(),
-                          const SizedBox(height: 16),
-                          _buildBalancePageView(userModel),
-                          const SizedBox(height: 8),
-                          _buildPaginationDots(),
-                          const SizedBox(height: 20),
-                          _buildSendAgainTray(userModel),
-                          const SizedBox(height: 18),
-                          _buildStreakAndRewardsBar(userModel),
-                          const SizedBox(height: 20),
-                          _buildUpNextClassCard(userModel),
-                          const SizedBox(height: 20),
-                          _buildLiveActiveOrderStream(userModel),
-                          const SizedBox(height: 20),
-                          _buildFlashSalesTicker(userModel),
-                          const SizedBox(height: 24),
-                          _buildQuickActions(userModel),
-                          const SizedBox(height: 24),
-                          _buildWeeklyBurnRateCard(userModel),
-                          const SizedBox(height: 24),
-                          _buildKejaDueTracker(userModel),
-                          const SizedBox(height: 28),
-                          _buildCampusEcosystemHub(userModel),
-                          const SizedBox(height: 28),
-                          _buildCampusVendorsSpotlight(userModel),
-                          const SizedBox(height: 28),
-                          _buildSafetyCard(userModel),
-                          const SizedBox(height: 16),
-                          _buildDishiIdCard(userModel),
-                          const SizedBox(height: 16),
-                          UniversalSupportWidget(userId: userModel.uid, userRole: 'student'),
-                        ]),
+                      SliverPadding(
+                        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            // 1. AVAILABLE BALANCE AT THE VERY TOP
+                            const SizedBox(height: 12),
+                            _buildBalancePageView(userModel),
+                            const SizedBox(height: 8),
+                            _buildPaginationDots(),
+
+                            // 2. LIVE ACTIVE PREORDER STREAM (Order Ahead & Food Connection)
+                            const SizedBox(height: 16),
+                            _buildLiveActiveOrderStream(userModel),
+
+                            // 3. CLEAN QUICK ACTIONS (High-priority shortcuts)
+                            const SizedBox(height: 20),
+                            _buildQuickActions(userModel),
+
+                            // 4. CAMPUS CAFETERIAS SPOTLIGHT (Food stalls)
+                            const SizedBox(height: 24),
+                            _buildCampusVendorsSpotlight(userModel),
+
+                            // 5. FLASH SALES & TODAY'S DEALS TICKER
+                            const SizedBox(height: 20),
+                            _buildFlashSalesTicker(userModel),
+
+                            // 6. UP NEXT CLASS & TIMETABLE CARD
+                            const SizedBox(height: 20),
+                            _buildUpNextClassCard(userModel),
+
+                            // 7. STREAK, REWARDS & SOCIAL TRAY
+                            const SizedBox(height: 18),
+                            _buildStreakAndRewardsBar(userModel),
+                            const SizedBox(height: 16),
+                            _buildSendAgainTray(userModel),
+
+                            // 8. CAMPUS SERVICES & LIVING HUB
+                            const SizedBox(height: 22),
+                            _buildCampusEcosystemHub(userModel),
+
+                            // 9. SMART CAMPUS CONTEXT
+                            const SizedBox(height: 18),
+                            _buildSmartCampusContextBar(),
+                            const SizedBox(height: 14),
+                            _buildDriverModeToggle(userModel),
+                            const SizedBox(height: 14),
+                            _buildFundiModeToggle(userModel),
+
+                            // 10. DISHI STUDENT ID & SAFETY CARD
+                            const SizedBox(height: 20),
+                            _buildDishiIdCard(userModel),
+                            const SizedBox(height: 16),
+                            _buildSafetyCard(userModel),
+                            const SizedBox(height: 16),
+                            UniversalSupportWidget(userId: userModel.uid, userRole: 'student'),
+                          ]),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 // Existing context-aware FAB
                 Positioned(
@@ -563,75 +594,198 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
       isScrollControlled: true,
       backgroundColor: _cardColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        maxChildSize: 0.9,
-        minChildSize: 0.3,
-        expand: false,
-        builder: (_, scrollController) => Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(child: Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2.5)))),
-              const SizedBox(height: 24),
-              const Text('Notifications', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              Expanded(
-                child: notifications.isEmpty
-                    ? const Center(child: Text('No new notifications', style: TextStyle(color: _textSecondary)))
-                    : ListView.separated(
-                        controller: scrollController,
-                        itemCount: notifications.length,
-                        separatorBuilder: (context, index) => const Divider(color: Colors.white12),
-                        itemBuilder: (context, index) {
-                          final doc = notifications[index];
-                          final data = Map<String, dynamic>.from(doc.data() as Map);
-                          final readBy = List<String>.from(data['readBy'] ?? []);
-                          final isRead = readBy.contains(uid);
-                          
-                          return Dismissible(
-                            key: Key(doc.id),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20),
-                              color: _neonPink,
-                              child: const Icon(Icons.delete, color: Colors.white),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          final currentList = List<DocumentSnapshot>.from(notifications);
+          return DraggableScrollableSheet(
+            initialChildSize: 0.65,
+            maxChildSize: 0.92,
+            minChildSize: 0.35,
+            expand: false,
+            builder: (_, scrollController) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2.5)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Text('Notifications', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                          if (currentList.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(color: _neonCyan.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
+                              child: Text('${currentList.length}', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 12)),
                             ),
-                            onDismissed: (_) async {
-                              await FirebaseFirestore.instance.collection('notifications').doc(doc.id).update({
-                                'dismissedBy': FieldValue.arrayUnion([uid])
-                              });
-                            },
-                            child: ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: isRead ? _surfaceLight : _neonCyan.withOpacity(0.2),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(Icons.notifications, color: isRead ? _textSecondary : _neonCyan),
-                              ),
-                              title: Text(data['title'] ?? '', style: TextStyle(color: Colors.white, fontWeight: isRead ? FontWeight.normal : FontWeight.bold)),
-                              subtitle: Text(data['message'] ?? '', style: const TextStyle(color: _textSecondary)),
-                              onTap: () async {
-                                if (!isRead) {
+                          ],
+                        ],
+                      ),
+                      if (currentList.isNotEmpty)
+                        TextButton.icon(
+                          style: TextButton.styleFrom(
+                            foregroundColor: _neonPink,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          ),
+                          icon: const Icon(Icons.delete_sweep, size: 18),
+                          label: const Text('Clear All', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          onPressed: () async {
+                            final docsToClear = List<DocumentSnapshot>.from(currentList);
+                            setSheetState(() => currentList.clear());
+                            for (var doc in docsToClear) {
+                              try {
+                                final data = Map<String, dynamic>.from(doc.data() as Map);
+                                if (data['targetUserId'] == uid) {
+                                  await FirebaseFirestore.instance.collection('notifications').doc(doc.id).delete();
+                                } else {
                                   await FirebaseFirestore.instance.collection('notifications').doc(doc.id).update({
-                                    'readBy': FieldValue.arrayUnion([uid])
+                                    'dismissedBy': FieldValue.arrayUnion([uid])
                                   });
                                 }
-                              },
+                              } catch (_) {}
+                            }
+                            if (mounted) {
+                              Navigator.pop(sheetContext);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('All notifications cleared'), backgroundColor: _neonCyan),
+                              );
+                            }
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text('Swipe left to delete specific notifications', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                  const SizedBox(height: 12),
+                  const Divider(color: Colors.white12),
+                  Expanded(
+                    child: currentList.isEmpty
+                        ? const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.notifications_off_outlined, color: _textSecondary, size: 48),
+                                SizedBox(height: 12),
+                                Text('No notifications right now', style: TextStyle(color: _textSecondary, fontSize: 14)),
+                              ],
                             ),
-                          );
-                        },
-                      ),
+                          )
+                        : ListView.separated(
+                            controller: scrollController,
+                            itemCount: currentList.length,
+                            separatorBuilder: (context, index) => const Divider(color: Colors.white12, height: 1),
+                            itemBuilder: (context, index) {
+                              final doc = currentList[index];
+                              final data = Map<String, dynamic>.from(doc.data() as Map);
+                              final readBy = List<String>.from(data['readBy'] ?? []);
+                              final isRead = readBy.contains(uid);
+
+                              return Dismissible(
+                                key: Key(doc.id),
+                                direction: DismissDirection.endToStart,
+                                background: Container(
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.only(right: 20),
+                                  decoration: BoxDecoration(
+                                    color: _neonPink,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.delete_outline, color: Colors.white, size: 20),
+                                      SizedBox(width: 6),
+                                      Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                                onDismissed: (_) async {
+                                  setSheetState(() => currentList.removeAt(index));
+                                  try {
+                                    if (data['targetUserId'] == uid) {
+                                      await FirebaseFirestore.instance.collection('notifications').doc(doc.id).delete();
+                                    } else {
+                                      await FirebaseFirestore.instance.collection('notifications').doc(doc.id).update({
+                                        'dismissedBy': FieldValue.arrayUnion([uid])
+                                      });
+                                    }
+                                  } catch (_) {}
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Notification removed'), duration: Duration(seconds: 1)),
+                                    );
+                                  }
+                                },
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                                  leading: Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: isRead ? _surfaceLight : _neonCyan.withValues(alpha: 0.15),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: isRead ? Colors.transparent : _neonCyan, width: 1),
+                                    ),
+                                    child: Icon(
+                                      data['type'] == 'broadcast' ? Icons.campaign : Icons.notifications,
+                                      color: isRead ? _textSecondary : _neonCyan,
+                                      size: 22,
+                                    ),
+                                  ),
+                                  title: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          data['title'] ?? '',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                      if (data['type'] == 'broadcast')
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: _neonBlue.withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Text('BROADCAST', style: TextStyle(color: _neonBlue, fontSize: 9, fontWeight: FontWeight.bold)),
+                                        ),
+                                    ],
+                                  ),
+                                  subtitle: Padding(
+                                    padding: const EdgeInsets.only(top: 4.0),
+                                    child: Text(data['message'] ?? '', style: const TextStyle(color: _textSecondary, fontSize: 12)),
+                                  ),
+                                  onTap: () async {
+                                    if (!isRead) {
+                                      await FirebaseFirestore.instance.collection('notifications').doc(doc.id).update({
+                                        'readBy': FieldValue.arrayUnion([uid])
+                                      });
+                                    }
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -679,6 +833,82 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
                 });
               }
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFundiModeToggle(UserModel userModel) {
+    final bool isFundi = userModel.roles.any((r) => r.toLowerCase() == 'fundi');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF131A26),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF05D5AA).withOpacity(0.35), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF05D5AA).withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF05D5AA).withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.handyman_rounded, color: Color(0xFF05D5AA), size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isFundi ? 'Comrade Fundi Workspace' : 'Become a Comrade Fundi',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isFundi ? 'Manage live campus gigs, escrow & rates' : 'Earn from repairs, tech & campus gigs',
+                  style: const TextStyle(color: _textSecondary, fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF05D5AA),
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            ),
+            onPressed: () {
+              if (isFundi) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => FundiDashboardView(user: userModel.toJson())),
+                );
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => FundiRegistrationView(userModel: userModel)),
+                );
+              }
+            },
+            child: Text(
+              isFundi ? 'Open Hub' : 'Register',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
           ),
         ],
       ),
@@ -738,7 +968,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
 
   Widget _buildBalancePageView(UserModel userModel) {
     return SizedBox(
-      height: 250,
+      height: 275,
       child: PageView(
         controller: _balancePageController,
         onPageChanged: (index) {
@@ -758,7 +988,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
 
   Widget _buildActiveWalletCard(UserModel userModel) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
@@ -766,92 +996,238 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _neonCyan.withOpacity(0.3), width: 1.5),
+        border: Border.all(color: _neonCyan.withOpacity(0.35), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: _neonCyan.withOpacity(0.15),
             blurRadius: 20,
-            spreadRadius: 2
+            spreadRadius: 2,
           )
-        ]
+        ],
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Available Balance', style: TextStyle(color: Colors.white70, fontSize: 14)),
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: Icon(_isBalanceVisible ? Icons.visibility : Icons.visibility_off, color: Colors.white70, size: 20),
-                onPressed: () {
-                  setState(() {
-                    _isBalanceVisible = !_isBalanceVisible;
-                  });
-                },
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet, color: _neonCyan, size: 16),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Active Student Wallet',
+                        style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: Icon(_isBalanceVisible ? Icons.visibility : Icons.visibility_off, color: Colors.white70, size: 20),
+                    onPressed: () {
+                      setState(() {
+                        _isBalanceVisible = !_isBalanceVisible;
+                      });
+                    },
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             children: [
-              Text(_isBalanceVisible ? 'Ksh. ${userModel.walletBalance.toStringAsFixed(2)}' : 'Ksh. ****', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: 1)),
+              Text(
+                _isBalanceVisible ? 'Ksh. ${userModel.walletBalance.toStringAsFixed(2)}' : 'Ksh. ****',
+                style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+              ),
               if (userModel.isFrozen) ...[
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: _neonPink.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: _neonPink),
                   ),
-                  child: const Text('FROZEN', style: TextStyle(color: _neonPink, fontSize: 12, fontWeight: FontWeight.bold)),
+                  child: const Text('FROZEN', style: TextStyle(color: _neonPink, fontSize: 11, fontWeight: FontWeight.bold)),
                 ),
               ],
             ],
           ),
-          const SizedBox(height: 32),
-          const Text('Student Upkeep Account Balance', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Stack(
             children: [
               Container(
-                height: 8,
+                height: 6,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: Colors.white12,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(3),
                 ),
               ),
               Container(
-                height: 8,
+                height: 6,
                 width: (userModel.dailyLimit != null && userModel.dailyLimit! > 0)
                     ? MediaQuery.of(context).size.width * (userModel.walletBalance / userModel.dailyLimit!).clamp(0.0, 1.0)
-                    : MediaQuery.of(context).size.width, // Full width if no limit
+                    : MediaQuery.of(context).size.width,
                 decoration: BoxDecoration(
                   color: _neonCyan,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(3),
                   boxShadow: [
-                    BoxShadow(color: _neonCyan.withOpacity(0.6), blurRadius: 6)
-                  ]
+                    BoxShadow(color: _neonCyan.withOpacity(0.6), blurRadius: 4),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             _isBalanceVisible 
               ? ((userModel.dailyLimit != null && userModel.dailyLimit! > 0) 
-                  ? '${((userModel.walletBalance / userModel.dailyLimit!) * 100).toStringAsFixed(1)}% remaining of Ksh ${userModel.dailyLimit}'
-                  : 'Ksh ${userModel.walletBalance.toStringAsFixed(2)} available (No limit set)')
-              : '**** available', 
-            style: const TextStyle(color: _neonCyan, fontSize: 12)
+                  ? '${((userModel.walletBalance / userModel.dailyLimit!) * 100).toStringAsFixed(0)}% remaining of Ksh ${userModel.dailyLimit?.toStringAsFixed(0)} daily cap'
+                  : 'Upkeep & cafeteria account balance')
+              : 'Upkeep & cafeteria account balance', 
+            style: const TextStyle(color: _neonCyan, fontSize: 11),
+          ),
+          const Spacer(),
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorDirectoryView())),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _neonOrange.withOpacity(0.25),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _neonOrange.withOpacity(0.5)),
+                    ),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.restaurant, color: _neonOrange, size: 14),
+                            SizedBox(width: 3),
+                            Text('Pre-order', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: InkWell(
+                  onTap: () => _showTopUpBottomSheet(userModel),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _neonCyan.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _neonCyan.withOpacity(0.4)),
+                    ),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add, color: _neonCyan, size: 14),
+                            SizedBox(width: 3),
+                            Text('Top Up', style: TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: InkWell(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentTransfersView(userModel: userModel))),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _neonPink.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _neonPink.withOpacity(0.4)),
+                    ),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.send_rounded, color: _neonPink, size: 14),
+                            SizedBox(width: 3),
+                            Text('Send', style: TextStyle(color: _neonPink, fontWeight: FontWeight.bold, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: InkWell(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => VirtualCardView(userModel: userModel))),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.credit_card, color: Colors.white70, size: 14),
+                            SizedBox(width: 3),
+                            Text('Card', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
-      )),
+      ),
     );
   }
 
@@ -1008,73 +1384,132 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
     );
   }
 
-  void _showFundMeDialog(UserModel userModel) {
-    String currentDishiId = userModel.uid;
-    final link = 'https://dishi.delstarfordworks.co.ke/fund?dishi_id=$currentDishiId';
+  Widget _buildFundMeBanner(UserModel userModel) {
+    final String currentDishiId = (userModel.dishiId != null && userModel.dishiId!.isNotEmpty) 
+        ? userModel.dishiId! 
+        : userModel.uid;
+    final String fundLink = 'https://dishi.delstarfordworks.co.ke/fund?dishi_id=$currentDishiId';
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: _neonPink.withOpacity(0.5))),
-        title: const Row(
-          children: [
-            Icon(Icons.favorite, color: _neonPink, size: 28),
-            SizedBox(width: 8),
-            Text('Fund Me', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF131A2A),
+            _neonCyan.withOpacity(0.08),
           ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Share this link with your parents, guardians, or friends. They can fund your wallet directly via M-PESA.',
-              style: TextStyle(color: _textSecondary, fontSize: 14),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _surfaceLight,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _surfaceLight),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _neonCyan.withOpacity(0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: _neonCyan.withOpacity(0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _neonPink.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.favorite_rounded, color: _neonPink, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Fund Me • Campus Upkeep',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ],
               ),
-              child: SelectableText(
-                link,
-                style: const TextStyle(color: _neonCyan, fontSize: 13, fontWeight: FontWeight.w500),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: link));
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Fund Me link copied to clipboard!'), backgroundColor: _neonCyan, duration: Duration(seconds: 3)));
-                },
-                icon: const Icon(Icons.copy, color: Colors.black),
-                label: const Text('Copy Link', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _neonCyan,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: MPesaTheme.primaryGreen.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: MPesaTheme.primaryGreen.withOpacity(0.4)),
+                ),
+                child: const Text(
+                  '0% Fee',
+                  style: TextStyle(color: MPesaTheme.primaryGreen, fontWeight: FontWeight.bold, fontSize: 10),
                 ),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          Center(
-            child: TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close', style: TextStyle(color: _textSecondary)),
-            ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Share your link with parents or friends. Money sent lands in your wallet instantly.',
+            style: TextStyle(color: _textSecondary, fontSize: 12),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: fundLink));
+                    HapticFeedback.lightImpact();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Fund Me link copied to clipboard!'),
+                        backgroundColor: _neonCyan,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _surfaceLight,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: const BorderSide(color: Colors.white12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.copy, size: 16, color: _neonCyan),
+                  label: const Text('Copy Link', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => RequestFundsView(userModel: userModel)));
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _neonCyan,
+                    foregroundColor: Colors.black87,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.qr_code, size: 16),
+                  label: const Text('Open Hub', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  void _showFundMeDialog(UserModel userModel) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => RequestFundsView(userModel: userModel)));
   }
   void _showGenderPromptDialog(UserModel userModel) {
     String selectedGender = '';
@@ -1286,14 +1721,24 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
               .collection('transactions')
               .where('senderUid', isEqualTo: userModel.uid)
               .where('type', isEqualTo: 'p2p_transfer')
-              .orderBy('timestamp', descending: true)
-              .limit(8)
+              .limit(16)
               .snapshots(),
           builder: (context, snapshot) {
             final Map<String, Map<String, dynamic>> recipients = {};
-            if (snapshot.hasData) {
-              for (var doc in snapshot.data!.docs) {
-                final d = doc.data() as Map<String, dynamic>;
+            if (snapshot.hasData && snapshot.data != null) {
+              final docs = List<DocumentSnapshot>.from(snapshot.data!.docs);
+              docs.sort((a, b) {
+                final rawA = a.data() as Map<String, dynamic>?;
+                final rawB = b.data() as Map<String, dynamic>?;
+                final tA = rawA?['timestamp'];
+                final tB = rawB?['timestamp'];
+                if (tA is Timestamp && tB is Timestamp) return tB.compareTo(tA);
+                return 0;
+              });
+              for (var doc in docs) {
+                final raw = doc.data();
+                if (raw == null) continue;
+                final d = Map<String, dynamic>.from(raw as Map);
                 final recUid = d['receiverUid'] as String?;
                 final recName = d['receiverName'] as String? ?? 'Peer';
                 if (recUid != null && recUid.isNotEmpty && !recipients.containsKey(recUid)) {
@@ -1853,7 +2298,8 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
         int coins = 150;
         int streak = 5;
         if (snapshot.hasData && snapshot.data!.exists) {
-          final data = snapshot.data!.data() as Map<String, dynamic>?;
+          final rawData = snapshot.data!.data();
+          final data = rawData != null ? Map<String, dynamic>.from(rawData as Map) : null;
           coins = (data?['dishiCoins'] as num?)?.toInt() ?? 150;
           streak = (data?['streakDays'] as num?)?.toInt() ?? 5;
         }
@@ -1960,7 +2406,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
         }
 
         final activeDocs = snapshot.data!.docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
+          final raw = doc.data();
+          if (raw == null) return false;
+          final data = Map<String, dynamic>.from(raw as Map);
           final status = (data['status'] ?? 'pending').toString().toLowerCase();
           return status != 'fulfilled' && status != 'cancelled';
         }).toList();
@@ -1970,7 +2418,8 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
         }
 
         final firstOrder = activeDocs.first;
-        final data = firstOrder.data() as Map<String, dynamic>;
+        final rawFirst = firstOrder.data();
+        final data = rawFirst != null ? Map<String, dynamic>.from(rawFirst as Map) : <String, dynamic>{};
         final String vendorName = data['vendorName'] ?? 'Campus Cafeteria';
         final String mealName = data['mealName'] ?? 'Meal Order';
         final double price = (data['price'] as num?)?.toDouble() ?? 0.0;
@@ -2217,92 +2666,134 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
   }
 
   Widget _buildQuickActions(UserModel userModel) {
-    List<Widget> actions = [
-      _buildActionIcon(Icons.add_card, 'Top Up', const Color(0xFF10B981), [const Color(0xFF10B981), const Color(0xFF047857)], false, () => _showTopUpBottomSheet(userModel)),
-      _buildActionIcon(Icons.send_rounded, 'Send Money', _neonCyan, [_neonCyan, const Color(0xFF007A60)], false, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => StudentTransfersView(userModel: userModel)));
-      }),
-      _buildActionIcon(Icons.qr_code_scanner, 'Dynamic QR', const Color(0xFF8B5CF6), [const Color(0xFF8B5CF6), const Color(0xFF6D28D9)], false, () => _showDynamicQRDialog(userModel)),
-      _buildActionIcon(Icons.restaurant, 'Food Stalls', _neonOrange, [_neonOrange, const Color(0xFFC04B00)], false, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorDirectoryView()));
-      }),
-      _buildActionIcon(Icons.call_split, 'Split Bill', const Color(0xFF06B6D4), [const Color(0xFF06B6D4), const Color(0xFF0891B2)], false, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => SplitBillView(userModel: userModel)));
-      }),
-      _buildActionIcon(Icons.credit_card, 'VCC Card', const Color(0xFF3B82F6), [const Color(0xFF3B82F6), const Color(0xFF1D4ED8)], false, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => VirtualCardView(userModel: userModel)));
-      }),
-      _buildActionIcon(Icons.shopping_bag_outlined, 'Pre-orders', const Color(0xFF14B8A6), [const Color(0xFF14B8A6), const Color(0xFF0F766E)], false, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentPreordersView()));
-      }),
-      _buildActionIcon(Icons.apartment, 'Keja Hostels', const Color(0xFF6366F1), [const Color(0xFF6366F1), const Color(0xFF4338CA)], false, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => HousingDashboardView(user: userModel.toJson())));
-      }),
-      _buildActionIcon(Icons.work_outline, 'Campus Gigs', const Color(0xFF10B981), [const Color(0xFF10B981), const Color(0xFF059669)], false, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusEmploymentHubView()));
-      }),
-      _buildActionIcon(Icons.sports_esports, 'Games Hub', const Color(0xFFA855F7), [const Color(0xFFA855F7), const Color(0xFF7E22CE)], false, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => GamesHubView(userModel: userModel)));
-      }),
-      _buildActionIcon(Icons.history_edu, 'History', const Color(0xFFF59E0B), [const Color(0xFFF59E0B), const Color(0xFFB45309)], false, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLedgerView()));
-      }),
-      _buildActionIcon(Icons.favorite, 'UniUptown', const Color(0xFFEC4899), [const Color(0xFFEC4899), const Color(0xFFBE185D)], false, () {
-        final gender = userModel.gender ?? '';
-        if (gender.isEmpty) {
-          _showGenderPromptDialog(userModel);
-        } else {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const MatchHubView()));
-        }
-      }),
-    ];
-
-    // Priority inserts for low balance
-    if (userModel.walletBalance < 100) {
-      actions.insert(0, _buildActionIcon(Icons.fastfood, 'Okoa Food', const Color(0xFFEF4444), [const Color(0xFFEF4444), const Color(0xFFB91C1C)], true, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const OkoaFoodView()));
-      }));
-      actions.insert(1, _buildActionIcon(Icons.volunteer_activism, 'Fund Me', const Color(0xFF06B6D4), [const Color(0xFF06B6D4), const Color(0xFF0369A1)], true, () => _showFundMeDialog(userModel)));
-    }
-
-    // Chunk into pages of 4
-    List<Widget> pages = [];
-    for (int i = 0; i < actions.length; i += 4) {
-      List<Widget> pageItems = [];
-      for (int j = i; j < i + 4 && j < actions.length; j++) {
-        pageItems.add(Expanded(child: actions[j]));
-      }
-      while (pageItems.length < 4) {
-        pageItems.add(const Expanded(child: SizedBox()));
-      }
-      pages.add(Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: pageItems,
-      ));
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Quick Actions', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const Row(
+              children: [
+                Icon(Icons.bolt, color: _neonCyan, size: 20),
+                SizedBox(width: 8),
+                Text('Quick Actions', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
             InkWell(
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AllFeaturesView(userModel: userModel))),
-              child: Text('View all >', style: TextStyle(color: _neonCyan.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w600)),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _neonCyan.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _neonCyan.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Text('View All', style: TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
+                    SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_ios, color: _neonCyan, size: 10),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 20),
-        SizedBox(
-          height: 120,
-          child: PageView(
-            children: pages,
-          ),
+        const SizedBox(height: 16),
+        GridView.count(
+          crossAxisCount: 4,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 10,
+          childAspectRatio: 0.82,
+          children: [
+            _buildGridActionItem(
+              icon: Icons.restaurant,
+              label: 'Pre-order',
+              glowColor: _neonOrange,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorDirectoryView())),
+            ),
+            _buildGridActionItem(
+              icon: Icons.shopping_bag_outlined,
+              label: 'My Orders',
+              glowColor: _neonCyan,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentPreordersView())),
+            ),
+            _buildGridActionItem(
+              icon: Icons.credit_card,
+              label: 'VCC Card',
+              glowColor: const Color(0xFF3B82F6),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => VirtualCardView(userModel: userModel))),
+            ),
+            _buildGridActionItem(
+              icon: Icons.fastfood,
+              label: 'Okoa Food',
+              glowColor: const Color(0xFFEF4444),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OkoaFoodView())),
+            ),
+            _buildGridActionItem(
+              icon: Icons.call_split,
+              label: 'Split Bill',
+              glowColor: const Color(0xFF06B6D4),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SplitBillView(userModel: userModel))),
+            ),
+            _buildGridActionItem(
+              icon: Icons.send_rounded,
+              label: 'Send',
+              glowColor: MPesaTheme.primaryGreen,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentTransfersView(userModel: userModel))),
+            ),
+            _buildGridActionItem(
+              icon: Icons.calendar_month,
+              label: 'Timetable',
+              glowColor: const Color(0xFFF59E0B),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TimetableView())),
+            ),
+            _buildGridActionItem(
+              icon: Icons.grid_view_rounded,
+              label: 'More (20+)',
+              glowColor: const Color(0xFFA855F7),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AllFeaturesView(userModel: userModel))),
+            ),
+          ],
         ),
       ],
+    );
+  }
+
+  Widget _buildGridActionItem({
+    required IconData icon,
+    required String label,
+    required Color glowColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: glowColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: glowColor.withOpacity(0.35)),
+            ),
+            child: Icon(icon, color: glowColor, size: 26),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 
@@ -2330,6 +2821,22 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
           childAspectRatio: 1.45,
           children: [
             _buildEcosystemTile(
+              title: 'Marketplace',
+              subtitle: 'Escrow Buy & Sell',
+              icon: Icons.storefront,
+              accentColor: MPesaTheme.primaryGreen,
+              badge: 'Campus Shop',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EscrowMarketView(user: userModel.toJson()))),
+            ),
+            _buildEcosystemTile(
+              title: 'Fund Me',
+              subtitle: 'M-PESA Student Upkeep',
+              icon: Icons.favorite_rounded,
+              accentColor: _neonPink,
+              badge: '0% Fee',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestFundsView(userModel: userModel))),
+            ),
+            _buildEcosystemTile(
               title: 'Food Stalls',
               subtitle: 'Menus & Pre-orders',
               icon: Icons.restaurant_menu,
@@ -2352,6 +2859,21 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
               accentColor: _neonBlue,
               badge: 'Keja Yangu',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => HousingDashboardView(user: userModel.toJson()))),
+            ),
+            _buildEcosystemTile(
+              title: 'Comrade Fundi',
+              subtitle: 'Repairs, Tech & Services',
+              icon: Icons.handyman_rounded,
+              accentColor: const Color(0xFF05D5AA),
+              badge: 'Campus Gigs',
+              onTap: () {
+                final bool isFundi = userModel.roles.any((r) => r.toLowerCase() == 'fundi');
+                if (isFundi) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => FundiDashboardView(user: userModel.toJson())));
+                } else {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => FundiMarketplaceView(userModel: userModel)));
+                }
+              },
             ),
             _buildEcosystemTile(
               title: 'Campus Gigs',
@@ -2500,7 +3022,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
               );
             }
 
-            final vendors = snapshot.data!.docs.map((d) => UserModel.fromJson(d.data() as Map<String, dynamic>, d.id)).toList();
+            final vendors = snapshot.data!.docs
+                .where((d) => d.data() != null)
+                .map((d) => UserModel.fromJson(Map<String, dynamic>.from(d.data() as Map), d.id))
+                .toList();
 
             return SizedBox(
               height: 140,
@@ -3040,11 +3565,33 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
                 ],
               ),
             ),
-            if (roles.contains('admin'))
-              ListTile(
-                leading: const Icon(Icons.admin_panel_settings, color: _textSecondary),
-                title: const Text('Admin Console', style: TextStyle(color: Colors.white)),
-                onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => AdminDashboardView(user: widget.user))),
+            if (widget.user['isGhostMode'] == true || roles.contains('admin'))
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _neonCyan.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _neonCyan.withOpacity(0.4)),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.admin_panel_settings, color: _neonCyan),
+                  title: Text(
+                    widget.user['isGhostMode'] == true ? 'Exit Ghost Mode & Return' : 'Admin Console',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: widget.user['isGhostMode'] == true
+                      ? const Text('Restore Super Admin session', style: TextStyle(color: _neonCyan, fontSize: 11))
+                      : null,
+                  trailing: const Icon(Icons.arrow_forward_ios, color: _neonCyan, size: 12),
+                  onTap: () async {
+                    Navigator.pop(context); // Close drawer
+                    if (widget.user['isGhostMode'] == true) {
+                      await _exitGhostSession(context);
+                    } else {
+                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => AdminDashboardView(user: widget.user)));
+                    }
+                  },
+                ),
               ),
             const Spacer(),
             const Divider(color: _surfaceLight),
@@ -3068,136 +3615,59 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
     );
   }
 
-  void _showProfileMenu(BuildContext context, UserModel userModel) {
-    showModalBottomSheet(
+  Future<void> _exitGhostSession(BuildContext context) async {
+    showDialog(
       context: context,
-      backgroundColor: _cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: _neonCyan),
       ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2.5))),
-              const SizedBox(height: 24),
-              ListTile(
-                leading: const Icon(Icons.camera_alt, color: Colors.white),
-                title: const Text('Change Profile Picture', style: TextStyle(color: Colors.white)),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final picker = ImagePicker();
-                  final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-                  
-                  if (pickedFile != null && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Uploading profile picture...'),
-                      backgroundColor: _neonCyan,
-                    ));
-                    try {
-                      final file = File(pickedFile.path);
-                      final url = await StorageService().uploadProfileImage(file);
-                      // Append a timestamp to the URL to bust the Image cache and force a Firestore update
-                      final urlWithTimestamp = '$url&t=${DateTime.now().millisecondsSinceEpoch}';
-                      await FirebaseFirestore.instance.collection('users').doc(userModel.uid).update({
-                        'profileImageUrl': urlWithTimestamp,
-                      });
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Profile picture updated successfully!'),
-                          backgroundColor: _neonCyan,
-                        ));
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text('Failed to update: $e'),
-                          backgroundColor: _neonPink,
-                        ));
-                      }
-                    }
-                  }
-                },
+    );
+
+    try {
+      final adminToken = await SecureStorageService.getGhostAdminReturnToken();
+      final adminUserMap = await SecureStorageService.getGhostAdminUserMap() ??
+          (widget.user['adminUser'] as Map<String, dynamic>?);
+
+      if (adminToken != null && adminToken.isNotEmpty) {
+        await FirebaseAuth.instance.signInWithCustomToken(adminToken);
+      }
+
+      await SecureStorageService.endGhostSession();
+
+      if (context.mounted) {
+        Navigator.pop(context); // dismiss progress dialog
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        } else {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => AdminDashboardView(
+                user: adminUserMap ?? {'roles': ['admin']},
               ),
-              ListTile(
-                leading: const Icon(Icons.logout, color: Colors.white),
-                title: const Text('Log Out', style: TextStyle(color: Colors.white)),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await SecureStorageService.clearAll();
-                  try {
-                    await GoogleSignIn().disconnect();
-                  } catch (_) {} // Ignore if already disconnected
-                  await FirebaseAuth.instance.signOut();
-                  if (context.mounted) {
-                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_forever, color: _neonPink),
-                title: const Text('Permanently Delete Account', style: TextStyle(color: _neonPink)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showDeleteAccountDialog(context, userModel);
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
+            ),
+            (route) => false,
+          );
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ghost Mode exited. Super Admin session restored.'),
+            backgroundColor: _neonCyan,
           ),
         );
       }
-    );
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to exit ghost mode: $e'), backgroundColor: _neonPink),
+        );
+      }
+    }
   }
 
-  void _showDeleteAccountDialog(BuildContext context, UserModel userModel) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _cardColor,
-        title: const Text('Delete Account', style: TextStyle(color: _neonPink, fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to permanently delete your account? This action cannot be undone and will erase all your balances and data.', style: TextStyle(color: Colors.white)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                final user = FirebaseAuth.instance.currentUser;
-                if (user != null) {
-                  final idToken = await user.getIdToken();
-                  await http.delete(
-                    Uri.parse('${ApiConfig.baseUrl}/api/v1/security/${user.uid}/delete_account'),
-                    headers: {'Authorization': 'Bearer $idToken'},
-                    // 30 seconds timeout
-                  ).timeout(const Duration(seconds: 30));
-                  
-                  // Clear offline storage
-                  await SecureStorageService.clearAll();
-                  try {
-                    await GoogleSignIn().disconnect();
-                  } catch (_) {}
-                  await FirebaseAuth.instance.signOut();
-                }
-              } catch (e) {
-                debugPrint("Delete failed: $e");
-              }
-              if (mounted) {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: _neonPink),
-            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   void _showTokenDialog(BuildContext context, UserModel userModel) async {
     String currentToken = userModel.authToken ?? '';

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/mpesa_theme.dart';
 
 class AdminSupportDashboard extends StatefulWidget {
@@ -43,6 +44,10 @@ class _AdminSupportDashboardState extends State<AdminSupportDashboard> {
               final doc = tickets[index];
               final data = doc.data() as Map<String, dynamic>;
               final status = data['status'] ?? 'open';
+              String timeStr = 'Recently';
+              if (data['timestamp'] is Timestamp) {
+                timeStr = DateFormat('MMM d, h:mm a').format((data['timestamp'] as Timestamp).toDate());
+              }
               
               return Card(
                 color: const Color(0xFF1E293B),
@@ -55,15 +60,21 @@ class _AdminSupportDashboardState extends State<AdminSupportDashboard> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Role: ${data['user_role']}', style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: status == 'resolved' ? Colors.grey : Colors.orangeAccent,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(status.toUpperCase(), style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
-                          )
+                          Text('Role: ${(data['user_role'] ?? 'user').toString().toUpperCase()}', style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+                          Row(
+                            children: [
+                              Text(timeStr, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: status == 'resolved' ? Colors.grey : Colors.orangeAccent,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(status.toUpperCase(), style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),

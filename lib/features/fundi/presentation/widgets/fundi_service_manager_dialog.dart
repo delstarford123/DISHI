@@ -170,22 +170,27 @@ class _FundiServiceManagerDialogState extends State<FundiServiceManagerDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: MPesaTheme.primaryGreen.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(10),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: MPesaTheme.primaryGreen.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.design_services, color: MPesaTheme.primaryGreen, size: 22),
                         ),
-                        child: const Icon(Icons.design_services, color: MPesaTheme.primaryGreen, size: 22),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'My Services & Rates',
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        const Flexible(
+                          child: Text(
+                            'My Services & Rates',
+                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white54, size: 20),
@@ -336,7 +341,10 @@ class _FundiServiceManagerDialogState extends State<FundiServiceManagerDialog> {
                   icon: const Icon(Icons.add, color: Colors.black, size: 18),
                   label: _isAdding
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                      : const Text('Add Service to Rate Card', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                      : const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text('Add Service to Rate Card', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                        ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF05D5AA),
                     padding: const EdgeInsets.symmetric(vertical: 12),

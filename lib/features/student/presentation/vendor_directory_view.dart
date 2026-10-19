@@ -1,7 +1,12 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:crypto/crypto.dart';
+import 'package:http/http.dart' as http;
 import '../../../core/models/user_model.dart';
+import '../../../core/services/api_config.dart';
 import 'package:uuid/uuid.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
@@ -47,7 +52,10 @@ class _VendorDirectoryViewState extends State<VendorDirectoryView> {
             );
           }
 
-          final vendors = snapshot.data!.docs.map((d) => UserModel.fromJson(d.data() as Map<String, dynamic>, d.id)).toList();
+          final vendors = snapshot.data!.docs
+              .where((d) => d.data() != null)
+              .map((d) => UserModel.fromJson(Map<String, dynamic>.from(d.data() as Map), d.id))
+              .toList();
 
           return ListView.separated(
             padding: const EdgeInsets.all(16),
@@ -99,47 +107,70 @@ class _VendorMenuViewState extends State<_VendorMenuView> {
       final pickupDateTime = DateTime(now.year, now.month, now.day, _pickupTime.hour, _pickupTime.minute);
       final String orderId = const Uuid().v4();
       final double totalCost = (item['price'] as num).toDouble();
+      final String timestamp = DateTime.now().toUtc().toIso8601String();
 
-      final studentDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      final double studentBalance = (studentDoc.data()?['walletBalance'] ?? 0.0).toDouble();
+      // Sign request with HMAC matching backend transaction_routes.py
+      final rawData = '$uid:$totalCost:${widget.vendor.uid}:$orderId:$timestamp';
+      final hmac = Hmac(sha256, utf8.encode('super-secret-vendor-key'));
+      final signature = hmac.convert(utf8.encode(rawData)).toString();
 
-      if (studentBalance < totalCost) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient funds in Wallet')));
-        return;
-      }
-
-      final batch = FirebaseFirestore.instance.batch();
-
-      // Deduct from student
-      batch.update(studentDoc.reference, {'walletBalance': FieldValue.increment(-totalCost)});
-      
-      // Add to Vendor Wallet instantly
-      final vendorRef = FirebaseFirestore.instance.collection('users').doc(widget.vendor.uid);
-      batch.update(vendorRef, {'walletBalance': FieldValue.increment(totalCost)});
-
-      // Write to preorders
-      batch.set(FirebaseFirestore.instance.collection('preorders').doc(orderId), {
+      final payload = {
+        'uid': uid,
+        'amount': totalCost,
         'vendorId': widget.vendor.uid,
         'vendorName': widget.vendor.displayName,
-        'studentId': uid,
-        'studentName': studentDoc.data()?['displayName'] ?? 'Student',
         'mealName': item['name'],
-        'price': totalCost,
+        'txId': orderId,
+        'timestamp': timestamp,
+        'signature': signature,
         'dayOfWeek': 'Today',
-        'pickupTime': Timestamp.fromDate(pickupDateTime),
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+        'pickupTime': pickupDateTime.toIso8601String(),
+      };
 
-      await batch.commit();
+      final response = await http.post(
+        Uri.parse(ApiConfig.transactionPreorder),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      ).timeout(const Duration(seconds: 30));
 
+      if (response.statusCode == 200) {
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Preorder paid & placed successfully!'),
+              backgroundColor: _neonCyan,
+            ),
+          );
+        }
+      } else {
+        String errMsg = 'Failed to place preorder';
+        try {
+          final parsed = jsonDecode(response.body);
+          errMsg = parsed['error'] ?? 'Server error (${response.statusCode})';
+        } catch (_) {
+          errMsg = 'Server returned error (${response.statusCode})';
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errMsg), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } on TimeoutException {
       if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preorder paid & placed successfully!'), backgroundColor: _neonCyan));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Request timed out. Please check your internet connection.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error placing order: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error placing order: $e'), backgroundColor: Colors.red),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

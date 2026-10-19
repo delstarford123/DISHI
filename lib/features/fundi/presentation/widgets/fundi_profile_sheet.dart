@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/theme/mpesa_theme.dart';
+import '../../../student/presentation/student_main_scaffold.dart';
 
 class FundiProfileSheet extends StatefulWidget {
   final String fundiId;
@@ -307,6 +308,56 @@ class _FundiProfileSheetState extends State<FundiProfileSheet> {
                   child: _isSaving
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                       : const Text('Save Preferences', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 15)),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Switch to Student Dashboard
+              InkWell(
+                onTap: () {
+                  Navigator.pop(context);
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => StudentMainScaffold(
+                          user: {
+                            'uid': widget.fundiId,
+                            'displayName': widget.fundiName,
+                            'phoneNumber': widget.fundiPhone,
+                            'roles': ['student', 'fundi'],
+                          },
+                        ),
+                      ),
+                    );
+                  }
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF05D5AA).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFF05D5AA).withOpacity(0.25)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.school, color: Color(0xFF05D5AA), size: 20),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Switch to Student Dashboard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text('Cafeteria orders, upkeep wallet & campus services', style: TextStyle(color: Color(0xFF8B9BB4), fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios, color: Color(0xFF05D5AA), size: 12),
+                    ],
+                  ),
                 ),
               ),
             ],

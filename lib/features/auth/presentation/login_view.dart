@@ -189,6 +189,35 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
+  Widget _buildGoogleLogo() {
+    return Container(
+      width: 26,
+      height: 26,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: const Text(
+        'G',
+        style: TextStyle(
+          color: Color(0xFF4285F4),
+          fontSize: 17,
+          fontWeight: FontWeight.w900,
+          fontFamily: 'Outfit',
+          height: 1.0,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -196,39 +225,85 @@ class _LoginViewState extends State<LoginView> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Center(
-                  child: Image.asset(
-                    'assets/img/dishi_logo.png', 
-                    height: 60,
-                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.fastfood, size: 60, color: MPesaTheme.primaryGreen),
+                const SizedBox(height: 12),
+
+                // ── Hero 512 DISHI Logo Squircle Card ────────────────
+                Container(
+                  width: 92,
+                  height: 92,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0A2216),
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(
+                      color: MPesaTheme.neonCyan.withOpacity(0.55),
+                      width: 1.8,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: MPesaTheme.neonCyan.withOpacity(0.25),
+                        blurRadius: 24,
+                        spreadRadius: 2,
+                        offset: const Offset(0, 4),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(14),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      'assets/img/app_icon_512.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Image.asset(
+                        'assets/img/dishi_logo_512.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          'assets/img/dishi_logo.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.restaurant_rounded,
+                            size: 44,
+                            color: MPesaTheme.primaryGreen,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 30),
+
+                const SizedBox(height: 20),
+
+                // ── Title & Subtitle ─────────────────────────────────
                 const Text(
-                  'Thank you for choosing\nDISHI', 
+                  'Welcome to DISHI',
                   style: TextStyle(
-                    color: Colors.white, 
-                    fontSize: 28, 
-                    fontWeight: FontWeight.bold, 
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
                     fontFamily: 'Outfit',
-                    height: 1.2,
+                    letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 Text(
-                  'Sign in to continue',
+                  'Campus Meals & Agency Banking Hub',
                   style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 16,
+                    color: Colors.white.withOpacity(0.65),
+                    fontSize: 14,
                     fontFamily: 'Outfit',
+                    letterSpacing: 0.2,
                   ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
                 
                 if (_errorMessage != null)
                   Container(
@@ -344,23 +419,33 @@ class _LoginViewState extends State<LoginView> {
                 // Dedicated Google Sign In Button
                 SizedBox(
                   width: double.infinity,
-                  height: 56,
-                  child: OutlinedButton.icon(
+                  height: 54,
+                  child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.white24, width: 1.5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: BorderSide(color: Colors.white.withOpacity(0.18), width: 1.2),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       backgroundColor: MPesaTheme.cardDark,
                     ),
-                    icon: Image.asset(
-                      'assets/img/google_icon.png', 
-                      height: 24,
-                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, color: Colors.white, size: 30),
-                    ),
-                    label: const Text('Sign in with Google', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                     onPressed: _isLoading ? null : _handleGoogleSignIn,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildGoogleLogo(),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Continue with Google',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 30),
                 Center(
                   child: GestureDetector(
                     onTap: () {
@@ -369,18 +454,39 @@ class _LoginViewState extends State<LoginView> {
                     child: RichText(
                       text: TextSpan(
                         text: "Don't have an account? ",
-                        style: TextStyle(color: Colors.grey.shade400, fontSize: 15),
+                        style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14),
                         children: const [
                           TextSpan(
                             text: 'Sign Up',
-                            style: TextStyle(color: MPesaTheme.primaryGreen, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: MPesaTheme.neonCyan,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
+                // Security Badge
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.lock_outline_rounded, size: 12, color: Colors.white.withOpacity(0.35)),
+                    const SizedBox(width: 6),
+                    Text(
+                      '256-Bit SSL Encrypted • Powered by Safaricom M-PESA',
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        color: Colors.white.withOpacity(0.35),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
               ],
             ),
           ),

@@ -107,12 +107,15 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
     final bool isEditing = existingEmp != null;
     final nameCtrl = TextEditingController(text: existingEmp?['name'] ?? '');
     final phoneCtrl = TextEditingController(text: existingEmp?['phone'] ?? '');
+    final emailCtrl = TextEditingController(text: existingEmp?['email'] ?? '');
+    final expectationsCtrl = TextEditingController(text: existingEmp?['expectations'] ?? '');
     final salaryCtrl = TextEditingController(text: (existingEmp?['base_salary'] ?? '').toString());
     final roleCtrl = TextEditingController(text: existingEmp?['role'] ?? 'Staff');
     final idCtrl = TextEditingController(text: existingEmp?['national_id'] ?? '');
     final shifCtrl = TextEditingController(text: (existingEmp?['shif_deduction'] ?? '0').toString());
     final nssfCtrl = TextEditingController(text: (existingEmp?['nssf_deduction'] ?? '0').toString());
     final housingCtrl = TextEditingController(text: (existingEmp?['housing_levy'] ?? '0').toString());
+    bool sendWelcomeEmail = true;
 
     final deptList = _getDepartmentNames().where((d) => d != 'ALL').toList();
     String selectedDept = existingEmp?['department'] ?? (deptList.isNotEmpty ? deptList.first : 'Operations');
@@ -163,6 +166,21 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                   decoration: InputDecoration(
                     labelText: 'M-PESA Phone (e.g. 254712345678) *',
                     labelStyle: const TextStyle(color: _textSecondary),
+                    filled: true,
+                    fillColor: _surfaceLight,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Staff Email (for appointment letter & app link) *',
+                    labelStyle: const TextStyle(color: _neonCyan, fontSize: 12),
+                    hintText: 'e.g. staff.member@university.edu',
+                    hintStyle: const TextStyle(color: Colors.white30, fontSize: 12),
                     filled: true,
                     fillColor: _surfaceLight,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -340,7 +358,48 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
+
+                // Job Duties & Deliverables
+                TextField(
+                  controller: expectationsCtrl,
+                  maxLines: 3,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    labelText: 'Expected Duties & Key Deliverables *',
+                    labelStyle: const TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.bold),
+                    hintText: 'e.g. Daily mess hall food distribution, kitchen POS operations, daily hygiene checks, and student assistance.',
+                    hintStyle: const TextStyle(color: Colors.white30, fontSize: 11),
+                    filled: true,
+                    fillColor: _surfaceLight,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                if (!isEditing) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _surfaceLight,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _neonCyan.withOpacity(0.3)),
+                    ),
+                    child: CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      title: const Text('Send Welcome & Appointment Email', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Sends official appointment letter with app download links to the staff member.', style: TextStyle(color: _textSecondary, fontSize: 10)),
+                      value: sendWelcomeEmail,
+                      activeColor: _neonCyan,
+                      checkColor: Colors.black,
+                      onChanged: (val) => setSheetState(() => sendWelcomeEmail = val ?? true),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+
+                const SizedBox(height: 8),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _neonCyan,
@@ -351,6 +410,7 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                   onPressed: () async {
                     final name = nameCtrl.text.trim();
                     final phone = phoneCtrl.text.trim();
+                    final email = emailCtrl.text.trim();
                     final sal = double.tryParse(salaryCtrl.text.trim());
                     if (name.isEmpty || phone.isEmpty || sal == null || sal <= 0) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid name, phone, and salary'), backgroundColor: _neonRed));
@@ -360,6 +420,9 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                     final payload = {
                       'name': name,
                       'phone': phone,
+                      'email': email.toLowerCase(),
+                      'expectations': expectationsCtrl.text.trim(),
+                      'send_welcome_email': sendWelcomeEmail,
                       'base_salary': sal,
                       'role': roleCtrl.text.trim(),
                       'department': selectedDept,
@@ -376,7 +439,14 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee updated successfully'), backgroundColor: _neonCyan));
                       } else {
                         await _adminService.addEmployee(payload);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee registered successfully'), backgroundColor: _neonCyan));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(sendWelcomeEmail && email.isNotEmpty
+                                ? 'Employee registered & appointment email sent with app link!'
+                                : 'Employee registered successfully!'),
+                            backgroundColor: _neonCyan,
+                          ),
+                        );
                       }
                       _fetchAllData();
                     } catch (e) {
@@ -1372,12 +1442,79 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                               Text('KES ${salary.toStringAsFixed(2)} / mo', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 14)),
                             ],
                           ),
+                          Builder(
+                            builder: (context) {
+                              final email = emp['email']?.toString() ?? '';
+                              final duties = emp['expectations']?.toString() ?? '';
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (email.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.email_outlined, color: _neonCyan, size: 12),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            email,
+                                            style: const TextStyle(color: _textSecondary, fontSize: 11),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                  if (duties.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Duties: $duties',
+                                      style: const TextStyle(color: Colors.white54, fontSize: 11, fontStyle: FontStyle.italic),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ],
+                              );
+                            },
+                          ),
                           const SizedBox(height: 12),
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
                             alignment: WrapAlignment.end,
                             children: [
+                              Builder(
+                                builder: (ctx) {
+                                  final empEmail = emp['email']?.toString() ?? '';
+                                  if (empEmail.isEmpty) return const SizedBox.shrink();
+                                  return OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: _neonCyan,
+                                      side: BorderSide(color: _neonCyan.withOpacity(0.5)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    ),
+                                    onPressed: () async {
+                                      try {
+                                        final res = await _adminService.resendStaffWelcomeEmail(emp['id']);
+                                        if (ctx.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text(res['message'] ?? 'Appointment letter resent!'), backgroundColor: _neonCyan),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (ctx.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Failed to resend: $e'), backgroundColor: _neonRed),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    icon: const Icon(Icons.mark_email_read_outlined, size: 14),
+                                    label: const Text('Resend Email', style: TextStyle(fontSize: 11)),
+                                  );
+                                },
+                              ),
                               OutlinedButton.icon(
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.amberAccent,

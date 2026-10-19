@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/services/geofence_service.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/utils/map_marker_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS — match the parent dashboard dark palette
@@ -38,6 +39,9 @@ class GeofenceAlertsView extends StatefulWidget {
 
 class _GeofenceAlertsViewState extends State<GeofenceAlertsView> {
   GoogleMapController? _mapController;
+  MapType _currentMapType = MapType.normal;
+  String _studentName = 'Student';
+  String? _studentProfileUrl;
 
   // Current zone being drawn
   LatLng _zoneCenter = _campusDefault;
@@ -59,8 +63,24 @@ class _GeofenceAlertsViewState extends State<GeofenceAlertsView> {
   @override
   void initState() {
     super.initState();
+    _loadStudentProfile();
     _loadSavedZones();
     _fetchParentLocation();
+  }
+
+  Future<void> _loadStudentProfile() async {
+    if (widget.selectedStudentUid == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(widget.selectedStudentUid).get();
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        setState(() {
+          _studentName = (data['displayName'] ?? data['name'] ?? 'Student') as String;
+          _studentProfileUrl = (data['profileImageUrl'] ?? data['photoUrl']) as String?;
+        });
+        _rebuildMapObjects();
+      }
+    } catch (_) {}
   }
 
   LatLng _parentLocation = _campusDefault;
@@ -123,7 +143,7 @@ class _GeofenceAlertsViewState extends State<GeofenceAlertsView> {
     }
   }
 
-  void _rebuildMapObjects() {
+  Future<void> _rebuildMapObjects() async {
     final newCircles = <Circle>{};
     final newMarkers = <Marker>{};
 
@@ -139,7 +159,7 @@ class _GeofenceAlertsViewState extends State<GeofenceAlertsView> {
         circleId: CircleId(zoneId),
         center: LatLng(cLat, cLng),
         radius: radius,
-        fillColor: _neonCyan.withOpacity(0.12),
+        fillColor: _neonCyan.withValues(alpha: 0.12),
         strokeColor: _neonCyan,
         strokeWidth: 2,
       ));
@@ -158,7 +178,7 @@ class _GeofenceAlertsViewState extends State<GeofenceAlertsView> {
         circleId: const CircleId('draft'),
         center: _zoneCenter,
         radius: _zoneRadius,
-        fillColor: _neonBlue.withOpacity(0.15),
+        fillColor: _neonBlue.withValues(alpha: 0.15),
         strokeColor: _neonBlue,
         strokeWidth: 2,
       ));
@@ -172,28 +192,36 @@ class _GeofenceAlertsViewState extends State<GeofenceAlertsView> {
       ));
     }
 
-    // Student marker
+    // Student marker with custom Avatar
     if (_studentPosition != null && _locationShared) {
+      final avatarIcon = await MapMarkerHelper.createStudentAvatarMarker(
+        name: _studentName,
+        profileImageUrl: _studentProfileUrl,
+        borderColor: _isOnCampus ? _neonCyan : _neonRed,
+        isOnline: true,
+      );
       newMarkers.add(Marker(
         markerId: const MarkerId('student'),
         position: _studentPosition!,
-        icon: BitmapDescriptor.defaultMarkerWithHue(
-          _isOnCampus ? BitmapDescriptor.hueGreen : BitmapDescriptor.hueRed,
-        ),
+        icon: avatarIcon,
+        zIndex: 10,
         infoWindow: InfoWindow(
-          title: _isOnCampus ? '✅ Inside Safe Zone' : '⚠️ Outside Safe Zone',
+          title: '📍 $_studentName',
+          snippet: _isOnCampus ? '✅ Inside Safe Zone' : '⚠️ Outside Safe Zone',
         ),
       ));
     }
 
-    setState(() {
-      _circles
-        ..clear()
-        ..addAll(newCircles);
-      _markers
-        ..clear()
-        ..addAll(newMarkers);
-    });
+    if (mounted) {
+      setState(() {
+        _circles
+          ..clear()
+          ..addAll(newCircles);
+        _markers
+          ..clear()
+          ..addAll(newMarkers);
+      });
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -285,6 +313,24 @@ class _GeofenceAlertsViewState extends State<GeofenceAlertsView> {
         elevation: 0,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: Icon(
+              _currentMapType == MapType.satellite ? Icons.map : Icons.satellite_alt,
+              color: _neonCyan,
+            ),
+            tooltip: _currentMapType == MapType.satellite ? 'Switch to Dark Mode' : 'Switch to Satellite View',
+            onPressed: () {
+              setState(() {
+                if (_currentMapType == MapType.normal) {
+                  _currentMapType = MapType.satellite;
+                  _mapController?.setMapStyle(null);
+                } else {
+                  _currentMapType = MapType.normal;
+                  _mapController?.setMapStyle(MapMarkerHelper.darkMapStyle);
+                }
+              });
+            },
+          ),
           TextButton.icon(
             onPressed: () {
               setState(() {
@@ -352,13 +398,16 @@ class _GeofenceAlertsViewState extends State<GeofenceAlertsView> {
                           }
 
                           return GoogleMap(
+                            mapType: _currentMapType,
                             initialCameraPosition: CameraPosition(
                               target: _studentPosition ?? _parentLocation,
                               zoom: 15,
                             ),
                             onMapCreated: (ctrl) {
                               _mapController = ctrl;
-                              _mapController?.setMapStyle(_darkMapStyle);
+                              if (_currentMapType == MapType.normal) {
+                                _mapController?.setMapStyle(MapMarkerHelper.darkMapStyle);
+                              }
                               if (!_isCameraInitialized) {
                                 final target = _studentPosition ?? (_parentLocationLoaded ? _parentLocation : null);
                                 if (target != null) {
@@ -618,19 +667,4 @@ class _GeofenceAlertsViewState extends State<GeofenceAlertsView> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DARK MAP STYLE
-// ─────────────────────────────────────────────────────────────────────────────
-const String _darkMapStyle = '''
-[
-  {"elementType":"geometry","stylers":[{"color":"#1d2c4d"}]},
-  {"elementType":"labels.text.fill","stylers":[{"color":"#8ec3b9"}]},
-  {"elementType":"labels.text.stroke","stylers":[{"color":"#1a3646"}]},
-  {"featureType":"landscape.natural","elementType":"geometry","stylers":[{"color":"#023e58"}]},
-  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#283d6a"}]},
-  {"featureType":"poi.park","elementType":"geometry.fill","stylers":[{"color":"#023e58"}]},
-  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#304a7d"}]},
-  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#2c6675"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#0e1626"}]}
-]
-''';
+

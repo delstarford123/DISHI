@@ -893,9 +893,9 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
                   ),
                 ),
               )
-            else if (amIRequester && escrowStatus == 'HELD')
+            else if (amIRequester && escrowStatus == 'HELD') ...[
               Padding(
-                padding: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.only(bottom: 10),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -906,10 +906,60 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     icon: const Icon(Icons.check_circle),
-                    label: const Text('Enter Worker PIN to Complete & Pay', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Enter Worker PIN to Complete & Pay', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
                     onPressed: () {
                       Navigator.pop(context);
                       _showPinDialog(gigDoc.id);
+                    },
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.redAccent,
+                      side: const BorderSide(color: Colors.redAccent),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.cancel_outlined, size: 18),
+                    label: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Worker Did Not Show Up? Cancel & Refund', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _confirmAndRefundEscrow(gigDoc.id);
+                    },
+                  ),
+                ),
+              ),
+            ] else if (!amIRequester && escrowStatus == 'HELD')
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.amberAccent,
+                      side: const BorderSide(color: Colors.amberAccent),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.undo, size: 18),
+                    label: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Cannot Complete? Refund Escrow to Client', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _confirmAndRefundEscrow(gigDoc.id, isWorker: true);
                     },
                   ),
                 ),
@@ -1086,6 +1136,92 @@ class _CampusEmploymentHubViewState extends State<CampusEmploymentHubView> with 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  void _confirmAndRefundEscrow(String requestId, {bool isWorker = false}) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MPesaTheme.surfaceColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: isWorker ? Colors.amberAccent : Colors.redAccent),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text('Cancel & Refund Escrow', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ],
+        ),
+        content: Text(
+          isWorker
+              ? 'Are you sure you cannot complete this gig? All escrowed funds will be returned immediately to the client.'
+              : 'Has the provider failed to perform or show up? Confirming will cancel the gig and immediately refund 100% of escrowed funds back to your DISHI student wallet.',
+          style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Keep Gig', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isWorker ? Colors.amberAccent : Colors.redAccent,
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _refundEscrow(requestId, reason: isWorker ? 'Worker unable to complete' : 'Worker did not show up');
+            },
+            child: const Text('Confirm Refund', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _refundEscrow(String requestId, {required String reason}) async {
+    setState(() => _isLoading = true);
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/v6/campus_gigs/refund_escrow'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'caller_id': user.uid,
+          'request_id': requestId,
+          'reason': reason,
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Escrow funds refunded to wallet balance!'), backgroundColor: MPesaTheme.neonGreen),
+        );
+      } else {
+        String errMsg = 'Refund failed';
+        try {
+          final resData = json.decode(response.body);
+          if (resData is Map && resData.containsKey('error')) {
+            errMsg = resData['error'].toString();
+          }
+        } catch (_) {}
+        throw Exception(errMsg);
+      }
+    } on TimeoutException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Refund request timed out. Please check network connection.'), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 }

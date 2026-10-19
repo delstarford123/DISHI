@@ -308,39 +308,102 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
 
   Widget _buildCommunityFeedSnippet() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('campus_feed').orderBy('createdAt', descending: true).limit(1).snapshots(),
+      stream: FirebaseFirestore.instance.collection('forums').orderBy('createdAt', descending: true).limit(1).snapshots(),
       builder: (context, snapshot) {
-        String content = '"How do you guys handle lunchbox limits? My kid keeps buying junk food!"';
-        String author = '- Sarah N., 15 mins ago';
+        String content = 'How do you handle lunchbox limits and school meal budgets?';
+        String author = 'Sarah N.';
+        String timeAgo = 'Recently';
         
         if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
           final data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
-          content = '"${data['content'] ?? content}"';
-          author = '- ${data['authorName'] ?? 'Parent'}, just now';
+          final postTitle = data['title'] as String?;
+          final postContent = data['content'] as String?;
+          content = (postTitle != null && postTitle.isNotEmpty) ? postTitle : (postContent ?? content);
+          author = data['authorName'] ?? 'Parent';
+          
+          final ts = data['createdAt'];
+          if (ts is Timestamp) {
+            final diff = DateTime.now().difference(ts.toDate());
+            if (diff.inMinutes < 60) {
+              timeAgo = '${diff.inMinutes}m ago';
+            } else if (diff.inHours < 24) {
+              timeAgo = '${diff.inHours}h ago';
+            } else {
+              timeAgo = '${diff.inDays}d ago';
+            }
+          }
         }
 
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: _cardColor,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _neonCyan.withOpacity(0.3)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.forum, color: _neonCyan),
-                  SizedBox(width: 8),
-                  Text('Parent Community', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                ],
+        return GestureDetector(
+          onTap: () => setState(() => _selectedIndex = 3),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [_cardColor, _neonBlue.withOpacity(0.1)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              const SizedBox(height: 12),
-              Text(content, style: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic)),
-              const SizedBox(height: 8),
-              Text(author, style: const TextStyle(color: _neonCyan, fontSize: 12)),
-            ],
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _neonCyan.withOpacity(0.35)),
+              boxShadow: [
+                BoxShadow(color: _neonBlue.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.forum_rounded, color: _neonCyan, size: 20),
+                        SizedBox(width: 8),
+                        Text('Parent Community', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _neonCyan.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _neonCyan.withOpacity(0.4)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Text('Open Forum', style: TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.bold)),
+                          SizedBox(width: 3),
+                          Icon(Icons.arrow_forward_ios_rounded, color: _neonCyan, size: 10),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  content,
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500, height: 1.3),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 9,
+                      backgroundColor: _neonBlue.withOpacity(0.3),
+                      child: Text(
+                        author.isNotEmpty ? author[0].toUpperCase() : 'P',
+                        style: const TextStyle(color: _neonCyan, fontSize: 9, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text('$author • $timeAgo', style: const TextStyle(color: _textSecondary, fontSize: 11)),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       }
@@ -2697,10 +2760,10 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: _bgColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border(top: BorderSide(color: _neonCyan, width: 2)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: _neonCyan.withOpacity(0.4), width: 1.5),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -4026,7 +4089,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
           decoration: BoxDecoration(
             color: _bgColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border(top: BorderSide(color: selectedMethod == 'vault' ? _neonBlue : MPesaTheme.primaryGreen, width: 2)),
+            border: Border.all(color: (selectedMethod == 'vault' ? _neonBlue : MPesaTheme.primaryGreen).withOpacity(0.4), width: 1.5),
             boxShadow: [
               BoxShadow(color: Colors.black.withOpacity(0.6), blurRadius: 25, offset: const Offset(0, -5)),
             ],
@@ -4534,10 +4597,10 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Container(
           padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: _bgColor,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border(top: BorderSide(color: _neonBlue, width: 2)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: _neonBlue.withOpacity(0.4), width: 1.5),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -4727,7 +4790,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
         decoration: BoxDecoration(
           color: _bgColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          border: const Border(top: BorderSide(color: MPesaTheme.primaryGreen, width: 2)),
+          border: Border.all(color: MPesaTheme.primaryGreen.withOpacity(0.4), width: 1.5),
           boxShadow: [
             BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, offset: const Offset(0, -4)),
           ],

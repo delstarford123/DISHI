@@ -59,6 +59,7 @@ class _GamesHubViewState extends State<GamesHubView> {
           int currentCoins = _dishiCoins;
           double currentWallet = widget.userModel.walletBalance;
           List<String> unlockedGames = ['delivery_dash', 'daily_spin'];
+          List<String> paidGames = [];
 
           if (userSnap.hasData && userSnap.data != null && userSnap.data!.exists) {
             final data = userSnap.data!.data() as Map<String, dynamic>?;
@@ -72,6 +73,9 @@ class _GamesHubViewState extends State<GamesHubView> {
               }
               if (data['unlocked_games'] != null) {
                 unlockedGames = List<String>.from(data['unlocked_games']);
+              }
+              if (data['paid_games'] != null) {
+                paidGames = List<String>.from(data['paid_games']);
               }
             }
           }
@@ -185,7 +189,7 @@ class _GamesHubViewState extends State<GamesHubView> {
                               ),
                               const Spacer(),
                               const Text(
-                                'Entry: KES 5/game',
+                                'Unlock Once: KES 5',
                                 style: TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.w600),
                               ),
                             ],
@@ -240,7 +244,7 @@ class _GamesHubViewState extends State<GamesHubView> {
                 _GameItem(gameId: 'dishi_drop', title: 'DISHI Drop', icon: Icons.fastfood, color: Colors.greenAccent, isReady: true, coinCost: 300, imagePath: 'assets/img/game_bg_dishi_drop_1790106402294.jpg', routeBuilder: (context) => SwapEatDropGame(userModel: widget.userModel)),
                 _GameItem(gameId: 'hungry_fresher', title: 'Hungry Fresher', icon: Icons.gesture, color: _neonCyan, isReady: true, coinCost: 400, imagePath: 'assets/img/game_bg_hungry_fresher_1790106457208.jpg', routeBuilder: (context) => HungryFresherGame(userModel: widget.userModel)),
                 _GameItem(gameId: 'bite_ninja', title: 'Bite Ninja', icon: Icons.content_cut, color: Colors.redAccent, isReady: true, coinCost: 500, imagePath: 'assets/img/game_bg_bite_ninja_1790106469828.jpg', routeBuilder: (context) => BiteNinjaGame(userModel: widget.userModel)),
-              ], unlockedGames),
+              ], unlockedGames, paidGames),
 
               const SliverPadding(
                 padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
@@ -253,7 +257,7 @@ class _GamesHubViewState extends State<GamesHubView> {
                 _GameItem(gameId: 'vibe_check', title: 'Vibe Check', icon: Icons.local_fire_department, color: Colors.orangeAccent, isReady: true, coinCost: 700, imagePath: 'assets/img/game_bg_vibe_check_1790106492811.jpg', routeBuilder: (context) => VibeCheckGame(userModel: widget.userModel)),
                 _GameItem(gameId: 'campus_quizzer', title: 'Campus Quizzer', icon: Icons.quiz, color: Colors.purpleAccent, isReady: true, coinCost: 800, imagePath: 'assets/img/game_bg_campus_quizzer_1790106560687.jpg', routeBuilder: (context) => CampusQuizzerGame(userModel: widget.userModel)),
                 _GameItem(gameId: 'memory_match', title: 'Memory Match', icon: Icons.grid_view, color: Colors.blueAccent, isReady: true, coinCost: 1000, imagePath: 'assets/img/game_bg_memory_match_1790106573115.jpg', routeBuilder: (context) => MemoryMatchGame(userModel: widget.userModel)),
-              ], unlockedGames),
+              ], unlockedGames, paidGames),
 
               const SliverPadding(
                 padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
@@ -266,7 +270,7 @@ class _GamesHubViewState extends State<GamesHubView> {
                 _GameItem(gameId: 'scratch_win', title: 'Scratch & Win', icon: Icons.receipt, color: Colors.cyanAccent, isReady: true, coinCost: 1200, imagePath: 'assets/img/game_bg_scratch_win_1790106598873.jpg', routeBuilder: (context) => ScratchWinGame(userModel: widget.userModel)),
                 _GameItem(gameId: 'dorm_tycoon', title: 'Dorm Tycoon', icon: Icons.store, color: Colors.tealAccent, isReady: true, coinCost: 1500, imagePath: 'assets/img/game_bg_dorm_tycoon_1790106611964.jpg', routeBuilder: (context) => DormTycoonGame(userModel: widget.userModel)),
                 _GameItem(gameId: 'scavenger_hunt', title: 'Scavenger Hunt', icon: Icons.map, color: Colors.lightGreenAccent, isReady: true, coinCost: 2000, imagePath: 'assets/img/game_bg_scavenger_hunt_1790106624202.jpg', routeBuilder: (context) => ScavengerHuntGame(userModel: widget.userModel)),
-              ], unlockedGames),
+              ], unlockedGames, paidGames),
 
               const SliverToBoxAdapter(child: SizedBox(height: 50)),
             ],
@@ -299,7 +303,7 @@ class _GamesHubViewState extends State<GamesHubView> {
     );
   }
 
-  Widget _buildGamesGrid(List<_GameItem> games, List<String> unlockedGames) {
+  Widget _buildGamesGrid(List<_GameItem> games, List<String> unlockedGames, List<String> paidGames) {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       sliver: SliverGrid(
@@ -313,6 +317,7 @@ class _GamesHubViewState extends State<GamesHubView> {
           (context, index) {
             final game = games[index];
             final bool isUnlocked = unlockedGames.contains(game.gameId) || game.coinCost == 0;
+            final bool isPaid = paidGames.contains(game.gameId) || game.gameId == 'daily_spin';
 
             return InkWell(
               onTap: () {
@@ -335,8 +340,11 @@ class _GamesHubViewState extends State<GamesHubView> {
                       setState(() {});
                     },
                   );
+                } else if (isPaid) {
+                  // Game already paid once -> permanent lifetime access!
+                  Navigator.push(context, MaterialPageRoute(builder: game.routeBuilder!));
                 } else {
-                  // Game is unlocked -> prompt user to pay KES 5 entry fee to play round
+                  // Game is unlocked -> prompt user to pay one-time entry fee
                   GameRewardService.promptAndPayEntryFee(
                     context: context,
                     userModel: widget.userModel,
@@ -354,7 +362,12 @@ class _GamesHubViewState extends State<GamesHubView> {
                   color: _cardColor,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isUnlocked ? Colors.white.withValues(alpha: 0.08) : Colors.amber.withValues(alpha: 0.3),
+                    color: isPaid
+                        ? _neonCyan.withValues(alpha: 0.35)
+                        : isUnlocked
+                            ? Colors.amber.withValues(alpha: 0.35)
+                            : Colors.white.withValues(alpha: 0.08),
+                    width: isPaid ? 1.5 : 1.0,
                   ),
                   image: game.imagePath != null
                       ? DecorationImage(
@@ -429,22 +442,42 @@ class _GamesHubViewState extends State<GamesHubView> {
                           ],
                         ),
                       )
-                    else
+                    else if (isPaid)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: _neonCyan.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: _neonCyan.withValues(alpha: 0.4)),
+                          border: Border.all(color: _neonCyan.withValues(alpha: 0.6)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(game.gameId == 'daily_spin' ? Icons.play_arrow : Icons.monetization_on_outlined, color: _neonCyan, size: 11),
+                            Icon(game.gameId == 'daily_spin' ? Icons.casino_outlined : Icons.check_circle_outline, color: _neonCyan, size: 11),
                             const SizedBox(width: 4),
                             Text(
-                              game.gameId == 'daily_spin' ? 'Free Spin' : 'Play (KES 5)',
+                              game.gameId == 'daily_spin' ? 'Free Spin' : 'Play Now',
                               style: const TextStyle(color: Color(0xFF05D5AA), fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.monetization_on_outlined, color: Colors.amber, size: 11),
+                            SizedBox(width: 4),
+                            Text(
+                              'Unlock (KES 5)',
+                              style: TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),

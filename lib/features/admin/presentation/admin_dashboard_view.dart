@@ -9,6 +9,7 @@ import '../../vendor/presentation/vendor_dashboard_view.dart';
 import '../../auth/presentation/login_view.dart';
 import 'fraud_velocity_view.dart';
 import 'admin_support_tickets_view.dart';
+import 'admin_support_dashboard.dart';
 import 'admin_transactions_view.dart';
 import 'admin_settings_view.dart';
 import 'admin_moderation_view.dart';
@@ -20,6 +21,10 @@ import 'admin_users_view.dart';
 import 'admin_database_indexes_view.dart';
 import 'admin_emergency_security_view.dart';
 import 'admin_housing_view.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'admin_executive_analytics_view.dart';
 import 'admin_employee_payroll_view.dart';
 import 'admin_b2b_finance_view.dart';
 import 'admin_c2b_collections_view.dart';
@@ -55,9 +60,17 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
   int _flaggedTransactions = 0;
   bool _isMaintenance = false;
 
+  String? _adminName;
+  String? _adminEmail;
+  String? _adminProfileImageUrl;
+  bool _isUploadingAdminPhoto = false;
+
   @override
   void initState() {
     super.initState();
+    _adminName = widget.user['name'] ?? widget.user['displayName'] ?? 'Super Admin';
+    _adminEmail = widget.user['email'] ?? FirebaseAuth.instance.currentUser?.email ?? 'admin@dishi.com';
+    _adminProfileImageUrl = widget.user['profileImageUrl'] ?? widget.user['photoUrl'] ?? widget.user['photoURL'];
     _fetchAdminStats();
     _listenToPlatformConfig();
   }
@@ -111,6 +124,140 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     }
   }
 
+  Future<void> _pickAndUploadAdminImage() async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 800);
+      if (image == null) return;
+
+      setState(() => _isUploadingAdminPhoto = true);
+      final uid = widget.user['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? 'admin';
+      final fileName = 'admin_${uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final ref = FirebaseStorage.instance.ref().child('profile_images').child(fileName);
+
+      await ref.putFile(File(image.path));
+      final downloadUrl = await ref.getDownloadURL();
+
+      // Update Firestore user document
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'profileImageUrl': downloadUrl,
+        'photoUrl': downloadUrl,
+        'photoURL': downloadUrl,
+        'avatarUrl': downloadUrl,
+        'image': downloadUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Update backend & FirebaseAuth
+      try {
+        await _adminService.updateAdminProfile(profileImageUrl: downloadUrl);
+        await FirebaseAuth.instance.currentUser?.updatePhotoURL(downloadUrl);
+      } catch (_) {}
+
+      // Update local state
+      widget.user['profileImageUrl'] = downloadUrl;
+      widget.user['photoUrl'] = downloadUrl;
+
+      if (mounted) {
+        setState(() {
+          _adminProfileImageUrl = downloadUrl;
+          _isUploadingAdminPhoto = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Admin profile image updated!'), backgroundColor: _neonCyan),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploadingAdminPhoto = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Image upload failed: $e'), backgroundColor: _neonRed),
+        );
+      }
+    }
+  }
+
+  void _showEditAdminProfileDialog() {
+    final nameCtrl = TextEditingController(text: _adminName);
+    final emailCtrl = TextEditingController(text: _adminEmail);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: _neonCyan, width: 1.5)),
+        title: const Text('Edit Admin Profile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Admin Name',
+                labelStyle: const TextStyle(color: _textSecondary),
+                filled: true,
+                fillColor: _surfaceLight,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emailCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Admin Email',
+                labelStyle: const TextStyle(color: _textSecondary),
+                filled: true,
+                fillColor: _surfaceLight,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: _textSecondary))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+            onPressed: () async {
+              final newName = nameCtrl.text.trim();
+              final newEmail = emailCtrl.text.trim();
+              if (newName.isEmpty) return;
+              Navigator.pop(ctx);
+
+              final uid = widget.user['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? 'admin';
+              await FirebaseFirestore.instance.collection('users').doc(uid).set({
+                'name': newName,
+                'displayName': newName,
+                if (newEmail.isNotEmpty) 'email': newEmail,
+                'updatedAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+
+              try {
+                await _adminService.updateAdminProfile(name: newName, email: newEmail.isNotEmpty ? newEmail : null);
+              } catch (_) {}
+
+              widget.user['name'] = newName;
+              widget.user['displayName'] = newName;
+              if (newEmail.isNotEmpty) widget.user['email'] = newEmail;
+
+              if (mounted) {
+                setState(() {
+                  _adminName = newName;
+                  if (newEmail.isNotEmpty) _adminEmail = newEmail;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Admin profile details updated!'), backgroundColor: _neonCyan),
+                );
+              }
+            },
+            child: const Text('Save Details', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _processMassPayouts() async {
     try {
       await _adminService.triggerManualPayout();
@@ -136,66 +283,132 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
   }
 
   void _showProfileMenu(BuildContext context) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: _neonCyan, width: 1.5)),
-        title: const Text('Admin Console Session', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Admin: ${widget.user['name'] ?? widget.user['displayName'] ?? "Super Admin"}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text('UID: ${widget.user['uid'] ?? ""}', style: const TextStyle(color: _textSecondary, fontSize: 11)),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.security, color: _neonCyan),
-              title: const Text('Emergency Security Center', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminEmergencySecurityView()));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.storage, color: _neonBlue),
-              title: const Text('Database & Indexes Telemetry', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDatabaseIndexesView()));
-              },
-            ),
-            const Divider(color: Colors.white12),
-            ListTile(
-              leading: const Icon(Icons.logout, color: _neonRed),
-              title: const Text('Sign Out', style: TextStyle(color: _neonRed, fontWeight: FontWeight.bold)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
-              },
-            ),
-          ],
+      isScrollControlled: true,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(child: Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2.5)))),
+              const SizedBox(height: 20),
+
+              // Admin Avatar with Camera overlay
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  CircleAvatar(
+                    radius: 46,
+                    backgroundColor: _surfaceLight,
+                    backgroundImage: _adminProfileImageUrl != null && _adminProfileImageUrl!.isNotEmpty
+                        ? NetworkImage(_adminProfileImageUrl!)
+                        : const AssetImage('assets/img/dishi_logo.png') as ImageProvider,
+                    child: (_adminProfileImageUrl == null || _adminProfileImageUrl!.isEmpty)
+                        ? const Icon(Icons.admin_panel_settings, color: _neonCyan, size: 46)
+                        : null,
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _pickAndUploadAdminImage();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(color: _neonCyan, shape: BoxShape.circle),
+                      child: const Icon(Icons.camera_alt, color: Colors.black, size: 18),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Admin Name & Email
+              Text(_adminName ?? 'Super Admin', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text(_adminEmail ?? 'admin@dishi.com', style: const TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 12),
+
+              // Edit profile chip button
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _neonCyan,
+                  side: const BorderSide(color: _neonCyan),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                icon: const Icon(Icons.edit, size: 14),
+                label: const Text('Edit Name & Email', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _showEditAdminProfileDialog();
+                },
+              ),
+              const SizedBox(height: 20),
+              const Divider(color: Colors.white12),
+
+              // Executive Quick Actions
+              ListTile(
+                leading: const Icon(Icons.insights, color: _neonCyan),
+                title: const Text('Executive Analytics & Commissions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                subtitle: const Text('Commissions, student deposits & vendor spending flow', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 14),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminExecutiveAnalyticsView()));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.security, color: _neonBlue),
+                title: const Text('Emergency Security Center', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                subtitle: const Text('Platform kill switches & transaction circuit breaker', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 14),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminEmergencySecurityView()));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.storage, color: Colors.greenAccent),
+                title: const Text('Database & Indexes Telemetry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 14),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDatabaseIndexesView()));
+                },
+              ),
+              const Divider(color: Colors.white12),
+              ListTile(
+                leading: const Icon(Icons.logout, color: _neonRed),
+                title: const Text('Sign Out', style: TextStyle(color: _neonRed, fontWeight: FontWeight.bold)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginView()));
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close', style: TextStyle(color: _textSecondary))),
-        ],
       ),
     );
   }
 
   Widget _buildCustomAppBar() {
-    final adminName = widget.user['name'] ?? widget.user['displayName'] ?? 'Super Admin';
-    final profileImageUrl = widget.user['profileImageUrl'];
+    final adminName = _adminName ?? widget.user['name'] ?? widget.user['displayName'] ?? 'Super Admin';
+    final adminEmail = _adminEmail ?? widget.user['email'] ?? '';
+    final profileImageUrl = _adminProfileImageUrl ?? widget.user['profileImageUrl'];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF161B29).withOpacity(0.9),
+        color: const Color(0xFF161B29).withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(40),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))
+          BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))
         ],
       ),
       child: Row(
@@ -206,17 +419,21 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 onTap: () => _showProfileMenu(context),
                 child: CircleAvatar(
                   radius: 20,
-                  backgroundImage: profileImageUrl != null ? NetworkImage(profileImageUrl) : const AssetImage('assets/img/dishi_logo.png') as ImageProvider,
+                  backgroundImage: profileImageUrl != null && profileImageUrl.isNotEmpty
+                      ? NetworkImage(profileImageUrl)
+                      : const AssetImage('assets/img/dishi_logo.png') as ImageProvider,
                   backgroundColor: _surfaceLight,
-                  child: profileImageUrl == null ? const Icon(Icons.admin_panel_settings, color: _neonCyan, size: 20) : null,
+                  child: (profileImageUrl == null || profileImageUrl.isEmpty)
+                      ? const Icon(Icons.admin_panel_settings, color: _neonCyan, size: 20)
+                      : null,
                 ),
               ),
               Positioned(
                 right: 0,
                 bottom: 0,
                 child: Container(
-                  width: 12,
-                  height: 12,
+                  width: 10,
+                  height: 10,
                   decoration: BoxDecoration(
                     color: _isMaintenance ? _neonRed : Colors.greenAccent,
                     shape: BoxShape.circle,
@@ -226,42 +443,67 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               )
             ],
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Text(_getGreeting(), style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: _neonCyan.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(4),
+            child: GestureDetector(
+              onTap: () => _showProfileMenu(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _getGreeting(),
+                          style: const TextStyle(color: Colors.white70, fontSize: 10),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      child: const Text('SUPER ADMIN', style: TextStyle(color: _neonCyan, fontSize: 9, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: _neonCyan.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('SUPER ADMIN', style: TextStyle(color: _neonCyan, fontSize: 8, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    adminName,
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (adminEmail.isNotEmpty)
+                    Text(
+                      adminEmail,
+                      style: const TextStyle(color: _textSecondary, fontSize: 10),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                ),
-                Text(
-                  adminName,
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.notifications_active_outlined, color: Colors.white70, size: 20),
+            padding: const EdgeInsets.all(5),
+            constraints: const BoxConstraints(),
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.notifications_active_outlined, color: Colors.white70, size: 19),
             tooltip: 'Send Broadcast',
             onPressed: _showSendNotificationSheet,
           ),
+          const SizedBox(width: 4),
           IconButton(
-            icon: const Icon(Icons.refresh, color: _neonCyan, size: 20),
+            padding: const EdgeInsets.all(5),
+            constraints: const BoxConstraints(),
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.refresh, color: _neonCyan, size: 19),
             tooltip: 'Refresh Telemetry',
             onPressed: _fetchAdminStats,
           ),
@@ -294,7 +536,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                       iconTheme: const IconThemeData(color: Colors.white),
                       flexibleSpace: FlexibleSpaceBar(
                         background: Padding(
-                          padding: const EdgeInsets.only(left: 60, right: 16, top: 16),
+                          padding: const EdgeInsets.only(left: 54, right: 12, top: 14),
                           child: _buildCustomAppBar(),
                         ),
                       ),
@@ -358,17 +600,28 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      const Row(
-                                        children: [
-                                          Icon(Icons.account_balance, color: _neonCyan, size: 20),
-                                          SizedBox(width: 8),
-                                          Text('Total System Float (Live Ledger)', style: TextStyle(color: _textSecondary, fontSize: 13)),
-                                        ],
+                                      const Expanded(
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.account_balance, color: _neonCyan, size: 20),
+                                            SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                'Total System Float (Live Ledger)',
+                                                style: TextStyle(color: _textSecondary, fontSize: 13),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
+                                      const SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(color: _neonCyan.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
                                         child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Text('Reconcile', style: TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.bold)),
                                             SizedBox(width: 4),
@@ -388,14 +641,70 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                     children: [
                                       const Icon(Icons.lock_clock, color: Colors.amberAccent, size: 14),
                                       const SizedBox(width: 6),
-                                      Text('Platform Escrow: KES ${_totalEscrow.toStringAsFixed(2)}', style: const TextStyle(color: Colors.amberAccent, fontSize: 12, fontWeight: FontWeight.w600)),
+                                      Expanded(
+                                        child: Text(
+                                          'Platform Escrow: KES ${_totalEscrow.toStringAsFixed(2)}',
+                                          style: const TextStyle(color: Colors.amberAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 18),
+                          // Real-Time Open Support Tickets Alert Banner
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('support_tickets')
+                                .where('status', isEqualTo: 'open')
+                                .snapshots(),
+                            builder: (context, snap) {
+                              final openCount = snap.data?.docs.length ?? 0;
+                              if (openCount == 0) return const SizedBox.shrink();
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 18),
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF59E0B).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.5), width: 1.5),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.mark_chat_unread, color: Color(0xFFF59E0B), size: 24),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('🚨 $openCount Open Support Ticket${openCount > 1 ? 's' : ''}',
+                                              style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 14)),
+                                          const Text('Students or users submitted support inquiries',
+                                              style: TextStyle(color: Colors.white70, fontSize: 11)),
+                                        ],
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFFF59E0B),
+                                        foregroundColor: Colors.black,
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSupportDashboard())),
+                                      child: const Text('Open Desk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 6),
 
                           // Executive Quick Dock Buttons
                           Row(
@@ -469,6 +778,30 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildExecutiveActionTile(
+                                  label: 'DISHI Analytics',
+                                  subtitle: 'Commissions & Flow',
+                                  icon: Icons.insights_rounded,
+                                  color: _neonCyan,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminExecutiveAnalyticsView())),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildExecutiveActionTile(
+                                  label: 'B2B Liquidity',
+                                  subtitle: 'Health & Runway',
+                                  icon: Icons.account_balance_wallet_rounded,
+                                  color: _neonBlue,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminB2BFinanceView())),
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 28),
 
                           // Key Metrics Deck
@@ -516,7 +849,37 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                           ),
                           const SizedBox(height: 10),
 
-                          // 2. Disputes Center
+                          // 2. Helpdesk & Support Desk (Live Badge)
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('support_tickets')
+                                .where('status', isEqualTo: 'open')
+                                .snapshots(),
+                            builder: (context, snap) {
+                              final openTickets = snap.data?.docs.length ?? 0;
+                              return ListTile(
+                                tileColor: _surfaceLight,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  side: BorderSide(color: openTickets > 0 ? const Color(0xFFF59E0B) : Colors.transparent),
+                                ),
+                                leading: Badge(
+                                  isLabelVisible: openTickets > 0,
+                                  label: Text('$openTickets'),
+                                  backgroundColor: const Color(0xFFF59E0B),
+                                  textColor: Colors.black,
+                                  child: const Icon(Icons.support_agent, color: Color(0xFFF59E0B)),
+                                ),
+                                title: const Text('Admin Support Desk & Contacts', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                subtitle: Text(openTickets > 0 ? '$openTickets unread tickets requiring review' : 'All user inquiries resolved', style: const TextStyle(color: _textSecondary, fontSize: 12)),
+                                trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminSupportDashboard())),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 10),
+
+                          // 3. Disputes Center
                           ListTile(
                             tileColor: _surfaceLight,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -653,7 +1016,14 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                   children: [
                                     Icon(Icons.shield_outlined, color: _neonCyan, size: 18),
                                     SizedBox(width: 8),
-                                    Text('Automated Safaricom Daraja B2C Queue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                    Expanded(
+                                      child: Text(
+                                        'Automated Safaricom Daraja B2C Queue',
+                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 6),
@@ -768,17 +1138,28 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: _neonCyan.withOpacity(0.15), shape: BoxShape.circle),
-                    child: const Icon(Icons.admin_panel_settings, size: 36, color: _neonCyan),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showProfileMenu(context);
+                    },
+                    child: CircleAvatar(
+                      radius: 28,
+                      backgroundColor: _cardColor,
+                      backgroundImage: _adminProfileImageUrl != null && _adminProfileImageUrl!.isNotEmpty
+                          ? NetworkImage(_adminProfileImageUrl!)
+                          : const AssetImage('assets/img/dishi_logo.png') as ImageProvider,
+                      child: (_adminProfileImageUrl == null || _adminProfileImageUrl!.isEmpty)
+                          ? const Icon(Icons.admin_panel_settings, size: 32, color: _neonCyan)
+                          : null,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    widget.user['name'] ?? widget.user['displayName'] ?? 'Super Admin',
+                    _adminName ?? widget.user['name'] ?? widget.user['displayName'] ?? 'Super Admin',
                     style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  Text(widget.user['email'] ?? 'admin@dishi.com', style: const TextStyle(color: _textSecondary, fontSize: 12)),
+                  Text(_adminEmail ?? widget.user['email'] ?? 'admin@dishi.com', style: const TextStyle(color: _textSecondary, fontSize: 12)),
                 ],
               ),
             ),
@@ -794,6 +1175,15 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                     leading: const Icon(Icons.dashboard, color: _neonCyan),
                     title: const Text('Home Overview', style: TextStyle(color: Colors.white)),
                     onTap: () => Navigator.pop(context),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.insights, color: _neonCyan),
+                    title: const Text('Executive Analytics & Commissions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    subtitle: const Text('Revenue, deposits & vendor flow', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminExecutiveAnalyticsView()));
+                    },
                   ),
                   ListTile(
                     leading: const Icon(Icons.people, color: Colors.white70),

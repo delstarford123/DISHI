@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/mpesa_theme.dart';
+import '../../../core/utils/map_marker_helper.dart';
 
 class DelivActiveRouteView extends StatefulWidget {
   final String? rideId;
@@ -25,10 +26,12 @@ class _DelivActiveRouteViewState extends State<DelivActiveRouteView> {
   bool _isTracking = false;
   bool _permissionDenied = false;
   final String _driverUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  MapType _currentMapType = MapType.normal;
 
   // Order Details from Firestore
   Map<String, dynamic>? _gigData;
   String _customerName = 'Campus Student';
+  String? _customerPhotoUrl;
   String _customerPhone = '';
   String _pickupLocation = 'Campus Cafeteria';
   String _dropoffLocation = 'Student Hostel';
@@ -89,6 +92,7 @@ class _DelivActiveRouteViewState extends State<DelivActiveRouteView> {
             setState(() {
               _customerName = uData['displayName'] ?? uData['name'] ?? uData['firstName'] ?? 'Student Customer';
               _customerPhone = uData['phoneNumber'] ?? uData['phone'] ?? '';
+              _customerPhotoUrl = (uData['profileImageUrl'] ?? uData['photoUrl']) as String?;
             });
           }
         }
@@ -100,24 +104,25 @@ class _DelivActiveRouteViewState extends State<DelivActiveRouteView> {
     }
   }
 
-  void _setupMapMarkers() {
+  Future<void> _setupMapMarkers() async {
     if (!mounted) return;
     final Set<Marker> newMarkers = {};
 
-    // 1. Current Driver Marker
+    // 1. Current Driver Marker with custom Courier Pin
     if (_currentLatLng != null) {
+      final driverIcon = await MapMarkerHelper.createCourierMarker(riderName: 'You');
       newMarkers.add(
         Marker(
           markerId: const MarkerId('driver_location'),
           position: _currentLatLng!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          infoWindow: const InfoWindow(title: 'You (Courier / Rider) 🛵'),
+          icon: driverIcon,
+          zIndex: 10,
+          infoWindow: const InfoWindow(title: 'You (DISHI Courier) 🛵', snippet: 'En route'),
         ),
       );
     }
 
     // 2. Pickup Cafeteria Marker (Estimated or actual coords)
-    // If coordinates are in gigData, use them; otherwise anchor near driver or campus center
     double pickupLat = _gigData?['pickup_lat']?.toDouble() ??
         (_currentLatLng != null ? _currentLatLng!.latitude + 0.0035 : -1.286389);
     double pickupLng = _gigData?['pickup_lng']?.toDouble() ??
@@ -130,25 +135,32 @@ class _DelivActiveRouteViewState extends State<DelivActiveRouteView> {
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
         infoWindow: InfoWindow(
           title: 'Pickup: $_pickupLocation 🍔',
-          snippet: 'Collect food package at counter',
+          snippet: 'Collect meal package at counter',
         ),
       ),
     );
 
-    // 3. Dropoff Customer Marker
+    // 3. Dropoff Customer Marker with Student Avatar
     double dropoffLat = _gigData?['dropoff_lat']?.toDouble() ??
         (_currentLatLng != null ? _currentLatLng!.latitude + 0.0080 : -1.281000);
     double dropoffLng = _gigData?['dropoff_lng']?.toDouble() ??
         (_currentLatLng != null ? _currentLatLng!.longitude + 0.0040 : 36.822000);
 
+    final customerAvatarIcon = await MapMarkerHelper.createStudentAvatarMarker(
+      name: _customerName,
+      profileImageUrl: _customerPhotoUrl,
+      borderColor: const Color(0xFF38BDF8),
+    );
+
     newMarkers.add(
       Marker(
         markerId: const MarkerId('dropoff_customer'),
         position: LatLng(dropoffLat, dropoffLng),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan),
+        icon: customerAvatarIcon,
+        zIndex: 8,
         infoWindow: InfoWindow(
-          title: 'Dropoff: $_dropoffLocation 📍',
-          snippet: 'Deliver to $_customerName',
+          title: 'Dropoff: $_customerName 📍',
+          snippet: 'Destination: $_dropoffLocation',
         ),
       ),
     );
@@ -179,12 +191,16 @@ class _DelivActiveRouteViewState extends State<DelivActiveRouteView> {
       );
     }
 
-    setState(() {
-      _markers.clear();
-      _markers.addAll(newMarkers);
-      _polylines.clear();
-      _polylines.addAll(newPolylines);
-    });
+    if (mounted) {
+      setState(() {
+        _markers
+          ..clear()
+          ..addAll(newMarkers);
+        _polylines
+          ..clear()
+          ..addAll(newPolylines);
+      });
+    }
   }
 
   Future<void> _startTracking() async {
@@ -485,8 +501,12 @@ class _DelivActiveRouteViewState extends State<DelivActiveRouteView> {
                   ),
                 )
               : GoogleMap(
+                  mapType: _currentMapType,
                   onMapCreated: (controller) {
                     _mapController = controller;
+                    if (_currentMapType == MapType.normal) {
+                      _mapController?.setMapStyle(MapMarkerHelper.darkMapStyle);
+                    }
                   },
                   initialCameraPosition: CameraPosition(
                     target: _currentLatLng!,
@@ -500,6 +520,69 @@ class _DelivActiveRouteViewState extends State<DelivActiveRouteView> {
                   zoomControlsEnabled: false,
                   compassEnabled: true,
                 ),
+
+          // ── Floating Map & Route Controls ──
+          Positioned(
+            right: 16,
+            top: 90,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF131A2A).withValues(alpha: 0.9),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white24),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      _currentMapType == MapType.satellite ? Icons.map : Icons.satellite_alt,
+                      color: const Color(0xFF05D5AA),
+                      size: 20,
+                    ),
+                    tooltip: 'Switch Map View',
+                    onPressed: () {
+                      setState(() {
+                        if (_currentMapType == MapType.normal) {
+                          _currentMapType = MapType.satellite;
+                          _mapController?.setMapStyle(null);
+                        } else {
+                          _currentMapType = MapType.normal;
+                          _mapController?.setMapStyle(MapMarkerHelper.darkMapStyle);
+                        }
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF131A2A).withValues(alpha: 0.9),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white24),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.my_location, color: MPesaTheme.primaryGreen, size: 20),
+                    tooltip: 'Recenter on My Location',
+                    onPressed: () {
+                      if (_currentLatLng != null) {
+                        _mapController?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
+                          target: _currentLatLng!,
+                          zoom: 17,
+                        )));
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
 
           // ── Top Navigation & Live Header ──
           Positioned(
@@ -538,6 +621,16 @@ class _DelivActiveRouteViewState extends State<DelivActiveRouteView> {
                                         : 'Deliver to Hostel 🚪',
                                 style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                               ),
+                              if (_isTracking)
+                                Container(
+                                  margin: const EdgeInsets.only(left: 6),
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: MPesaTheme.primaryGreen,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
                             ],
                           ),
                           const SizedBox(height: 2),

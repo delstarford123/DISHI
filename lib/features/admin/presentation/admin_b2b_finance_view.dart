@@ -27,6 +27,7 @@ class _AdminB2BFinanceViewState extends State<AdminB2BFinanceView> {
   bool _isLoading = true;
   String? _error;
   List<dynamic> _transfers = [];
+  Map<String, dynamic>? _liquidityOverview;
   String _filterStatus = 'all';
   String _searchQuery = '';
 
@@ -43,10 +44,14 @@ class _AdminB2BFinanceViewState extends State<AdminB2BFinanceView> {
     });
 
     try {
-      final list = await _adminService.getB2BTransfers();
+      final results = await Future.wait([
+        _adminService.getB2BTransfers(),
+        _adminService.getB2BLiquidityOverview().catchError((_) => <String, dynamic>{}),
+      ]);
       if (mounted) {
         setState(() {
-          _transfers = list;
+          _transfers = results[0] as List<dynamic>;
+          _liquidityOverview = results[1] as Map<String, dynamic>;
           _isLoading = false;
         });
       }
@@ -67,13 +72,13 @@ class _AdminB2BFinanceViewState extends State<AdminB2BFinanceView> {
     }
   }
 
-  void _showInitiateB2BModal() {
-    final nameCtrl = TextEditingController();
-    final numberCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
+  void _showInitiateB2BModal({String? prefillName, String? prefillNumber, double? prefillAmount}) {
+    final nameCtrl = TextEditingController(text: prefillName ?? '');
+    final numberCtrl = TextEditingController(text: prefillNumber ?? '');
+    final amountCtrl = TextEditingController(text: prefillAmount != null ? prefillAmount.toStringAsFixed(0) : '');
     final accountRefCtrl = TextEditingController(text: 'DISHI-B2B');
     final purposeCtrl = TextEditingController(text: 'Supplier Invoice');
-    String recipientType = 'buygoods';
+    String recipientType = (prefillNumber != null && prefillNumber.length <= 6) ? 'buygoods' : 'buygoods';
     bool isSubmitting = false;
 
     showModalBottomSheet(
@@ -464,6 +469,137 @@ class _AdminB2BFinanceViewState extends State<AdminB2BFinanceView> {
                 ),
               ),
             ),
+
+            // Enterprise Liquidity Runway & Health Card
+            if (_liquidityOverview != null && _liquidityOverview!.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: _cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.health_and_safety, color: _neonCyan, size: 16),
+                              SizedBox(width: 6),
+                              Text('Liquidity Health Score', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: (_liquidityOverview?['health_status'] == 'Optimal' ? _neonCyan : _neonOrange).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${_liquidityOverview?['health_status'] ?? 'Optimal'} (${_liquidityOverview?['liquidity_ratio_percent'] ?? 100}%)',
+                              style: TextStyle(
+                                color: _liquidityOverview?['health_status'] == 'Optimal' ? _neonCyan : _neonOrange,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Corporate Float Buffer', style: TextStyle(color: _textSecondary, fontSize: 10)),
+                                Text('KES ${((_liquidityOverview?['corporate_b2b_float'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(0)}', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Vendor Liability Pool', style: TextStyle(color: _textSecondary, fontSize: 10)),
+                                Text('KES ${((_liquidityOverview?['vendor_payout_liability'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(0)}', style: const TextStyle(color: _neonOrange, fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Settlements Ready', style: TextStyle(color: _textSecondary, fontSize: 10)),
+                                Text('${_liquidityOverview?['vendors_ready_count'] ?? 0} Vendors', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if ((_liquidityOverview?['vendors_ready_for_settlement'] as List?)?.isNotEmpty == true) ...[
+                        const SizedBox(height: 10),
+                        const Divider(color: Colors.white10, height: 1),
+                        const SizedBox(height: 8),
+                        const Text('Quick Vendor Settlements:', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 6),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: (_liquidityOverview!['vendors_ready_for_settlement'] as List).take(5).map((v) {
+                              final vName = (v['name'] ?? 'Vendor').toString();
+                              final vBal = (v['balance'] as num?)?.toDouble() ?? 0.0;
+                              final vNum = (v['paybill'] ?? v['phone'] ?? '').toString();
+                              return Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: _surfaceLight,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: _neonCyan.withValues(alpha: 0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(vName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                                        Text('KES ${vBal.toStringAsFixed(0)}', style: const TextStyle(color: _neonCyan, fontSize: 10)),
+                                      ],
+                                    ),
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      onTap: () => _showInitiateB2BModal(
+                                        prefillName: vName,
+                                        prefillNumber: vNum,
+                                        prefillAmount: vBal,
+                                      ),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(color: _neonCyan, borderRadius: BorderRadius.circular(6)),
+                                        child: const Text('Disburse', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 10)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
 
             // Search and Filter Bar
             Padding(

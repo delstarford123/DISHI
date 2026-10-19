@@ -4,7 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/services/admin_service.dart';
 import '../../../core/security/secure_storage_service.dart';
-import '../../../main.dart';
+import '../../student/presentation/student_main_scaffold.dart';
+import '../../vendor/presentation/vendor_dashboard_view.dart';
+import '../../parent/presentation/parent_dashboard_view.dart';
+import '../../deliv/presentation/deliv_driver_dashboard.dart';
+import '../../housing/presentation/housing_dashboard_view.dart';
+import '../../fundi/presentation/fundi_dashboard_view.dart';
 
 // -- CUSTOM EXECUTIVE THEME COLORS --
 const Color _bgColor = Color(0xFF0C101B);
@@ -377,36 +382,110 @@ class _AdminUsersViewState extends State<AdminUsersView> {
   }
 
   void _impersonateUser(String userId) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: _neonCyan),
+      ),
+    );
+
     try {
+      final currentAdmin = FirebaseAuth.instance.currentUser;
+      final adminUid = currentAdmin?.uid ?? 'pjOEzi20dZeKVmrkSvBJICFh7mz1';
+      final adminEmail = currentAdmin?.email ?? 'dishi@delstarfordworks.co.ke';
+      final adminName = currentAdmin?.displayName ?? 'Super Admin';
+
+      // 1. Pre-fetch admin return token so we can always return cleanly
+      String? adminReturnToken;
+      try {
+        adminReturnToken = await _adminService.impersonateUser(adminUid);
+      } catch (e) {
+        debugPrint('Could not pre-fetch admin return token: $e');
+      }
+
+      // 2. Fetch target user doc
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      final rawData = userDoc.data();
+      final uData = rawData != null ? Map<String, dynamic>.from(rawData as Map) : <String, dynamic>{};
+      final rolesList = uData['roles'] as List<dynamic>? ?? [];
+      final roleSingular = uData['role'] as String? ?? '';
+      final userRole = rolesList.isNotEmpty ? rolesList.first.toString().toLowerCase() : (roleSingular.isNotEmpty ? roleSingular.toLowerCase() : 'student');
+      final userName = uData['name'] ?? uData['displayName'] ?? 'User';
+
+      final adminUserMap = {
+        'uid': adminUid,
+        'email': adminEmail,
+        'name': adminName,
+        'roles': ['admin'],
+        'role': 'admin',
+      };
+
+      // 3. Save admin backup in SecureStorageService
+      await SecureStorageService.startGhostSession(
+        adminUid: adminUid,
+        adminEmail: adminEmail,
+        adminName: adminName,
+        adminReturnToken: adminReturnToken,
+        adminUserMap: adminUserMap,
+      );
+
+      // 4. Authenticate as the target user via custom token
       final token = await _adminService.impersonateUser(userId);
       await FirebaseAuth.instance.signInWithCustomToken(token);
 
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-      final uData = userDoc.data() ?? {};
-      final rolesList = uData['roles'] as List<dynamic>? ?? [];
-      final roleSingular = uData['role'] as String? ?? '';
-      final userRole = rolesList.isNotEmpty ? rolesList.first.toString() : (roleSingular.isNotEmpty ? roleSingular : 'student');
-      final userName = uData['name'] ?? uData['displayName'] ?? '';
+      // 5. Construct user map for dashboard with Ghost Mode metadata
+      final targetUserMap = Map<String, dynamic>.from(uData);
+      targetUserMap['uid'] = userId;
+      targetUserMap['isGhostMode'] = true;
+      targetUserMap['adminUid'] = adminUid;
+      targetUserMap['adminUser'] = adminUserMap;
+      targetUserMap['roles'] = rolesList.isNotEmpty ? rolesList.map((e) => e.toString().toLowerCase()).toList() : [userRole];
+      targetUserMap['displayName'] = userName;
 
-      await SecureStorageService.saveUserData(
-        userId: userId,
-        role: userRole,
-        name: userName,
-        email: uData['email'],
-        phone: uData['phoneNumber'],
+      if (!mounted) return;
+      Navigator.pop(context); // Dismiss loading dialog
+
+      // 6. Navigate directly to the corresponding dashboard with Ghost Banner
+      Widget dashboard;
+      if (userRole == 'vendor') {
+        dashboard = VendorDashboardView(user: targetUserMap);
+      } else if (userRole == 'parent') {
+        dashboard = ParentDashboardView(user: targetUserMap);
+      } else if (userRole == 'driver') {
+        dashboard = DelivDriverDashboard(user: targetUserMap);
+      } else if (userRole == 'house_owner') {
+        dashboard = HousingDashboardView(user: targetUserMap);
+      } else if (userRole == 'fundi') {
+        dashboard = FundiDashboardView(user: targetUserMap);
+      } else {
+        dashboard = StudentMainScaffold(user: targetUserMap);
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => dashboard),
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ghost login active. Redirecting...'), backgroundColor: _neonCyan));
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const InitialRouter()),
-          (route) => false,
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.remove_red_eye, color: Colors.black, size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Ghost Session Active: Viewing as $userName ($userRole)')),
+            ],
+          ),
+          backgroundColor: _neonCyan,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ghost Login Failed: $e'), backgroundColor: _neonRed));
+        Navigator.pop(context); // Dismiss loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ghost Login Failed: $e'), backgroundColor: _neonRed),
+        );
       }
     }
   }
