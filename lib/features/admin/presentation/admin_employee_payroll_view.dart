@@ -142,7 +142,13 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(isEditing ? 'Edit Employee Record' : 'Register New Employee', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    Expanded(
+                      child: Text(
+                        isEditing ? 'Edit Employee Record' : 'Register New Employee',
+                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     IconButton(icon: const Icon(Icons.close, color: _textSecondary), onPressed: () => Navigator.pop(ctx)),
                   ],
                 ),
@@ -502,14 +508,15 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.currency_exchange, color: Colors.amberAccent, size: 22),
-                        const SizedBox(width: 8),
-                        Text('Change Role & Salary: $name', style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
-                      ],
+                    const Icon(Icons.currency_exchange, color: Colors.amberAccent, size: 22),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Change Role & Salary: $name',
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     IconButton(icon: const Icon(Icons.close, color: _textSecondary), onPressed: () => Navigator.pop(ctx)),
                   ],
@@ -753,6 +760,163 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
   }
 
   // ==========================================
+  // APPOINTMENT LETTER PREVIEW & SHARE SHEET
+  // ==========================================
+  void _showAppointmentLetterSheet(Map<String, dynamic> emp) {
+    final name = emp['name'] ?? 'Staff Member';
+    final role = emp['role'] ?? 'Staff';
+    final dept = emp['department'] ?? 'Operations';
+    final salary = (emp['base_salary'] as num?)?.toDouble() ?? 0.0;
+    final phone = emp['phone'] ?? '';
+    final email = emp['email'] ?? '';
+    final expectations = emp['expectations'] ?? 'Operational food distribution, delivery logistics, customer care, and platform workflows.';
+
+    final savedLetter = emp['appointment_letter'] as Map<String, dynamic>?;
+    final letterText = savedLetter?['plain']?.toString() ?? '''OFFICIAL APPOINTMENT LETTER — DISHI PLATFORM
+
+Dear $name,
+
+Congratulations! On behalf of DISHI, we are delighted to formally confirm your appointment to the DISHI Operations Team.
+
+APPOINTMENT SUMMARY:
+---------------------------------------------
+Designated Role : $role
+Department      : $dept
+Gross Salary    : KES ${salary.toStringAsFixed(2)} / month
+Disbursement    : Safaricom M-PESA B2C to $phone
+Status          : Active
+
+KEY RESPONSIBILITIES & DELIVERABLES:
+$expectations
+
+GETTING STARTED ON THE APP:
+Download or access your staff terminal here:
+https://dishi.delstarfordworks.co.ke
+
+Sign in with your registered phone ($phone) or email ($email).
+
+Welcome aboard!
+Management, DISHI Operations
+support@delstarfordworks.co.ke''';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          left: 20,
+          right: 20,
+          top: 24,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.assignment_ind, color: _neonCyan, size: 22),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Appointment Letter: $name',
+                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(icon: const Icon(Icons.close, color: _textSecondary), onPressed: () => Navigator.pop(ctx)),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Recipient: ${email.isNotEmpty ? email : "No email configured"} • M-PESA: $phone',
+                style: const TextStyle(color: _textSecondary, fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _surfaceLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: SelectableText(
+                  letterText,
+                  style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.5, fontFamily: 'monospace'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _neonCyan,
+                        side: const BorderSide(color: _neonCyan),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      icon: const Icon(Icons.copy, size: 16),
+                      label: const Text('Copy Letter'),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: letterText));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Appointment letter copied to clipboard!'), backgroundColor: _neonCyan),
+                        );
+                      },
+                    ),
+                  ),
+                  if (email.isNotEmpty) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _neonCyan,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: const Icon(Icons.mark_email_read_outlined, size: 16),
+                        label: const Text('Resend Email', style: TextStyle(fontWeight: FontWeight.bold)),
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          try {
+                            final res = await _adminService.resendStaffWelcomeEmail(emp['id']);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(res['message'] ?? 'Appointment email sent!'), backgroundColor: _neonCyan),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed: $e'), backgroundColor: _neonRed),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
   // 3. CREATE / EDIT DEPARTMENT MODAL
   // ==========================================
   void _showCreateDepartmentModal({Map<String, dynamic>? existingDept}) {
@@ -800,12 +964,20 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.apartment, color: _neonCyan, size: 22),
-                        const SizedBox(width: 8),
-                        Text(isEditing ? 'Edit Department' : 'Create New Department', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                      ],
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Icon(Icons.apartment, color: _neonCyan, size: 22),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              isEditing ? 'Edit Department' : 'Create New Department',
+                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     IconButton(icon: const Icon(Icons.close, color: _textSecondary), onPressed: () => Navigator.pop(ctx)),
                   ],
@@ -1222,7 +1394,8 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: _textSecondary, fontSize: 12)),
+          Expanded(child: Text(label, style: const TextStyle(color: _textSecondary, fontSize: 12), overflow: TextOverflow.ellipsis)),
+          const SizedBox(width: 8),
           Text(value, style: TextStyle(color: color, fontSize: 12, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
         ],
       ),
@@ -1438,8 +1611,14 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('M-PESA: $phone', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                              Text('KES ${salary.toStringAsFixed(2)} / mo', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 14)),
+                              Expanded(
+                                child: Text('M-PESA: $phone', style: const TextStyle(color: Colors.white70, fontSize: 12), overflow: TextOverflow.ellipsis),
+                              ),
+                              const SizedBox(width: 8),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text('KES ${salary.toStringAsFixed(2)} / mo', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 14)),
+                              ),
                             ],
                           ),
                           Builder(
@@ -1484,6 +1663,16 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                             runSpacing: 8,
                             alignment: WrapAlignment.end,
                             children: [
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: _neonCyan,
+                                  side: BorderSide(color: _neonCyan.withOpacity(0.5)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                ),
+                                onPressed: () => _showAppointmentLetterSheet(emp),
+                                icon: const Icon(Icons.assignment_ind_outlined, size: 14),
+                                label: const Text('Letter', style: TextStyle(fontSize: 11)),
+                              ),
                               Builder(
                                 builder: (ctx) {
                                   final empEmail = emp['email']?.toString() ?? '';
@@ -1604,19 +1793,32 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Total Departmental Budget', style: TextStyle(color: _textSecondary, fontSize: 11)),
-                      Text('KES ${totalBudget.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Total Departmental Budget', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text('KES ${totalBudget.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const Text('Committed Payroll', style: TextStyle(color: _textSecondary, fontSize: 11)),
-                      Text('KES ${totalActualPayroll.toStringAsFixed(2)}', style: const TextStyle(color: Colors.greenAccent, fontSize: 20, fontWeight: FontWeight.bold)),
-                    ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text('Committed Payroll', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text('KES ${totalActualPayroll.toStringAsFixed(2)}', style: const TextStyle(color: Colors.greenAccent, fontSize: 18, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1625,7 +1827,13 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                 children: [
                   const Icon(Icons.groups, color: _neonBlue, size: 16),
                   const SizedBox(width: 6),
-                  Text('$totalAssigned Staff assigned across departments', style: const TextStyle(color: _neonBlue, fontSize: 12, fontWeight: FontWeight.bold)),
+                  Expanded(
+                    child: Text(
+                      '$totalAssigned Staff assigned across departments',
+                      style: const TextStyle(color: _neonBlue, fontSize: 12, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -1636,10 +1844,17 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Configured Departments & Role Pay', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const Expanded(
+              child: Text(
+                'Configured Departments & Roles',
+                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
             TextButton.icon(
               icon: const Icon(Icons.add_circle, color: _neonCyan, size: 16),
-              label: const Text('Add Department', style: TextStyle(color: _neonCyan, fontWeight: FontWeight.bold)),
+              label: const Text('Add Department', style: TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 12)),
               onPressed: () => _showCreateDepartmentModal(),
             ),
           ],
@@ -1690,58 +1905,101 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(color: _neonCyan.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
-                            child: Text(code, style: const TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.bold)),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                        ],
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(color: _neonCyan.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                              child: Text(code, style: const TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.bold)),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.white70, size: 18),
-                            tooltip: 'Edit Department',
-                            onPressed: () => _showCreateDepartmentModal(existingDept: deptMap),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, color: _neonRed, size: 18),
-                            tooltip: 'Delete Department',
-                            onPressed: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  backgroundColor: _cardColor,
-                                  title: Text('Delete $name?', style: const TextStyle(color: Colors.white)),
-                                  content: const Text('Are you sure you want to remove this department?', style: TextStyle(color: Colors.white70)),
-                                  actions: [
-                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(backgroundColor: _neonRed),
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      child: const Text('Delete'),
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.white70, size: 18),
+                        tooltip: 'Edit Department',
+                        onPressed: () => _showCreateDepartmentModal(existingDept: deptMap),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: _neonRed, size: 18),
+                        tooltip: 'Delete Department & All Inside',
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              backgroundColor: _cardColor,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: _neonRed, width: 1.5)),
+                              title: Row(
+                                children: [
+                                  const Icon(Icons.warning_amber_rounded, color: _neonRed, size: 24),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Text('Delete $name?', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                                ],
+                              ),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: _neonRed.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: _neonRed.withOpacity(0.3)),
                                     ),
-                                  ],
+                                    child: const Text(
+                                      '⚠️ WARNING: Deleting this department will PERMANENTLY DELETE all employees, staff profiles, and records inside this department! This action is irreversible.',
+                                      style: TextStyle(color: Colors.white, fontSize: 12, height: 1.4),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Currently assigned staff: $empCount active employee(s).',
+                                    style: const TextStyle(color: _textSecondary, fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: _textSecondary))),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: _neonRed, foregroundColor: Colors.white),
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Delete Everything Inside', style: TextStyle(fontWeight: FontWeight.bold)),
                                 ),
-                              );
-                              if (confirm == true) {
-                                try {
-                                  await _adminService.deleteDepartment(deptMap['id']);
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Department deleted'), backgroundColor: _neonCyan));
-                                  _fetchAllData();
-                                } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete Failed: $e'), backgroundColor: _neonRed));
-                                }
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            try {
+                              final res = await _adminService.deleteDepartment(deptMap['id']);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(res['message'] ?? 'Department and all staff deleted'),
+                                    backgroundColor: _neonCyan,
+                                    duration: const Duration(seconds: 4),
+                                  ),
+                                );
+                                _fetchAllData();
                               }
-                            },
-                          ),
-                        ],
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete Failed: $e'), backgroundColor: _neonRed));
+                              }
+                            }
+                          }
+                        },
                       ),
                     ],
                   ),
@@ -1750,8 +2008,11 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
                     Text(desc, style: const TextStyle(color: _textSecondary, fontSize: 12)),
                   ],
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
                     children: [
                       Text('$empCount Staff Allocated', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
                       Text(
@@ -1967,8 +2228,14 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(empName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                  Text('KES ${net.toStringAsFixed(2)}', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 16)),
+                  Expanded(
+                    child: Text(empName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15), overflow: TextOverflow.ellipsis),
+                  ),
+                  const SizedBox(width: 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('KES ${net.toStringAsFixed(2)}', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -1977,7 +2244,10 @@ class _AdminEmployeePayrollViewState extends State<AdminEmployeePayrollView> wit
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Gross: KES ${gross.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                  Expanded(
+                    child: Text('Gross: KES ${gross.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white70, fontSize: 11), overflow: TextOverflow.ellipsis),
+                  ),
+                  const SizedBox(width: 8),
                   InkWell(
                     onTap: () => _copyToClipboard(convId, 'Ref ID'),
                     child: Text('Ref: ${convId.length > 12 ? convId.substring(0, 12) : convId}', style: const TextStyle(color: _neonBlue, fontSize: 11)),

@@ -911,7 +911,7 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> with Single
           children: [
             Icon(Icons.warning_amber_rounded, color: _neonRed, size: 26),
             SizedBox(width: 8),
-            Text('Roadside Emergency SOS', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            Expanded(child: Text('Roadside Emergency SOS', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
           ],
         ),
         content: const Text(

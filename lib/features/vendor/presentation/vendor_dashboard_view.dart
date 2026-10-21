@@ -728,10 +728,13 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
             children: [
               Icon(Icons.fingerprint, color: _neonPink, size: 28),
               SizedBox(width: 8),
-              Text('Biometric Hardware Simulation', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Expanded(
+                child: Text('Biometric Hardware Simulation', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
-          content: Column(
+          content: SingleChildScrollView(
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
@@ -765,6 +768,7 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                 ),
               ),
             ],
+            ),
           ),
           actions: [
             TextButton(
@@ -814,10 +818,13 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                       children: [
                         Icon(Icons.check_circle_outline, color: _neonCyan, size: 28),
                         SizedBox(width: 8),
-                        Text('Simulation Completed', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                        Expanded(
+                          child: Text('Simulation Completed', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                        ),
                       ],
                     ),
-                    content: Column(
+                    content: SingleChildScrollView(
+                      child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -856,6 +863,7 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                         ],
                       ],
                     ),
+                  ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx),

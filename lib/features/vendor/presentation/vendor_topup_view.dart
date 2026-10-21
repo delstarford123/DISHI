@@ -209,7 +209,9 @@ class _VendorTopupViewState extends State<VendorTopupView> with SingleTickerProv
           children: [
             const Icon(Icons.security, color: MPesaTheme.primaryGreen),
             const SizedBox(width: 8),
-            Text(_isOfflineStudent ? 'Child Offline PIN' : 'Student PIN / Token', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            Expanded(
+              child: Text(_isOfflineStudent ? 'Child Offline PIN' : 'Student PIN / Token', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
           ],
         ),
         content: Column(
@@ -303,7 +305,9 @@ class _VendorTopupViewState extends State<VendorTopupView> with SingleTickerProv
               children: [
                 Icon(Icons.check_circle, color: MPesaTheme.primaryGreen, size: 28),
                 SizedBox(width: 8),
-                Text('Deposit Successful!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Text('Deposit Successful!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
               ],
             ),
             content: Column(

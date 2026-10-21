@@ -184,7 +184,7 @@ class _EscrowMarketViewState extends State<EscrowMarketView> with SingleTickerPr
           children: [
             Icon(Icons.lock_clock, color: MPesaTheme.primaryGreen),
             SizedBox(width: 8),
-            Text('Lock in Escrow', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
+            Expanded(child: Text('Lock in Escrow', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17))),
           ],
         ),
         content: Column(

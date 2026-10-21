@@ -106,7 +106,7 @@ class _FundiProfileSheetState extends State<FundiProfileSheet> {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: QrImageView(
-                data: 'https://swapeat.app/fundi/${widget.fundiId}',
+                data: 'https://dishi.delstarfordworks.co.ke/fundi/${widget.fundiId}',
                 version: QrVersions.auto,
                 size: 180.0,
               ),

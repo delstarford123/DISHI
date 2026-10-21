@@ -76,7 +76,9 @@ venv.bak/
 .venv/
 swapeat_backend/venv/
 swapeat_backend/.venv/
-.pytest_cache/
+swapeat_backend/tmp/
+swapeat_backend/debug_log.txt
+swapeat_backend/dishi_backend_cpanel.zip
 
 # Environment Variables & Secrets
 .env

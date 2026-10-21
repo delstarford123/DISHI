@@ -148,12 +148,13 @@ def trigger_stk_push():
     try:
         action = metadata.get('action')
         is_community_support = action in ['support_dishi', 'community_donate'] or destination in ['support', 'community']
-        if is_community_support:
+        is_parent_funding = action in ['fund_student', 'fund_vault'] or destination in ['savingsBalance', 'vaultBalance'] or metadata.get('role') == 'parent' or metadata.get('sender_role') == 'parent'
+        if is_community_support or is_parent_funding:
             amount_int = int(float(str(amount)))
             credit_int = amount_int
+            commission = 0
         else:
-            # Commission raised by 7 KSh
-            commission = 10 if action in ['harambee_donate', 'fund_student'] else 9
+            commission = 10 if action in ['harambee_donate'] else 9
             amount_int = int(float(str(amount))) + commission
             credit_int = int(float(str(credit_amount)))
     except (ValueError, TypeError):
@@ -408,7 +409,11 @@ def mpesa_callback():
                 if item.get('Name') == 'Amount':
                     stk_amount = float(item.get('Value', credit_amt))
             
-            commission = max(0.0, stk_amount - credit_amt)
+            metadata = tx_info.get('metadata', {})
+            action = metadata.get('action')
+            is_parent_tx = action in ['fund_student', 'fund_vault'] or destination in ['savingsBalance', 'vaultBalance'] or metadata.get('role') == 'parent' or metadata.get('sender_role') == 'parent'
+
+            commission = 0.0 if is_parent_tx else max(0.0, stk_amount - credit_amt)
             if commission > 0:
                 db.collection('admin_finances').document('dishi_system_pool').set({
                     'system_commissions': firestore.Increment(commission),
@@ -417,10 +422,6 @@ def mpesa_callback():
 
             # Atomically credit the wallet or grant housing/match access
             user_ref = db.collection('users').document(user_id)
-            
-            # Use metadata for complex actions, otherwise default to simple destination update
-            metadata = tx_info.get('metadata', {})
-            action = metadata.get('action')
             
             if action == 'checkout_cart':
                 buyer_id = metadata.get('buyer_id')

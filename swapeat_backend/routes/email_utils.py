@@ -675,7 +675,37 @@ def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: 
         except Exception as e:
             print(f"[EmailEngine] Brevo attempt error: {e}")
 
-    # ── 3. SMTP (with strict 5s timeout to prevent hanging on Vercel) ──
+    # ── 3. SendGrid HTTP API (Port 443 HTTPS - Vercel Native) ────
+    sendgrid_key = os.getenv('SENDGRID_API_KEY')
+    if sendgrid_key:
+        try:
+            from_sender = os.getenv('MAIL_DEFAULT_SENDER', 'dishi@delstarfordworks.co.ke')
+            resp = requests.post(
+                "https://api.sendgrid.com/v3/mail/send",
+                headers={
+                    "Authorization": f"Bearer {sendgrid_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "personalizations": [{"to": [{"email": to}]}],
+                    "from": {"email": from_sender, "name": "DISHI Operations"},
+                    "subject": subject,
+                    "content": [
+                        {"type": "text/plain", "value": plain_body},
+                        {"type": "text/html", "value": html_body}
+                    ]
+                },
+                timeout=8
+            )
+            if resp.status_code in [200, 202]:
+                print(f"[EmailEngine] Dispatched successfully via SendGrid to {to}")
+                return True, "SendGrid HTTP API"
+            else:
+                print(f"[EmailEngine] SendGrid returned {resp.status_code}: {resp.text}")
+        except Exception as e:
+            print(f"[EmailEngine] SendGrid attempt error: {e}")
+
+    # ── 4. Direct SMTP (strict 4s timeout to avoid Vercel hanging) ────
     mail_server = os.getenv('MAIL_SERVER', '')
     if mail_server:
         try:
@@ -694,7 +724,7 @@ def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: 
 
             if use_ssl:
                 context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(mail_server, mail_port, context=context, timeout=5) as s:
+                with smtplib.SMTP_SSL(mail_server, mail_port, context=context, timeout=4) as s:
                     if username and password:
                         s.login(username, password)
                     s.sendmail(sender, [to], msg.as_string())
@@ -702,7 +732,7 @@ def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: 
                     return True, f"SMTP SSL ({mail_server})"
             else:
                 context = ssl.create_default_context()
-                with smtplib.SMTP(mail_server, mail_port, timeout=5) as s:
+                with smtplib.SMTP(mail_server, mail_port, timeout=4) as s:
                     s.starttls(context=context)
                     if username and password:
                         s.login(username, password)
@@ -712,16 +742,17 @@ def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: 
         except Exception as e:
             print(f"[EmailEngine] SMTP ({mail_server}:{os.getenv('MAIL_PORT', '465')}) timed out or failed: {e}")
 
-    # ── 4. In-App Notification (Firestore) ──────────────────────
+    # ── 5. In-App Notification (Firestore) ──────────────────────
     if user_id:
         try:
             from firebase_admin import firestore
             db = firestore.client()
+            notification_msg = f"Your verification code is: {otp_code} (expires in 10 minutes)." if otp_code else plain_body[:280]
             db.collection('notifications').add({
                 'title': subject,
-                'message': f"Your verification code is: {otp_code} (expires in 10 minutes).",
+                'message': notification_msg,
                 'targetUserId': user_id,
-                'type': 'pin_reset_otp',
+                'type': 'pin_reset_otp' if otp_code else 'staff_appointment',
                 'createdAt': firestore.SERVER_TIMESTAMP,
                 'readBy': [],
                 'dismissedBy': []
@@ -731,5 +762,5 @@ def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: 
         except Exception as e:
             print(f"[EmailEngine] In-App notification error: {e}")
 
-    return False, "All channels failed or timed out"
+    return False, "Email dispatch pending API key (Resend/Brevo/SendGrid) or SMTP connection"
 

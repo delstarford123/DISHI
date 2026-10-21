@@ -86,7 +86,7 @@ class _AdminEmergencySecurityViewState extends State<AdminEmergencySecurityView>
           children: [
             Icon(Icons.warning_amber_rounded, color: _neonRed),
             SizedBox(width: 8),
-            Text('Confirm System Lockdown', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            Expanded(child: Text('Confirm System Lockdown', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
           ],
         ),
         content: Column(

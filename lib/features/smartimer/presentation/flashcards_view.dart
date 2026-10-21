@@ -281,8 +281,10 @@ class _FlashcardsViewState extends State<FlashcardsView> with SingleTickerProvid
       appBar: AppBar(
         title: Row(
           children: [
-            const Text('Daily Flashcards', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-            const Spacer(),
+            const Expanded(
+              child: Text('Daily Flashcards', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18), overflow: TextOverflow.ellipsis),
+            ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(color: Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),

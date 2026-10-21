@@ -139,7 +139,7 @@ class AppVersionService {
               children: [
                 Icon(Icons.engineering_rounded, color: Color(0xFFF59E0B), size: 28),
                 SizedBox(width: 10),
-                Text('Scheduled Maintenance', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                Expanded(child: Text('Scheduled Maintenance', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))),
               ],
             ),
             content: Text(
@@ -169,7 +169,7 @@ class AppVersionService {
               children: [
                 Icon(Icons.system_update_rounded, color: Color(0xFF05D5AA), size: 28),
                 SizedBox(width: 10),
-                Text('Update Required', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 19)),
+                Expanded(child: Text('Update Required', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 19))),
               ],
             ),
             content: Column(
@@ -223,7 +223,7 @@ class AppVersionService {
             children: [
               Icon(Icons.new_releases_rounded, color: Color(0xFF38BDF8), size: 24),
               SizedBox(width: 10),
-              Text('Update Available', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+              Expanded(child: Text('Update Available', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))),
             ],
           ),
           content: Text(

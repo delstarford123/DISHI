@@ -7,8 +7,15 @@ from firebase_admin import credentials
 
 load_dotenv()
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, 'templates'),
+    static_folder=os.path.join(BASE_DIR, 'static'),
+    static_url_path='/static'
+)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dishi_enterprise_secret_key_2026_secured')
+application = app
 
 
 # ─── Flask-Mail (optional – gracefully skipped if config is missing) ───────────
@@ -98,6 +105,7 @@ from routes.v4.vendor_agent_routes import vendor_agent_bp
 from routes.v4.fraud_monitor_routes import fraud_bp
 from routes.v4.c2b_routes import c2b_v4_bp
 from routes.v4.analytics_routes import analytics_v4_bp
+from routes.v4.parent_routes import parent_v4_bp
 from routes.v5.admin_advanced_routes import admin_v5_bp
 from routes.auth_pin_routes import auth_pin_bp
 from routes.cron_routes import cron_bp
@@ -154,6 +162,7 @@ app.register_blueprint(vendor_agent_bp,     url_prefix='/api/v4/vendor')
 app.register_blueprint(fraud_bp,            url_prefix='/api/v4/fraud')
 app.register_blueprint(c2b_v4_bp,            url_prefix='/api/v4/c2b')
 app.register_blueprint(analytics_v4_bp,      url_prefix='/api/v4/analytics')
+app.register_blueprint(parent_v4_bp,         url_prefix='/api/v4/parent')
 app.register_blueprint(admin_v5_bp,         url_prefix='/api/v5/admin')
 app.register_blueprint(auth_pin_bp,         url_prefix='/api/v1/auth/pin')
 app.register_blueprint(cron_bp,             url_prefix='/cron')
@@ -237,8 +246,14 @@ def get_screenshots_meta():
 @app.route('/')
 @app.route('/index')
 def index():
-    screens = get_screenshots_meta()
-    return render_template('index.html', screens=screens)
+    try:
+        screens = get_screenshots_meta()
+        return render_template('index.html', screens=screens)
+    except Exception as e:
+        import traceback, sys
+        err = traceback.format_exc()
+        print(f"\n[DISHI TEMPLATE ERROR]\n{err}\n", file=sys.stderr)
+        return f"<h1>DISHI Template Error</h1><p><b>{e}</b></p><pre>{err}</pre><p>Expected templates folder: <code>{app.template_folder}</code></p>", 200
 
 @app.route('/solutions')
 @app.route('/dashboards')

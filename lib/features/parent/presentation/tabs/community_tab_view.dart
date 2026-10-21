@@ -220,7 +220,7 @@ class _CommunityTabViewState extends State<CommunityTabView> {
           children: [
             Icon(Icons.add_comment_rounded, color: _neonCyan, size: 22),
             SizedBox(width: 8),
-            Text('New Discussion', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            Expanded(child: Text('New Discussion', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
           ],
         ),
         content: Column(

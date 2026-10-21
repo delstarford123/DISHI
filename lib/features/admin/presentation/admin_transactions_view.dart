@@ -180,7 +180,7 @@ class _AdminTransactionsViewState extends State<AdminTransactionsView> {
                     shrinkWrap: true,
                     itemCount: queryResults.length,
                     itemBuilder: (context, idx) {
-                      final item = queryResults[idx] as Map<String, dynamic>;
+                      final item = queryResults[idx] is Map ? Map<String, dynamic>.from(queryResults[idx] as Map) : <String, dynamic>{};
                       final amount = item['amount'] ?? item['Amount'] ?? 0;
                       final phone = item['phone_number'] ?? item['phoneNumber'] ?? 'N/A';
                       final receipt = item['mpesa_receipt_number'] ?? item['MpesaReceiptNumber'] ?? item['receipt'] ?? 'N/A';
@@ -264,12 +264,13 @@ class _AdminTransactionsViewState extends State<AdminTransactionsView> {
   @override
   Widget build(BuildContext context) {
     // Filter transactions
-    final filteredTxs = _allTransactions.where((tx) {
+    final filteredTxs = _allTransactions.where((rawTx) {
+      final tx = rawTx is Map ? Map<String, dynamic>.from(rawTx) : <String, dynamic>{};
       final desc = (tx['description'] ?? '').toString().toLowerCase();
       final type = (tx['type'] ?? '').toString().toLowerCase();
       final id = (tx['id'] ?? '').toString().toLowerCase();
-      final student = tx['student_data'] ?? {};
-      final vendor = tx['vendor_data'] ?? {};
+      final student = tx['student_data'] is Map ? Map<String, dynamic>.from(tx['student_data']) : <String, dynamic>{};
+      final vendor = tx['vendor_data'] is Map ? Map<String, dynamic>.from(tx['vendor_data']) : <String, dynamic>{};
       final studentName = (student['name'] ?? '').toString().toLowerCase();
       final vendorName = (vendor['name'] ?? '').toString().toLowerCase();
 
@@ -403,13 +404,14 @@ class _AdminTransactionsViewState extends State<AdminTransactionsView> {
     );
   }
 
-  Widget _buildRichTxCard(Map<String, dynamic> tx) {
+  Widget _buildRichTxCard(dynamic rawTx) {
+    final tx = rawTx is Map ? Map<String, dynamic>.from(rawTx) : <String, dynamic>{};
     final type = (tx['type'] ?? 'Unknown').toString();
     final bool isCredit = type == 'topup' || type == 'refund' || type.contains('Credit') || type.contains('Refund');
     final Color amountColor = isCredit ? _neonCyan : Colors.white;
 
-    final student = tx['student_data'] ?? {};
-    final vendor = tx['vendor_data'] ?? {};
+    final student = tx['student_data'] is Map ? Map<String, dynamic>.from(tx['student_data']) : <String, dynamic>{};
+    final vendor = tx['vendor_data'] is Map ? Map<String, dynamic>.from(tx['vendor_data']) : <String, dynamic>{};
 
     Map<String, dynamic> primaryUser = isCredit ? student : (type == 'payment' ? vendor : student);
     if (primaryUser.isEmpty && student.isNotEmpty) primaryUser = student;

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/services/admin_service.dart';
-import '../../../core/theme/mpesa_theme.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
@@ -320,8 +319,11 @@ class _AdminExecutiveAnalyticsViewState extends State<AdminExecutiveAnalyticsVie
           const SizedBox(height: 12),
           const Divider(color: Colors.white10, height: 1),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               Text('Total Volume: KES ${vol.toStringAsFixed(0)}', style: const TextStyle(color: _textSecondary, fontSize: 11)),
               Text('Avg Fee / Tx: KES ${avgFee.toStringAsFixed(2)}', style: const TextStyle(color: _textSecondary, fontSize: 11)),
@@ -387,7 +389,7 @@ class _AdminExecutiveAnalyticsViewState extends State<AdminExecutiveAnalyticsVie
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(color: _neonCyan.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
-                      child: Text('$uniqueDepositors Students Active', style: const TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.bold)),
+                      child: Text('$uniqueDepositors Students • $totalDepositTxs Txs', style: const TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
@@ -439,8 +441,18 @@ class _AdminExecutiveAnalyticsViewState extends State<AdminExecutiveAnalyticsVie
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Where Students Spend Money', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-              Text('Total: KES ${totalStudentSpend.toStringAsFixed(0)}', style: const TextStyle(color: _neonOrange, fontWeight: FontWeight.bold, fontSize: 13)),
+              const Expanded(
+                child: Text(
+                  'Where Students Spend Money',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text('Total: KES ${totalStudentSpend.toStringAsFixed(0)}', style: const TextStyle(color: _neonOrange, fontWeight: FontWeight.bold, fontSize: 13)),
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -521,7 +533,12 @@ class _AdminExecutiveAnalyticsViewState extends State<AdminExecutiveAnalyticsVie
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text(
+                      name,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 2),
                     Row(
                       children: [
@@ -529,7 +546,7 @@ class _AdminExecutiveAnalyticsViewState extends State<AdminExecutiveAnalyticsVie
                         const SizedBox(width: 3),
                         Flexible(
                           child: Text(
-                            '$loc • $campus',
+                            '$loc • $campus • $cat',
                             style: const TextStyle(color: _textSecondary, fontSize: 11),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -540,10 +557,17 @@ class _AdminExecutiveAnalyticsViewState extends State<AdminExecutiveAnalyticsVie
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('KES ${amt.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'KES ${amt.toStringAsFixed(2)}',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ),
                   Container(
                     margin: const EdgeInsets.only(top: 4),
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -551,7 +575,10 @@ class _AdminExecutiveAnalyticsViewState extends State<AdminExecutiveAnalyticsVie
                       color: _neonCyan.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text('$count Purchases', style: const TextStyle(color: _neonCyan, fontSize: 10, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      '$count Purchases',
+                      style: const TextStyle(color: _neonCyan, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
@@ -571,8 +598,11 @@ class _AdminExecutiveAnalyticsViewState extends State<AdminExecutiveAnalyticsVie
           ),
           const SizedBox(height: 8),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 10,
+            runSpacing: 4,
             children: [
               Text('Market Share: $share%', style: const TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.bold)),
               Text('Patronage: $unique students', style: const TextStyle(color: _textSecondary, fontSize: 11)),

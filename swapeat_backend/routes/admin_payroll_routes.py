@@ -141,12 +141,11 @@ def add_employee():
             'total_paid_ytd': 0.0,
             'last_paid_at': None
         }
-        emp_ref.set(emp_data)
-        log_admin_action(admin_id, 'add_employee', {'employee_id': emp_ref.id, 'name': name, 'department': department, 'email': email})
-
         email_sent = False
-        delivery_channel = None
-        if email and send_welcome_email:
+        delivery_channel = "Not Sent"
+        appointment_data = {}
+        
+        if email:
             try:
                 from routes.email_utils import generate_staff_appointment_email, send_multi_channel_email
                 subject, html_body, plain_body = generate_staff_appointment_email(
@@ -158,22 +157,54 @@ def add_employee():
                     expectations=expectations,
                     phone=phone
                 )
-                success, delivery_channel = send_multi_channel_email(
-                    to=email,
-                    subject=subject,
-                    html_body=html_body,
-                    plain_body=plain_body
-                )
-                email_sent = success
-                print(f"[StaffOnboarding] Appointment email to {email}: {delivery_channel}")
+                appointment_data = {
+                    'subject': subject,
+                    'html': html_body,
+                    'plain': plain_body,
+                    'recipient': email,
+                    'phone': phone,
+                    'created_at': firestore.SERVER_TIMESTAMP
+                }
+
+                if send_welcome_email:
+                    # Check if matching user exists in DISHI users collection
+                    user_id = None
+                    try:
+                        u_doc = db.collection('users').where('email', '==', email).limit(1).get()
+                        if not u_doc:
+                            u_doc = db.collection('users').where('phoneNumber', '==', phone).limit(1).get()
+                        if u_doc:
+                            user_id = u_doc[0].id
+                    except Exception:
+                        pass
+
+                    success, delivery_channel = send_multi_channel_email(
+                        to=email,
+                        subject=subject,
+                        html_body=html_body,
+                        plain_body=plain_body,
+                        user_id=user_id
+                    )
+                    email_sent = success
+                    appointment_data['delivery_status'] = 'sent' if success else 'failed'
+                    appointment_data['delivery_channel'] = delivery_channel
+                    print(f"[StaffOnboarding] Appointment email to {email}: {delivery_channel}")
             except Exception as mail_err:
+                delivery_channel = f"Error: {mail_err}"
                 print(f"[StaffOnboarding] Error sending appointment email: {mail_err}")
 
+        emp_data['appointment_letter'] = appointment_data
+        emp_data['email_sent'] = email_sent
+        emp_data['delivery_channel'] = delivery_channel
+        emp_ref.set(emp_data)
+        log_admin_action(admin_id, 'add_employee', {'employee_id': emp_ref.id, 'name': name, 'department': department, 'email': email, 'email_sent': email_sent})
+
         return jsonify({
-            'message': 'Employee added successfully',
+            'message': 'Employee registered successfully',
             'id': emp_ref.id,
             'email_sent': email_sent,
-            'delivery_channel': delivery_channel
+            'delivery_channel': delivery_channel,
+            'appointment_letter': appointment_data
         }), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -219,6 +250,8 @@ def resend_welcome_email(emp_id):
         if not email:
             return jsonify({'error': 'Employee has no registered email address'}), 400
 
+        phone = emp.get('phone', '')
+
         from routes.email_utils import generate_staff_appointment_email, send_multi_channel_email
         subject, html_body, plain_body = generate_staff_appointment_email(
             name=emp.get('name', 'Staff Member'),
@@ -227,16 +260,50 @@ def resend_welcome_email(emp_id):
             base_salary=float(emp.get('base_salary', 0)),
             salary_type=emp.get('salary_type', 'MONTHLY'),
             expectations=emp.get('expectations', ''),
-            phone=emp.get('phone', '')
+            phone=phone
         )
+
+        user_id = None
+        try:
+            u_doc = db.collection('users').where('email', '==', email).limit(1).get()
+            if not u_doc and phone:
+                u_doc = db.collection('users').where('phoneNumber', '==', phone).limit(1).get()
+            if u_doc:
+                user_id = u_doc[0].id
+        except Exception:
+            pass
+
         success, channel = send_multi_channel_email(
             to=email,
             subject=subject,
             html_body=html_body,
-            plain_body=plain_body
+            plain_body=plain_body,
+            user_id=user_id
         )
-        log_admin_action(admin_id, 'resend_staff_email', {'employee_id': emp_id, 'email': email, 'channel': channel})
-        return jsonify({'message': f'Appointment email resent to {email} via {channel}', 'success': success, 'channel': channel}), 200
+
+        emp_doc.reference.update({
+            'appointment_letter': {
+                'subject': subject,
+                'html': html_body,
+                'plain': plain_body,
+                'recipient': email,
+                'phone': phone,
+                'delivery_status': 'sent' if success else 'failed',
+                'delivery_channel': channel,
+                'last_dispatched_at': firestore.SERVER_TIMESTAMP
+            },
+            'email_sent': success,
+            'delivery_channel': channel,
+            'last_email_sent_at': firestore.SERVER_TIMESTAMP
+        })
+
+        log_admin_action(admin_id, 'resend_staff_email', {'employee_id': emp_id, 'email': email, 'channel': channel, 'success': success})
+        return jsonify({
+            'message': f'Appointment email processed via {channel}',
+            'success': success,
+            'channel': channel,
+            'letter_plain': plain_body
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -469,12 +536,69 @@ def delete_department(dept_id):
     try:
         db = firestore.client()
         dept_ref = db.collection('departments').document(dept_id)
-        if not dept_ref.get().exists:
+        dept_doc = dept_ref.get()
+        if not dept_doc.exists:
             return jsonify({'error': 'Department not found'}), 404
 
-        dept_ref.delete()
-        log_admin_action(admin_id, 'delete_department', {'department_id': dept_id})
-        return jsonify({'message': 'Department deleted successfully'}), 200
+        dept_data = dept_doc.to_dict() or {}
+        dept_name = dept_data.get('name', '')
+
+        # Cascade delete everything inside this department: all employees and payslips
+        deleted_emp_count = 0
+        deleted_slips_count = 0
+        batch = db.batch()
+        batch_count = 0
+
+        # Query all employees assigned to this department
+        emp_query = db.collection('employees').where('department', '==', dept_name).get() if dept_name else []
+        for ed in emp_query:
+            # Delete payslips for this employee
+            slips = db.collection('payroll_slips').where('employee_id', '==', ed.id).get()
+            for s in slips:
+                batch.delete(s.reference)
+                deleted_slips_count += 1
+                batch_count += 1
+                if batch_count >= 400:
+                    batch.commit()
+                    batch = db.batch()
+                    batch_count = 0
+
+            batch.delete(ed.reference)
+            deleted_emp_count += 1
+            batch_count += 1
+            if batch_count >= 400:
+                batch.commit()
+                batch = db.batch()
+                batch_count = 0
+
+        # Delete any payslips registered under this department name
+        if dept_name:
+            dept_slips = db.collection('payroll_slips').where('department', '==', dept_name).get()
+            for ds in dept_slips:
+                batch.delete(ds.reference)
+                deleted_slips_count += 1
+                batch_count += 1
+                if batch_count >= 400:
+                    batch.commit()
+                    batch = db.batch()
+                    batch_count = 0
+
+        # Delete the department document itself
+        batch.delete(dept_ref)
+        batch.commit()
+
+        log_admin_action(admin_id, 'delete_department_cascade', {
+            'department_id': dept_id,
+            'department_name': dept_name,
+            'deleted_employees': deleted_emp_count,
+            'deleted_slips': deleted_slips_count
+        })
+
+        return jsonify({
+            'message': f'Department "{dept_name}" deleted along with {deleted_emp_count} staff member(s) and {deleted_slips_count} payslip(s).',
+            'deleted_employees': deleted_emp_count,
+            'deleted_slips': deleted_slips_count
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

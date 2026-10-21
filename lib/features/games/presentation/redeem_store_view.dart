@@ -146,7 +146,7 @@ class _RedeemStoreViewState extends State<RedeemStoreView> {
             children: [
               Icon(Icons.stars, color: Colors.amber, size: 28),
               SizedBox(width: 8),
-              Text('Unlocked! 🎉', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Expanded(child: Text('Unlocked! 🎉', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
             ],
           ),
           content: Column(

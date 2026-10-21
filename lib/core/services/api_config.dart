@@ -27,6 +27,14 @@ class ApiConfig {
   static const String transactionPreorderCancel = '$baseUrl/api/v1/transaction/preorder/cancel';
   static const String vendorAgentTopup = '$baseUrl/api/v4/vendor/topup';
   
+  // V4 Parent Services (0% Commission Guaranteed)
+  static const String parentV4 = '$baseUrl/api/v4/parent';
+  static const String parentV4FundStudent = '$parentV4/fund_student';
+  static const String parentV4FundVault = '$parentV4/fund_vault';
+  static const String parentV4Transfer = '$parentV4/transfer';
+  static const String parentV4BulkFund = '$parentV4/bulk_fund';
+  static const String parentV4FeePolicy = '$parentV4/fee_policy';
+  
   // Games Hub endpoints
   static const String gamesScore = '$baseUrl/api/v1/games/score';
   static const String gamesSpin = '$baseUrl/api/v1/games/spin';

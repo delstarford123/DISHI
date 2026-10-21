@@ -3257,7 +3257,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
                               children: [
                                 Icon(Icons.warning_amber, color: _neonPink, size: 28),
                                 SizedBox(width: 8),
-                                Text('Activate SOS?', style: TextStyle(color: Colors.white)),
+                                Expanded(child: Text('Activate SOS?', style: TextStyle(color: Colors.white))),
                               ],
                             ),
                             content: const Text(

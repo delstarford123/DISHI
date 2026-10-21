@@ -148,7 +148,7 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
                 children: [
                   Icon(Icons.receipt_long, color: _neonCyan),
                   SizedBox(width: 8),
-                  Text('Shift Summary', style: TextStyle(color: Colors.white)),
+                  Expanded(child: Text('Shift Summary', style: TextStyle(color: Colors.white))),
                 ],
               ),
               content: Column(

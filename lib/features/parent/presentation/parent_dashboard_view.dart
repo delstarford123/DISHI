@@ -2461,7 +2461,9 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
             children: [
               Icon(Icons.assignment_add, color: _neonOrange),
               SizedBox(width: 10),
-              Text('Assign Chore or Bounty', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Expanded(
+                child: Text('Assign Chore or Bounty', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
           content: SingleChildScrollView(
@@ -4253,15 +4255,20 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: MPesaTheme.primaryGreen.withOpacity(0.25)),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.bolt_rounded, color: MPesaTheme.primaryGreen, size: 18),
-                        SizedBox(width: 8),
-                        Expanded(
+                        const Icon(Icons.bolt_rounded, color: MPesaTheme.primaryGreen, size: 18),
+                        const SizedBox(width: 8),
+                        const Expanded(
                           child: Text(
                             'Instant Daraja STK Push to your Safaricom line',
                             style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
                           ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: MPesaTheme.primaryGreen.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                          child: const Text('0% Fee', style: TextStyle(color: MPesaTheme.primaryGreen, fontSize: 10, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -4376,15 +4383,28 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
 
                         try {
                           final parentUid = FirebaseAuth.instance.currentUser!.uid;
-                          final response = await http.post(
-                            Uri.parse(ApiConfig.transactionParentTransfer),
-                            headers: {'Content-Type': 'application/json'},
-                            body: json.encode({
-                              'parentUid': parentUid,
-                              'studentUid': childUid,
-                              'amount': parsedAmt,
-                            }),
-                          ).timeout(const Duration(seconds: 30));
+                          http.Response response;
+                          try {
+                            response = await http.post(
+                              Uri.parse(ApiConfig.parentV4Transfer),
+                              headers: {'Content-Type': 'application/json'},
+                              body: json.encode({
+                                'parentUid': parentUid,
+                                'studentUid': childUid,
+                                'amount': parsedAmt,
+                              }),
+                            ).timeout(const Duration(seconds: 30));
+                          } catch (_) {
+                            response = await http.post(
+                              Uri.parse(ApiConfig.transactionParentTransfer),
+                              headers: {'Content-Type': 'application/json'},
+                              body: json.encode({
+                                'parentUid': parentUid,
+                                'studentUid': childUid,
+                                'amount': parsedAmt,
+                              }),
+                            ).timeout(const Duration(seconds: 30));
+                          }
 
                           if (response.statusCode == 200 && !response.body.trim().startsWith('<')) {
                             try {
@@ -4491,22 +4511,38 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
                           final cleanPhone = phone.startsWith('0') ? '254${phone.substring(1)}' : (phone.startsWith('+') ? phone.substring(1) : phone);
                           final cleanName = childName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
                           
-                          final response = await http.post(
-                            Uri.parse(ApiConfig.mpesaStkPush),
-                            headers: {'Content-Type': 'application/json'},
-                            body: json.encode({
-                              'phone_number': cleanPhone,
-                              'amount': parsedAmt.toInt(),
-                              'user_id': childUid,
-                              'destination': 'walletBalance',
-                              'account_reference': cleanName.length > 10 ? cleanName.substring(0, 10) : cleanName,
-                              'metadata': {
-                                'action': 'fund_student',
-                                'funder_phone': cleanPhone,
+                          http.Response response;
+                          try {
+                            response = await http.post(
+                              Uri.parse(ApiConfig.parentV4FundStudent),
+                              headers: {'Content-Type': 'application/json'},
+                              body: json.encode({
+                                'phone_number': cleanPhone,
+                                'amount': parsedAmt.toInt(),
+                                'student_uid': childUid,
                                 'child_name': childName,
-                              }
-                            }),
-                          ).timeout(const Duration(seconds: 30));
+                                'parent_uid': FirebaseAuth.instance.currentUser?.uid,
+                              }),
+                            ).timeout(const Duration(seconds: 30));
+                          } catch (_) {
+                            response = await http.post(
+                              Uri.parse(ApiConfig.mpesaStkPush),
+                              headers: {'Content-Type': 'application/json'},
+                              body: json.encode({
+                                'phone_number': cleanPhone,
+                                'amount': parsedAmt.toInt(),
+                                'user_id': childUid,
+                                'destination': 'walletBalance',
+                                'account_reference': cleanName.length > 10 ? cleanName.substring(0, 10) : cleanName,
+                                'metadata': {
+                                  'action': 'fund_student',
+                                  'funder_phone': cleanPhone,
+                                  'child_name': childName,
+                                  'role': 'parent',
+                                }
+                              }),
+                            ).timeout(const Duration(seconds: 30));
+                          }
 
                           setModalState(() => isProcessing = false);
 
@@ -4698,19 +4734,35 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
       
       try {
          for (var student in _linkedStudents) {
-           final response = await http.post(
-             Uri.parse(ApiConfig.mpesaStkPush),
-             headers: {'Content-Type': 'application/json'},
-             body: jsonEncode({
-               'phone_number': phone,
-               'amount': amountPerStudent.toInt(),
-               'user_id': student['uid'],
-               'metadata': {
-                 'action': 'fund_student',
-                 'funder_phone': phone
-               }
-             }),
-           ).timeout(const Duration(seconds: 30));
+           http.Response response;
+           try {
+             response = await http.post(
+               Uri.parse(ApiConfig.parentV4FundStudent),
+               headers: {'Content-Type': 'application/json'},
+               body: jsonEncode({
+                 'phone_number': phone,
+                 'amount': amountPerStudent.toInt(),
+                 'student_uid': student['uid'],
+                 'child_name': student['name'] ?? 'Student',
+                 'parent_uid': FirebaseAuth.instance.currentUser?.uid,
+               }),
+             ).timeout(const Duration(seconds: 30));
+           } catch (_) {
+             response = await http.post(
+               Uri.parse(ApiConfig.mpesaStkPush),
+               headers: {'Content-Type': 'application/json'},
+               body: jsonEncode({
+                 'phone_number': phone,
+                 'amount': amountPerStudent.toInt(),
+                 'user_id': student['uid'],
+                 'metadata': {
+                   'action': 'fund_student',
+                   'funder_phone': phone,
+                   'role': 'parent'
+                 }
+               }),
+             ).timeout(const Duration(seconds: 30));
+           }
            
            if (response.statusCode != 200) {
               String errMsg = 'Failed to fund ${student['name']}';
@@ -4815,12 +4867,22 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
                   child: const Icon(Icons.shield_rounded, color: MPesaTheme.primaryGreen, size: 22),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Top Up Family Vault', style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold)),
-                      Text('Direct Safaricom Daraja STK Push into Family Vault', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                      Row(
+                        children: [
+                          const Text('Top Up Family Vault', style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold)),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: MPesaTheme.primaryGreen.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                            child: const Text('0% Fee', style: TextStyle(color: MPesaTheme.primaryGreen, fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                      const Text('Direct Safaricom Daraja STK Push into Family Vault', style: TextStyle(color: _textSecondary, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -4881,20 +4943,34 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
                   
                   try {
                     final cleanPhone = phone.startsWith('0') ? '254${phone.substring(1)}' : (phone.startsWith('+') ? phone.substring(1) : phone);
-                    final response = await http.post(
-                      Uri.parse(ApiConfig.mpesaStkPush),
-                      headers: {'Content-Type': 'application/json'},
-                      body: jsonEncode({
-                        'phone_number': cleanPhone,
-                        'amount': parsedAmt.toInt(),
-                        'user_id': FirebaseAuth.instance.currentUser!.uid,
-                        'destination': 'savingsBalance',
-                        'metadata': {
-                          'action': 'fund_vault',
-                          'funder_phone': cleanPhone
-                        }
-                      }),
-                    ).timeout(const Duration(seconds: 30));
+                    http.Response response;
+                    try {
+                      response = await http.post(
+                        Uri.parse(ApiConfig.parentV4FundVault),
+                        headers: {'Content-Type': 'application/json'},
+                        body: jsonEncode({
+                          'phone_number': cleanPhone,
+                          'amount': parsedAmt.toInt(),
+                          'parent_uid': FirebaseAuth.instance.currentUser!.uid,
+                        }),
+                      ).timeout(const Duration(seconds: 30));
+                    } catch (_) {
+                      response = await http.post(
+                        Uri.parse(ApiConfig.mpesaStkPush),
+                        headers: {'Content-Type': 'application/json'},
+                        body: jsonEncode({
+                          'phone_number': cleanPhone,
+                          'amount': parsedAmt.toInt(),
+                          'user_id': FirebaseAuth.instance.currentUser!.uid,
+                          'destination': 'savingsBalance',
+                          'metadata': {
+                            'action': 'fund_vault',
+                            'funder_phone': cleanPhone,
+                            'role': 'parent'
+                          }
+                        }),
+                      ).timeout(const Duration(seconds: 30));
+                    }
                     
                     if (response.statusCode == 200) {
                       if (mounted) {

@@ -243,7 +243,9 @@ class _AdminC2BCollectionsViewState extends State<AdminC2BCollectionsView> {
             children: [
               const Icon(Icons.link, color: _neonCyan),
               const SizedBox(width: 8),
-              const Text('Link Unmatched Deposit', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              Expanded(
+                child: Text('Link Unmatched Deposit', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
           content: Column(

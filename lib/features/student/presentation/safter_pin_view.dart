@@ -26,8 +26,10 @@ class _SafterPinViewState extends State<SafterPinView> {
         title: const Row(children: [
           Icon(Icons.savings, color: MPesaTheme.primaryGreen),
           SizedBox(width: 8),
-          Text('Lock Funds (Safter Pin)',
-              style: TextStyle(color: Colors.white, fontSize: 16)),
+          Expanded(
+            child: Text('Lock Funds (Safter Pin)',
+                style: TextStyle(color: Colors.white, fontSize: 16)),
+          ),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -117,8 +119,10 @@ class _SafterPinViewState extends State<SafterPinView> {
         title: Row(children: [
           const Icon(Icons.account_balance_wallet, color: Colors.amber),
           const SizedBox(width: 8),
-          Text('Withdraw KES ${(data['amount'] as num).toStringAsFixed(2)}',
-              style: const TextStyle(color: Colors.white, fontSize: 15)),
+          Expanded(
+            child: Text('Withdraw KES ${(data['amount'] as num).toStringAsFixed(2)}',
+                style: const TextStyle(color: Colors.white, fontSize: 15)),
+          ),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,

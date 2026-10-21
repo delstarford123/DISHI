@@ -274,14 +274,17 @@ class AdminService {
   Future<List<dynamic>> getRichTransactions() async {
     final headers = await _getHeaders();
     final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/transactions/rich');
-    final response = await http.get(url, headers: headers);
+    final response = await http
+        .get(url, headers: headers)
+        .timeout(const Duration(seconds: 30));
     
     if (response.statusCode != 200) {
-      throw Exception('Failed to fetch rich transactions: ${response.body}');
+      throw Exception(_parseError(response, 'Failed to fetch rich transactions'));
     }
     
     final data = jsonDecode(response.body);
-    return data['transactions'] as List<dynamic>;
+    final rawList = data['transactions'] as List<dynamic>? ?? [];
+    return rawList.map((t) => t is Map ? Map<String, dynamic>.from(t) : t).toList();
   }
 
   // ==========================================
@@ -595,7 +598,8 @@ class AdminService {
       throw Exception(_parseError(response, 'Failed to query M-PESA record'));
     }
     final data = jsonDecode(response.body);
-    return data['results'] as List<dynamic>;
+    final rawList = data['results'] as List<dynamic>? ?? [];
+    return rawList.map((t) => t is Map ? Map<String, dynamic>.from(t) : t).toList();
   }
 
   Future<void> manualCreditMpesa({
@@ -719,10 +723,10 @@ class AdminService {
   Future<Map<String, dynamic>> bulkDisbursePayroll({String? department, String? month}) async {
     final headers = await _getHeaders();
     final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/payroll/bulk_disburse');
-    final body = jsonEncode({
-      if (department != null) 'department': department,
-      if (month != null) 'month': month,
-    });
+    final Map<String, dynamic> payload = {};
+    if (department != null) payload['department'] = department;
+    if (month != null) payload['month'] = month;
+    final body = jsonEncode(payload);
     final response = await http.post(url, headers: headers, body: body).timeout(const Duration(seconds: 30));
 
     if (response.statusCode != 200) {
@@ -895,7 +899,7 @@ class AdminService {
     }
   }
 
-  Future<void> deleteDepartment(String deptId) async {
+  Future<Map<String, dynamic>> deleteDepartment(String deptId) async {
     final headers = await _getHeaders();
     final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/departments/$deptId');
     final response = await http.delete(url, headers: headers).timeout(const Duration(seconds: 30));
@@ -903,6 +907,7 @@ class AdminService {
     if (response.statusCode != 200) {
       throw Exception(_parseError(response, 'Failed to delete department'));
     }
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> updateEmployeeCompensation({
@@ -917,15 +922,16 @@ class AdminService {
   }) async {
     final headers = await _getHeaders();
     final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/admin/employees/$employeeId/compensation');
-    final body = jsonEncode({
+    final Map<String, dynamic> payload = {
       'role': role,
       'department': department,
       'base_salary': baseSalary,
       'salary_type': salaryType,
-      if (shifDeduction != null) 'shif_deduction': shifDeduction,
-      if (nssfDeduction != null) 'nssf_deduction': nssfDeduction,
-      if (housingLevy != null) 'housing_levy': housingLevy,
-    });
+    };
+    if (shifDeduction != null) payload['shif_deduction'] = shifDeduction;
+    if (nssfDeduction != null) payload['nssf_deduction'] = nssfDeduction;
+    if (housingLevy != null) payload['housing_levy'] = housingLevy;
+    final body = jsonEncode(payload);
     final response = await http.post(url, headers: headers, body: body).timeout(const Duration(seconds: 30));
 
     if (response.statusCode != 200) {

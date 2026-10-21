@@ -378,8 +378,10 @@ class _HarambeeViewState extends State<HarambeeView> {
           children: [
             const Icon(Icons.account_balance_wallet, color: Colors.amber),
             const SizedBox(width: 8),
-            Text('Withdraw KES ${raised.toStringAsFixed(2)}',
-                style: const TextStyle(color: Colors.white, fontSize: 16)),
+            Expanded(
+              child: Text('Withdraw KES ${raised.toStringAsFixed(2)}',
+                  style: const TextStyle(color: Colors.white, fontSize: 16)),
+            ),
           ],
         ),
         content: Column(

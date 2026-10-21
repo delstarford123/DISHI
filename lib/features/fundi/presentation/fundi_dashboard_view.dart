@@ -251,7 +251,7 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
           children: [
             Icon(Icons.check_circle, color: _neonCyan, size: 24),
             SizedBox(width: 10),
-            Text('Complete Gig?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+            Expanded(child: Text('Complete Gig?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))),
           ],
         ),
         content: Column(
