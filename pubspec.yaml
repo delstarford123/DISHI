@@ -50,7 +50,6 @@ dependencies:
   encrypt: ^5.0.3
   drift: ^2.14.0
   sqlite3_flutter_libs: ^0.5.24
-  shared_preferences: ^2.3.2
   path_provider: ^2.1.1
   path: ^1.8.3
   fl_chart: ^0.66.0
@@ -79,7 +78,7 @@ dependencies:
   uuid: ^4.3.3
   provider: ^6.1.2
   alarm: ^4.0.5
-  shared_preferences: ^2.2.3
+  shared_preferences: ^2.3.2
   google_fonts: ^6.1.0
   cached_network_image: ^3.3.1
   flutter_webrtc: ^1.6.1
