@@ -21,9 +21,9 @@ class AppVersionStatus {
 
   const AppVersionStatus({
     required this.action,
-    this.minSupportedCode = 2,
-    this.latestCode = 3,
-    this.latestName = '1.0.2',
+    this.minSupportedCode = 3,
+    this.latestCode = 4,
+    this.latestName = '1.0.3',
     this.message = '',
     this.playStoreUrl = 'https://play.google.com/store/apps/details?id=co.ke.delstarfordworks.dishi',
     this.releaseNotes = '',
@@ -33,9 +33,9 @@ class AppVersionStatus {
 }
 
 class AppVersionService {
-  // Current compiled app version metadata
-  static const int currentAppVersionCode = 3;
-  static const String currentAppVersionName = '1.0.2';
+  // Current compiled app version metadata (v4)
+  static const int currentAppVersionCode = 4;
+  static const String currentAppVersionName = '1.0.3';
 
   /// Evaluates remote Firestore configuration with a fast 3-second timeout.
   /// If offline or unreachable, defaults to allowed so offline NFC dignity is preserved.

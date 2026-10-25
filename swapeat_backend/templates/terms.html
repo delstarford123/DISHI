@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Terms of Service & Conditions — DISHI | Delstarford Works{% endblock %}
+{% block description %}Official Terms of Service and Conditions for DISHI: Campus dining, M-PESA wallet, delivery, and community services.{% endblock %}
+
+{% block head_extra %}
+<style>
+    .legal-container {
+        max-width: 900px;
+        margin: 50px auto 80px;
+        padding: 0 24px;
+    }
+
+    .legal-header {
+        margin-bottom: 40px;
+        text-align: center;
+    }
+
+    .legal-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 14px;
+        border-radius: 20px;
+        background: rgba(5, 213, 170, 0.1);
+        border: 1px solid rgba(5, 213, 170, 0.3);
+        color: var(--mint);
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 16px;
+    }
+
+    .legal-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 32px;
+        margin-bottom: 24px;
+    }
+
+    .legal-card h2 {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--mint);
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .legal-card p {
+        font-size: 14.5px;
+        color: var(--text-muted);
+        line-height: 1.7;
+        margin-bottom: 12px;
+    }
+
+    .legal-card ul, .legal-card ol {
+        margin-left: 20px;
+        margin-bottom: 14px;
+        color: var(--text-muted);
+        font-size: 14px;
+        line-height: 1.7;
+    }
+
+    .legal-card li {
+        margin-bottom: 8px;
+    }
+
+    .legal-card strong {
+        color: #fff;
+    }
+
+    .highlight-box {
+        background: rgba(30, 41, 59, 0.6);
+        border-left: 4px solid var(--mint);
+        padding: 16px 20px;
+        border-radius: 0 8px 8px 0;
+        margin: 16px 0;
+        font-size: 14px;
+        color: #E2E8F0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="legal-container">
+    <div class="legal-header">
+        <div class="legal-pill">📜 Legal Agreement & Terms</div>
+        <h1 style="font-size: 38px; font-weight: 800; color: #fff;">Terms of Service & Conditions</h1>
+        <p style="color: var(--text-muted); font-size: 15px; margin-top: 8px;">
+            Operated by <strong>Delstarford Works</strong> &middot; Effective Date: October 2026
+        </p>
+    </div>
+
+    <div class="legal-card">
+        <h2>1. Acceptance of Terms</h2>
+        <p>By creating an account, registering on, downloading, or using the <strong>DISHI</strong> mobile application or web portal ("the Platform"), you agree to be bound by these Terms of Service & Conditions ("Terms"), our Privacy Policy, and all applicable laws and regulations of the Republic of Kenya. If you do not agree to these Terms, you must not access or use DISHI.</p>
+    </div>
+
+    <div class="legal-card">
+        <h2>2. Account Registration & Eligibility</h2>
+        <p>To access student dining, cafeteria preordering, wallet transactions, and delivery services, you must register an account with valid and verifiable credentials:</p>
+        <ul>
+            <li><strong>Accuracy:</strong> You agree to provide accurate, current, and complete registration information including your legal name, telephone number, valid campus/student registration number, and designated user role.</li>
+            <li><strong>Account Security:</strong> You are strictly responsible for maintaining the confidentiality of your credentials, password, and 6-digit transaction PIN. Any action initiated under your account shall be deemed authorized by you.</li>
+            <li><strong>Age & Authority:</strong> If you are under 18 years of age, you must have the consent of a parent or legal guardian who accepts these Terms on your behalf.</li>
+        </ul>
+    </div>
+
+    <div class="legal-card">
+        <h2>3. Safaricom M-PESA & Digital Wallet Services</h2>
+        <p>DISHI integrates with Safaricom Daraja M-PESA APIs to facilitate seamless, cashless cafeteria dining and peer meal transfers:</p>
+        <ul>
+            <li><strong>Transactions:</strong> Deposits via M-PESA STK Push and C2B Paybill are credited to your DISHI digital wallet. Wallet balances can be redeemed exclusively for authorized vendor food items, registered campus gig services, or verified peer transfers.</li>
+            <li><strong>Security & PIN:</strong> DISHI staff will never ask for your M-PESA PIN or DISHI Security PIN. Never disclose your PIN to any third party.</li>
+            <li><strong>Anti-Fraud & Velocity Checks:</strong> DISHI monitors transaction velocities to prevent balance tampering, money laundering, and wash trading. Accounts suspected of fraudulent activity may be suspended pending investigation.</li>
+        </ul>
+    </div>
+
+    <div class="legal-card">
+        <h2>4. Preorders, Delivery & Fulfillment</h2>
+        <div class="highlight-box">
+            <strong>Cafeteria Orders:</strong> Food preorders submitted through DISHI are transmitted directly to verified campus kitchen queues. Once preparation begins, preorders cannot be unilaterally cancelled without vendor confirmation.
+        </div>
+        <ul>
+            <li><strong>Delivery Dispatch (DeLiv):</strong> Campus delivery couriers operate as independent contractors. You agree to provide clear campus delivery addresses (hall of residence, room number).</li>
+            <li><strong>Collection Window:</strong> Preorders prepared for pickup must be collected within the designated collection window to ensure freshness and food safety.</li>
+        </ul>
+    </div>
+
+    <div class="legal-card">
+        <h2>5. Privacy & User Data Protection</h2>
+        <p>Your privacy is of utmost importance to us. Our collection and processing of personal data, device permissions (Location, Camera, Microphone, and Push Notifications), and location routing are governed strictly by our <a href="/privacy" style="color: var(--mint); text-decoration: underline;">Privacy Policy</a> and the <strong>Kenya Data Protection Act, 2019</strong>.</p>
+    </div>
+
+    <div class="legal-card">
+        <h2>6. Community Guidelines & Prohibited Conduct</h2>
+        <p>Users of DISHI agree not to engage in:</p>
+        <ul>
+            <li>Harassment, abusive language, or fraudulent claims directed at vendors, couriers, or peers.</li>
+            <li>Attempting to bypass platform security, reverse engineer client binaries, or falsify GPS coordinates.</li>
+            <li>Creating multiple duplicate accounts to exploit promotional voucher credits.</li>
+        </ul>
+    </div>
+
+    <div class="legal-card">
+        <h2>7. Account Termination & Erasure</h2>
+        <p>You may request account closure and permanent erasure of your personal data at any time through the in-app <strong>Data Privacy & Permissions</strong> menu or via our web portal at <a href="/delete-account" style="color: var(--mint); text-decoration: underline;">dishi.delstarfordworks.co.ke/delete-account</a>. Data is purged following a 30-day soft-deletion grace period.</p>
+    </div>
+
+    <div class="legal-card">
+        <h2>8. Contact & Legal Notices</h2>
+        <p>For questions or legal inquiries regarding these Terms of Service, contact:</p>
+        <p>
+            <strong>DELSTARFORD WORKS</strong><br>
+            Legal & Compliance Department<br>
+            Nairobi, Kenya<br>
+            Email: <a href="mailto:support@delstarfordworks.co.ke" style="color: var(--mint);">support@delstarfordworks.co.ke</a><br>
+            Web: <a href="https://dishi.delstarfordworks.co.ke" style="color: var(--mint);">https://dishi.delstarfordworks.co.ke</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

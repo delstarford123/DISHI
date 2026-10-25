@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:audioplayers/audioplayers.dart';
+import '../../../core/services/permission_disclosure_service.dart';
 
 const Color _neonPink = Color(0xFFFF2A6D);
 const Color _neonBlue = Color(0xFF00FFD1);
@@ -59,6 +60,12 @@ class _MatchVoiceRecorderDialogState extends State<MatchVoiceRecorderDialog> {
 
   Future<void> _startRecording() async {
     try {
+      final hasPerm = await _audioRecorder.hasPermission();
+      if (!hasPerm) {
+        final granted = await PermissionDisclosureService.requestMicrophoneWithDisclosure(context);
+        if (!granted) return;
+      }
+
       if (await _audioRecorder.hasPermission()) {
         final dir = await getTemporaryDirectory();
         final path = p.join(dir.path, 'my_voice_prompt_${DateTime.now().millisecondsSinceEpoch}.m4a');

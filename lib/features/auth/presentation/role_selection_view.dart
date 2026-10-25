@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'trust_onboarding_view.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class RoleSelectionView extends StatefulWidget {
   final List<String>? initialRoles;
@@ -544,6 +545,54 @@ class _RoleSelectionViewState extends State<RoleSelectionView> with SingleTicker
                         ),
 
                         const SizedBox(height: 14),
+
+                        Center(
+                          child: Wrap(
+                            alignment: WrapAlignment.center,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              InkWell(
+                                onTap: () async {
+                                  final uri = Uri.parse('https://dishi.delstarfordworks.co.ke/terms');
+                                  if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                },
+                                borderRadius: BorderRadius.circular(4),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  child: Text(
+                                    'Terms of Service',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 11.5,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const Text(' • ', style: TextStyle(color: Colors.white38, fontSize: 11.5)),
+                              InkWell(
+                                onTap: () async {
+                                  final uri = Uri.parse('https://dishi.delstarfordworks.co.ke/privacy');
+                                  if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                },
+                                borderRadius: BorderRadius.circular(4),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  child: Text(
+                                    'Privacy Policy',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 11.5,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 10),
 
                         // Security Trust note
                         const Center(

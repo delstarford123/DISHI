@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../../auth/presentation/forgot_pin_view.dart';
+import '../../auth/presentation/data_consent_view.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import '../../auth/presentation/login_view.dart';
 import '../../../core/services/secure_storage_service.dart';
@@ -340,21 +341,15 @@ class _ParentProfileSettingsState extends State<ParentProfileSettings> {
                 }),
             _buildListTile(
                 icon: Icons.privacy_tip,
-                title: 'Privacy Policy',
+                title: 'Data Privacy & Permissions',
                 onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      backgroundColor: const Color(0xFF131A2A),
-                      title: const Text('Privacy Policy', style: TextStyle(color: Colors.white)),
-                      content: const Text('Our privacy policy can be found on our website at:\nhttps://dishi.delstarfordworks.co.ke/privacy', style: TextStyle(color: Colors.white70)),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Close', style: TextStyle(color: MPesaTheme.mpesaGreen)),
-                        )
-                      ],
-                    )
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DataConsentView(
+                        userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                      ),
+                    ),
                   );
                 }),
             const SizedBox(height: 32),

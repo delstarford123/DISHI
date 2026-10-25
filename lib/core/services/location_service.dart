@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:io' show Platform;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import '../../main.dart' show appNavigatorKey;
+import 'permission_disclosure_service.dart';
 
 /// Provides real-time GPS tracking with Firestore syncing, breadcrumb trails,
 /// SOS high-frequency broadcasting, and speed calculation.
@@ -20,14 +23,33 @@ class LocationService {
   // PERMISSIONS
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// Ensures location permissions are granted. Returns null on success,
-  /// or an error string on failure.
-  static Future<String?> ensurePermissions(
-      {bool background = false}) async {
+  /// Ensures location permissions are granted with Google Play Prominent Disclosure.
+  /// Returns null on success, or an error string on failure.
+  static Future<String?> ensurePermissions({
+    BuildContext? context,
+    bool background = false,
+  }) async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return 'Location services are disabled.';
 
     LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse) {
+      return null;
+    }
+
+    // MANDATORY GOOGLE PLAY PROMINENT DISCLOSURE:
+    // Present the in-app disclosure modal BEFORE triggering the OS runtime prompt.
+    final effectiveContext = context ?? appNavigatorKey.currentContext;
+    if (effectiveContext != null && effectiveContext.mounted) {
+      final granted = await PermissionDisclosureService.requestLocationWithDisclosure(
+          effectiveContext);
+      if (!granted) {
+        return 'Location permission or disclosure not accepted.';
+      }
+      return null;
+    }
+
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
@@ -45,8 +67,8 @@ class LocationService {
   // ─────────────────────────────────────────────────────────────────────────
 
   /// Returns the device's current position once.
-  static Future<Position> getCurrentLocation() async {
-    final err = await ensurePermissions();
+  static Future<Position> getCurrentLocation({BuildContext? context}) async {
+    final err = await ensurePermissions(context: context);
     if (err != null) return Future.error(err);
     return Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
@@ -75,12 +97,13 @@ class LocationService {
   /// [sosMode] uses a high-frequency stream (every 3 seconds).
   static Future<void> startBroadcasting(
     String studentUid, {
+    BuildContext? context,
     bool sosMode = false,
   }) async {
     // Stop any existing broadcast before starting a new one
     await stopBroadcasting();
 
-    final err = await ensurePermissions(background: true);
+    final err = await ensurePermissions(context: context, background: false);
     if (err != null) {
       debugPrint('LocationService: Cannot broadcast — $err');
       return;

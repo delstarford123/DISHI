@@ -88,7 +88,7 @@ class _GeofenceAlertsViewState extends State<GeofenceAlertsView> {
   bool _isCameraInitialized = false;
 
   Future<void> _fetchParentLocation() async {
-    final err = await LocationService.ensurePermissions();
+    final err = await LocationService.ensurePermissions(context: context);
     if (err == null) {
       try {
         final pos = await LocationService.getCurrentLocation();

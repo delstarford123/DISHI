@@ -409,7 +409,21 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
           ),
 
           const SizedBox(height: 32),
-          const SizedBox(height: 32),
+          _buildSectionHeader('Privacy & Compliance', Icons.shield_outlined, Colors.cyanAccent),
+          const SizedBox(height: 16),
+          ListTile(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            tileColor: const Color(0xFF131A26),
+            leading: const Icon(Icons.privacy_tip_outlined, color: Colors.cyanAccent),
+            title: const Text('Data Privacy & Permissions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            subtitle: const Text('Inspect device permissions & prominent disclosures', style: TextStyle(color: Colors.white60, fontSize: 12)),
+            trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+            onTap: () {
+              final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+              Navigator.push(context, MaterialPageRoute(builder: (context) => DataConsentView(userId: uid)));
+            },
+          ),
+          const SizedBox(height: 16),
           SafeArea(
             child: ListTile(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -417,7 +431,8 @@ class _StudentProfileSettingsState extends State<StudentProfileSettings> {
               leading: const Icon(Icons.delete_forever, color: Colors.redAccent),
               title: const Text('Delete Account', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const DataConsentView(userId: 'current_user_id')));
+                final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+                Navigator.push(context, MaterialPageRoute(builder: (context) => DataConsentView(userId: uid)));
               },
             ),
           ),

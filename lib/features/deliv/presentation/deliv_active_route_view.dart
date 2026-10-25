@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/utils/map_marker_helper.dart';
+import '../../../core/services/permission_disclosure_service.dart';
 
 class DelivActiveRouteView extends StatefulWidget {
   final String? rideId;
@@ -204,18 +205,9 @@ class _DelivActiveRouteViewState extends State<DelivActiveRouteView> {
   }
 
   Future<void> _startTracking() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      if (mounted) setState(() => _permissionDenied = true);
-      return;
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.deniedForever ||
-        permission == LocationPermission.denied) {
+    final granted =
+        await PermissionDisclosureService.requestLocationWithDisclosure(context);
+    if (!granted) {
       if (mounted) setState(() => _permissionDenied = true);
       return;
     }

@@ -94,9 +94,17 @@
         <ul>
             <li><strong>Personal Identity & Account Data:</strong> Your name, email address, telephone number, user role (student, vendor, delivery rider, parent, fundi), student registration number/campus, and profile image.</li>
             <li><strong>Financial & Payment Transactions:</strong> Safaricom M-PESA transaction IDs, payment receipts, wallet balance top-ups, peer meal transfers, and cafeteria preorder histories. We do <em>not</em> store your M-PESA PIN.</li>
-            <li><strong>Location Information:</strong>
+            <li><strong>Location Information & Prominent Disclosure:</strong>
                 <div class="highlight-box">
-                    <strong>Foreground & Background Location:</strong> DISHI requests location permissions. For students and food recipients, location is used to show nearby cafeteria stalls and real-time delivery tracking. For active campus delivery riders, location is accessed during active order dispatch to route orders safely to the correct hall of residence.
+                    <strong>Foreground & Active Delivery Service Location:</strong> DISHI requests device location coordinates (GPS). Location data is collected and used strictly to:
+                    <ol style="margin-top: 6px; padding-left: 20px;">
+                        <li><strong>Real-time Meal Delivery Routing:</strong> Route active orders accurately from campus cafeterias to student hostels and halls of residence.</li>
+                        <li><strong>Campus Cafeteria Discovery:</strong> Display nearby dining stalls, food trucks, and measure walking distances to collection counters.</li>
+                        <li><strong>Campus Safety SOS & Geofencing:</strong> Broadcast real-time coordinates to linked parents and campus security when an emergency SOS distress alert is triggered.</li>
+                    </ol>
+                    <p style="margin-top: 8px; font-size: 13.5px; color: #CBD5E1;">
+                        <strong>In-App Prominent Disclosure:</strong> In accordance with Google Play's Prominent Disclosure and Consent policy, DISHI displays a prominent in-app disclosure dialog explaining data collection and purpose <em>prior</em> to triggering the device permission prompt. Location is accessed during active application usage and active delivery service sessions. DISHI does not track users outside of active application sessions or emergency triggers. Location data is encrypted in transit via TLS 1.3, never sold to third-party data brokers, and never utilized for advertising.
+                    </p>
                 </div>
             </li>
             <li><strong>Camera & Media Access:</strong> Optional camera access to scan vendor QR codes at food counters, upload food listing images, or verify student ID cards.</li>

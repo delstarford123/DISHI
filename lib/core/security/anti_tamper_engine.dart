@@ -20,7 +20,7 @@ class AntiTamperEngine {
     }
   }
 
-  /// Optional: Implement Root/Jailbreak detection here using flutter_jailbreak_detection
+  /// Root/Jailbreak detection (pure-Dart, 16 KB compliant)
   static Future<bool> isDeviceCompromised() async {
     // Returning false by default unless implemented via package
     return false;

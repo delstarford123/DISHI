@@ -172,7 +172,7 @@ class _CampusMapViewState extends State<CampusMapView> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _startLocationWatch() async {
-    final err = await LocationService.ensurePermissions();
+    final err = await LocationService.ensurePermissions(context: context);
     if (err != null) return;
 
     try {

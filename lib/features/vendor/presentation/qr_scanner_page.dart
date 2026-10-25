@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'vendor_topup_view.dart';
+import '../../../core/services/permission_disclosure_service.dart';
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF161B29);
 const Color _neonCyan = Color(0xFF05D5AA);
@@ -24,16 +25,18 @@ class _QrScannerPageState extends State<QrScannerPage> {
   @override
   void initState() {
     super.initState();
-    _requestCameraPermission();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestCameraPermission();
+    });
   }
 
   Future<void> _requestCameraPermission() async {
-    final status = await Permission.camera.request();
-    setState(() {
-      _hasPermission = status.isGranted;
-    });
-    if (status.isPermanentlyDenied) {
-      openAppSettings();
+    final granted =
+        await PermissionDisclosureService.requestCameraWithDisclosure(context);
+    if (mounted) {
+      setState(() {
+        _hasPermission = granted;
+      });
     }
   }
 

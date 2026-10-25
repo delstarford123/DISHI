@@ -158,7 +158,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
     _sosPulseController.repeat(reverse: true);
 
     // High-frequency SOS broadcast
-    await LocationService.startBroadcasting(uid, sosMode: true);
+    await LocationService.startBroadcasting(uid, context: context, sosMode: true);
 
     // Mark SOS in Firestore (immediate, even before backend call)
     await FirebaseFirestore.instance.collection('users').doc(uid).set(
@@ -174,7 +174,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
     double? lat;
     double? lng;
     try {
-      final pos = await LocationService.getCurrentLocation();
+      final pos = await LocationService.getCurrentLocation(context: context);
       lat = pos.latitude;
       lng = pos.longitude;
     } catch (_) {}
@@ -234,7 +234,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
       await LocationService.stopBroadcasting(studentUid: uid);
     } else {
       setState(() => _isBroadcasting = true);
-      await LocationService.startBroadcasting(uid);
+      await LocationService.startBroadcasting(uid, context: context);
     }
   }
 

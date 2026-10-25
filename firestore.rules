@@ -47,6 +47,15 @@ service cloud.firestore {
       );
     }
 
+    // Check if the requester is a student/child of the given parentId
+    function isChildOf(parentId) {
+      return isAuth() && (
+        parentId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('linkedParents', []) ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('parentUid', '') == parentId ||
+        request.auth.uid in get(/databases/$(database)/documents/users/$(parentId)).data.get('linkedStudents', [])
+      );
+    }
+
     // ── Default Deny ──────────────────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
@@ -79,13 +88,13 @@ service cloud.firestore {
                    (resource != null && isAuth() && hasRole('parent') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedStudents'])) ||
                    (resource == null && isAuth() && hasRole('parent') && request.resource.data.isOffline == true);
 
-      // All subcollections under /users/{uid}/... (menu, staff, notifications, bounties, etc.)
+      // All subcollections under /users/{uid}/... (menu, staff, notifications, bounties, geofence_alerts, locationBreadcrumbs, etc.)
       match /{subcollection}/{docId} {
-        allow read, write: if isSelf(userId) || isAdmin() || isParentOf(userId);
+        allow read, write: if isSelf(userId) || isAdmin() || isParentOf(userId) || isChildOf(userId);
       }
       // Deep wildcard for deeper nesting
       match /{rest=**} {
-        allow read, write: if isSelf(userId) || isAdmin() || isParentOf(userId);
+        allow read, write: if isSelf(userId) || isAdmin() || isParentOf(userId) || isChildOf(userId);
       }
     }
 
@@ -654,9 +663,50 @@ service cloud.firestore {
     }
     // system_config covers global_settings, global_status, security, and
     // all feature flag docs (FeatureFlagService uses this collection)
+    // app_version is readable publicly so unauthenticated clients on app launch can check maintenance/versions
+    match /system_config/app_version {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
     match /system_config/{configId} {
       allow read: if isAuth();
       allow write: if isAdmin();
+    }
+    match /system_settings/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    match /app_settings/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    match /deleted_users/{uid} {
+      allow read: if isAdmin();
+      allow write: if isSelf(uid) || isAdmin();
+    }
+    match /wallet_transactions/{txId} {
+      allow read, write: if isAuth();
+    }
+    match /gigs/{gigId} {
+      allow read, write: if isAuth();
+      match /{subcol=**} { allow read, write: if isAuth(); }
+    }
+    match /properties/{propId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+    match /geofences/{parentUid} {
+      allow read, write: if isSelf(parentUid) || isAdmin() || isChildOf(parentUid);
+      match /{subcol=**} {
+        allow read, write: if isSelf(parentUid) || isAdmin() || isChildOf(parentUid);
+      }
+    }
+    match /study_zones/{zoneId} {
+      allow read, write: if isAuth();
+    }
+    match /matches/{matchId} {
+      allow read, write: if isAuth();
+      match /{subcol=**} { allow read, write: if isAuth(); }
     }
     // feature_flags is an alternate collection used by FeatureGateWidget
     match /feature_flags/{flagId} {
@@ -788,6 +838,9 @@ service cloud.firestore {
          request.auth.uid == resource.data.creatorId ||
          request.auth.uid == resource.data.uid ||
          isAdmin());
+      match /{subcol=**} {
+        allow read, write: if isAuth();
+      }
     }
     match /event_tickets/{ticketId} {
       allow read: if isAuth();

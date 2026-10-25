@@ -603,6 +603,12 @@ def event_ticket():
 def privacy_policy():
     return render_template('privacy.html')
 
+@app.route('/terms', methods=['GET'])
+@app.route('/terms-of-service', methods=['GET'])
+@app.route('/terms-and-conditions', methods=['GET'])
+def terms_of_service():
+    return render_template('terms.html')
+
 @app.route('/delete-account', methods=['GET'])
 @app.route('/account-deletion', methods=['GET'])
 def delete_account_page():

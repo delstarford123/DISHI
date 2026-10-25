@@ -167,7 +167,7 @@ class _NearbyServicesMapViewState extends State<NearbyServicesMapView> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _startPositionWatch() async {
-    final err = await LocationService.ensurePermissions();
+    final err = await LocationService.ensurePermissions(context: context);
     if (err != null) return;
     
     try {

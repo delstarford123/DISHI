@@ -134,7 +134,7 @@ class _MeetupShareViewState extends State<MeetupShareView> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _startPositionWatch() async {
-    final err = await LocationService.ensurePermissions();
+    final err = await LocationService.ensurePermissions(context: context);
     if (err != null) return;
     
     try {

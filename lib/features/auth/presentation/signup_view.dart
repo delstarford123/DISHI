@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -28,6 +30,25 @@ class _SignupViewState extends State<SignupView> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _agreedToTerms = true;
+
+  static const String privacyPolicyUrl = 'https://dishi.delstarfordworks.co.ke/privacy';
+  static const String termsUrl = 'https://dishi.delstarfordworks.co.ke/terms';
+
+  Future<void> _launchLegalUrl(String url) async {
+    final uri = Uri.parse(url);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open page.')),
+          );
+        }
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -43,6 +64,13 @@ class _SignupViewState extends State<SignupView> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final phone = _phoneController.text.trim();
+
+    if (!_agreedToTerms) {
+      setState(() {
+        _errorMessage = 'Please accept the Terms of Service & Privacy Policy.';
+      });
+      return;
+    }
 
     if (name.isEmpty || email.isEmpty || password.isEmpty || phone.isEmpty) {
       setState(() { _errorMessage = 'Please fill all fields.'; });
@@ -433,7 +461,63 @@ class _SignupViewState extends State<SignupView> {
                     }
                   },
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 18),
+
+                // Terms of Service & Privacy Policy Agreement Checkbox
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: Checkbox(
+                        value: _agreedToTerms,
+                        activeColor: MPesaTheme.primaryGreen,
+                        checkColor: Colors.white,
+                        side: const BorderSide(color: Colors.white54, width: 1.5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                        onChanged: (val) {
+                          setState(() {
+                            _agreedToTerms = val ?? true;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          text: 'I agree to DISHI\'s ',
+                          style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+                          children: [
+                            TextSpan(
+                              text: 'Terms of Service',
+                              style: const TextStyle(
+                                color: MPesaTheme.neonGreen,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () => _launchLegalUrl(termsUrl),
+                            ),
+                            const TextSpan(text: ' and '),
+                            TextSpan(
+                              text: 'Privacy Policy',
+                              style: const TextStyle(
+                                color: MPesaTheme.neonGreen,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () => _launchLegalUrl(privacyPolicyUrl),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
                 
                 SizedBox(
                   width: double.infinity,
@@ -483,7 +567,7 @@ class _SignupViewState extends State<SignupView> {
                     onPressed: _isLoading ? null : _handleGoogleSignUp,
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
                 Center(
                   child: GestureDetector(
                     onTap: () {
@@ -503,7 +587,48 @@ class _SignupViewState extends State<SignupView> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
+                // Footer Legal Links
+                Center(
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      InkWell(
+                        onTap: () => _launchLegalUrl(termsUrl),
+                        borderRadius: BorderRadius.circular(4),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                          child: Text(
+                            'Terms of Service',
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Text(' • ', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                      InkWell(
+                        onTap: () => _launchLegalUrl(privacyPolicyUrl),
+                        borderRadius: BorderRadius.circular(4),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                          child: Text(
+                            'Privacy Policy',
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
               ],
             ),
           ),

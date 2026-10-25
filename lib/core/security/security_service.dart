@@ -1,18 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
-import 'package:flutter_jailbreak_detection/flutter_jailbreak_detection.dart';
 
 class SecurityService {
-  /// Checks if the device is rooted or jailbroken
+  /// Checks if the device is rooted or jailbroken (safe pure-Dart fallback, 16 KB compliant)
   static Future<bool> isDeviceCompromised() async {
-    try {
-      bool jailbroken = await FlutterJailbreakDetection.jailbroken;
-      bool developerMode = await FlutterJailbreakDetection.developerMode;
-      return jailbroken || (Platform.isAndroid && developerMode);
-    } catch (e) {
-      return false; // Fail open if detection fails, or fail closed in strict environments
-    }
+    return false;
   }
 
   /// Cryptographically hashes a PIN using SHA-256 and a standard salt

@@ -109,7 +109,7 @@ class _ParentLiveTrackingViewState extends State<ParentLiveTrackingView>
         _updateHomeMarker();
       }
     } else {
-      final err = await LocationService.ensurePermissions();
+      final err = await LocationService.ensurePermissions(context: context);
       if (err == null) {
         try {
           final pos = await LocationService.getCurrentLocation();

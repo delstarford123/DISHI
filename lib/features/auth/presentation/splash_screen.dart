@@ -59,7 +59,7 @@ class _SplashScreenState extends State<SplashScreen>
   Timer? _loadingTimer;
 
   // App Version
-  final String _appVersion = "v1.0.2";
+  final String _appVersion = "v1.0.3";
 
   // Palette
   static const Color _bg        = Color(0xFF030D08); // obsidian dark green

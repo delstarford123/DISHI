@@ -110,7 +110,7 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> with Single
             }
           });
           if (_isOnline) {
-            LocationService.startBroadcasting(uid);
+            LocationService.startBroadcasting(uid, context: context);
           }
         }
       });
@@ -430,7 +430,7 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> with Single
       );
 
       if (value) {
-        await LocationService.startBroadcasting(uid);
+        await LocationService.startBroadcasting(uid, context: context);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -937,7 +937,7 @@ class _DelivDriverDashboardState extends State<DelivDriverDashboard> with Single
                   'timestamp': FieldValue.serverTimestamp(),
                   'status': 'active',
                 });
-                await LocationService.startBroadcasting(uid, sosMode: true);
+                await LocationService.startBroadcasting(uid, context: context, sosMode: true);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(

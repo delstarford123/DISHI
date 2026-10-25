@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../../core/services/permission_disclosure_service.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
@@ -43,18 +44,16 @@ class _MatchDiscoveryViewState extends State<MatchDiscoveryView> with TickerProv
   }
 
   Future<void> _fetchLocationAndProfiles() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return _fetchProfiles(null); 
+    final granted =
+        await PermissionDisclosureService.requestLocationWithDisclosure(context);
+    if (!granted) return _fetchProfiles(null);
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return _fetchProfiles(null); 
+    try {
+      final position = await Geolocator.getCurrentPosition();
+      _fetchProfiles(position);
+    } catch (_) {
+      _fetchProfiles(null);
     }
-    if (permission == LocationPermission.deniedForever) return _fetchProfiles(null); 
-
-    final position = await Geolocator.getCurrentPosition();
-    _fetchProfiles(position);
   }
 
   Future<void> _fetchProfiles(Position? myPosition) async {
