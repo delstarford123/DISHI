@@ -919,3 +919,284 @@ def dispute_transaction(tx_id):
         return jsonify({"status": "success", "message": "Transaction disputed successfully."}), 200
     except Exception as e:
         return jsonify({"error": "Server error", "details": str(e)}), 500
+
+# ─── P2P WALLET TRANSFER & RECIPIENT LOOKUP ────────────────────────────────────
+
+@transaction_bp.route('/lookup_recipient', methods=['GET', 'POST'])
+def lookup_recipient():
+    """
+    Looks up a recipient by DISHI ID, phone number, email, or UID.
+    Query/Body: { "query": "CNXAS19" }
+    """
+    data = request.get_json(silent=True) or {}
+    query = (request.args.get('query') or data.get('query') or data.get('recipient') or '').strip()
+    if not query:
+        return jsonify({"found": False, "error": "Query is required"}), 400
+
+    db = firestore.client()
+    query_upper = query.upper()
+    query_lower = query.lower()
+
+    # 1. Search by DISHI ID (exact, upper)
+    for q in [query_upper, query]:
+        snap = db.collection('users').where('dishiId', '==', q).limit(1).get()
+        if not snap:
+            snap = db.collection('users').where('dishi_id', '==', q).limit(1).get()
+        if snap:
+            u = snap[0]
+            ud = u.to_dict() or {}
+            return jsonify({
+                "found": True,
+                "uid": u.id,
+                "name": ud.get('displayName') or ud.get('name') or 'Fellow Student',
+                "dishiId": ud.get('dishiId') or u.id[:7].upper(),
+                "phone": ud.get('phoneNumber') or ud.get('phone') or '',
+                "role": ud.get('role') or 'student'
+            }), 200
+
+    # 2. Search by Phone number
+    phone_formatted = query.replace('+', '').replace(' ', '').replace('-', '')
+    if phone_formatted.startswith('0'):
+        phone_formatted = '254' + phone_formatted[1:]
+    for ph_field in ['phoneNumber', 'phone', 'phone_number']:
+        snap = db.collection('users').where(ph_field, '==', phone_formatted).limit(1).get()
+        if snap:
+            u = snap[0]
+            ud = u.to_dict() or {}
+            return jsonify({
+                "found": True,
+                "uid": u.id,
+                "name": ud.get('displayName') or ud.get('name') or 'Fellow Student',
+                "dishiId": ud.get('dishiId') or u.id[:7].upper(),
+                "phone": ud.get('phoneNumber') or ud.get('phone') or '',
+                "role": ud.get('role') or 'student'
+            }), 200
+
+    # 3. Search by Email
+    if '@' in query:
+        snap = db.collection('users').where('email', '==', query_lower).limit(1).get()
+        if snap:
+            u = snap[0]
+            ud = u.to_dict() or {}
+            return jsonify({
+                "found": True,
+                "uid": u.id,
+                "name": ud.get('displayName') or ud.get('name') or 'Fellow Student',
+                "dishiId": ud.get('dishiId') or u.id[:7].upper(),
+                "email": query_lower,
+                "role": ud.get('role') or 'student'
+            }), 200
+
+    # 4. Search by Document ID (UID direct)
+    doc = db.collection('users').document(query).get()
+    if doc.exists:
+        ud = doc.to_dict() or {}
+        return jsonify({
+            "found": True,
+            "uid": doc.id,
+            "name": ud.get('displayName') or ud.get('name') or 'Fellow Student',
+            "dishiId": ud.get('dishiId') or doc.id[:7].upper(),
+            "phone": ud.get('phoneNumber') or ud.get('phone') or '',
+            "role": ud.get('role') or 'student'
+        }), 200
+
+    # 5. UID Prefix fallback (if query is e.g. 7 characters)
+    if len(query) >= 6:
+        for u in db.collection('users').limit(50).stream():
+            if u.id.upper().startswith(query_upper):
+                ud = u.to_dict() or {}
+                if not ud.get('dishiId'):
+                    u.reference.update({'dishiId': u.id[:7].upper(), 'dishi_id': u.id[:7].upper()})
+                return jsonify({
+                    "found": True,
+                    "uid": u.id,
+                    "name": ud.get('displayName') or ud.get('name') or 'Fellow Student',
+                    "dishiId": ud.get('dishiId') or u.id[:7].upper(),
+                    "phone": ud.get('phoneNumber') or ud.get('phone') or '',
+                    "role": ud.get('role') or 'student'
+                }), 200
+
+    return jsonify({"found": False, "error": "No verified student found with this DISHI ID or phone"}), 404
+
+
+@transaction_bp.route('/p2p_transfer', methods=['POST'])
+@transaction_bp.route('/api/transactions/p2p_transfer', methods=['POST'])
+def execute_p2p_transfer():
+    """
+    Atomic Peer-to-Peer Transfer via Backend.
+    Guarantees atomic balance deduction, credit, ledger update, and notification.
+    """
+    data = request.get_json(silent=True) or {}
+    sender_uid = (data.get('sender_uid') or data.get('senderUid') or '').strip()
+    recipient_query = (data.get('recipient') or data.get('recipient_id') or data.get('receiverUid') or '').strip()
+    amount_raw = data.get('amount')
+    note = (data.get('note') or 'Peer Transfer').strip()
+
+    if not sender_uid or not recipient_query or amount_raw is None:
+        return jsonify({"error": "sender_uid, recipient, and amount are required"}), 400
+
+    try:
+        amount = float(amount_raw)
+        if amount <= 0:
+            return jsonify({"error": "Amount must be greater than KES 0"}), 400
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid amount"}), 400
+
+    db = firestore.client()
+
+    # 1. Resolve Sender
+    sender_ref = db.collection('users').document(sender_uid)
+    sender_doc = sender_ref.get()
+    if not sender_doc.exists:
+        return jsonify({"error": "Sender account not found"}), 404
+    sender_data = sender_doc.to_dict() or {}
+    sender_name = sender_data.get('displayName') or sender_data.get('name') or 'Student'
+
+    # 2. Resolve Recipient
+    receiver_ref = None
+    receiver_data = None
+    receiver_uid = None
+
+    # Direct UID
+    direct_doc = db.collection('users').document(recipient_query).get()
+    if direct_doc.exists:
+        receiver_ref = direct_doc.reference
+        receiver_data = direct_doc.to_dict() or {}
+        receiver_uid = direct_doc.id
+
+    # DISHI ID
+    if not receiver_ref:
+        for q in [recipient_query.upper(), recipient_query]:
+            snap = db.collection('users').where('dishiId', '==', q).limit(1).get()
+            if not snap:
+                snap = db.collection('users').where('dishi_id', '==', q).limit(1).get()
+            if snap:
+                receiver_ref = snap[0].reference
+                receiver_data = snap[0].to_dict() or {}
+                receiver_uid = snap[0].id
+                break
+
+    # Phone
+    if not receiver_ref:
+        phone_formatted = recipient_query.replace('+', '').replace(' ', '').replace('-', '')
+        if phone_formatted.startswith('0'):
+            phone_formatted = '254' + phone_formatted[1:]
+        for ph_field in ['phoneNumber', 'phone', 'phone_number']:
+            snap = db.collection('users').where(ph_field, '==', phone_formatted).limit(1).get()
+            if snap:
+                receiver_ref = snap[0].reference
+                receiver_data = snap[0].to_dict() or {}
+                receiver_uid = snap[0].id
+                break
+
+    # UID Prefix
+    if not receiver_ref and len(recipient_query) >= 6:
+        for u in db.collection('users').limit(50).stream():
+            if u.id.upper().startswith(recipient_query.upper()):
+                receiver_ref = u.reference
+                receiver_data = u.to_dict() or {}
+                receiver_uid = u.id
+                break
+
+    if not receiver_ref:
+        return jsonify({"error": "Recipient student not found"}), 404
+
+    if sender_uid == receiver_uid:
+        return jsonify({"error": "You cannot send money to yourself"}), 400
+
+    receiver_name = receiver_data.get('displayName') or receiver_data.get('name') or 'Fellow Student'
+
+    # 3. Atomic Transaction
+    @firestore.transactional
+    def run_p2p(transaction):
+        s_snap = sender_ref.get(transaction=transaction)
+        r_snap = receiver_ref.get(transaction=transaction)
+
+        if not s_snap.exists or not r_snap.exists:
+            return False, "User account not found"
+
+        s_dict = s_snap.to_dict() or {}
+        r_dict = r_snap.to_dict() or {}
+
+        s_bal = float(s_dict.get('walletBalance', 0.0) or 0.0)
+        r_bal = float(r_dict.get('walletBalance', 0.0) or 0.0)
+
+        if s_bal < amount:
+            return False, f"Insufficient funds in wallet. Available: KES {s_bal:,.2f}"
+
+        new_s_bal = s_bal - amount
+        new_r_bal = r_bal + amount
+
+        transaction.update(sender_ref, {'walletBalance': new_s_bal})
+        transaction.update(receiver_ref, {'walletBalance': new_r_bal})
+
+        tx_ref = db.collection('transactions').document()
+        transaction.set(tx_ref, {
+            'type': 'p2p_transfer',
+            'senderUid': sender_uid,
+            'receiverUid': receiver_uid,
+            'senderName': sender_name,
+            'receiverName': receiver_name,
+            'amount': amount,
+            'fee': 0.0,
+            'note': note,
+            'status': 'completed',
+            'timestamp': firestore.SERVER_TIMESTAMP,
+            'createdAt': datetime.datetime.utcnow().isoformat(),
+        })
+
+        notif_ref = db.collection('notifications').document()
+        transaction.set(notif_ref, {
+            'targetUserId': receiver_uid,
+            'title': 'Money Received! 💸',
+            'body': f'You received KES {amount:,.2f} from {sender_name}.',
+            'type': 'p2p_received',
+            'amount': amount,
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'readBy': [],
+        })
+
+        ledger_ref = db.collection('wallet_ledger').document()
+        transaction.set(ledger_ref, {
+            'type': 'p2p_transfer',
+            'sender_id': sender_uid,
+            'receiver_id': receiver_uid,
+            'amount': amount,
+            'note': note,
+            'timestamp': firestore.SERVER_TIMESTAMP,
+        })
+
+        return True, new_s_bal
+
+    try:
+        tx_obj = db.transaction()
+        ok, res = run_p2p(tx_obj)
+        if not ok:
+            return jsonify({"error": res}), 400
+
+        try:
+            fcm_token = receiver_data.get('fcmToken')
+            if fcm_token:
+                from firebase_admin import messaging as fcm_mod
+                fcm_mod.send(fcm_mod.Message(
+                    notification=fcm_mod.Notification(
+                        title="Money Received! 💸",
+                        body=f"You received KES {amount:,.2f} from {sender_name}."
+                    ),
+                    token=fcm_token
+                ))
+        except Exception as fcm_err:
+            print(f"Non-fatal FCM error: {fcm_err}")
+
+        return jsonify({
+            "status": "success",
+            "message": f"Successfully transferred KES {amount:,.2f} to {receiver_name}.",
+            "amount": amount,
+            "sender_balance": res,
+            "recipient_name": receiver_name
+        }), 200
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"error": f"Transfer failed: {str(e)}"}), 500
+

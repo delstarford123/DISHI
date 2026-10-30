@@ -230,6 +230,10 @@ def auto_welcome_unnotified_users():
                 recent_users = db.collection('users').order_by('createdAt', direction=firestore.Query.DESCENDING).limit(5).get()
                 for doc in recent_users:
                     ud = doc.to_dict() or {}
+                    # Auto-populate DISHI ID if missing
+                    if not ud.get('dishiId'):
+                        did = doc.id[:7].upper()
+                        doc.reference.set({'dishiId': did, 'dishi_id': did, 'shortId': did}, merge=True)
                     email = ud.get('email')
                     if email and not ud.get('welcome_email_sent'):
                         name = ud.get('displayName') or ud.get('name') or ud.get('full_name') or 'DISHI Member'
@@ -246,6 +250,19 @@ def auto_welcome_unnotified_users():
         threading.Thread(target=_scan, daemon=True).start()
 
 # ─── Legacy & Direct API Compatibility Endpoints ───────────────────────────────
+# ─── Global Wallet & P2P Endpoints ───────────────────────────────────────────
+@app.route('/api/v1/wallet/lookup_recipient', methods=['GET', 'POST'])
+def global_lookup_recipient():
+    from routes.transaction_routes import lookup_recipient
+    return lookup_recipient()
+
+@app.route('/api/v1/wallet/p2p_transfer', methods=['POST'])
+@app.route('/api/v1/student/p2p_transfer', methods=['POST'])
+@app.route('/api/v1/transactions/p2p_transfer', methods=['POST'])
+def global_p2p_transfer():
+    from routes.transaction_routes import execute_p2p_transfer
+    return execute_p2p_transfer()
+
 @app.route('/api/transactions/parent_transfer', methods=['POST'])
 @app.route('/api/v1/transaction/parent_transfer', methods=['POST'])
 def global_parent_transfer():
@@ -507,12 +524,21 @@ def harambee_fund():
             if doc.exists:
                 user_doc = doc
             else:
-                # 2b. Check by dishiId field (case-sensitive and case-insensitive)
+                # 2b. Check by dishiId field (case-sensitive, case-insensitive, and snake_case)
                 for candidate in [raw_id, raw_id.upper(), raw_id.lower()]:
                     users_ref = db.collection('users').where('dishiId', '==', candidate).limit(1).get()
+                    if not users_ref:
+                        users_ref = db.collection('users').where('dishi_id', '==', candidate).limit(1).get()
                     if users_ref:
                         user_doc = users_ref[0]
                         break
+
+                # 2b-2. Fallback prefix search on document ID if input is >= 6 chars
+                if not user_doc and len(raw_id) >= 6:
+                    for u in db.collection('users').limit(50).stream():
+                        if u.id.upper().startswith(raw_id.upper()):
+                            user_doc = u
+                            break
 
                 # 2c. Check by email (exact, lowercase, and common typos like gmial.com)
                 if not user_doc and ('@' in raw_id or '.' in raw_id):
@@ -740,3 +766,4 @@ def system_announce():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+

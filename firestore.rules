@@ -82,7 +82,11 @@ service cloud.firestore {
       // Users manage their own profile; admins can write any user doc
       // Parents can update their child's doc, or link themselves (add to linkedParents)
       // Parents can create offline child profiles
+      // Allow authenticated users to credit recipient walletBalance for P2P transfers
       allow write: if isSelf(userId) || isAdmin() || 
+                   (resource != null && isAuth() && 
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['walletBalance']) && 
+                    request.resource.data.walletBalance >= resource.data.walletBalance) ||
                    (resource != null && isParentOf(userId)) || 
                    (resource != null && isAuth() && hasRole('parent') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedParents'])) ||
                    (resource != null && isAuth() && hasRole('parent') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedStudents'])) ||

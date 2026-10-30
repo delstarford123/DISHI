@@ -390,7 +390,19 @@ def mpesa_callback():
                 print(f"WARNING: CheckoutRequestID {checkout_id} not found in Firestore — cannot credit wallet.")
                 return jsonify({"ResultCode": 0, "ResultDesc": "Accepted"}), 200
 
-            tx_info     = tx_doc.to_dict()
+            tx_info = tx_doc.to_dict() or {}
+            
+            # ── Idempotency Check: Prevent duplicate crediting on Safaricom retries / parallel webhooks ──
+            current_status = tx_info.get('status')
+            if current_status in ['completed', 'processing']:
+                print(f"[M-PESA Callback] CheckoutRequestID {checkout_id} is already '{current_status}'. Skipping duplicate wallet credit.")
+                return jsonify({"ResultCode": 0, "ResultDesc": "Already processed"}), 200
+
+            # Atomically lock this transaction as 'processing' to block concurrent duplicate requests
+            tx_ref.update({
+                'status': 'processing',
+                'callback_received_at': firestore.SERVER_TIMESTAMP
+            })
             user_id     = tx_info.get('user_id', '')
             sender_id   = tx_info.get('sender_id')
             credit_amt  = float(tx_info.get('amount', 0))
@@ -893,19 +905,16 @@ def mpesa_callback():
                 except Exception as e:
                     print(f"FCM parent fund_student error (non-fatal): {e}")
             elif is_fund_vault:
-                # ── Fund Parent Vault ─────────────────────────────────────
+                # ── Fund Parent Vault (savingsBalance already credited in destination block above) ──────
                 try:
-                    # Update savingsBalance directly for Vault
-                    user_ref.update({'savingsBalance': firestore.Increment(credit_amt)})
                     print(f"Vault funded with KSH {credit_amt} for parent {user_id}")
-                    
                     _send_notification(
                         db, user_id,
                         "🏦 Vault Funded Successfully!",
                         f"Your Shared Family Vault has been credited with KSH {credit_amt:.0f}. You can now allocate funds to your students."
                     )
                 except Exception as e:
-                    print(f"Error funding vault for {user_id}: {e}")
+                    print(f"Error notifying vault funding for {user_id}: {e}")
             elif sender_id:
                 if sender_id == user_id:
                     _send_notification(
