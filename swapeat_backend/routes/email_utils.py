@@ -6,99 +6,201 @@ Official Contact & Support: dishi@delstarfordworks.co.ke
 """
 
 DISHI_LOGO_URL = "https://dishi.delstarfordworks.co.ke/static/img/dishi_logo.png"
-DISHI_PRIMARY_MINT = "#05D5AA"
+DISHI_ECOSYSTEM_URL = "https://dishi.delstarfordworks.co.ke"
+DISHI_PLAYSTORE_URL = "https://play.google.com/store/apps/details?id=co.ke.delstarfordworks.dishi"
+DISHI_PRIMARY_MINT = "#00D492"
+DISHI_MINT_ACCENT = "#05D5AA"
+DISHI_CYAN = "#00F0FF"
 DISHI_PRIMARY_PINK = "#FF2A6D"
-DISHI_DARK = "#080D18"
-DISHI_CARD = "#101726"
+DISHI_DARK = "#060A12"
+DISHI_CARD = "#0F172A"
 DISHI_CARD_ELEVATED = "#162033"
 DISHI_BORDER = "rgba(255, 255, 255, 0.08)"
+DISHI_BORDER_SOLID = "#1E293B"
+DISHI_TEXT_MAIN = "#F8FAFC"
+DISHI_TEXT_MUTED = "#94A3B8"
 DISHI_SUPPORT_EMAIL = "dishi@delstarfordworks.co.ke"
 
 
-def _base_template(content_html: str, preheader: str = "") -> str:
-    """Wraps content in the premium DISHI dark glassmorphism email shell."""
-    return f"""<!DOCTYPE html>
-<html lang="en">
+def _build_preheader(preheader: str) -> str:
+    """Builds hidden preheader with zero-width non-joiner padding to prevent inbox snippet bleed."""
+    if not preheader:
+        return ""
+    padding = "&#847;&zwnj;&nbsp;" * 85
+    return (
+        f'<div style="display:none;font-size:1px;color:{DISHI_DARK};line-height:1px;'
+        f'max-height:0px;max-width:0px;opacity:0;overflow:hidden;mso-hide:all;font-family:sans-serif;">'
+        f'{preheader}{padding}'
+        f'</div>'
+    )
+
+
+def _html_to_plain_text(raw_html: str) -> str:
+    """
+    Intelligently converts DISHI HTML emails to high-fidelity, clean plain-text
+    to ensure 1:1 content parity and prevent spam filter divergence penalties.
+    """
+    import re
+    import html
+    if not raw_html:
+        return ""
+    text = re.sub(r'(?is)<head.*?>.*?</head>', '', raw_html)
+    text = re.sub(r'(?is)<style.*?>.*?</style>', '', text)
+    text = re.sub(r'(?is)<script.*?>.*?</script>', '', text)
+    text = re.sub(r'(?is)<div style="display:none;.*?>.*?</div>', '', text)
+    text = re.sub(r'(?i)<hr.*?>', '\n' + ('-' * 65) + '\n', text)
+    text = re.sub(r'(?i)<br\s*/?>', '\n', text)
+    text = re.sub(r'(?i)</p>', '\n\n', text)
+    text = re.sub(r'(?i)</div>', '\n', text)
+    text = re.sub(r'(?i)</tr>', '\n', text)
+    text = re.sub(r'(?i)</td>', '   ', text)
+    text = re.sub(r'(?i)</li>', '\n', text)
+    text = re.sub(r'(?i)<li.*?>', ' • ', text)
+    text = re.sub(r'(?is)<h[1-6].*?>(.*?)</h[1-6]>', r'\n\n=== \1 ===\n\n', text)
+    text = re.sub(r'(?is)<a\s+(?:[^>]*?\s+)?href=["\']([^"\']*)["\'][^>]*>(.*?)</a>', r'\2 (\1)', text)
+    text = re.sub(r'<[^>]+>', '', text)
+    text = html.unescape(text)
+    text = re.sub(r'[ \t]+', ' ', text)
+    text = re.sub(r'\n[ \t]+', '\n', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
+def _base_template(content_html: str, preheader: str = "", title: str = "DISHI Campus Security") -> str:
+    """Wraps content in the ultra-premium DISHI dark glassmorphism email shell with bulletproof table architecture."""
+    preheader_html = _build_preheader(preheader)
+    return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>DISHI</title>
-  <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-    body {{ background-color: {DISHI_DARK}; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #FFFFFF; -webkit-font-smoothing: antialiased; }}
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
+  <title>{title}</title>
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+  <style type="text/css">
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap');
+    body, table, td, a {{ -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }}
+    table, td {{ mso-table-lspace: 0pt; mso-table-rspace: 0pt; }}
+    img {{ -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }}
+    body {{ margin: 0; padding: 0; width: 100% !important; background-color: {DISHI_DARK}; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }}
     a {{ color: {DISHI_PRIMARY_MINT}; text-decoration: none; }}
-    .wrapper {{ max-width: 600px; margin: 0 auto; background-color: {DISHI_DARK}; padding: 24px 12px; }}
-    /* Header */
-    .header {{ background: linear-gradient(180deg, #101726 0%, #080D18 100%);
-               border: 1px solid {DISHI_BORDER}; border-bottom: 2px solid {DISHI_PRIMARY_MINT};
-               border-radius: 20px 20px 0 0; padding: 28px 32px 24px; text-align: center; }}
-    .header img {{ max-height: 48px; width: auto; border-radius: 10px; }}
-    .brand-title {{ font-size: 20px; font-weight: 800; color: #FFFFFF; letter-spacing: 2px; margin-top: 10px; text-transform: uppercase; }}
-    /* Body card */
-    .card {{ background-color: {DISHI_CARD}; border-radius: 0 0 20px 20px; padding: 32px 28px;
-             border: 1px solid {DISHI_BORDER}; border-top: none;
-             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }}
-    /* Divider */
-    .divider {{ height: 1px; background: rgba(255,255,255,0.08); margin: 24px 0; }}
-    /* Greeting */
+    .divider {{ height: 1px; background: {DISHI_BORDER_SOLID}; margin: 22px 0; }}
+    .highlight {{ background: {DISHI_CARD_ELEVATED}; border-left: 3px solid {DISHI_PRIMARY_MINT}; border-radius: 12px; padding: 16px 20px; margin: 20px 0; border-top: 1px solid {DISHI_BORDER_SOLID}; border-right: 1px solid {DISHI_BORDER_SOLID}; border-bottom: 1px solid {DISHI_BORDER_SOLID}; }}
+    .highlight p {{ font-size: 14px; color: #E2E8F0; line-height: 1.6; margin: 0; }}
+    .btn {{ display: inline-block; background: linear-gradient(135deg, {DISHI_PRIMARY_MINT} 0%, #00B48A 100%); color: #060A12 !important; font-weight: 800; font-size: 15px; padding: 15px 36px; border-radius: 50px; text-decoration: none; letter-spacing: 0.5px; box-shadow: 0 8px 25px rgba(0, 212, 146, 0.35); }}
+    .chip {{ display: inline-block; background: rgba(0, 212, 146, 0.12); color: {DISHI_PRIMARY_MINT}; border: 1px solid rgba(0, 212, 146, 0.35); border-radius: 50px; padding: 6px 16px; font-size: 13px; font-weight: 700; margin: 4px 4px 4px 0; }}
+    .alert-box {{ background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-left: 4px solid #EF4444; border-radius: 12px; padding: 16px 20px; margin: 20px 0; }}
+    .alert-box p {{ color: #FCA5A5; font-size: 13px; line-height: 1.6; margin: 0; }}
     .greeting {{ font-size: 22px; font-weight: 800; color: #FFFFFF; margin-bottom: 8px; line-height: 1.3; }}
-    /* Body text */
-    .body-text {{ font-size: 15px; line-height: 1.7; color: #94A3B8; }}
-    /* Highlight box */
-    .highlight {{ background: {DISHI_CARD_ELEVATED}; border-left: 3px solid {DISHI_PRIMARY_MINT};
-                  border-radius: 12px; padding: 16px 20px; margin: 20px 0; border-top: 1px solid {DISHI_BORDER};
-                  border-right: 1px solid {DISHI_BORDER}; border-bottom: 1px solid {DISHI_BORDER}; }}
-    .highlight p {{ font-size: 14px; color: #E2E8F0; line-height: 1.6; }}
-    /* CTA Button */
-    .btn {{ display: inline-block; background: linear-gradient(135deg, {DISHI_PRIMARY_MINT} 0%, #00B48A 100%);
-            color: #080D18 !important; font-weight: 800; font-size: 15px; padding: 15px 34px; border-radius: 50px;
-            margin-top: 24px; text-decoration: none; letter-spacing: 0.3px; box-shadow: 0 8px 25px rgba(5, 213, 170, 0.35); }}
-    /* Match chip */
-    .chip {{ display: inline-block; background: rgba(5, 213, 170, 0.12); color: {DISHI_PRIMARY_MINT};
-             border: 1px solid rgba(5, 213, 170, 0.35); border-radius: 50px; padding: 6px 16px;
-             font-size: 13px; font-weight: 700; margin: 4px 4px 4px 0; }}
-    /* Alert box */
-    .alert-box {{ background: rgba(255, 71, 87, 0.12); border: 1px solid rgba(255, 71, 87, 0.35);
-                  border-radius: 14px; padding: 18px 20px; margin: 20px 0; }}
-    .alert-box p {{ color: #FF9F9F; font-size: 14px; line-height: 1.5; }}
-    /* Footer */
-    .footer {{ text-align: center; padding: 28px 24px 16px; color: #64748B; font-size: 12px; line-height: 1.8; }}
-    .footer a {{ color: {DISHI_PRIMARY_MINT}; text-decoration: none; font-weight: 600; }}
-    .footer .brand {{ color: {DISHI_PRIMARY_MINT}; font-weight: 800; font-size: 13px; letter-spacing: 0.5px; }}
+    .body-text {{ font-size: 15px; line-height: 1.7; color: {DISHI_TEXT_MUTED}; }}
+    @media only screen and (max-width: 620px) {{
+      .wrapper-table {{ width: 100% !important; padding: 12px 6px !important; }}
+      .content-cell {{ padding: 24px 18px !important; }}
+      .otp-digit {{ font-size: 32px !important; letter-spacing: 8px !important; }}
+    }}
   </style>
 </head>
-<body>
-  {'<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">' + preheader + '</div>' if preheader else ''}
-  <div class="wrapper">
+<body bgcolor="{DISHI_DARK}" style="margin: 0; padding: 0; background-color: {DISHI_DARK};">
+  {preheader_html}
+  <table role="presentation" class="wrapper-table" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="{DISHI_DARK}" style="background-color: {DISHI_DARK}; width: 100%; margin: 0 auto; padding: 28px 10px;">
+    <tr>
+      <td align="center" valign="top">
+        <!--[if mso]>
+        <table role="presentation" width="600" align="center" style="width:600px;" cellpadding="0" cellspacing="0" border="0">
+        <tr><td>
+        <![endif]-->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" align="center" style="max-width: 600px; width: 100%; margin: 0 auto; background-color: {DISHI_CARD}; border-radius: 18px; border: 1px solid {DISHI_BORDER_SOLID}; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65);">
+          
+          <!-- Top Neon Accent Stripe -->
+          <tr>
+            <td height="4" bgcolor="{DISHI_PRIMARY_MINT}" style="height: 4px; line-height: 4px; font-size: 4px; background: {DISHI_PRIMARY_MINT}; background: linear-gradient(90deg, #00D492 0%, #00F0FF 50%, #FF2A6D 100%);">&nbsp;</td>
+          </tr>
 
-    <!-- Header -->
-    <div class="header">
-      <img src="{DISHI_LOGO_URL}" alt="DISHI" onerror="this.style.display='none'" />
-      <div class="brand-title">DISHI</div>
-    </div>
+          <!-- Brand Header -->
+          <tr>
+            <td align="center" bgcolor="{DISHI_CARD}" style="padding: 28px 24px 20px; background-color: {DISHI_CARD}; border-bottom: 1px solid {DISHI_BORDER_SOLID};">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="left" valign="middle">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td valign="middle">
+                          <img src="{DISHI_LOGO_URL}" alt="DISHI" width="38" height="38" style="display: block; width: 38px; height: 38px; border-radius: 10px; border: 1px solid {DISHI_BORDER_SOLID};" onerror="this.style.display='none'" />
+                        </td>
+                        <td valign="middle" style="padding-left: 12px;">
+                          <div style="font-size: 20px; font-weight: 800; color: #FFFFFF; letter-spacing: 1.5px; line-height: 1.1;">DISHI</div>
+                          <div style="font-size: 11px; font-weight: 600; color: {DISHI_TEXT_MUTED}; letter-spacing: 0.5px; text-transform: uppercase;">Campus Dining &amp; Payments OS</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="right" valign="middle">
+                    <div style="display: inline-block; background-color: rgba(0, 212, 146, 0.1); border: 1px solid rgba(0, 212, 146, 0.3); border-radius: 20px; padding: 5px 12px; font-size: 11px; font-weight: 700; color: {DISHI_PRIMARY_MINT}; letter-spacing: 0.8px; text-transform: uppercase;">
+                      ● SECURE 2FA
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-    <!-- Content Card -->
-    <div class="card">
-      {content_html}
-    </div>
+          <!-- Main Content Body -->
+          <tr>
+            <td class="content-cell" align="left" valign="top" style="padding: 34px 34px 28px; background-color: {DISHI_CARD}; color: {DISHI_TEXT_MAIN};">
+              {content_html}
+            </td>
+          </tr>
 
-    <!-- Footer -->
-    <div class="footer">
-      <p class="brand">DISHI &bull; Smart Campus Meals, NFC &amp; Digital Operating System</p>
-      <p style="margin-top:6px;">Delstarford Works Ltd &bull; Nairobi, Kenya</p>
-      <p style="margin-top:8px;">
-        <a href="https://dishi.delstarfordworks.co.ke">Web Ecosystem</a> &nbsp;&bull;&nbsp;
-        <a href="mailto:{DISHI_SUPPORT_EMAIL}">{DISHI_SUPPORT_EMAIL}</a>
-      </p>
-      <p style="margin-top:12px; color: #475569; font-size: 11px;">
-        Official automated notification for registered DISHI users.<br/>
-        &copy; 2026 Delstarford Works Ltd. All rights reserved.
-      </p>
-    </div>
+          <!-- Official Institutional Footer -->
+          <tr>
+            <td align="center" bgcolor="#0A101D" style="padding: 28px 30px 24px; background-color: #0A101D; border-top: 1px solid {DISHI_BORDER_SOLID};">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="font-size: 12px; font-weight: 700; color: {DISHI_PRIMARY_MINT}; letter-spacing: 0.8px;">
+                    DISHI SMART CAMPUS OPERATING SYSTEM
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-top: 8px; font-size: 12px; color: {DISHI_TEXT_MUTED}; line-height: 1.6;">
+                    Delstarford Works Ltd &bull; Technology Park &bull; Nairobi, Kenya
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-top: 8px; font-size: 12px; color: {DISHI_TEXT_MUTED};">
+                    <a href="{DISHI_ECOSYSTEM_URL}" style="color: {DISHI_PRIMARY_MINT}; text-decoration: none; font-weight: 600;">Ecosystem Portal</a>
+                    &nbsp;&bull;&nbsp;
+                    <a href="mailto:{DISHI_SUPPORT_EMAIL}" style="color: {DISHI_PRIMARY_MINT}; text-decoration: none; font-weight: 600;">Support Desk</a>
+                    &nbsp;&bull;&nbsp;
+                    <a href="{DISHI_ECOSYSTEM_URL}/api/v1/admin" style="color: {DISHI_TEXT_MUTED}; text-decoration: none;">Security Center</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-top: 16px; font-size: 11px; color: #475569; line-height: 1.6;">
+                    This is an automated institutional security transmission. Never disclose credentials or verification codes.<br />
+                    &copy; 2026 Delstarford Works Ltd. All rights reserved.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-  </div>
+        </table>
+        <!--[if mso]>
+        </td></tr>
+        </table>
+        <![endif]-->
+      </td>
+    </tr>
+  </table>
 </body>
 </html>"""
 
@@ -256,51 +358,173 @@ def semester_summary_email(student_name: str, student_id: str, summary_text: str
     return subject, _base_template(content, preheader=f"Your DISHI semester financial summary is ready, {name}!")
 
 
-def pin_reset_otp_email(user_name: str, otp_code: str, device_hint: str = "") -> tuple:
-    """Returns (subject, html_body) for the PIN reset OTP email."""
-    name = user_name or "there"
-    subject = "🔒 Your DISHI One-Time Security Code"
-    device_note = (
-        f'<p class="body-text" style="margin-top:10px;font-size:13px;">'
-        f'Requested from device: <strong style="color:#FFFFFF;">{device_hint}</strong></p>'
-    ) if device_hint else ""
+def pin_reset_otp_email(user_name: str, otp_code: str, device_hint: str = "", expires_minutes: int = 10) -> tuple:
+    """Returns (subject, html_body, plain_body) for the PIN reset & 2FA authentication OTP email."""
+    from datetime import datetime, timezone
+    name = (user_name or "there").strip()
+    subject = f"DISHI Security: Your 6-digit verification code is {otp_code}"
+    preheader = f"Your one-time verification code is {otp_code}. Valid for {expires_minutes} minutes."
+    timestamp_utc = datetime.now(timezone.utc).strftime("%b %d, %Y - %H:%M UTC")
 
-    content = f"""
-      <p class="greeting">PIN Reset Request 🔒</p>
-      <p class="body-text" style="margin-top:8px;">
-        Hi <strong style="color:#FFFFFF;">{name}</strong>,<br/><br/>
-        We received a request to verify or reset your DISHI Wallet PIN. Enter the one-time authorization code below:
-      </p>
+    otp_spaced = " ".join(list(otp_code))
 
-      <div class="divider"></div>
+    content_html = f"""
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <div style="font-size: 12px; font-weight: 800; color: {DISHI_PRIMARY_MINT}; letter-spacing: 1.5px; text-transform: uppercase;">
+              ACCOUNT AUTHORIZATION
+            </div>
+            <h1 style="margin: 6px 0 12px; font-size: 24px; font-weight: 800; color: #FFFFFF; line-height: 1.3;">
+              Security Verification Code
+            </h1>
+            <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.7; color: {DISHI_TEXT_MUTED};">
+              Hi <strong style="color: #FFFFFF;">{name}</strong>,<br />
+              We received a request to verify your identity or configure your DISHI Wallet PIN. Enter the one-time security passcode below in the DISHI app to continue:
+            </p>
+          </td>
+        </tr>
 
-      <!-- OTP Box -->
-      <div style="text-align:center;margin:28px 0;">
-        <p style="font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;">Your Verification Code</p>
-        <div style="display:inline-block;background:#0B111E;border:2px solid {DISHI_PRIMARY_MINT};border-radius:16px;padding:18px 36px;box-shadow:0 0 25px rgba(5,213,170,0.3);">
-          <span style="font-size:40px;font-weight:900;color:{DISHI_PRIMARY_MINT};letter-spacing:10px;font-family:monospace;">{otp_code}</span>
-        </div>
-        <p style="margin-top:14px;font-size:13px;color:#94A3B8;">
-          ⏱️ Valid for <strong style="color:#FFFFFF;">10 minutes</strong>
-        </p>
-      </div>
+        <!-- OTP Vault Card -->
+        <tr>
+          <td align="center" style="padding: 10px 0 24px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #070B14; border: 2px solid {DISHI_PRIMARY_MINT}; border-radius: 14px; text-align: center; box-shadow: 0 0 30px rgba(0, 212, 146, 0.15);">
+              <tr>
+                <td style="padding: 24px 20px 8px;">
+                  <div style="font-size: 11px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 2px;">
+                    ONE-TIME AUTHORIZATION CODE
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 20px 14px;">
+                  <div class="otp-digit" style="font-family: 'JetBrains Mono', 'SF Mono', Monaco, Consolas, monospace; font-size: 40px; font-weight: 800; color: {DISHI_PRIMARY_MINT}; letter-spacing: 12px; line-height: 1.2;">
+                    {otp_code}
+                  </div>
+                  <div style="margin-top: 6px; font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 1px; text-transform: uppercase;">
+                    TAP AND HOLD TO COPY
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0 20px 20px;">
+                  <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="background-color: rgba(255, 255, 255, 0.05); border-radius: 20px; padding: 6px 16px;">
+                    <tr>
+                      <td style="font-size: 12px; color: #CBD5E1; font-weight: 600;">
+                        ⏱️ Expires in <strong style="color: #FFFFFF;">{expires_minutes} minutes</strong> &bull; Single-use token
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-      <div class="divider"></div>
+        <!-- Request Details Table -->
+        <tr>
+          <td style="padding: 0 0 22px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: {DISHI_CARD_ELEVATED}; border: 1px solid {DISHI_BORDER_SOLID}; border-radius: 12px; padding: 16px 20px;">
+              <tr>
+                <td colspan="2" style="padding-bottom: 10px; font-size: 11px; font-weight: 800; color: {DISHI_PRIMARY_MINT}; letter-spacing: 1.2px; text-transform: uppercase;">
+                  TRANSACTION VERIFICATION SUMMARY
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 5px 0; font-size: 13px; color: {DISHI_TEXT_MUTED}; width: 38%;">Service:</td>
+                <td style="padding: 5px 0; font-size: 13px; font-weight: 600; color: #FFFFFF;">DISHI Campus Wallet &amp; Dining</td>
+              </tr>
+              <tr>
+                <td style="padding: 5px 0; font-size: 13px; color: {DISHI_TEXT_MUTED};">Verification:</td>
+                <td style="padding: 5px 0; font-size: 13px; font-weight: 600; color: #FFFFFF;">PIN Setup &amp; Account Authentication</td>
+              </tr>
+              <tr>
+                <td style="padding: 5px 0; font-size: 13px; color: {DISHI_TEXT_MUTED};">Issued At:</td>
+                <td style="padding: 5px 0; font-size: 13px; font-weight: 600; color: #FFFFFF;">{timestamp_utc}</td>
+              </tr>
+              {f'<tr><td style="padding: 5px 0; font-size: 13px; color: {DISHI_TEXT_MUTED};">Device Hint:</td><td style="padding: 5px 0; font-size: 13px; font-weight: 600; color: #FFFFFF;">{device_hint}</td></tr>' if device_hint else ''}
+            </table>
+          </td>
+        </tr>
 
-      {device_note}
+        <!-- Anti-Phishing Security Guarantee Box -->
+        <tr>
+          <td style="padding: 0 0 20px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-left: 4px solid #EF4444; border-radius: 10px; padding: 16px 18px;">
+              <tr>
+                <td>
+                  <div style="font-size: 13px; font-weight: 800; color: #EF4444; letter-spacing: 0.5px;">
+                    🛡️ DISHI SECURITY POLICY &bull; DO NOT SHARE
+                  </div>
+                  <div style="margin-top: 6px; font-size: 13px; line-height: 1.6; color: #FCA5A5;">
+                    DISHI campus staff, university cafeteria attendants, and customer support will <strong>NEVER</strong> contact you to ask for this verification code, your PIN, or your password. If anyone requests this code, do not disclose it under any circumstances.
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-      <div class="alert-box">
-        <p style="font-weight:700;color:#FF4757;">🛡️ Security Advisory</p>
-        <p style="margin-top:6px;">If you did not request this verification, your account may be vulnerable.
-        Contact our team immediately at <a href="mailto:{DISHI_SUPPORT_EMAIL}" style="color:#FF9F9F;font-weight:700;">{DISHI_SUPPORT_EMAIL}</a>.
-        DISHI will never ask for your code over phone or chat.</p>
-      </div>
+        <!-- Pro Tip Box -->
+        <tr>
+          <td style="padding: 0 0 10px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: rgba(255, 255, 255, 0.03); border: 1px solid {DISHI_BORDER_SOLID}; border-radius: 10px; padding: 14px 18px;">
+              <tr>
+                <td style="font-size: 13px; line-height: 1.6; color: {DISHI_TEXT_MUTED};">
+                  💡 <strong style="color: #FFFFFF;">Pro Tip:</strong> After confirming your PIN, you can enable Biometric Fingerprint login in the DISHI Settings to pay at campus cafeterias in 1 second without typing your PIN every time.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-      <div class="highlight" style="margin-top:20px;">
-        <p>💡 <strong>Tip:</strong> You can also enable Biometric &amp; Fingerprint login in the DISHI Settings to authenticate without entering your PIN every time.</p>
-      </div>
+      </table>
     """
-    return subject, _base_template(content, preheader=f"Your DISHI PIN reset code is {otp_code} (expires in 10 mins)")
+
+    plain_body = f"""========================================================================
+                      DISHI CAMPUS SECURITY
+========================================================================
+
+Hi {name},
+
+We received a request to verify your identity or configure your DISHI
+Wallet PIN on the DISHI Campus Platform.
+
+SECURITY VERIFICATION CODE:
+
+                       [   {otp_spaced}   ]
+
+This single-use authorization code is valid for {expires_minutes} minutes.
+Enter this code in the DISHI mobile application to complete verification.
+
+------------------------------------------------------------------------
+REQUEST SUMMARY
+------------------------------------------------------------------------
+• Service:          DISHI Campus Wallet & Dining
+• Verification:     PIN Setup & Account Authentication
+• Issued At:        {timestamp_utc}
+{f'• Device Hint:      {device_hint}\n' if device_hint else ''}• Expiry:           {expires_minutes} Minutes (Single Use)
+
+------------------------------------------------------------------------
+SECURITY ADVISORY — DO NOT SHARE THIS CODE
+------------------------------------------------------------------------
+DISHI campus staff, university cafeteria attendants, and support
+representatives will NEVER contact you asking for this verification code,
+your PIN, or your password via phone, SMS, WhatsApp, or email.
+
+If you did not request this code, your account may be at risk. Please
+contact our security desk immediately at:
+Email: {DISHI_SUPPORT_EMAIL}
+Portal: {DISHI_ECOSYSTEM_URL}
+
+========================================================================
+Delstarford Works Ltd • Technology Park • Nairobi, Kenya
+Official automated notification for registered DISHI accounts.
+© 2026 Delstarford Works Ltd. All rights reserved.
+========================================================================
+"""
+
+    return subject, _base_template(content_html, preheader=preheader, title="DISHI Security Passcode"), plain_body
 
 
 def monthly_nutrition_report_email(student_name: str, month_name: str, macros: dict) -> tuple:
@@ -605,49 +829,192 @@ dishi@delstarfordworks.co.ke
 
 def welcome_account_email(user_name: str, user_email: str, role: str = "Student") -> tuple:
     """Returns (subject, html_body, plain_body) for new account registration & onboarding."""
-    name = user_name or "there"
-    subject = "🎉 Welcome to DISHI — Your Account is Ready"
+    name = (user_name or "there").strip()
     role_title = role.replace('_', ' ').capitalize() if role else "Student"
+    subject = "Welcome to DISHI — Campus Dining & Digital Payments Operating System"
+    preheader = f"Welcome {name}! Your DISHI account ({user_email}) as {role_title} is ready."
 
-    content = f"""
-      <p class="greeting">Welcome to DISHI, {name}! 🎉</p>
-      <p class="body-text" style="margin-top:8px;">
-        Your official DISHI account has been created successfully. You can now use DISHI for campus dining, offline NFC wallet payments, courier deliveries, and campus services.
-      </p>
+    content_html = f"""
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <div style="font-size: 12px; font-weight: 800; color: {DISHI_PRIMARY_MINT}; letter-spacing: 1.5px; text-transform: uppercase;">
+              OFFICIAL ONBOARDING
+            </div>
+            <h1 style="margin: 6px 0 12px; font-size: 24px; font-weight: 800; color: #FFFFFF; line-height: 1.3;">
+              Welcome to DISHI, {name}! 🍽️
+            </h1>
+            <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.7; color: {DISHI_TEXT_MUTED};">
+              Your official DISHI account has been created successfully. DISHI is your complete university dining, contactless NFC meal card, courier delivery, and digital payments operating system.
+            </p>
+          </td>
+        </tr>
 
-      <div class="divider"></div>
+        <!-- Account Credentials Summary Card -->
+        <tr>
+          <td style="padding: 0 0 24px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: {DISHI_CARD_ELEVATED}; border: 1px solid {DISHI_BORDER_SOLID}; border-left: 4px solid {DISHI_PRIMARY_MINT}; border-radius: 12px; padding: 18px 22px;">
+              <tr>
+                <td colspan="2" style="padding-bottom: 12px; font-size: 11px; font-weight: 800; color: {DISHI_PRIMARY_MINT}; letter-spacing: 1.2px; text-transform: uppercase;">
+                  VERIFIED ACCOUNT PROFILE
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-size: 13px; color: {DISHI_TEXT_MUTED}; width: 35%;">Member Name:</td>
+                <td style="padding: 6px 0; font-size: 13px; font-weight: 700; color: #FFFFFF;">{name}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-size: 13px; color: {DISHI_TEXT_MUTED};">Registered Email:</td>
+                <td style="padding: 6px 0; font-size: 13px; font-weight: 600; color: #FFFFFF;">{user_email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-size: 13px; color: {DISHI_TEXT_MUTED};">Assigned Role:</td>
+                <td style="padding: 6px 0; font-size: 13px; font-weight: 700; color: {DISHI_PRIMARY_MINT};">{role_title}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-size: 13px; color: {DISHI_TEXT_MUTED};">Account Status:</td>
+                <td style="padding: 6px 0; font-size: 13px; font-weight: 700; color: #00F0FF;">Active &bull; Verified</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-      <!-- Account Details Box -->
-      <div style="background:{DISHI_CARD_ELEVATED};border:1px solid {DISHI_BORDER};border-left:3px solid {DISHI_PRIMARY_MINT};border-radius:14px;padding:20px;margin:20px 0;">
-        <p style="font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;">Account Details</p>
-        <p style="font-size:14px;color:#FFFFFF;margin-bottom:6px;"><strong>Name:</strong> {name}</p>
-        <p style="font-size:14px;color:#FFFFFF;margin-bottom:6px;"><strong>Email:</strong> {user_email}</p>
-        <p style="font-size:14px;color:#FFFFFF;margin-bottom:6px;"><strong>Primary Role:</strong> {role_title}</p>
-        <p style="font-size:14px;color:{DISHI_PRIMARY_MINT};"><strong>Status:</strong> Active &amp; Verified</p>
-      </div>
+        <!-- 3 Quick Steps -->
+        <tr>
+          <td style="padding: 0 0 24px;">
+            <div style="font-size: 12px; font-weight: 800; color: #FFFFFF; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px;">
+              🚀 3 Quick Steps to Get Started
+            </div>
 
-      <div class="highlight" style="margin-top:20px;">
-        <p>💡 <strong>Security Tip:</strong> Set up your 4-digit Wallet PIN and enable biometric/fingerprint login in the app for instant, safe checkouts.</p>
-      </div>
+            <!-- Step 1 -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: rgba(255, 255, 255, 0.03); border: 1px solid {DISHI_BORDER_SOLID}; border-radius: 10px; padding: 14px 18px; margin-bottom: 10px;">
+              <tr>
+                <td width="32" valign="top" style="font-size: 18px;">🔒</td>
+                <td style="padding-left: 10px;">
+                  <div style="font-size: 14px; font-weight: 700; color: #FFFFFF;">1. Set Up Your Wallet PIN</div>
+                  <div style="font-size: 13px; color: {DISHI_TEXT_MUTED}; margin-top: 3px; line-height: 1.5;">
+                    Configure your secret 4-digit PIN in the DISHI app to protect your balances and authorize cafeteria checkouts.
+                  </div>
+                </td>
+              </tr>
+            </table>
 
-      <div class="alert-box" style="margin-top:20px;">
-        <p style="font-weight:700;color:#FF4757;">🛡️ Protection Guarantee</p>
-        <p style="margin-top:6px;">
-          DISHI will never ask for your PIN or OTP code. If you ever forget your PIN, tap 'Forgot PIN?' on the unlock screen to receive an instant verification code.
-        </p>
-      </div>
+            <!-- Step 2 -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: rgba(255, 255, 255, 0.03); border: 1px solid {DISHI_BORDER_SOLID}; border-radius: 10px; padding: 14px 18px; margin-bottom: 10px;">
+              <tr>
+                <td width="32" valign="top" style="font-size: 18px;">💳</td>
+                <td style="padding-left: 10px;">
+                  <div style="font-size: 14px; font-weight: 700; color: #FFFFFF;">2. Top Up via Safaricom M-PESA</div>
+                  <div style="font-size: 13px; color: {DISHI_TEXT_MUTED}; margin-top: 3px; line-height: 1.5;">
+                    Load your digital wallet instantly using Daraja M-PESA STK Push for zero-fee cafeteria transactions.
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Step 3 -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: rgba(255, 255, 255, 0.03); border: 1px solid {DISHI_BORDER_SOLID}; border-radius: 10px; padding: 14px 18px;">
+              <tr>
+                <td width="32" valign="top" style="font-size: 18px;">⚡</td>
+                <td style="padding-left: 10px;">
+                  <div style="font-size: 14px; font-weight: 700; color: #FFFFFF;">3. Tap &amp; Dine with NFC or QR</div>
+                  <div style="font-size: 13px; color: {DISHI_TEXT_MUTED}; margin-top: 3px; line-height: 1.5;">
+                    Tap your student NFC wristband/card or show your dynamic offline QR code at cafeteria counters to collect meals in seconds.
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Call to Action Button -->
+        <tr>
+          <td align="center" style="padding: 10px 0 28px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
+              <tr>
+                <td align="center" style="border-radius: 50px; background: linear-gradient(135deg, {DISHI_PRIMARY_MINT} 0%, #00B48A 100%); box-shadow: 0 8px 25px rgba(0, 212, 146, 0.35);">
+                  <a href="{DISHI_ECOSYSTEM_URL}" target="_blank" style="display: inline-block; padding: 16px 38px; font-size: 15px; font-weight: 800; color: #060A12; text-decoration: none; letter-spacing: 0.5px;">
+                    Open DISHI Ecosystem &rarr;
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Security Advisory -->
+        <tr>
+          <td style="padding: 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: rgba(0, 212, 146, 0.06); border: 1px solid rgba(0, 212, 146, 0.25); border-left: 4px solid {DISHI_PRIMARY_MINT}; border-radius: 10px; padding: 14px 18px;">
+              <tr>
+                <td style="font-size: 12px; line-height: 1.6; color: #CBD5E1;">
+                  🛡️ <strong style="color: #FFFFFF;">Security Commitment:</strong> DISHI protects your balance with bank-grade encryption and two-factor authentication. Never share your secret 4-digit PIN or email OTP with anyone.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     """
-    plain_body = (
-        f"Hi {name},\n\n"
-        f"Welcome to DISHI! Your official account ({user_email}) as {role_title} is ready.\n\n"
-        f"Set up your 4-digit Wallet PIN and enjoy seamless campus dining and digital payments.\n\n"
-        f"— DISHI Team\n"
-        f"https://dishi.delstarfordworks.co.ke"
-    )
-    return subject, _base_template(content, preheader=f"Welcome to DISHI! Your account as {role_title} is ready."), plain_body
+
+    plain_body = f"""========================================================================
+                         WELCOME TO DISHI
+               Campus Dining & Digital Payments OS
+========================================================================
+
+Hi {name},
+
+Welcome to DISHI — your campus dining, contactless NFC meal card,
+and university digital payments operating system.
+
+Your account has been successfully configured and activated.
+
+------------------------------------------------------------------------
+ACCOUNT SUMMARY
+------------------------------------------------------------------------
+• Member Name:      {name}
+• Registered Email: {user_email}
+• Assigned Role:    {role_title}
+• Account Status:   Active & Verified
+• Web Access:       {DISHI_ECOSYSTEM_URL}
+
+------------------------------------------------------------------------
+GETTING STARTED (3 QUICK STEPS)
+------------------------------------------------------------------------
+1. Set Up Your Wallet PIN:
+   Configure your confidential 4-digit PIN in the DISHI app to unlock
+   instant checkouts at campus dining halls.
+
+2. Top Up via Safaricom M-PESA:
+   Load funds instantly to your student balance with zero delays using
+   our secure Daraja M-PESA STK Push gateway.
+
+3. Tap & Dine with NFC or Dynamic QR:
+   Tap your contactless student card or show your offline dynamic QR
+   code at cafeteria counters to collect meals in seconds.
+
+------------------------------------------------------------------------
+ACCOUNT SECURITY GUARANTEE
+------------------------------------------------------------------------
+Your funds and meal entitlements are protected with bank-grade encryption.
+DISHI staff and university cafeteria cashiers will NEVER ask you for your
+PIN or verification code.
+
+Need assistance? Our campus support team is always here for you:
+Support Email: {DISHI_SUPPORT_EMAIL}
+Ecosystem:     {DISHI_ECOSYSTEM_URL}
+
+========================================================================
+Delstarford Works Ltd • Technology Park • Nairobi, Kenya
+Official automated notification for registered DISHI accounts.
+© 2026 Delstarford Works Ltd. All rights reserved.
+========================================================================
+"""
+
+    return subject, _base_template(content_html, preheader=preheader, title="Welcome to DISHI"), plain_body
 
 
-def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: str, user_id: str = None, otp_code: str = None) -> tuple:
+def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: str = None, user_id: str = None, otp_code: str = None) -> tuple:
     """
     Sends email via available channels in robust priority order:
     1. Resend HTTP API (Port 443 HTTPS - Vercel Native)
@@ -657,6 +1024,15 @@ def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: 
     5. Localhost Exim SMTP (127.0.0.1:465 SSL, 127.0.0.1:587 TLS, 127.0.0.1:25)
     6. Direct Remote SMTP SSL/TLS (mail.delstarfordworks.co.ke:465 / 587 with 15s timeout)
     7. In-App Notification (Firestore) as complementary backup
+
+    Anti-Spam Optimizations:
+    - RFC 5322 MIME Multipart Alternative structure (text/plain + text/html)
+    - Automatic plain-text generation if omitted or identical to HTML
+    - RFC 3834 Auto-Submitted: auto-generated (bypasses Promotions/Spam classification)
+    - X-Auto-Response-Suppress: All (Outlook / Office 365 deliverability)
+    - High-Priority security transmission headers
+    - FQDN Message-ID matching sender domain (@delstarfordworks.co.ke)
+
     Returns: (success: bool, delivery_method: str)
     """
     import os
@@ -666,6 +1042,7 @@ def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: 
     import requests
     import smtplib
     import ssl
+    import time
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
     from email.utils import make_msgid, formatdate
@@ -687,15 +1064,32 @@ def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: 
     password = os.getenv('MAIL_PASSWORD') or 'dishi@delstarfordworks.co.ke'
     sender = os.getenv('MAIL_DEFAULT_SENDER') or 'dishi@delstarfordworks.co.ke'
 
-    # Build RFC 5322 compliant MIME message
+    # Fallback to high-fidelity plain text if plain_body is missing, empty, or passed as raw HTML
+    if not plain_body or not plain_body.strip() or plain_body == html_body or plain_body.strip().startswith(('<!DOCTYPE', '<html', '<table', '<div')):
+        plain_body = _html_to_plain_text(html_body)
+
+    # Build RFC 5322 compliant MIME message with bank-grade deliverability headers
     msg = MIMEMultipart("alternative")
     msg['Subject'] = subject
-    msg['From'] = f"DISHI Security <{sender}>"
+    msg['From'] = f'"DISHI Security" <{sender}>'
     msg['To'] = to
-    msg['Reply-To'] = sender
+    msg['Reply-To'] = f'"DISHI Support" <{sender}>'
+    msg['Sender'] = sender
+    msg['Return-Path'] = f"<{sender}>"
     msg['Date'] = formatdate(localtime=True)
     msg['Message-ID'] = make_msgid(domain='delstarfordworks.co.ke')
-    msg['X-Mailer'] = "DISHI Secure Operations Mailer 2026"
+    msg['MIME-Version'] = "1.0"
+    msg['X-Mailer'] = "DISHI Security Gateway/2.4 (Enterprise Linux)"
+    # RFC 3834 transactional machine-generated email indicator
+    msg['Auto-Submitted'] = "auto-generated"
+    # Suppress out-of-office autoreplies in Microsoft 365 / Exchange
+    msg['X-Auto-Response-Suppress'] = "All"
+    # Security transaction priority flags
+    msg['X-Priority'] = "1 (Highest)"
+    msg['X-MSMail-Priority'] = "High"
+    msg['Importance'] = "High"
+
+    # Attach plain text part first, then HTML part (standard RFC 2046 multipart/alternative order)
     msg.attach(MIMEText(plain_body, 'plain', 'utf-8'))
     msg.attach(MIMEText(html_body, 'html', 'utf-8'))
     raw_message = msg.as_string()
@@ -772,7 +1166,7 @@ def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: 
                 },
                 json={
                     "personalizations": [{"to": [{"email": to}]}],
-                    "from": {"email": sender, "name": "DISHI Operations"},
+                    "from": {"email": sender, "name": "DISHI Security"},
                     "subject": subject,
                     "content": [
                         {"type": "text/plain", "value": plain_body},

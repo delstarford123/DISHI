@@ -166,14 +166,7 @@ def send_pin_otp():
 
         # ── Send email via multi-channel dispatcher ───────────────────────────
         from routes.email_utils import pin_reset_otp_email, send_multi_channel_email
-        subject, html_body = pin_reset_otp_email(user_name, otp_plain)
-        plain_body = (
-            f"Hi {user_name},\n\n"
-            f"Your DISHI verification code is: {otp_plain}\n\n"
-            f"This code expires in 10 minutes and is single-use.\n\n"
-            f"If you did not request this, contact support immediately at dishi@delstarfordworks.co.ke.\n\n"
-            f"— DISHI Security Team"
-        )
+        subject, html_body, plain_body = pin_reset_otp_email(user_name, otp_plain)
 
         sent_ok, delivery_method = send_multi_channel_email(
             to=canonical_email,
@@ -419,8 +412,7 @@ def test_email_dispatch():
     recipient = request.args.get('email') or data.get('email') or 'dishi@delstarfordworks.co.ke'
     
     from routes.email_utils import pin_reset_otp_email, send_multi_channel_email
-    subject, html_body = pin_reset_otp_email("DISHI System Tester", "777888")
-    plain_body = "This is an automated diagnostic test from DISHI Operations Engine."
+    subject, html_body, plain_body = pin_reset_otp_email("DISHI System Tester", "777888")
     
     sent_ok, method = send_multi_channel_email(
         to=recipient,
