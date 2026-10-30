@@ -5,9 +5,13 @@ import json
 import firebase_admin
 from firebase_admin import credentials
 
-load_dotenv()
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+env_file = os.path.join(BASE_DIR, '.env')
+if os.path.exists(env_file):
+    load_dotenv(env_file)
+else:
+    load_dotenv()
+
 app = Flask(
     __name__,
     template_folder=os.path.join(BASE_DIR, 'templates'),
@@ -29,15 +33,15 @@ def init_mail(app):
         mail_port_raw = os.getenv('MAIL_PORT', '465')
         mail_port = int(mail_port_raw) if mail_port_raw and mail_port_raw.strip().isdigit() else 465
 
-        app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', '')
+        app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'mail.delstarfordworks.co.ke')
         app.config['MAIL_PORT'] = mail_port
         app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'False').lower() in ['true', '1', 't']
         app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'True').lower() in ['true', '1', 't']
         app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke')
-        app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '')
-        app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', os.getenv('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'))
+        app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', 'dishi@delstarfordworks.co.ke')
+        app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'dishi@delstarfordworks.co.ke')
 
-        if os.getenv('MAIL_SERVER'):
+        if os.getenv('MAIL_SERVER') or app.config['MAIL_SERVER']:
             mail = Mail(app)
     except Exception as e:
         print(f"Flask-Mail not initialised (non-fatal): {e}")
@@ -186,6 +190,60 @@ app.register_blueprint(vibe_bp, url_prefix='/api/vibe')
 app.register_blueprint(campus_gigs_v6_bp,   url_prefix='/api/v6/campus_gigs')
 app.register_blueprint(sos_notify_bp,        url_prefix='/api/v1/notify')
 app.register_blueprint(games_bp,             url_prefix='/api/v1/games')
+
+# ─── Auth & Registration Compatibility Endpoints ───────────────────────────────
+@app.route('/api/v1/auth/register', methods=['POST'])
+@app.route('/api/auth/register', methods=['POST'])
+def global_auth_register():
+    from routes.auth_pin_routes import register_onboarding
+    return register_onboarding()
+
+@app.route('/api/v1/auth/otp/send', methods=['POST'])
+@app.route('/api/v1/auth/send_otp', methods=['POST'])
+@app.route('/api/auth/send_otp', methods=['POST'])
+def global_auth_otp_send():
+    from routes.auth_pin_routes import send_pin_otp
+    return send_pin_otp()
+
+@app.route('/api/v1/auth/otp/verify', methods=['POST'])
+@app.route('/api/v1/auth/verify_otp', methods=['POST'])
+@app.route('/api/auth/verify_otp', methods=['POST'])
+def global_auth_otp_verify():
+    from routes.auth_pin_routes import verify_pin_otp
+    return verify_pin_otp()
+
+import threading
+import time
+_last_welcome_scan = 0
+
+@app.before_request
+def auto_welcome_unnotified_users():
+    """Throttled background check: sends Welcome email to any newly registered users."""
+    global _last_welcome_scan
+    now = time.time()
+    if now - _last_welcome_scan > 30:
+        _last_welcome_scan = now
+        def _scan():
+            try:
+                from firebase_admin import firestore
+                db = firestore.client()
+                recent_users = db.collection('users').order_by('createdAt', direction=firestore.Query.DESCENDING).limit(5).get()
+                for doc in recent_users:
+                    ud = doc.to_dict() or {}
+                    email = ud.get('email')
+                    if email and not ud.get('welcome_email_sent'):
+                        name = ud.get('displayName') or ud.get('name') or ud.get('full_name') or 'DISHI Member'
+                        roles = ud.get('roles') or [ud.get('role', 'student')]
+                        role = roles[0] if roles else 'student'
+                        from routes.email_utils import welcome_account_email, send_multi_channel_email
+                        subject, html_body, plain_body = welcome_account_email(name, email, role)
+                        sent, ch = send_multi_channel_email(to=email, subject=subject, html_body=html_body, plain_body=plain_body, user_id=doc.id)
+                        if sent:
+                            doc.reference.set({'welcome_email_sent': True, 'welcome_email_at': firestore.SERVER_TIMESTAMP}, merge=True)
+                            print(f"[AutoWelcome] Sent welcome email to {email} via {ch}")
+            except Exception as e:
+                print(f"[AutoWelcome] Scan note: {e}")
+        threading.Thread(target=_scan, daemon=True).start()
 
 # ─── Legacy & Direct API Compatibility Endpoints ───────────────────────────────
 @app.route('/api/transactions/parent_transfer', methods=['POST'])

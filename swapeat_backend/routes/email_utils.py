@@ -603,27 +603,111 @@ dishi@delstarfordworks.co.ke
     return subject, _base_template(content, preheader=f"Welcome to DISHI! Official appointment details for {staff_name} as {staff_role}."), plain_body
 
 
+def welcome_account_email(user_name: str, user_email: str, role: str = "Student") -> tuple:
+    """Returns (subject, html_body, plain_body) for new account registration & onboarding."""
+    name = user_name or "there"
+    subject = "🎉 Welcome to DISHI — Your Account is Ready"
+    role_title = role.replace('_', ' ').capitalize() if role else "Student"
+
+    content = f"""
+      <p class="greeting">Welcome to DISHI, {name}! 🎉</p>
+      <p class="body-text" style="margin-top:8px;">
+        Your official DISHI account has been created successfully. You can now use DISHI for campus dining, offline NFC wallet payments, courier deliveries, and campus services.
+      </p>
+
+      <div class="divider"></div>
+
+      <!-- Account Details Box -->
+      <div style="background:{DISHI_CARD_ELEVATED};border:1px solid {DISHI_BORDER};border-left:3px solid {DISHI_PRIMARY_MINT};border-radius:14px;padding:20px;margin:20px 0;">
+        <p style="font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;">Account Details</p>
+        <p style="font-size:14px;color:#FFFFFF;margin-bottom:6px;"><strong>Name:</strong> {name}</p>
+        <p style="font-size:14px;color:#FFFFFF;margin-bottom:6px;"><strong>Email:</strong> {user_email}</p>
+        <p style="font-size:14px;color:#FFFFFF;margin-bottom:6px;"><strong>Primary Role:</strong> {role_title}</p>
+        <p style="font-size:14px;color:{DISHI_PRIMARY_MINT};"><strong>Status:</strong> Active &amp; Verified</p>
+      </div>
+
+      <div class="highlight" style="margin-top:20px;">
+        <p>💡 <strong>Security Tip:</strong> Set up your 4-digit Wallet PIN and enable biometric/fingerprint login in the app for instant, safe checkouts.</p>
+      </div>
+
+      <div class="alert-box" style="margin-top:20px;">
+        <p style="font-weight:700;color:#FF4757;">🛡️ Protection Guarantee</p>
+        <p style="margin-top:6px;">
+          DISHI will never ask for your PIN or OTP code. If you ever forget your PIN, tap 'Forgot PIN?' on the unlock screen to receive an instant verification code.
+        </p>
+      </div>
+    """
+    plain_body = (
+        f"Hi {name},\n\n"
+        f"Welcome to DISHI! Your official account ({user_email}) as {role_title} is ready.\n\n"
+        f"Set up your 4-digit Wallet PIN and enjoy seamless campus dining and digital payments.\n\n"
+        f"— DISHI Team\n"
+        f"https://dishi.delstarfordworks.co.ke"
+    )
+    return subject, _base_template(content, preheader=f"Welcome to DISHI! Your account as {role_title} is ready."), plain_body
+
+
 def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: str, user_id: str = None, otp_code: str = None) -> tuple:
     """
-    Sends email via available channels in priority order:
-    1. Resend HTTP API (Port 443 HTTPS - Vercel Native, no socket blocking)
+    Sends email via available channels in robust priority order:
+    1. Resend HTTP API (Port 443 HTTPS - Vercel Native)
     2. Brevo HTTP API (Port 443 HTTPS)
-    3. Direct SMTP (Port 465 SSL or Port 587 TLS with strict 5s timeout)
-    4. In-App Notification (Firestore)
+    3. SendGrid HTTP API (Port 443 HTTPS)
+    4. Local Sendmail Binary (/usr/sbin/sendmail - HostPinnacle cPanel / Exim Native)
+    5. Localhost Exim SMTP (127.0.0.1:465 SSL, 127.0.0.1:587 TLS, 127.0.0.1:25)
+    6. Direct Remote SMTP SSL/TLS (mail.delstarfordworks.co.ke:465 / 587 with 15s timeout)
+    7. In-App Notification (Firestore) as complementary backup
     Returns: (success: bool, delivery_method: str)
     """
     import os
+    import sys
+    import shutil
+    import subprocess
     import requests
     import smtplib
     import ssl
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
+    from email.utils import make_msgid, formatdate
+
+    # Ensure .env is explicitly loaded if variables are missing
+    if not os.getenv('MAIL_SERVER'):
+        try:
+            from dotenv import load_dotenv
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            env_file = os.path.join(base_dir, '.env')
+            if os.path.exists(env_file):
+                load_dotenv(env_file)
+        except Exception:
+            pass
+
+    # Enterprise Fallback Defaults (matches HostPinnacle production mail server)
+    mail_server = os.getenv('MAIL_SERVER') or 'mail.delstarfordworks.co.ke'
+    username = os.getenv('MAIL_USERNAME') or 'dishi@delstarfordworks.co.ke'
+    password = os.getenv('MAIL_PASSWORD') or 'dishi@delstarfordworks.co.ke'
+    sender = os.getenv('MAIL_DEFAULT_SENDER') or 'dishi@delstarfordworks.co.ke'
+
+    # Build RFC 5322 compliant MIME message
+    msg = MIMEMultipart("alternative")
+    msg['Subject'] = subject
+    msg['From'] = f"DISHI Security <{sender}>"
+    msg['To'] = to
+    msg['Reply-To'] = sender
+    msg['Date'] = formatdate(localtime=True)
+    msg['Message-ID'] = make_msgid(domain='delstarfordworks.co.ke')
+    msg['X-Mailer'] = "DISHI Secure Operations Mailer 2026"
+    msg.attach(MIMEText(plain_body, 'plain', 'utf-8'))
+    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+    raw_message = msg.as_string()
+    raw_bytes = msg.as_bytes()
+
+    logs = []
 
     # ── 1. Resend HTTP API (Vercel Native over HTTPS) ───────────
     resend_key = os.getenv('RESEND_API_KEY')
     if resend_key:
         try:
-            from_sender = os.getenv('RESEND_FROM', 'DISHI Security <onboarding@resend.dev>')
+            from_sender = os.getenv('RESEND_FROM', f"DISHI Security <{sender}>")
             resp = requests.post(
                 "https://api.resend.com/emails",
                 headers={
@@ -637,21 +721,21 @@ def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: 
                     "html": html_body,
                     "text": plain_body
                 },
-                timeout=8
+                timeout=10
             )
             if resp.status_code in [200, 201]:
                 print(f"[EmailEngine] Dispatched successfully via Resend to {to}")
+                _record_in_app_backup(user_id, subject, plain_body, otp_code)
                 return True, "Resend HTTP API"
             else:
-                print(f"[EmailEngine] Resend returned {resp.status_code}: {resp.text}")
+                logs.append(f"Resend HTTP {resp.status_code}: {resp.text[:100]}")
         except Exception as e:
-            print(f"[EmailEngine] Resend attempt error: {e}")
+            logs.append(f"Resend: {e}")
 
     # ── 2. Brevo HTTP API (Port 443 HTTPS) ──────────────────────
     brevo_key = os.getenv('BREVO_API_KEY')
     if brevo_key:
         try:
-            sender_email = os.getenv('MAIL_DEFAULT_SENDER', 'dishi@delstarfordworks.co.ke')
             resp = requests.post(
                 "https://api.brevo.com/v3/smtp/email",
                 headers={
@@ -659,27 +743,27 @@ def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: 
                     "Content-Type": "application/json"
                 },
                 json={
-                    "sender": {"name": "DISHI Support", "email": sender_email},
+                    "sender": {"name": "DISHI Security", "email": sender},
                     "to": [{"email": to}],
                     "subject": subject,
                     "htmlContent": html_body,
                     "textContent": plain_body
                 },
-                timeout=8
+                timeout=10
             )
             if resp.status_code in [200, 201]:
                 print(f"[EmailEngine] Dispatched successfully via Brevo to {to}")
+                _record_in_app_backup(user_id, subject, plain_body, otp_code)
                 return True, "Brevo HTTP API"
             else:
-                print(f"[EmailEngine] Brevo returned {resp.status_code}: {resp.text}")
+                logs.append(f"Brevo HTTP {resp.status_code}: {resp.text[:100]}")
         except Exception as e:
-            print(f"[EmailEngine] Brevo attempt error: {e}")
+            logs.append(f"Brevo: {e}")
 
-    # ── 3. SendGrid HTTP API (Port 443 HTTPS - Vercel Native) ────
+    # ── 3. SendGrid HTTP API (Port 443 HTTPS) ────────────────────
     sendgrid_key = os.getenv('SENDGRID_API_KEY')
     if sendgrid_key:
         try:
-            from_sender = os.getenv('MAIL_DEFAULT_SENDER', 'dishi@delstarfordworks.co.ke')
             resp = requests.post(
                 "https://api.sendgrid.com/v3/mail/send",
                 headers={
@@ -688,79 +772,175 @@ def send_multi_channel_email(to: str, subject: str, html_body: str, plain_body: 
                 },
                 json={
                     "personalizations": [{"to": [{"email": to}]}],
-                    "from": {"email": from_sender, "name": "DISHI Operations"},
+                    "from": {"email": sender, "name": "DISHI Operations"},
                     "subject": subject,
                     "content": [
                         {"type": "text/plain", "value": plain_body},
                         {"type": "text/html", "value": html_body}
                     ]
                 },
-                timeout=8
+                timeout=10
             )
             if resp.status_code in [200, 202]:
                 print(f"[EmailEngine] Dispatched successfully via SendGrid to {to}")
+                _record_in_app_backup(user_id, subject, plain_body, otp_code)
                 return True, "SendGrid HTTP API"
             else:
-                print(f"[EmailEngine] SendGrid returned {resp.status_code}: {resp.text}")
+                logs.append(f"SendGrid HTTP {resp.status_code}: {resp.text[:100]}")
         except Exception as e:
-            print(f"[EmailEngine] SendGrid attempt error: {e}")
+            logs.append(f"SendGrid: {e}")
 
-    # ── 4. Direct SMTP (strict 4s timeout to avoid Vercel hanging) ────
-    mail_server = os.getenv('MAIL_SERVER', '')
-    if mail_server:
+    # ── 4. Local Sendmail Binary (HostPinnacle cPanel Exim) ─────
+    # Standard on Linux cPanel — pipes directly to Exim MTA, bypassing all port blocks
+    sendmail_path = shutil.which("sendmail") or ("/usr/sbin/sendmail" if os.path.exists("/usr/sbin/sendmail") else None)
+    if sendmail_path and os.path.exists(sendmail_path):
         try:
-            mail_port = int(os.getenv('MAIL_PORT', '465'))
-            use_ssl = os.getenv('MAIL_USE_SSL', 'True').lower() in ['true', '1', 't']
-            username = os.getenv('MAIL_USERNAME', '')
-            password = os.getenv('MAIL_PASSWORD', '')
-            sender = os.getenv('MAIL_DEFAULT_SENDER', username or 'dishi@delstarfordworks.co.ke')
-
-            msg = MIMEMultipart("alternative")
-            msg['Subject'] = subject
-            msg['From'] = sender
-            msg['To'] = to
-            msg.attach(MIMEText(plain_body, 'plain'))
-            msg.attach(MIMEText(html_body, 'html'))
-
-            if use_ssl:
-                context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(mail_server, mail_port, context=context, timeout=4) as s:
-                    if username and password:
-                        s.login(username, password)
-                    s.sendmail(sender, [to], msg.as_string())
-                    print(f"[EmailEngine] Dispatched successfully via SMTP SSL ({mail_server}) to {to}")
-                    return True, f"SMTP SSL ({mail_server})"
+            proc = subprocess.Popen(
+                [sendmail_path, "-t", "-i", "-f", sender],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            stdout_data, stderr_data = proc.communicate(input=raw_bytes, timeout=12)
+            if proc.returncode == 0:
+                print(f"[EmailEngine] Dispatched successfully via Local Sendmail ({sendmail_path}) to {to}")
+                _record_in_app_backup(user_id, subject, plain_body, otp_code)
+                return True, "HostPinnacle Exim Sendmail"
             else:
-                context = ssl.create_default_context()
-                with smtplib.SMTP(mail_server, mail_port, timeout=4) as s:
-                    s.starttls(context=context)
-                    if username and password:
-                        s.login(username, password)
-                    s.sendmail(sender, [to], msg.as_string())
-                    print(f"[EmailEngine] Dispatched successfully via SMTP TLS ({mail_server}) to {to}")
-                    return True, f"SMTP TLS ({mail_server})"
+                logs.append(f"Sendmail exit {proc.returncode}: {stderr_data.decode(errors='ignore')[:100]}")
         except Exception as e:
-            print(f"[EmailEngine] SMTP ({mail_server}:{os.getenv('MAIL_PORT', '465')}) timed out or failed: {e}")
+            logs.append(f"Sendmail: {e}")
 
-    # ── 5. In-App Notification (Firestore) ──────────────────────
-    if user_id:
+    # ── 5. Localhost Exim Loopback SMTP (127.0.0.1) ─────────────
+    # Unaffected by cPanel CSF SMTP_BLOCK since loopback interface is whitelisted
+    import socket
+    def _is_local_port_open(h, p):
         try:
-            from firebase_admin import firestore
-            db = firestore.client()
-            notification_msg = f"Your verification code is: {otp_code} (expires in 10 minutes)." if otp_code else plain_body[:280]
-            db.collection('notifications').add({
-                'title': subject,
-                'message': notification_msg,
-                'targetUserId': user_id,
-                'type': 'pin_reset_otp' if otp_code else 'staff_appointment',
-                'createdAt': firestore.SERVER_TIMESTAMP,
-                'readBy': [],
-                'dismissedBy': []
-            })
-            print(f"[EmailEngine] In-app notification created for user {user_id}")
-            return True, "In-App Notification"
-        except Exception as e:
-            print(f"[EmailEngine] In-App notification error: {e}")
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(0.6)
+                return sock.connect_ex((h, p)) == 0
+        except Exception:
+            return False
 
-    return False, "Email dispatch pending API key (Resend/Brevo/SendGrid) or SMTP connection"
+    for local_host in ['127.0.0.1', 'localhost']:
+        # Try local SSL 465 if listening
+        if _is_local_port_open(local_host, 465):
+            try:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                with smtplib.SMTP_SSL(local_host, 465, context=ctx, timeout=8) as s:
+                    if username and password:
+                        try:
+                            s.login(username, password)
+                        except Exception:
+                            pass
+                    s.send_message(msg)
+                    print(f"[EmailEngine] Dispatched successfully via Loopback SSL ({local_host}:465) to {to}")
+                    _record_in_app_backup(user_id, subject, plain_body, otp_code)
+                    return True, f"Local Exim SSL ({local_host}:465)"
+            except Exception as e:
+                logs.append(f"Loopback 465 ({local_host}): {e}")
 
+        # Try local Submission 587 if listening
+        if _is_local_port_open(local_host, 587):
+            try:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                with smtplib.SMTP(local_host, 587, timeout=8) as s:
+                    s.ehlo()
+                    try:
+                        s.starttls(context=ctx)
+                        s.ehlo()
+                    except Exception:
+                        pass
+                    if username and password:
+                        try:
+                            s.login(username, password)
+                        except Exception:
+                            pass
+                    s.send_message(msg)
+                    print(f"[EmailEngine] Dispatched successfully via Loopback TLS ({local_host}:587) to {to}")
+                    _record_in_app_backup(user_id, subject, plain_body, otp_code)
+                    return True, f"Local Exim TLS ({local_host}:587)"
+            except Exception as e:
+                logs.append(f"Loopback 587 ({local_host}): {e}")
+
+        # Try local SMTP 25 if listening
+        if _is_local_port_open(local_host, 25):
+            try:
+                with smtplib.SMTP(local_host, 25, timeout=6) as s:
+                    if username and password:
+                        try:
+                            s.login(username, password)
+                        except Exception:
+                            pass
+                    s.send_message(msg)
+                    print(f"[EmailEngine] Dispatched successfully via Loopback SMTP ({local_host}:25) to {to}")
+                    _record_in_app_backup(user_id, subject, plain_body, otp_code)
+                    return True, f"Local Exim SMTP ({local_host}:25)"
+            except Exception as e:
+                logs.append(f"Loopback 25 ({local_host}): {e}")
+
+    # ── 6. Direct Remote SMTP SSL (mail.delstarfordworks.co.ke:465) ──
+    try:
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL(mail_server, 465, context=ctx, timeout=15) as s:
+            if username and password:
+                s.login(username, password)
+            s.send_message(msg)
+            print(f"[EmailEngine] Dispatched successfully via Remote SMTP SSL ({mail_server}:465) to {to}")
+            _record_in_app_backup(user_id, subject, plain_body, otp_code)
+            return True, f"Remote SMTP SSL ({mail_server}:465)"
+    except Exception as e:
+        logs.append(f"Remote SSL 465 ({mail_server}): {e}")
+
+    # ── 7. Direct Remote SMTP STARTTLS (mail.delstarfordworks.co.ke:587) ──
+    try:
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP(mail_server, 587, timeout=15) as s:
+            s.ehlo()
+            s.starttls(context=ctx)
+            s.ehlo()
+            if username and password:
+                s.login(username, password)
+            s.send_message(msg)
+            print(f"[EmailEngine] Dispatched successfully via Remote SMTP TLS ({mail_server}:587) to {to}")
+            _record_in_app_backup(user_id, subject, plain_body, otp_code)
+            return True, f"Remote SMTP TLS ({mail_server}:587)"
+    except Exception as e:
+        logs.append(f"Remote TLS 587 ({mail_server}): {e}")
+
+    # ── 8. In-App Notification (Firestore) Fallback ─────────────
+    # If all mail transport failed, record in-app notification
+    print(f"[EmailEngine] All email transports failed: {'; '.join(logs)}")
+    in_app_ok = _record_in_app_backup(user_id, subject, plain_body, otp_code)
+    if in_app_ok:
+        return False, f"In-App Notification (Email Failed: {'; '.join(logs[:2])})"
+
+    return False, f"Dispatch failed: {'; '.join(logs[:2])}"
+
+
+def _record_in_app_backup(user_id: str, subject: str, plain_body: str, otp_code: str = None) -> bool:
+    """Helper to store in-app notification backup in Firestore."""
+    if not user_id:
+        return False
+    try:
+        from firebase_admin import firestore
+        db = firestore.client()
+        notification_msg = f"Your verification code is: {otp_code} (expires in 10 minutes)." if otp_code else plain_body[:280]
+        db.collection('notifications').add({
+            'title': subject,
+            'message': notification_msg,
+            'targetUserId': user_id,
+            'type': 'pin_reset_otp' if otp_code else 'staff_appointment',
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'readBy': [],
+            'dismissedBy': []
+        })
+        print(f"[EmailEngine] In-app notification backup created for user {user_id}")
+        return True
+    except Exception as e:
+        print(f"[EmailEngine] In-app notification error: {e}")
+        return False
