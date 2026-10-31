@@ -2391,82 +2391,96 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
                   color: _neonOrange.withOpacity(0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.local_fire_department, color: _neonOrange, size: 22),
+                child: const Icon(Icons.local_fire_department, color: _neonOrange, size: 20),
               ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        isFiveDayStreak ? '$streak Day Streak 🔥' : '$streak Day Streak',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                      if (isFiveDayStreak) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _neonOrange.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(6),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            isFiveDayStreak ? '$streak-Day Streak 🔥' : '$streak-Day Streak',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          child: const Text('Free Spin', style: TextStyle(color: _neonOrange, fontSize: 10, fontWeight: FontWeight.bold)),
                         ),
+                        if (isFiveDayStreak) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: _neonOrange.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text('Free Spin', style: TextStyle(color: _neonOrange, fontSize: 9, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-                  Text('🪙 $coins DISHI Coins', style: const TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.w600)),
-                ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '🪙 $coins Coins',
+                      style: const TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 6),
               InkWell(
                 onTap: () {
                   HapticFeedback.lightImpact();
                   Navigator.push(context, MaterialPageRoute(builder: (_) => DailySpinGame(userModel: userModel)));
                 },
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [_neonPink, Color(0xFFFF5252)],
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     boxShadow: [
-                      BoxShadow(color: _neonPink.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 2)),
+                      BoxShadow(color: _neonPink.withOpacity(0.35), blurRadius: 6, offset: const Offset(0, 2)),
                     ],
                   ),
                   child: const Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.casino, color: Colors.white, size: 15),
-                      SizedBox(width: 5),
-                      Text('Spin & Win', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                      Icon(Icons.casino, color: Colors.white, size: 14),
+                      SizedBox(width: 4),
+                      Text('Spin', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 5),
               InkWell(
                 onTap: () {
                   HapticFeedback.lightImpact();
                   Navigator.push(context, MaterialPageRoute(builder: (_) => RedeemStoreView(userModel: userModel)));
                 },
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _neonCyan.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
+                    color: _neonCyan.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: _neonCyan.withOpacity(0.4)),
                   ),
-                  child: const Text('Redeem', style: TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
+                  child: const Text('Store', style: TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
