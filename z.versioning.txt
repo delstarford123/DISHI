@@ -1,31 +1,129 @@
-Your Weekly Development Workflow (v3 to v4)
-When you begin developing Version 4 next week, follow this exact rule:
+================================================================================
+DISHI ENTERPRISE DEVELOPMENT WORKFLOW & ARCHITECTURE SPECIFICATION (VERSION 6)
+================================================================================
+
+Target Version : Version 6 (v6)
+Release Code   : 6 (version: 1.0.6+6)
+Active Branch  : dishi_development_branch
+Production URL : https://dishi.delstarfordworks.co.ke
+Hosting Infra  : Vercel Serverless (Python 3.12 / uv) + Firebase Firestore + Safaricom Daraja
+
+--------------------------------------------------------------------------------
+1. BACKEND ROUTE ISOLATION & NAMESPACING (STRICT PROTOCOL)
+--------------------------------------------------------------------------------
+To maintain 100% stability for active Play Store users on legacy versions (v1 - v5),
+follow this strict route isolation rule:
 
 swapeat_backend/
   routes/
-    v3/             <-- Untouched! Keeps v3 users running smoothly.
-    v4/             <-- Put all your new v4 routes here!
-New Backend Features: Put them in routes/v4/ and register them as /api/v4/... in app.py. Leave /api/v3/... completely untouched.
-Firestore Additions: Always write default values (e.g. data['new_field'] ?? default_value) so old v3 documents don't crash.
-When Version 4 is Ready & Published:
-Change latest_version_code: 4 in Firestore.
-Keep min_supported_version_code: 2 (or 3) so v3 users can continue eating.
-When you are eventually ready to retire v3 months from now, simply change min_supported_version_code: 4 in Firestore, and all remaining users will be cleanly prompted to update!
+    v1/ to v5/        <-- LOCKED / UNTOUCHED! Keeps existing users running smoothly.
+    v6/               <-- ACTIVE DEVELOPMENT ZONE! Put all Version 6 routes here.
+      __init__.py
+      campus_gigs_routes.py   (Campus Gig Economy, Escrow & Worker matching)
+      <new_v6_service>_routes.py
 
-----------------------------------------------------
-Branching Strategy (dishi_development_branch vs main)
-----------------------------------------------------
-1. Active Development & Testing:
-   - Always do new work on: dishi_development_branch
-   - Switch branch: git checkout dishi_development_branch
-   - Stage & commit: git add . && git commit -m "feat/fix: description"
-   - Push to test: git push origin dishi_development_branch
-   - Vercel Preview Deploy (staging): Run `vercel` (without --prod) to get an isolated preview endpoint to test!
+Rule 1 (Zero Regressions): NEVER modify existing v1-v5 routes unless fixing a critical
+                          bug reported on legacy clients.
+Rule 2 (Registration):    Always create your v6 blueprint and register it in app.py
+                          with the prefix `/api/v6/<feature>`:
+                          ```python
+                          from routes.v6.my_feature_routes import my_feature_v6_bp
+                          app.register_blueprint(my_feature_v6_bp, url_prefix='/api/v6/my_feature')
+                          ```
+Rule 3 (Backend Safety):   Always use lazy imports for heavy packages (`reportlab`, `pycryptodome`,
+                          `flask_mail`) inside functions so missing packages never crash
+                          the entire Vercel serverless function.
+Rule 4 (HTTP Timeouts):   All external HTTP calls (Daraja, SMS, FCM) must enforce `timeout=15`.
 
-2. Promoting & Merging to Production:
-   - Once all endpoints and mobile screens pass testing:
-     git checkout main
-     git pull origin main
-     git merge dishi_development_branch
-     git push origin main
-   - Production Deploy: Run `vercel --prod` to deploy to https://dishi.delstarfordworks.co.ke
+--------------------------------------------------------------------------------
+2. FIRESTORE DATABASE BACKWARD COMPATIBILITY
+--------------------------------------------------------------------------------
+Older versions of the mobile app still query the same Firestore database.
+
+Rule 1 (Defensive Reads):  In Flutter models, ALWAYS use null-coalescing fallbacks:
+                          ```dart
+                          final gigStatus = data['status'] ?? 'pending';
+                          final rating = (data['rating'] as num?)?.toDouble() ?? 5.0;
+                          final escrowHeld = data['escrow_held'] ?? false;
+                          ```
+Rule 2 (Non-Destructive):  Never delete, rename, or change the data type of existing
+                          Firestore fields used by earlier versions.
+Rule 3 (Safe Writes):      When writing new documents or updating existing records,
+                          provide default values for all new fields so that legacy views
+                          reading those documents don't encounter null errors.
+
+--------------------------------------------------------------------------------
+3. FLUTTER FRONTEND CONFIGURATION
+--------------------------------------------------------------------------------
+All v6 client endpoints are centrally registered in `lib/core/services/api_config.dart`:
+```dart
+static const String v6Base = '$baseUrl/api/v6';
+static const String campusGigs = '$v6Base/campus_gigs';
+static const String campusGigsRegister = '$campusGigs/register';
+static const String campusGigsRequest = '$campusGigs/request';
+static const String campusGigsAccept = '$campusGigs/accept';
+static const String campusGigsVerifyHandoff = '$campusGigs/verify_handoff';
+static const String campusGigsComplete = '$campusGigs/complete';
+static const String campusGigsRefundEscrow = '$campusGigs/refund_escrow';
+```
+
+Networking Rules:
+- All HTTP calls must have a 30-second timeout: `.timeout(const Duration(seconds: 30))`
+- Always catch `TimeoutException` separately from general exceptions.
+- Show `error` message from decoded backend JSON rather than raw response bodies.
+
+--------------------------------------------------------------------------------
+4. VERSION PROGRESSION & FIRESTORE RELEASE PROTOCOL
+--------------------------------------------------------------------------------
+When Version 6 is fully developed, tested, and published to Google Play:
+
+Step 1 (pubspec.yaml):
+  Update the version string to Version 6:
+  ```yaml
+  version: 1.0.6+6
+  ```
+
+Step 2 (Firestore system_config/app_version document):
+  Update the version control document:
+  ```json
+  {
+    "latest_version_code": 6,
+    "latest_version_name": "1.0.6",
+    "min_supported_version_code": 4,
+    "supported_api_versions": ["v1", "v2", "v3", "v4", "v5", "v6"],
+    "force_update": false,
+    "release_notes": "Version 6: Campus Gig Economy & Escrow Hub, automated handoff verification, enhanced student safety and fast wallet settlement."
+  }
+  ```
+  *Note: Keeping `min_supported_version_code: 4` guarantees that existing v4 & v5 users
+  can continue using the app without disruption. Only bump `min_supported_version_code`
+  to 6 when older versions are formally retired.*
+
+--------------------------------------------------------------------------------
+5. GIT BRANCHING & VERCEL DEPLOYMENT STRATEGY
+--------------------------------------------------------------------------------
+
+A. ACTIVE DEVELOPMENT & TESTING (Day-to-day work):
+   1. Ensure you are on the development branch:
+      `git checkout dishi_development_branch`
+   2. Author features in `swapeat_backend/routes/v6/` and `lib/features/...`
+   3. Stage & Commit:
+      `git add .`
+      `git commit -m "feat(v6): implement <feature_name>"`
+   4. Push to origin:
+      `git push origin dishi_development_branch`
+   5. Staging / Preview Deployment:
+      Run `vercel` from `swapeat_backend` (without `--prod`) to get an isolated
+      preview endpoint for end-to-end testing without touching live production.
+
+B. PROMOTING & MERGING TO PRODUCTION (When v6 passes all tests):
+   1. Switch to main:
+      `git checkout main`
+      `git pull origin main`
+   2. Merge development branch:
+      `git merge dishi_development_branch`
+   3. Push production branch:
+      `git push origin main`
+   4. Production Deployment to Live Domain (https://dishi.delstarfordworks.co.ke):
+      Run `vercel --prod` from `swapeat_backend` directory.
+================================================================================

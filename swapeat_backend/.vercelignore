@@ -13,3 +13,10 @@ query_*.py
 append_*.py
 fix_*.py
 *.log
+*.zip
+*.pptx
+generate_*.py
+vendor_backup.json
+ServiceAccountKey.json
+dishi_backend_cpanel.zip
+tmp/

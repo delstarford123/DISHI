@@ -41,4 +41,16 @@ class ApiConfig {
   static const String gamesRedeem = '$baseUrl/api/v1/games/redeem';
   static const String gamesEntry = '$baseUrl/api/v1/games/entry';
   static const String gamesUnlock = '$baseUrl/api/v1/games/unlock';
+
+  // ==========================================
+  // Version 6 (v6) Endpoints - Campus Gig Economy & Next-Gen Services
+  // ==========================================
+  static const String v6Base = '$baseUrl/api/v6';
+  static const String campusGigs = '$v6Base/campus_gigs';
+  static const String campusGigsRegister = '$campusGigs/register';
+  static const String campusGigsRequest = '$campusGigs/request';
+  static const String campusGigsAccept = '$campusGigs/accept';
+  static const String campusGigsVerifyHandoff = '$campusGigs/verify_handoff';
+  static const String campusGigsComplete = '$campusGigs/complete';
+  static const String campusGigsRefundEscrow = '$campusGigs/refund_escrow';
 }
