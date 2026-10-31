@@ -79,15 +79,36 @@ class _DailySpinGameState extends State<DailySpinGame> with SingleTickerProvider
 
   Future<void> _checkSpinCooldown() async {
     try {
+      final now = DateTime.now();
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      // Check user streak
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.userModel.uid).get();
+      final streak = (userDoc.data()?['streakDays'] as num?)?.toInt() ?? (userDoc.data()?['streak_days'] as num?)?.toInt() ?? 5;
+      final lastStreakSpin = userDoc.data()?['last_streak_spin_date'] as String?;
+
+      // If user has 5+ day streak and has not used today's streak spin, grant immediate access!
+      if (streak >= 5 && lastStreakSpin != todayStr) {
+        if (mounted) {
+          setState(() {
+            _canSpin = true;
+            _timeRemaining = '';
+          });
+        }
+        return;
+      }
+
       final doc = await FirebaseFirestore.instance.collection('user_game_stats').doc(widget.userModel.uid).get();
       if (doc.exists && doc.data()?['last_spin'] != null) {
         final lastSpin = (doc.data()!['last_spin'] as Timestamp).toDate();
         final diff = DateTime.now().difference(lastSpin);
         if (diff.inHours < 24) {
-          setState(() {
-            _canSpin = false;
-          });
-          _startCountdown(lastSpin.add(const Duration(hours: 24)));
+          if (mounted) {
+            setState(() {
+              _canSpin = false;
+            });
+            _startCountdown(lastSpin.add(const Duration(hours: 24)));
+          }
         }
       }
     } catch (_) {}
@@ -168,6 +189,9 @@ class _DailySpinGameState extends State<DailySpinGame> with SingleTickerProvider
 
   Future<void> _awardPrize(SpinPrize prize) async {
     try {
+      final now = DateTime.now();
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
       // 1. Backend API Call
       try {
         await http.post(
@@ -180,15 +204,21 @@ class _DailySpinGameState extends State<DailySpinGame> with SingleTickerProvider
       final statsRef = FirebaseFirestore.instance.collection('user_game_stats').doc(widget.userModel.uid);
       await statsRef.set({'last_spin': FieldValue.serverTimestamp()}, SetOptions(merge: true));
 
+      final userRef = FirebaseFirestore.instance.collection('users').doc(widget.userModel.uid);
+      final Map<String, dynamic> userUpdates = {
+        'last_streak_spin_date': todayStr,
+      };
+
       if (prize.type == 'coins' && prize.value > 0) {
-        await FirebaseFirestore.instance.collection('users').doc(widget.userModel.uid).set({
-          'dishi_coins': FieldValue.increment(prize.value),
-        }, SetOptions(merge: true));
+        userUpdates['dishi_coins'] = FieldValue.increment(prize.value);
+        userUpdates['dishiCoins'] = FieldValue.increment(prize.value);
       } else if (prize.type == 'delivery') {
         await statsRef.set({'free_deliveries': FieldValue.increment(1)}, SetOptions(merge: true));
       } else if (prize.type == 'discount') {
         await statsRef.set({'discount_vouchers': FieldValue.increment(1)}, SetOptions(merge: true));
       }
+
+      await userRef.set(userUpdates, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Error awarding spin: $e');
     }

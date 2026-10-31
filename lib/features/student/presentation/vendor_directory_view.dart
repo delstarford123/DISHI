@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/models/user_model.dart';
 import '../../../core/services/api_config.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/call_service.dart';
 import 'package:uuid/uuid.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
@@ -395,6 +396,32 @@ class _VendorDirectoryViewState extends State<VendorDirectoryView> {
                                             child: const Text('Preorders Open', style: TextStyle(color: _neonOrange, fontSize: 10, fontWeight: FontWeight.bold)),
                                           ),
                                         const Spacer(),
+                                        InkWell(
+                                          onTap: () => DishiCallService.showCallOptions(
+                                            context,
+                                            targetUserId: vendor.uid,
+                                            targetUserName: vendor.displayName,
+                                            subtitle: 'Voice or Video call this food stall',
+                                          ),
+                                          borderRadius: BorderRadius.circular(16),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF10B981).withOpacity(0.15),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.phone, size: 12, color: Color(0xFF10B981)),
+                                                SizedBox(width: 4),
+                                                Text('Call', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
                                         const Text('View Menu', style: TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
                                         const SizedBox(width: 4),
                                         const Icon(Icons.arrow_forward_ios_rounded, color: _neonCyan, size: 12),
@@ -509,6 +536,18 @@ class _VendorMenuViewState extends State<_VendorMenuView> {
         title: Text(widget.vendor.displayName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: _bgColor,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.phone, color: _neonCyan),
+            tooltip: 'Call Stall',
+            onPressed: () => DishiCallService.showCallOptions(
+              context,
+              targetUserId: widget.vendor.uid,
+              targetUserName: widget.vendor.displayName,
+              subtitle: 'Voice or Video call this cafeteria',
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: [

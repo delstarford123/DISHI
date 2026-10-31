@@ -4,6 +4,7 @@ import '../../../core/theme/mpesa_theme.dart';
 import '../../../core/models/user_model.dart';
 import 'fundi_dashboard_view.dart';
 import 'fundi_registration_view.dart';
+import '../../../core/services/call_service.dart';
 
 class FundiMarketplaceView extends StatefulWidget {
   final UserModel userModel;
@@ -306,6 +307,18 @@ class _FundiMarketplaceViewState extends State<FundiMarketplaceView> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.phone, color: Color(0xFF05D5AA), size: 20),
+                  tooltip: 'Call Fundi',
+                  onPressed: widget.userModel.uid == workerId ? null : () {
+                    DishiCallService.showCallOptions(
+                      context,
+                      targetUserId: workerId,
+                      targetUserName: name,
+                      subtitle: 'Voice or Video call this Fundi ($service)',
+                    );
+                  },
                 ),
                 ElevatedButton(
                   onPressed: widget.userModel.uid == workerId ? null : () {

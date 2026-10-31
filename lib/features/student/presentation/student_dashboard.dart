@@ -37,6 +37,7 @@ import 'campus_map_view.dart';
 import '../../fundi/presentation/fundi_dashboard_view.dart';
 import '../../fundi/presentation/fundi_registration_view.dart';
 import '../../fundi/presentation/fundi_marketplace_view.dart';
+import '../../../core/services/call_service.dart';
 
 import 'dart:convert';
 import 'dart:async';
@@ -117,6 +118,51 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
+    _syncDailyStreak(uid);
+  }
+
+  
+  Future<void> _syncDailyStreak(String uid) async {
+    if (uid.isEmpty) return;
+    try {
+      final now = DateTime.now();
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final yesterday = now.subtract(const Duration(days: 1));
+      final yesterdayStr = '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (!userDoc.exists) return;
+
+      final data = userDoc.data() ?? {};
+      final lastStreakDate = data['last_streak_date'] as String?;
+      final currentStreak = (data['streakDays'] as num?)?.toInt() ?? (data['streak_days'] as num?)?.toInt() ?? 5;
+
+      if (lastStreakDate == todayStr) {
+        return; // Already checked in today
+      }
+
+      int newStreak;
+      if (lastStreakDate == yesterdayStr || lastStreakDate == null) {
+        newStreak = lastStreakDate == null ? (currentStreak > 0 ? currentStreak : 5) : currentStreak + 1;
+      } else {
+        newStreak = 1;
+      }
+
+      final updates = <String, dynamic>{
+        'last_streak_date': todayStr,
+        'streakDays': newStreak,
+        'streak_days': newStreak,
+      };
+
+      if (newStreak >= 5 && (newStreak % 5 == 0)) {
+        updates['dishiCoins'] = FieldValue.increment(100);
+        updates['dishi_coins'] = FieldValue.increment(100);
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(uid).set(updates, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('[StreakSync] error: $e');
+    }
   }
 
   List<String> _featureOrder = ['Fundi Juaji Market', 'UniUptown', 'Study Companion', 'Keja Yangu'];
@@ -297,51 +343,45 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
                         padding: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
                         sliver: SliverList(
                           delegate: SliverChildListDelegate([
-                            // 1. AVAILABLE BALANCE AT THE VERY TOP
+                            // 1. AVAILABLE BALANCE AT THE VERY TOP (Wallet maintained)
                             const SizedBox(height: 12),
                             _buildBalancePageView(userModel),
                             const SizedBox(height: 8),
                             _buildPaginationDots(),
 
-                            // 2. LIVE ACTIVE PREORDER STREAM (Order Ahead & Food Connection)
+                            // 2. LIVE ACTIVE PREORDER STREAM (Immediate Food Status)
                             const SizedBox(height: 16),
                             _buildLiveActiveOrderStream(userModel),
 
-                            // 3. CLEAN QUICK ACTIONS (High-priority shortcuts)
+                            // 3. FOOD FIRST: POPULAR CAMPUS CAFETERIAS SPOTLIGHT
                             const SizedBox(height: 20),
-                            _buildQuickActions(userModel),
-
-                            // 4. CAMPUS CAFETERIAS SPOTLIGHT (Food stalls)
-                            const SizedBox(height: 24),
                             _buildCampusVendorsSpotlight(userModel),
 
-                            // 5. FLASH SALES & TODAY'S DEALS TICKER
-                            const SizedBox(height: 20),
+                            // 4. TODAY'S MEAL DEALS & FLASH SALES
+                            const SizedBox(height: 18),
                             _buildFlashSalesTicker(userModel),
 
-                            // 6. UP NEXT CLASS & TIMETABLE CARD
+                            // 5. ESSENTIAL QUICK ACTIONS (Food, Gigs, Fundi, Okoa Food, Keja, Send)
+                            const SizedBox(height: 22),
+                            _buildQuickActions(userModel),
+
+                            // 6. 5-DAY STREAK & DAILY SPIN REWARDS (Working 5-day streak)
                             const SizedBox(height: 20),
-                            _buildUpNextClassCard(userModel),
-
-                            // 7. STREAK, REWARDS & SOCIAL TRAY
-                            const SizedBox(height: 18),
                             _buildStreakAndRewardsBar(userModel),
-                            const SizedBox(height: 16),
-                            _buildSendAgainTray(userModel),
 
-                            // 8. CAMPUS SERVICES & LIVING HUB
+                            // 7. STUDENT WELLBEING, EMPLOYMENT & LIVING HUB (No duplicate stalls/send)
                             const SizedBox(height: 22),
                             _buildCampusEcosystemHub(userModel),
 
-                            // 9. SMART CAMPUS CONTEXT
-                            const SizedBox(height: 18),
-                            _buildSmartCampusContextBar(),
-                            const SizedBox(height: 14),
-                            _buildDriverModeToggle(userModel),
-                            const SizedBox(height: 14),
-                            _buildFundiModeToggle(userModel),
+                            // 8. UP NEXT CLASS & TIMETABLE (Academic card)
+                            const SizedBox(height: 20),
+                            _buildUpNextClassCard(userModel),
 
-                            // 10. DISHI STUDENT ID & SAFETY CARD
+                            // 9. COMRADE SEND AGAIN & CALL TRAY (Voice & Video Calls)
+                            const SizedBox(height: 18),
+                            _buildSendAgainTray(userModel),
+
+                            // 10. DISHI STUDENT ID & CAMPUS SAFETY
                             const SizedBox(height: 20),
                             _buildDishiIdCard(userModel),
                             const SizedBox(height: 16),
@@ -1840,12 +1880,70 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
 
   void _showQuickPeerTransferSheet(UserModel userModel, String recUid, String recName) {
     HapticFeedback.lightImpact();
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => StudentTransfersView(
-          userModel: userModel,
-          prefilledRecipientId: recUid,
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF131A2A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(height: 16),
+              Text(recName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text('Connect with Comrade', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: _neonCyan.withOpacity(0.15), shape: BoxShape.circle),
+                  child: const Icon(Icons.send_rounded, color: _neonCyan, size: 20),
+                ),
+                title: const Text('Send Money', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text('0% fee instant P2P transfer', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => StudentTransfersView(userModel: userModel, prefilledRecipientId: recUid)));
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: const Color(0xFF10B981).withOpacity(0.15), shape: BoxShape.circle),
+                  child: const Icon(Icons.phone, color: Color(0xFF10B981), size: 20),
+                ),
+                title: const Text('Voice Call', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text('Encrypted in-app voice call', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  DishiCallService.startCall(context, targetUserId: recUid, targetUserName: recName, isVideo: false);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: _neonBlue.withOpacity(0.15), shape: BoxShape.circle),
+                  child: const Icon(Icons.videocam, color: _neonBlue, size: 20),
+                ),
+                title: const Text('Video Call', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text('Face-to-face video call', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  DishiCallService.startCall(context, targetUserId: recUid, targetUserName: recName, isVideo: true);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -1931,37 +2029,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartiChatbotView()));
-                  },
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _surfaceLight,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.smart_toy, color: Colors.purpleAccent, size: 14),
-                        SizedBox(width: 6),
-                        Text('Study with Smarti AI', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+
         ],
       ),
     );
@@ -2300,19 +2368,21 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
         if (snapshot.hasData && snapshot.data!.exists) {
           final rawData = snapshot.data!.data();
           final data = rawData != null ? Map<String, dynamic>.from(rawData as Map) : null;
-          coins = (data?['dishiCoins'] as num?)?.toInt() ?? 150;
-          streak = (data?['streakDays'] as num?)?.toInt() ?? 5;
+          coins = (data?['dishiCoins'] as num?)?.toInt() ?? (data?['dishi_coins'] as num?)?.toInt() ?? 150;
+          streak = (data?['streakDays'] as num?)?.toInt() ?? (data?['streak_days'] as num?)?.toInt() ?? 5;
         }
+
+        final bool isFiveDayStreak = streak >= 5;
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: _cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _surfaceLight),
+            border: Border.all(color: isFiveDayStreak ? _neonOrange.withOpacity(0.4) : _surfaceLight),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: (isFiveDayStreak ? _neonOrange : Colors.black).withOpacity(0.15),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               )
@@ -2335,9 +2405,21 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
                 children: [
                   Row(
                     children: [
-                      Text('$streak Day Streak', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                      const SizedBox(width: 4),
-                      const Text('🔥', style: TextStyle(fontSize: 12)),
+                      Text(
+                        isFiveDayStreak ? '$streak Day Streak 🔥' : '$streak Day Streak',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      if (isFiveDayStreak) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _neonOrange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('Free Spin', style: TextStyle(color: _neonOrange, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
                     ],
                   ),
                   Text('🪙 $coins DISHI Coins', style: const TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.w600)),
@@ -2346,21 +2428,26 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
               const Spacer(),
               InkWell(
                 onTap: () {
+                  HapticFeedback.lightImpact();
                   Navigator.push(context, MaterialPageRoute(builder: (_) => DailySpinGame(userModel: userModel)));
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
-                    color: _neonPink.withOpacity(0.15),
+                    gradient: const LinearGradient(
+                      colors: [_neonPink, Color(0xFFFF5252)],
+                    ),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _neonPink.withOpacity(0.4)),
+                    boxShadow: [
+                      BoxShadow(color: _neonPink.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 2)),
+                    ],
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.casino, color: _neonPink, size: 14),
-                      SizedBox(width: 4),
-                      Text('Spin', style: TextStyle(color: _neonPink, fontSize: 12, fontWeight: FontWeight.bold)),
+                      Icon(Icons.casino, color: Colors.white, size: 15),
+                      SizedBox(width: 5),
+                      Text('Spin & Win', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -2368,23 +2455,18 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
               const SizedBox(width: 8),
               InkWell(
                 onTap: () {
+                  HapticFeedback.lightImpact();
                   Navigator.push(context, MaterialPageRoute(builder: (_) => RedeemStoreView(userModel: userModel)));
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                   decoration: BoxDecoration(
                     color: _neonCyan.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: _neonCyan.withOpacity(0.4)),
                   ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.redeem, color: _neonCyan, size: 14),
-                      SizedBox(width: 4),
-                      Text('Rewards', style: TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
+                  child: const Text('Redeem', style: TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -2715,16 +2797,16 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorDirectoryView())),
             ),
             _buildGridActionItem(
-              icon: Icons.shopping_bag_outlined,
-              label: 'My Orders',
-              glowColor: _neonCyan,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentPreordersView())),
+              icon: Icons.work_outline,
+              label: 'Campus Gigs',
+              glowColor: const Color(0xFF10B981),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusEmploymentHubView())),
             ),
             _buildGridActionItem(
-              icon: Icons.credit_card,
-              label: 'VCC Card',
-              glowColor: const Color(0xFF3B82F6),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => VirtualCardView(userModel: userModel))),
+              icon: Icons.handyman_rounded,
+              label: 'Fundi Gigs',
+              glowColor: _neonCyan,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FundiMarketplaceView(userModel: userModel))),
             ),
             _buildGridActionItem(
               icon: Icons.fastfood,
@@ -2733,26 +2815,26 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OkoaFoodView())),
             ),
             _buildGridActionItem(
-              icon: Icons.call_split,
-              label: 'Split Bill',
-              glowColor: const Color(0xFF06B6D4),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SplitBillView(userModel: userModel))),
-            ),
-            _buildGridActionItem(
               icon: Icons.send_rounded,
               label: 'Send',
               glowColor: MPesaTheme.primaryGreen,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentTransfersView(userModel: userModel))),
             ),
             _buildGridActionItem(
-              icon: Icons.calendar_month,
-              label: 'Timetable',
-              glowColor: const Color(0xFFF59E0B),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TimetableView())),
+              icon: Icons.apartment,
+              label: 'Keja Yangu',
+              glowColor: _neonBlue,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => HousingDashboardView(user: userModel.toJson()))),
+            ),
+            _buildGridActionItem(
+              icon: Icons.storefront,
+              label: 'Marketplace',
+              glowColor: const Color(0xFFFB8C00),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EscrowMarketView(user: userModel.toJson()))),
             ),
             _buildGridActionItem(
               icon: Icons.grid_view_rounded,
-              label: 'More (20+)',
+              label: 'More Apps',
               glowColor: const Color(0xFFA855F7),
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AllFeaturesView(userModel: userModel))),
             ),
@@ -2821,12 +2903,12 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
           childAspectRatio: 1.45,
           children: [
             _buildEcosystemTile(
-              title: 'Marketplace',
-              subtitle: 'Escrow Buy & Sell',
-              icon: Icons.storefront,
-              accentColor: MPesaTheme.primaryGreen,
-              badge: 'Campus Shop',
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EscrowMarketView(user: userModel.toJson()))),
+              title: 'Campus Gigs',
+              subtitle: 'Freelance & Earn KES',
+              icon: Icons.work_outline,
+              accentColor: const Color(0xFF10B981),
+              badge: 'Jobs',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusEmploymentHubView())),
             ),
             _buildEcosystemTile(
               title: 'Fund Me',
@@ -2835,30 +2917,6 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
               accentColor: _neonPink,
               badge: '0% Fee',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestFundsView(userModel: userModel))),
-            ),
-            _buildEcosystemTile(
-              title: 'Food Stalls',
-              subtitle: 'Menus & Pre-orders',
-              icon: Icons.restaurant_menu,
-              accentColor: _neonOrange,
-              badge: 'Skip Queue',
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorDirectoryView())),
-            ),
-            _buildEcosystemTile(
-              title: 'Send Money',
-              subtitle: '0% P2P Student Transfer',
-              icon: Icons.send_rounded,
-              accentColor: _neonCyan,
-              badge: 'Instant',
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentTransfersView(userModel: userModel))),
-            ),
-            _buildEcosystemTile(
-              title: 'Keja Housing',
-              subtitle: 'Hostels & Roommates',
-              icon: Icons.apartment,
-              accentColor: _neonBlue,
-              badge: 'Keja Yangu',
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => HousingDashboardView(user: userModel.toJson()))),
             ),
             _buildEcosystemTile(
               title: 'Comrade Fundi',
@@ -2876,12 +2934,20 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
               },
             ),
             _buildEcosystemTile(
-              title: 'Campus Gigs',
-              subtitle: 'Freelance & Earn KES',
-              icon: Icons.work_outline,
-              accentColor: const Color(0xFF10B981),
-              badge: 'Jobs',
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusEmploymentHubView())),
+              title: 'Keja Housing',
+              subtitle: 'Hostels & Roommates',
+              icon: Icons.apartment,
+              accentColor: _neonBlue,
+              badge: 'Keja Yangu',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => HousingDashboardView(user: userModel.toJson()))),
+            ),
+            _buildEcosystemTile(
+              title: 'Marketplace',
+              subtitle: 'Escrow Buy & Sell',
+              icon: Icons.storefront,
+              accentColor: MPesaTheme.primaryGreen,
+              badge: 'Campus Shop',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EscrowMarketView(user: userModel.toJson()))),
             ),
             _buildEcosystemTile(
               title: 'DeLiv Courier',
@@ -2898,6 +2964,14 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
               accentColor: const Color(0xFFA855F7),
               badge: 'Win Coins',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => GamesHubView(userModel: userModel))),
+            ),
+            _buildEcosystemTile(
+              title: 'Virtual Card',
+              subtitle: 'Online & POS Spend',
+              icon: Icons.credit_card,
+              accentColor: const Color(0xFF3B82F6),
+              badge: 'Visa / MC',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => VirtualCardView(userModel: userModel))),
             ),
           ],
         ),
