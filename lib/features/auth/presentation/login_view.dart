@@ -102,27 +102,27 @@ class _LoginViewState extends State<LoginView> {
             context: context,
             barrierDismissible: false,
             builder: (ctx) => AlertDialog(
-              backgroundColor: _cardColor,
+              backgroundColor: const Color(0xFF131A2A),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: const Row(
                 children: [
-                  Icon(Icons.person_add_alt_1_rounded, color: _neonCyan),
+                  Icon(Icons.person_add_alt_1_rounded, color: Color(0xFF05D5AA)),
                   SizedBox(width: 10),
                   Text('No Account Found', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                 ],
               ),
               content: Text(
-                'No DISHI account was found for \.\n\nPlease Sign Up first to choose your role (Student, Food Vendor, Driver, Parent, etc.) and complete your profile.',
-                style: const TextStyle(color: _textSecondary, fontSize: 14, height: 1.4),
+                'No DISHI account was found for "${googleUser.email}".\n\nPlease Sign Up first to choose your role (Student, Food Vendor, Driver, Parent, etc.) and complete your profile.',
+                style: const TextStyle(color: Color(0xFF8B9BB4), fontSize: 14, height: 1.4),
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel', style: TextStyle(color: _textSecondary)),
+                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF8B9BB4))),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _neonCyan,
+                    backgroundColor: const Color(0xFF05D5AA),
                     foregroundColor: Colors.black,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
