@@ -43,7 +43,7 @@ class ApiConfig {
   static const String gamesUnlock = '$baseUrl/api/v1/games/unlock';
 
   // ==========================================
-  // Version 6 (v6) Endpoints - Campus Gig Economy & Next-Gen Services
+  // Version 6 (v6) Endpoints - Campus Gig Economy & Pan-African Discovery
   // ==========================================
   static const String v6Base = '$baseUrl/api/v6';
   static const String campusGigs = '$v6Base/campus_gigs';
@@ -53,4 +53,9 @@ class ApiConfig {
   static const String campusGigsVerifyHandoff = '$campusGigs/verify_handoff';
   static const String campusGigsComplete = '$campusGigs/complete';
   static const String campusGigsRefundEscrow = '$campusGigs/refund_escrow';
+
+  // V6 Pan-African & Regional Vendor Discovery
+  static const String vendorsV6 = '$v6Base/vendors';
+  static const String vendorsSearchV6 = '$vendorsV6/search';
+  static const String vendorsRegionsV6 = '$vendorsV6/regions';
 }

@@ -12,7 +12,10 @@ import 'pin_setup_view.dart';
 import 'login_view.dart';
 
 class SignupView extends StatefulWidget {
-  const SignupView({super.key});
+  final String? initialEmail;
+  final String? initialName;
+
+  const SignupView({super.key, this.initialEmail, this.initialName});
 
   @override
   State<SignupView> createState() => _SignupViewState();
@@ -31,6 +34,17 @@ class _SignupViewState extends State<SignupView> {
   bool _isLoading = false;
   String? _errorMessage;
   bool _agreedToTerms = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialEmail != null && widget.initialEmail!.isNotEmpty) {
+      _emailController.text = widget.initialEmail!;
+    }
+    if (widget.initialName != null && widget.initialName!.isNotEmpty) {
+      _nameController.text = widget.initialName!;
+    }
+  }
 
   static const String privacyPolicyUrl = 'https://dishi.delstarfordworks.co.ke/privacy';
   static const String termsUrl = 'https://dishi.delstarfordworks.co.ke/terms';
@@ -189,12 +203,23 @@ class _SignupViewState extends State<SignupView> {
       final UserCredential userCred = await FirebaseAuth.instance.signInWithCredential(credential);
       final doc = await FirebaseFirestore.instance.collection('users').doc(userCred.user!.uid).get();
       
+      final String uid = userCred.user!.uid;
+      final String dishiId = uid.length >= 7 ? uid.substring(0, 7).toUpperCase() : uid.toUpperCase();
+      
       if (!doc.exists) {
-        await FirebaseFirestore.instance.collection('users').doc(userCred.user!.uid).set({
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
           'name': userCred.user!.displayName ?? 'Google User',
           'email': userCred.user!.email,
           'phoneNumber': _phoneController.text.trim(),
+          'dishiId': dishiId,
+          'dishi_id': dishiId,
+          'shortId': dishiId,
           'roles': [_selectedRole],
+          'role': _selectedRole,
+          'walletBalance': 0.0,
+          'country': 'Kenya',
+          'countryCode': 'KE',
+          'currency': 'KES',
           'is_google': true,
           'createdAt': FieldValue.serverTimestamp(),
         });

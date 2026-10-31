@@ -92,13 +92,75 @@ class _LoginViewState extends State<LoginView> {
       final doc = await FirebaseFirestore.instance.collection('users').doc(userCred.user!.uid).get();
       
       if (!doc.exists) {
-        await FirebaseFirestore.instance.collection('users').doc(userCred.user!.uid).set({
-          'name': userCred.user!.displayName ?? 'Google User',
-          'email': userCred.user!.email,
-          'roles': [],
-          'is_google': true,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        // User does not have a registered account yet.
+        // Sign out from Firebase to keep session clean
+        await FirebaseAuth.instance.signOut();
+        try { await googleSignIn.signOut(); } catch (_) {}
+
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: _cardColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(
+                children: [
+                  Icon(Icons.person_add_alt_1_rounded, color: _neonCyan),
+                  SizedBox(width: 10),
+                  Text('No Account Found', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: Text(
+                'No DISHI account was found for \.\n\nPlease Sign Up first to choose your role (Student, Food Vendor, Driver, Parent, etc.) and complete your profile.',
+                style: const TextStyle(color: _textSecondary, fontSize: 14, height: 1.4),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel', style: TextStyle(color: _textSecondary)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _neonCyan,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SignupView(
+                          initialEmail: googleUser.email,
+                          initialName: googleUser.displayName,
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('Sign Up Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+      
+      // If user document exists, verify they have picked a role
+      final data = doc.data() as Map<String, dynamic>;
+      final rolesList = data['roles'] as List<dynamic>? ?? [];
+      final roleSingular = data['role'] as String? ?? '';
+      
+      if (rolesList.isEmpty && roleSingular.isEmpty) {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const RoleSelectionView()),
+          );
+        }
+        return;
       }
       
       await _handlePostAuthRouting(userCred.user!.uid);
