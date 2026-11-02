@@ -3219,7 +3219,89 @@ def process_voice_intent():
 
 
         # =========================================================================
-    # 3.5 DIRECT CAMPUS NAVIGATION INTENTS (UniUptown, Swiping, Chats, Pre-orders, Supermarket, Gigs)
+    # 3.4 WAKE PHRASE & DYNAMIC TIME-BASED GREETING ("Hello DISHI")
+    # =========================================================================
+    if any(k in low for k in ['hello dishi', 'hey dishi', 'hi dishi', 'sema dishi', 'habari dishi', 'mambo dishi', 'wake up dishi', 'dishi voice', 'good morning dishi', 'good afternoon dishi', 'good evening dishi']):
+        # Nairobi local time (UTC+3)
+        eat_hour = (datetime.datetime.utcnow().hour + 3) % 24
+        if current_lang in ['sw', 'sheng']:
+            if 5 <= eat_hour < 12:
+                greeting = "Habari za asubuhi! Nikusaidie nini sasa?"
+            elif 12 <= eat_hour < 17:
+                greeting = "Habari za mchana! Nikusaidie nini sasa?"
+            elif 17 <= eat_hour < 21:
+                greeting = "Habari za jioni! Nikusaidie nini sasa?"
+            else:
+                greeting = "Habari za usiku! Nikusaidie nini sasa rafiki yangu?"
+        else:
+            if 5 <= eat_hour < 12:
+                greeting = "Good morning! What can I help you with now?"
+            elif 12 <= eat_hour < 17:
+                greeting = "Good afternoon! What can I help you with now?"
+            elif 17 <= eat_hour < 21:
+                greeting = "Good evening! What can I help you with now?"
+            else:
+                greeting = "Good evening! What can I help you with now?"
+
+        return jsonify({
+            "intent": "HELLO_DISHI",
+            "action": "wake_greeting",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
+            "spoken_response": clean_for_tts(greeting),
+            "requires_pin": False,
+            "keep_listening": True
+        }), 200
+
+    # =========================================================================
+    # 3.45 STANDBY & MANUAL NAVIGATION MODE ("Thank you DISHI")
+    # =========================================================================
+    if any(k in low for k in ['thank you dishi', 'thanks dishi', 'asante dishi', 'asante sana dishi', 'thank you', 'asante', 'stop dishi', 'standby dishi', 'manual mode', 'navigating manually', 'nitatumia mikono']):
+        standby_msg = ("You are very welcome! DISHI Voice is going on standby so you can navigate manually. Call me anytime by saying Hello DISHI or tapping the voice button!"
+                       if current_lang == 'en'
+                       else "Karibu sana! DISHI Voice sasa inapumzika kwenye standby ili utumie mfumo mwenyewe. Niite wakati wowote kwa kusema Hello DISHI au kugusa kitufe changu!")
+        return jsonify({
+            "intent": "THANK_YOU_DISHI",
+            "action": "standby_manual",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
+            "spoken_response": clean_for_tts(standby_msg),
+            "requires_pin": False,
+            "keep_listening": False
+        }), 200
+
+    # =========================================================================
+    # 3.48 INTERACTIVE VOICE TRAINING & TUTORIAL ("Train me" / "How to use")
+    # =========================================================================
+    if any(k in low for k in ['train me', 'how to use', 'how do i use this', 'teach me', 'help with voice', 'nifundishe', 'voice tutorial', 'what can i say', 'voice commands', 'jinsi ya kutumia']):
+        training_msg = (
+            "Welcome to DISHI Voice training! Here is how to navigate the whole system hands-free: "
+            "First, say 'Hello DISHI' anytime to wake me up with a time-aware greeting. "
+            "Second, for dating and comrades, say 'Open UniUptown', 'Start swiping', or 'Matches and chats'. "
+            "Third, for meals and groceries, say 'Open preorder and order this', 'Campus Supermarket', or 'Where is nearest vendor'. "
+            "Fourth, for gigs and wallet, say 'Campus Gigs' or 'Check balance'. "
+            "Finally, whenever you want to navigate manually, just say 'Thank you DISHI' to enter standby. What would you like to try first?"
+            if current_lang == 'en'
+            else
+            "Karibu kwenye mafunzo ya sauti ya DISHI! Hivi ndivyo unavyoweza kutumia: "
+            "Kwanza, sema 'Hello DISHI' wakati wowote kuniamsha na kusikia salamu ya wakati. "
+            "Pili, kwa marafiki na mahusiano, sema 'Open UniUptown', 'Anza kuswipe', au 'Matches and chats'. "
+            "Tatu, kwa chakula na duka, sema 'Open preorder and order this', 'Campus Supermarket', au 'Vendor wa karibu'. "
+            "Nne, kwa vibarua au salio, sema 'Campus Gigs' au 'Salio langu'. "
+            "Mwishowe, ukipenda kutumia mwenyewe bila sauti, sema tu 'Asante DISHI'. Ungependa kujaribu nini kwanza?"
+        )
+        return jsonify({
+            "intent": "VOICE_TRAINING",
+            "action": "open_voice_training",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
+            "spoken_response": clean_for_tts(training_msg),
+            "requires_pin": False,
+            "keep_listening": True
+        }), 200
+
+    # =========================================================================
+    # 3.5 DIRECT CAMPUS NAVIGATION INTENTS (UniUptown, Swiping, Chats, Pre-orders, Supermarket, Gigs, Housing, Map, Study, Vendor, Parent)
     # =========================================================================
     if any(k in low for k in ['uniuptown', 'uni uptown', 'uptown', 'fungua uniuptown', 'open uniuptown', 'dating hub', 'campus dating']):
         spoken = "Opening UniUptown now! Connect with campus comrades, faculty dating, and friendships." if current_lang == 'en' else "Inafungua UniUptown sasa! Ungana na wanafunzi wa chuo kote, marafiki na mahusiano."
@@ -3311,6 +3393,138 @@ def process_voice_intent():
                 "Loading campus gigs and technician rate cards...",
                 "Employment hub ready"
             ],
+            "spoken_response": clean_for_tts(spoken),
+            "requires_pin": False
+        }), 200
+
+    # 3.51 CAMPUS HOUSING & HOSTELS
+    if any(k in low for k in ['hostel', 'keja', 'housing', 'campus housing', 'rent', 'lipa rent', 'okoa keja']):
+        spoken = "Opening Campus Keja & Student Housing hub. Browse verified hostels, rent tracking, and roommate matching." if current_lang == 'en' else "Inafungua Keja na makazi ya chuo. Tazama vyumba na kodi ya hostel."
+        return jsonify({
+            "intent": "OPEN_HOUSING",
+            "action": "open_housing",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
+            "spoken_response": clean_for_tts(spoken),
+            "requires_pin": False
+        }), 200
+
+    # 3.52 CAMPUS MAP & LOCATIONS
+    if any(k in low for k in ['campus map', 'map', 'ramani', 'dining locations', 'where is cafeteria', 'canteen map']):
+        spoken = "Opening Campus Map and Dining Locations. Discover verified food spots around campus." if current_lang == 'en' else "Inafungua ramani ya chuo na maeneo ya kula."
+        return jsonify({
+            "intent": "OPEN_CAMPUS_MAP",
+            "action": "open_campus_map",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
+            "spoken_response": clean_for_tts(spoken),
+            "requires_pin": False
+        }), 200
+
+    # 3.53 ACADEMIC STUDY TIMER (SMARTIMER)
+    if any(k in low for k in ['study timer', 'smartimer', 'focus mode', 'timetable', 'academic schedule', 'masomo']):
+        spoken = "Opening SmartiMer Academic Study Focus and Class Timetable." if current_lang == 'en' else "Inafungua ratiba ya masomo na SmartiMer kwa umakini wa chuo."
+        return jsonify({
+            "intent": "OPEN_STUDY_TIMER",
+            "action": "open_study_timer",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
+            "spoken_response": clean_for_tts(spoken),
+            "requires_pin": False
+        }), 200
+
+    # 3.54 STUDENT SAVINGS & WEEKEND STASH
+    if any(k in low for k in ['student savings', 'weekend stash', 'akiba', 'savings stash', 'lock savings']):
+        spoken = "Opening Student Savings and Weekend Stash. Keep your funds safe for when you need them most." if current_lang == 'en' else "Inafungua akiba ya mwanafunzi na Weekend Stash."
+        return jsonify({
+            "intent": "OPEN_SAVINGS",
+            "action": "open_savings",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
+            "spoken_response": clean_for_tts(spoken),
+            "requires_pin": False
+        }), 200
+
+    # 3.55 VENDOR POINT OF SALE (POS)
+    if any(k in low for k in ['vendor pos', 'pos terminal', 'counter terminal', 'weka mauzo', 'point of sale', 'vendor counter']):
+        spoken = "Opening Vendor Point of Sale counter terminal." if current_lang == 'en' else "Inafungua kituo cha mauzo cha muuzaji (POS)."
+        return jsonify({
+            "intent": "OPEN_VENDOR_POS",
+            "action": "open_vendor_pos",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
+            "spoken_response": clean_for_tts(spoken),
+            "requires_pin": False
+        }), 200
+
+    # 3.56 VENDOR KITCHEN DISPLAY SYSTEM (KDS)
+    if any(k in low for k in ['kds', 'kitchen display', 'kitchen queue', 'jikoni', 'maagizo jikoni', 'live orders queue']):
+        spoken = "Opening Kitchen Display System and active student meal orders queue." if current_lang == 'en' else "Inafungua mfumo wa jikoni na foleni ya maagizo ya wanafunzi."
+        return jsonify({
+            "intent": "OPEN_KDS",
+            "action": "open_kds",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
+            "spoken_response": clean_for_tts(spoken),
+            "requires_pin": False
+        }), 200
+
+    # 3.57 VENDOR INVENTORY & STOCK
+    if any(k in low for k in ['vendor inventory', 'stock tracking', 'stoo', 'vifaa vilivyobaki', 'inventory dashboard']):
+        spoken = "Opening Vendor Inventory and stock tracking dashboard." if current_lang == 'en' else "Inafungua hesabu ya stoo na bidhaa za muuzaji."
+        return jsonify({
+            "intent": "OPEN_VENDOR_INVENTORY",
+            "action": "open_vendor_inventory",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
+            "spoken_response": clean_for_tts(spoken),
+            "requires_pin": False
+        }), 200
+
+    # 3.58 VENDOR FINANCIAL REPORTS & ANALYTICS
+    if any(k in low for k in ['vendor reports', 'vendor analytics', 'sales chart', 'ripoti ya mauzo', 'chati za mauzo', 'daily sales']):
+        spoken = "Opening Vendor Financial Reports, daily revenue charts, and analytics." if current_lang == 'en' else "Inafungua ripoti za mauzo na grafu za mapato."
+        return jsonify({
+            "intent": "OPEN_VENDOR_ANALYTICS",
+            "action": "open_vendor_analytics",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
+            "spoken_response": clean_for_tts(spoken),
+            "requires_pin": False
+        }), 200
+
+    # 3.59 VENDOR PAYOUTS & SETTLEMENTS
+    if any(k in low for k in ['vendor payouts', 'settlement hub', 'toa pesa ya biashara', 'withdraw vendor funds', 'm-pesa payout']):
+        spoken = "Opening Vendor Payout and M-PESA settlement dashboard." if current_lang == 'en' else "Inafungua kitovu cha malipo na kutoa pesa ya muuzaji."
+        return jsonify({
+            "intent": "OPEN_VENDOR_PAYOUTS",
+            "action": "open_vendor_payouts",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
+            "spoken_response": clean_for_tts(spoken),
+            "requires_pin": False
+        }), 200
+
+    # 3.60 VENDOR FLASH SALE
+    if any(k in low for k in ['flash sale', 'punguzo la haraka', 'start flash sale', 'chapo flash sale']):
+        spoken = "Opening Flash Sale creator. Launch limited-time student food discounts!" if current_lang == 'en' else "Inafungua punguzo la haraka la chakula cha mchana!"
+        return jsonify({
+            "intent": "OPEN_VENDOR_FLASH_SALE",
+            "action": "open_vendor_flash_sale",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
+            "spoken_response": clean_for_tts(spoken),
+            "requires_pin": False
+        }), 200
+
+    # 3.61 PARENT DASHBOARD & ALLOWANCES
+    if any(k in low for k in ['parent dashboard', 'send child money', 'tuma pesa ya mtoto', 'pocket money', 'student allowance']):
+        spoken = "Opening Parent Dashboard to fund student meals and monitor nutrition." if current_lang == 'en' else "Inafungua kituo cha mzazi kutuma pesa ya chakula."
+        return jsonify({
+            "intent": "OPEN_PARENT_ALLOWANCE",
+            "action": "open_parent_allowance",
+            "active_persona": active_persona_id,
+            "active_language": current_lang,
             "spoken_response": clean_for_tts(spoken),
             "requires_pin": False
         }), 200

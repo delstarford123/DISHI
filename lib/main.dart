@@ -26,6 +26,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'core/services/fcm_service.dart';
 import 'core/services/app_version_service.dart';
+import 'core/widgets/dishi_persistent_voice_pill.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 @pragma('vm:entry-point')
@@ -144,7 +145,12 @@ class _DISHIAppState extends State<DISHIApp> {
           onSessionTimeout: _handleSessionTimeout,
           child: IncomingCallListener(
             navigatorKey: appNavigatorKey,
-            child: child ?? const SizedBox.shrink(),
+            child: Stack(
+              children: [
+                child ?? const SizedBox.shrink(),
+                const DishiPersistentVoicePill(),
+              ],
+            ),
           ),
         );
       },

@@ -29,6 +29,23 @@ import '../../features/student/presentation/student_ledger_view.dart';
 import '../../features/student/presentation/campus_employment_hub.dart';
 
 import '../services/secure_http_client.dart';
+import '../services/dishi_voice_service.dart';
+import '../services/dishi_voice_models.dart';
+import '../models/user_model.dart';
+import '../../features/student/presentation/split_bill_view.dart';
+import '../../features/student/presentation/okoa_food_view.dart';
+import '../../features/student/presentation/campus_map_view.dart';
+import '../../features/housing/presentation/housing_dashboard_view.dart';
+import '../../features/smartimer/presentation/daily_focus_view.dart';
+import '../../features/student/presentation/request_funds_view.dart';
+import '../../features/vendor/presentation/vendor_dashboard_view.dart';
+import '../../features/vendor/presentation/vendor_kds_view.dart';
+import '../../features/vendor/presentation/vendor_reports_view.dart';
+import '../../features/vendor/presentation/inventory/inventory_dashboard_view.dart';
+import '../../features/vendor/presentation/finance/payout_hub_view.dart';
+import '../../features/parent/presentation/parent_dashboard_view.dart';
+import '../../features/student/presentation/dynamic_qr_dialog.dart';
+import 'dishi_persistent_voice_pill.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 
@@ -641,12 +658,11 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
     _flutterTts = FlutterTts();
 
     _pulseController = AnimationController(
-
       vsync: this,
-
       duration: const Duration(milliseconds: 1000),
-
     )..repeat(reverse: true);
+
+    DishiVoiceService.instance.activatePersistentVoice();
 
     _initAudioAndPreferences();
 
@@ -1009,70 +1025,151 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
 
     if (!mounted) return;
 
+    // Keep voice assistant online in background across screens
+    DishiVoiceService.instance.activatePersistentVoice();
+
+    final userMap = {
+      'uid': widget.userUid ?? 'guest',
+      'role': widget.role,
+      'name': 'DISHI User',
+    };
+    final userModel = UserModel(
+      uid: widget.userUid ?? 'guest',
+      displayName: 'Comrade Student',
+      email: '',
+      roles: [widget.role],
+      walletBalance: 0.0,
+      vaultBalance: 0.0,
+      okoaBalance: 0.0,
+      isVerified: true,
+    );
+
     switch (intent) {
-
       case 'OPEN_UNIUPTOWN':
-
         Navigator.pop(context);
-
         rootNav.push(MaterialPageRoute(builder: (_) => const MatchHubView()));
-
         break;
 
       case 'START_SWIPING':
-
         Navigator.pop(context);
-
         rootNav.push(MaterialPageRoute(builder: (_) => const MatchDiscoveryView()));
-
         break;
 
       case 'OPEN_MATCHES_CHATS':
-
         Navigator.pop(context);
-
         rootNav.push(MaterialPageRoute(builder: (_) => const MatchMatchesHub()));
-
         break;
 
       case 'OPEN_PREORDERS':
-
         Navigator.pop(context);
-
         rootNav.push(MaterialPageRoute(builder: (_) => const StudentPreordersView()));
-
         break;
 
       case 'OPEN_SUPERMARKET':
-
       case 'DISCOVER_MEALS':
-
         Navigator.pop(context);
-
         rootNav.push(MaterialPageRoute(builder: (_) => const CampusSupermarketView()));
-
         break;
 
       case 'CAMPUS_GIGS':
-
         Navigator.pop(context);
-
         rootNav.push(MaterialPageRoute(builder: (_) => const CampusEmploymentHubView()));
-
         break;
 
       case 'QUERY_BALANCE':
-
+      case 'OPEN_SAVINGS':
         Navigator.pop(context);
-
         rootNav.push(MaterialPageRoute(builder: (_) => const StudentLedgerView()));
+        break;
 
+      case 'SPLIT_BILL':
+        Navigator.pop(context);
+        rootNav.push(MaterialPageRoute(builder: (_) => SplitBillView(userModel: userModel)));
+        break;
+
+      case 'OKOA_MEAL':
+        Navigator.pop(context);
+        rootNav.push(MaterialPageRoute(builder: (_) => const OkoaFoodView()));
+        break;
+
+      case 'OPEN_CAMPUS_MAP':
+        Navigator.pop(context);
+        rootNav.push(MaterialPageRoute(builder: (_) => CampusMapView(studentUid: userMap['uid'] as String)));
+        break;
+
+      case 'OPEN_HOUSING':
+        Navigator.pop(context);
+        rootNav.push(MaterialPageRoute(builder: (_) => HousingDashboardView(user: userMap)));
+        break;
+
+      case 'OPEN_STUDY_TIMER':
+        Navigator.pop(context);
+        rootNav.push(MaterialPageRoute(builder: (_) => const DailyFocusView()));
+        break;
+
+      case 'REQUEST_PARENT_FUNDS':
+        Navigator.pop(context);
+        rootNav.push(MaterialPageRoute(builder: (_) => const RequestFundsView()));
+        break;
+
+      case 'OPEN_VENDOR_POS':
+        Navigator.pop(context);
+        rootNav.push(MaterialPageRoute(builder: (_) => VendorDashboardView(user: userMap)));
+        break;
+
+      case 'OPEN_KDS':
+      case 'NAVIGATE_KDS':
+        Navigator.pop(context);
+        rootNav.push(MaterialPageRoute(builder: (_) => const VendorKdsView()));
+        break;
+
+      case 'OPEN_VENDOR_INVENTORY':
+        Navigator.pop(context);
+        rootNav.push(MaterialPageRoute(builder: (_) => const InventoryDashboardView()));
+        break;
+
+      case 'OPEN_VENDOR_ANALYTICS':
+      case 'NAVIGATE_REPORTS':
+      case 'OPEN_VENDOR_FLASH_SALE':
+        Navigator.pop(context);
+        rootNav.push(MaterialPageRoute(builder: (_) => const VendorReportsView()));
+        break;
+
+      case 'OPEN_VENDOR_PAYOUTS':
+        Navigator.pop(context);
+        rootNav.push(MaterialPageRoute(builder: (_) => const PayoutHubView()));
+        break;
+
+      case 'OPEN_PARENT_ALLOWANCE':
+      case 'OPEN_PARENT_DIET':
+      case 'OPEN_PARENT_STATEMENTS':
+        Navigator.pop(context);
+        rootNav.push(MaterialPageRoute(builder: (_) => ParentDashboardView(user: userMap)));
+        break;
+
+      case 'SHOW_STUDENT_QR':
+        Navigator.pop(context);
+        showDialog(
+          context: context,
+          builder: (_) => DynamicQrDialog(
+            dishiId: widget.userUid ?? 'DISHI_USER',
+            purpose: 'meal_pass',
+          ),
+        );
+        break;
+
+      case 'VOICE_TRAINING':
+        Navigator.pop(context);
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => const DishiVoiceTrainingSheet(),
+        );
         break;
 
       default:
-
         break;
-
     }
 
   }
@@ -1126,8 +1223,29 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
   }
 
   void _fallbackLocalIntent(String clean) {
-
     final low = clean.toLowerCase();
+
+    // 0.1 WAKE WORD & DYNAMIC TIME-BASED GREETING ("Hello DISHI")
+    if (low.contains('hello dishi') || low.contains('hey dishi') || low.contains('hi dishi') || low.contains('sema dishi') || low.contains('habari dishi') || low.contains('wake up dishi')) {
+      final greeting = getTimeBasedGreeting(_currentLanguage);
+      _dispatchLocalIntent('HELLO_DISHI', greeting, {'intent': 'HELLO_DISHI'});
+      return;
+    }
+
+    // 0.2 STANDBY & MANUAL NAVIGATION ("Thank you DISHI")
+    if (low.contains('thank you dishi') || low.contains('thanks dishi') || low.contains('asante dishi') || low.contains('asante sana dishi') || low.contains('thank you') || low.contains('manual mode') || low.contains('stop dishi')) {
+      final msg = getStandbyMessage(_currentLanguage);
+      DishiVoiceService.instance.setStandby(speakDismiss: false);
+      _dispatchLocalIntent('DISMISS_VOICE', msg, {'intent': 'DISMISS_VOICE'});
+      return;
+    }
+
+    // 0.3 INTERACTIVE VOICE TRAINING & TUTORIAL ("Train me" / "How to use")
+    if (low.contains('train me') || low.contains('how to use') || low.contains('how do i use this') || low.contains('nifundishe') || low.contains('voice tutorial') || low.contains('teach me')) {
+      final trainingMsg = getVoiceTrainingOverview(_currentLanguage);
+      _dispatchLocalIntent('VOICE_TRAINING', trainingMsg, {'intent': 'VOICE_TRAINING'});
+      return;
+    }
 
     // 1. UniUptown
 
