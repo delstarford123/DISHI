@@ -59,3 +59,61 @@ def send_fcm_notification(user_id: str, title: str, body: str, data: dict = None
         traceback.print_exc()
         print(f"[FCM] Error sending notification to {user_id}: {e}")
         return False
+
+
+def send_call_fcm_notification(user_id: str, title: str, body: str, data: dict = None):
+    """
+    Sends a WhatsApp-style High-Priority Calling Notification via Firebase Admin SDK.
+    Uses 'dishi_calls' channel, priority='high', ttl=60s to wake up Android device over lockscreen.
+    """
+    try:
+        db = firestore.client()
+        user_doc = db.collection('users').document(user_id).get()
+        if not user_doc.exists:
+            print(f"[FCM Call] User {user_id} not found.")
+            return False
+
+        user_data = user_doc.to_dict()
+        fcm_token = user_data.get('fcmToken')
+        if not fcm_token:
+            print(f"[FCM Call] User {user_id} has no fcmToken registered.")
+            return False
+
+        stringified_data = {k: str(v) for k, v in data.items()} if data else {}
+        stringified_data.setdefault('title', str(title))
+        stringified_data.setdefault('body', str(body))
+        stringified_data['click_action'] = 'FLUTTER_NOTIFICATION_CLICK'
+
+        message = messaging.Message(
+            notification=messaging.Notification(
+                title=title,
+                body=body,
+            ),
+            data=stringified_data,
+            token=fcm_token,
+            android=messaging.AndroidConfig(
+                priority='high',
+                ttl=60,  # 60 seconds ring timeout
+                notification=messaging.AndroidNotification(
+                    channel_id='dishi_calls',
+                    priority='max',
+                    visibility='public',
+                    click_action='FLUTTER_NOTIFICATION_CLICK',
+                )
+            ),
+            apns=messaging.APNSConfig(
+                headers={'apns-priority': '10'},
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(content_available=True, sound='default')
+                )
+            )
+        )
+
+        response = messaging.send(message)
+        print(f"[FCM Call] Dispatched call push to {user_id}: {response}")
+        return True
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"[FCM Call] Error sending call push to {user_id}: {e}")
+        return False

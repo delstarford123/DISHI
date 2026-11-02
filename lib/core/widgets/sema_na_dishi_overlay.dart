@@ -320,12 +320,39 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
         },
       );
 
+      if (resp.statusCode == 403) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final spoken = data['spoken_response'] ?? 'Security Alert: Financial command blocked.';
+        if (mounted) {
+          setState(() {
+            _isProcessing = false;
+            _assistantSpeech = spoken;
+            _requiresPin = true;
+          });
+          HapticFeedback.heavyImpact();
+          await _speakResponse(spoken);
+        }
+        return;
+      }
+
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         final intent = data['intent'] ?? 'GENERAL';
-        final spoken = data['spoken_response'] ?? 'Sawa comrade.';
+        final spoken = data['spoken_response'] ?? 'Sawa rafiki yangu.';
         final reqPin = data['requires_pin'] ?? false;
         final challenge = data['challenge_code'] as String?;
+        final progressSteps = (data['progress_steps'] as List?)?.cast<String>() ?? [];
+
+        // Interactive execution & progress updates
+        if (progressSteps.isNotEmpty && mounted) {
+          for (final step in progressSteps) {
+            if (!mounted) break;
+            setState(() {
+              _assistantSpeech = step;
+            });
+            await Future.delayed(const Duration(milliseconds: 650));
+          }
+        }
 
         if (mounted) {
           setState(() {

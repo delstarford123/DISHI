@@ -353,10 +353,10 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
 
   void _showNearestVendorDialog(Map<String, dynamic> data, UserModel userModel) {
     final vendor = (data['vendor'] as Map?)?.cast<String, dynamic>() ?? {
-      'businessName': 'Hall 4 Main Cafeteria',
-      'location': 'Student Centre, Ground Floor',
-      'rating': 4.8,
-      'specialties': ['Chapati', 'Madondo', 'Beef Stew', 'Pilau'],
+      'businessName': 'Nyawuora Isaya Okuna Cafeteria',
+      'location': 'MMUST near MEA',
+      'rating': 4.9,
+      'specialties': ['Beef Stew & Rice', 'Chips Kuku', 'Chapati Madondo', 'Ugali Sukuma', 'Chai'],
     };
     final spoken = data['spoken_response'] as String? ?? 'Nearest vendor found.';
     final vName = vendor['businessName'] ?? vendor['name'] ?? 'Campus Vendor';

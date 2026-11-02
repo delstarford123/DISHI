@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'api_config.dart';
 
 typedef StreamStateCallback = void Function(MediaStream stream);
 
@@ -89,6 +92,29 @@ class WebRTCSignalingService {
     await roomRef.set(roomWithOffer);
     roomId = roomRef.id;
     debugPrint('[WebRTC] Call room created: $roomId');
+
+    // Trigger High-Priority FCM Push Notification to wake callee's device (WhatsApp style)
+    try {
+      final callerUid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+      http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/v6/calls/ring'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'callee_id': calleeId,
+          'caller_id': callerUid,
+          'caller_name': callerName,
+          'caller_avatar': callerAvatar,
+          'call_id': roomId,
+          'is_video': isVideo,
+        }),
+      ).timeout(const Duration(seconds: 10)).then((res) {
+        debugPrint('[WebRTC] Ring push dispatched: ${res.statusCode}');
+      }).catchError((err) {
+        debugPrint('[WebRTC] Ring push failed: $err');
+      });
+    } catch (e) {
+      debugPrint('[WebRTC] Push notification error: $e');
+    }
 
     // Listen for callee's SDP Answer
     roomRef.snapshots().listen((snapshot) async {

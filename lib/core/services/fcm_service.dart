@@ -67,6 +67,23 @@ class FCMService {
       // 4. Foreground messages listener (handles both notification & data-only payloads)
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         debugPrint('FCM foreground message received: ${message.data}');
+
+        final msgType = message.data['type'] ?? '';
+        if (msgType == 'incoming_call' || msgType == 'call_invite') {
+          final callId = message.data['callId'] ?? message.data['roomId'] ?? '';
+          final callerName = message.data['callerName'] ?? 'Comrade';
+          final callerAvatar = message.data['callerAvatar'] ?? '';
+          final isVideo = (message.data['isVideo'] ?? 'false').toString().toLowerCase() == 'true';
+
+          NotificationService.showIncomingCallNotification(
+            id: callId.hashCode,
+            callId: callId,
+            callerName: callerName,
+            callerAvatar: callerAvatar,
+            isVideo: isVideo,
+          );
+          return;
+        }
         
         final title = message.notification?.title ?? 
                       message.data['title'] ?? 

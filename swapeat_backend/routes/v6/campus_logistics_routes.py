@@ -8,10 +8,46 @@ from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from firebase_admin import firestore
 from routes.mpesa_routes import resolve_user_ref, _credit_wallet_safely, _send_notification
+from utils.fcm_utils import send_call_fcm_notification
 
 campus_logistics_v6_bp = Blueprint('campus_logistics_v6', __name__)
 
 HMAC_SECRET = os.getenv('QR_TOKEN_SECRET', 'dishi_qr_pickup_hmac_secret_2026').encode('utf-8')
+
+@campus_logistics_v6_bp.route('/calls/ring', methods=['POST'])
+def ring_call():
+    """
+    WhatsApp-Style Incoming Call Push Dispatcher.
+    Delivers instant high-priority FCM wake-up to callee's device even if app is closed.
+    """
+    data = request.json or {}
+    callee_id = str(data.get('callee_id', '')).strip()
+    caller_id = str(data.get('caller_id', '')).strip()
+    caller_name = str(data.get('caller_name', 'Comrade')).strip()
+    caller_avatar = str(data.get('caller_avatar', '')).strip()
+    call_id = str(data.get('call_id', '')).strip()
+    is_video = bool(data.get('is_video', False))
+
+    if not callee_id or not call_id:
+        return jsonify({"error": "callee_id and call_id required"}), 400
+
+    payload = {
+        'type': 'incoming_call',
+        'callId': call_id,
+        'callerId': caller_id,
+        'callerName': caller_name,
+        'callerAvatar': caller_avatar,
+        'isVideo': 'true' if is_video else 'false',
+    }
+
+    success = send_call_fcm_notification(
+        user_id=callee_id,
+        title=f"Incoming {'Video' if is_video else 'Voice'} Call",
+        body=f"{caller_name} is calling you on DISHI...",
+        data=payload
+    )
+
+    return jsonify({"success": success, "call_id": call_id}), 200
 
 # =====================================================================
 # PILLAR 3 & 5: SMART LOGISTICS, PRE-ORDERS, SAFETY & ECOSYSTEM (V6)

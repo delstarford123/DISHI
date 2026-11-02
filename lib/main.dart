@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'core/services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
@@ -29,8 +31,32 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  debugPrint("Handling a background message: ${message.messageId}");
-  // Here we can save data to Hive or SQLite for offline use
+  debugPrint("Handling a background message: ${message.messageId} data: ${message.data}");
+  
+  final type = message.data['type'] ?? '';
+  if (type == 'incoming_call' || type == 'call_invite') {
+    final callId = message.data['callId'] ?? message.data['roomId'] ?? '';
+    final callerName = message.data['callerName'] ?? 'Comrade';
+    final callerAvatar = message.data['callerAvatar'] ?? '';
+    final isVideo = (message.data['isVideo'] ?? 'false').toString().toLowerCase() == 'true';
+
+    await NotificationService.initialize();
+    await NotificationService.showIncomingCallNotification(
+      id: callId.hashCode,
+      callId: callId,
+      callerName: callerName,
+      callerAvatar: callerAvatar,
+      isVideo: isVideo,
+    );
+  } else if (type == 'sos_alert') {
+    await NotificationService.initialize();
+    await NotificationService.showSosNotification(
+      id: message.hashCode,
+      title: message.data['title'] ?? '🚨 SOS Alert',
+      body: message.data['body'] ?? message.data['message'] ?? 'Emergency alert',
+      payload: jsonEncode(message.data),
+    );
+  }
 }
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();

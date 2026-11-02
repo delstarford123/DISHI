@@ -134,7 +134,7 @@ from routes.v6.campus_gigs_routes import campus_gigs_v6_bp
 from routes.v6.vendor_discovery_routes import vendor_discovery_v6_bp
 from routes.v6.commerce_routes import commerce_v6_bp
 from routes.v6.parent_sync_routes import parent_sync_v6_bp
-from routes.v6.campus_logistics_routes import campus_logistics_v6_bp
+from routes.v6.campus_logistics_routes import campus_logistics_v6_bp, ring_call
 from routes.v6.voice_routes import voice_v6_bp
 from routes.sos_notify_routes import sos_notify_bp
 from routes.games_routes import games_bp
@@ -197,6 +197,7 @@ app.register_blueprint(vendor_discovery_v6_bp, url_prefix='/api/v6/vendors')
 app.register_blueprint(commerce_v6_bp,          url_prefix='/api/v6/commerce')
 app.register_blueprint(parent_sync_v6_bp,       url_prefix='/api/v6/parent_sync')
 app.register_blueprint(campus_logistics_v6_bp,  url_prefix='/api/v6/logistics')
+app.add_url_rule('/api/v6/calls/ring', 'ring_call_v6', view_func=ring_call, methods=['POST'])
 app.register_blueprint(voice_v6_bp,             url_prefix='/api/v6/voice')
 app.register_blueprint(sos_notify_bp,        url_prefix='/api/v1/notify')
 app.register_blueprint(games_bp,             url_prefix='/api/v1/games')

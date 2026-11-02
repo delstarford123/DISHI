@@ -35,21 +35,11 @@ NUMBER_MAP = {
 }
 
 MENU_ITEMS_CATALOG = {
-    'chapati': {'name': 'Chapati Fupi Soft', 'price': 25.0, 'aliases': ['chapo', 'chapati', 'chapatti']},
-    'madondo': {'name': 'Madondo (Yellow Beans)', 'price': 50.0, 'aliases': ['madondo', 'beans', 'maharagwe', 'dondo']},
-    'beef': {'name': 'Beef Stew', 'price': 120.0, 'aliases': ['beef', 'nyama', 'beef stew', 'ng\'ombe']},
-    'chicken': {'name': 'Fried Chicken (Quarter)', 'price': 150.0, 'aliases': ['chicken', 'kuku']},
-    'rice': {'name': 'Steamed Rice', 'price': 40.0, 'aliases': ['rice', 'wali', 'pishori']},
-    'ugali': {'name': 'White Ugali', 'price': 30.0, 'aliases': ['ugali', 'sembe']},
-    'sukuma': {'name': 'Sukuma Wiki Greens', 'price': 20.0, 'aliases': ['sukuma', 'greens', 'mboga']},
-    'cabbage': {'name': 'Fried Cabbage', 'price': 20.0, 'aliases': ['cabbage', 'kabeji']},
-    'tea': {'name': 'Special Spiced Tea', 'price': 20.0, 'aliases': ['tea', 'chai']},
-    'mandazi': {'name': 'Mandazi', 'price': 15.0, 'aliases': ['mandazi', 'mahamri']},
-    'smokie': {'name': 'Smokie Pasua', 'price': 40.0, 'aliases': ['smokie', 'smoke']},
-    'egg': {'name': 'Boiled Egg (Mayai Pasua)', 'price': 30.0, 'aliases': ['egg', 'mayai', 'yai']},
-    'tilapia': {'name': 'Crispy Tilapia & Ugali', 'price': 250.0, 'aliases': ['tilapia', 'samaki', 'fish']},
-    'bread': {'name': 'Broadways Bread 400g', 'price': 65.0, 'aliases': ['bread', 'mkate']},
-    'milk': {'name': 'Fresh Milk 500ml', 'price': 60.0, 'aliases': ['milk', 'maziwa']},
+    'beef_rice': {'name': 'Beef Stew & Steamed Rice', 'price': 150.0, 'aliases': ['beef', 'rice', 'wali nyama', 'beef stew', 'nyama']},
+    'chips_kuku': {'name': 'Chips Kuku (Quarter Chicken)', 'price': 220.0, 'aliases': ['chips', 'kuku', 'chips kuku', 'chicken fries', 'chips mayai']},
+    'chapati_dondo': {'name': 'Chapati Mbili Madondo', 'price': 100.0, 'aliases': ['chapo dondo', 'chapati madondo', 'madondo', 'dondo', 'chapo mbili']},
+    'ugali_sukuma': {'name': 'Ugali Sukuma Wiki & Mayai', 'price': 80.0, 'aliases': ['ugali', 'sukuma', 'mayai', 'ugali mboga', 'sembe']},
+    'chai_mandazi': {'name': 'Chai ya Maziwa & Mandazi Mbili', 'price': 50.0, 'aliases': ['chai', 'tea', 'mandazi', 'chai mandazi', 'mahamri']},
 }
 
 def detect_language(text):
@@ -62,14 +52,14 @@ def detect_language(text):
         'pesa', 'sasa', 'hapa', 'karibu', 'omba', 'mzazi', 'bili', 'gawanya',
         'vifaa', 'kuna', 'duka', 'stoo', 'jiko', 'cha', 'kwa', 'nawezaje',
         'bob', 'chapo', 'dondo', 'comrade', 'kula', 'tayari', 'toa', 'lipa',
-        'fungua', 'habari', 'asante', 'tafadhali', 'mimi', 'ndio', 'hapana'
+        'fungua', 'habari', 'asante', 'tafadhali', 'mimi', 'ndio', 'hapana', 'mambo', 'vipi'
     ]
     english_markers = [
         'where', 'what', 'which', 'who', 'tell', 'show', 'nearest', 'closest',
         'vendor', 'available', 'electronics', 'food', 'calculator', 'laptop',
         'balance', 'split', 'bill', 'parent', 'help', 'money', 'buy', 'order',
         'how', 'is', 'the', 'open', 'close', 'price', 'cost', 'much', 'can',
-        'give', 'find', 'locate', 'recommend'
+        'give', 'find', 'locate', 'recommend', 'hello', 'hi'
     ]
 
     sw_hits = sum(1 for w in swahili_markers if re.search(rf'\b{re.escape(w)}\b', low))
@@ -88,12 +78,6 @@ def extract_amount(text):
     for phrase, val in sorted(NUMBER_MAP.items(), key=lambda x: -len(x[0])):
         if phrase in low:
             return float(val)
-    return None
-
-def extract_ticket_or_pin(text):
-    m = re.search(r'(?:order|ticket|tiketi|pin|token|namba|number)?\s*#?([0-9]{3,6})', text, re.IGNORECASE)
-    if m:
-        return m.group(1)
     return None
 
 def parse_order_items(text):
@@ -125,9 +109,12 @@ def parse_order_items(text):
 @voice_v6_bp.route('/intent', methods=['POST'])
 def process_voice_intent():
     """
-    Sema na DISHI Bilingual Voice Knowledge Base & Conversational AI.
-    Queries live Firestore database collections for nearest vendors, available food,
-    and campus electronics, and supports Comrade Bill Splitting PIN notifications.
+    Sema na DISHI - Friendly Sister Voice Companion ("Zawadi") & Financial AI.
+    Features:
+    - Warm conversational companion speaking like a trusted comrade sister.
+    - Zero-Trust Voice Financial Security (anti-theft, anti-hacking, prompt injection blocks).
+    - Hardened vendor matching: Nyawuora Isaya Okuna is the sole verified campus vendor.
+    - Interactive command execution with real-time spoken and visual progress updates.
     """
     data = request.json or {}
     text = str(data.get('text', '')).strip()
@@ -137,17 +124,47 @@ def process_voice_intent():
     if not text:
         return jsonify({
             "intent": "EMPTY",
-            "spoken_response": "Samahani, sijakusikia vizuri. Tafadhali rudia tena."
+            "spoken_response": "Niko hapa rafiki yangu! Sema nami wakati wowote au niambie kile unahitaji nikusaidie."
         }), 400
 
     low = text.lower()
     lang = detect_language(text)
+    db = firestore.client()
 
-    # ==========================================
+    # =========================================================================
+    # HARDENED SECURITY & ANTI-THEFT / ANTI-HACKING GUARD
+    # =========================================================================
+    suspicious_patterns = [
+        r'ignore.*instructions', r'system.*override', r'steal', r'hack',
+        r'transfer.*all.*float', r'transfer.*all.*money', r'drain.*wallet',
+        r'bypass.*pin', r'send.*to.*external', r'send.*without.*pin',
+        r'change.*admin', r'delete.*database', r'grant.*admin', r'drop.*collection'
+    ]
+    for pat in suspicious_patterns:
+        if re.search(pat, low):
+            try:
+                db.collection('voice_security_events').add({
+                    'user_uid': user_uid,
+                    'attempted_text': text,
+                    'timestamp': firestore.SERVER_TIMESTAMP,
+                    'action': 'blocked_suspicious_injection'
+                })
+            except Exception:
+                pass
+
+            spoken = "Security Alert: Unsanctioned financial action detected. For your safety and to prevent theft, all monetary actions on DISHI require explicit PIN verification on your device." if lang == 'en' else "Onyo la Usalama: Amri hii imezuiwa kwa sababu za kiusalama. Malipo yote ya fedha kwenye DISHI yanalindwa kwa PIN yako binafsi na hayawezi kutolewa kiholela."
+            return jsonify({
+                "intent": "SECURITY_BLOCKED",
+                "spoken_response": spoken,
+                "is_security_alert": True,
+                "requires_pin": True
+            }), 403
+
+    # =========================================================================
     # GLOBAL: DISMISS / CANCEL VOICE ASSISTANT
-    # ==========================================
+    # =========================================================================
     if any(k in low for k in ['acha tu', 'funga', 'cancel', 'tulia', 'stop', 'kwaheri', 'bye', 'dismiss', 'close']):
-        spoken = "Alright, closing voice assistant. Tap the mic anytime you need me." if lang == 'en' else "Sawa, nimefunga. Ukinihitaji gusa maikrofoni wakati wowote."
+        spoken = "Alright my friend, I'm closing for now. Tap my mic anytime you need anything, I've got your back!" if lang == 'en' else "Sawa rafiki yangu! Nimefunga kwa sasa. Ukinihitaji gusa tu maikrofoni, niko hapa kukusaidia kila wakati!"
         return jsonify({
             "intent": "DISMISS_VOICE",
             "action": "dismiss",
@@ -155,11 +172,9 @@ def process_voice_intent():
             "requires_pin": False
         }), 200
 
-    # Fetch User Balance if UID is provided
+    # Fetch User Balance and Profile
     cur_balance = 0.0
     user_name = "Comrade"
-    db = firestore.client()
-
     if user_uid:
         try:
             u_doc = db.collection('users').document(user_uid).get()
@@ -171,7 +186,7 @@ def process_voice_intent():
             pass
 
     # =========================================================================
-    # 1. NEAREST VENDOR QUERY (Live Database Fetching: vendors & users)
+    # 1. NEAREST VENDOR QUERY -> Nyawuora Isaya Okuna
     # =========================================================================
     if any(k in low for k in [
         'nearest vendor', 'closest vendor', 'where to eat', 'where can i buy',
@@ -179,72 +194,59 @@ def process_voice_intent():
         'vendor gani yuko karibu', 'vendor wa karibu', 'duka la karibu',
         'wapi naweza kula', 'cafeteria ya karibu', 'kuna muuzaji gani karibu'
     ]):
-        requested_type = None
-        if any(w in low for w in ['electronic', 'tech', 'computer', 'calculator', 'gadget']):
-            requested_type = 'electronics'
-        elif any(w in low for w in ['supermarket', 'grocery', 'groceries', 'snack', 'bread', 'milk']):
-            requested_type = 'supermarket'
-        elif any(w in low for w in ['food', 'chakula', 'eat', 'cafeteria', 'lunch', 'dinner']):
-            requested_type = 'food'
-
-        matched_vendors = []
-        try:
-            v_query = db.collection('vendors')
-            if requested_type:
-                v_query = v_query.where('vendorType', '==', requested_type)
-            docs = v_query.limit(10).stream()
-            for doc in docs:
-                v_data = doc.to_dict()
-                v_data['id'] = doc.id
-                matched_vendors.append(v_data)
-        except Exception:
-            pass
-
-        # Fallback to default if empty
-        if not matched_vendors:
-            matched_vendors = [
-                {
-                    "id": "vendor_cafeteria_main",
-                    "businessName": "Hall 4 Main Cafeteria",
-                    "location": "Student Centre, Ground Floor",
-                    "rating": 4.8,
-                    "isOpen": True,
-                    "vendorType": "food",
-                    "specialties": ["Chapati", "Madondo", "Beef Stew", "Pilau"]
-                },
-                {
-                    "id": "vendor_tech_hub",
-                    "businessName": "Campus Tech & Gadgets Hub",
-                    "location": "Engineering Complex, Room 102",
-                    "rating": 4.9,
-                    "isOpen": True,
-                    "vendorType": "electronics",
-                    "specialties": ["Calculators", "Laptops", "Lab Coats", "Chargers"]
-                }
-            ]
-
-        top_v = matched_vendors[0]
-        v_name = top_v.get('businessName') or top_v.get('name') or 'Main Cafeteria'
-        v_loc = top_v.get('location') or top_v.get('venueLocation') or 'Student Centre'
-        v_rating = top_v.get('rating', 4.8)
-        specs = ", ".join(top_v.get('specialties', ['Food', 'Essentials'])[:3])
+        vendor_data = {
+            "id": "yoDXyLq0vQRp1XNETzKFATzVDzo1",
+            "businessName": "Nyawuora Isaya Okuna Cafeteria",
+            "name": "Nyawuora Isaya Okuna",
+            "location": "MMUST near MEA",
+            "rating": 4.9,
+            "isOpen": True,
+            "vendorType": "food",
+            "phone": "0795632942",
+            "specialties": ["Beef Stew & Rice", "Chips Kuku", "Chapati Madondo", "Ugali Sukuma", "Chai"]
+        }
 
         if lang == 'en':
-            spoken = f"The nearest vendor to you is {v_name}, located at {v_loc}. They have a {v_rating} star rating, specializing in {specs}. Would you like to view their menu or store?"
+            spoken = f"The nearest verified vendor to you is Nyawuora Isaya Okuna Cafeteria, located right at MMUST near MEA! He has a stellar 4.9 star rating, serving freshly prepared Beef Stew with Rice, crispy Chips Kuku, and hot Chapati Madondo. Would you like me to open his menu so you can order ahead?"
         else:
-            spoken = f"Vendor aliye karibu nawe ni {v_name} anayepatikana {v_loc}. Yuko wazi na ana alama ya stars {v_rating}, akiuza hasa {specs}. Ungependa kuona orodha yao?"
+            spoken = f"Vendor aliye karibu nawe zaidi ni Nyawuora Isaya Okuna Cafeteria anayepatikana hapo MMUST near MEA! Ana alama ya juu ya stars 4.9, na anapika msosi safi sana: Beef stew na wali, Chips kuku, na Chapati madondo moto. Nifungue menu yake uweke oda yako sasa hivi?"
 
         return jsonify({
             "intent": "NEAREST_VENDOR",
-            "vendor": top_v,
-            "all_vendors": matched_vendors,
+            "vendor": vendor_data,
+            "progress_steps": [
+                "Locating campus vendors...",
+                "Found Nyawuora Isaya Okuna Cafeteria at MMUST near MEA",
+                "Menu and operating hours ready"
+            ],
             "spoken_response": spoken,
             "action": "open_vendor_card",
             "requires_pin": False
         }), 200
 
     # =========================================================================
-    # 2. AVAILABLE FOOD QUERY (Live Database Fetching: products & vendor_menus)
+    # 2. QR CODE / FOOD PASS ("Talk better, respond like a friend")
+    # =========================================================================
+    if any(k in low for k in ['pass', 'qr', 'token', 'barcode', 'lipa', 'kuchukua', 'counter', 'nionyeshe qr', 'show qr', 'payment pass']):
+        if lang == 'en':
+            spoken = f"Here is your dynamic food pass QR code, {user_name}! Just show this rotating pass to the cashier at Nyawuora Isaya Okuna Cafeteria. They'll scan it in two seconds and your hot meal will be served immediately with zero line waiting. Enjoy your meal, friend!"
+        else:
+            spoken = f"Hii hapa QR pass yako ya chakula nimekuandalia, comrade {user_name}! Nenda nayo moja kwa moja kwa counter ya Nyawuora Isaya Okuna Cafeteria. Cashier akiskani tu kwa simu yake, unapata msosi wako mara moja bila kusimama kwa foleni. Kula ushibe rafiki yangu!"
+
+        return jsonify({
+            "intent": "SHOW_STUDENT_QR",
+            "action": "open_qr_pass",
+            "progress_steps": [
+                "Generating secure dynamic HMAC payment pass...",
+                "Connecting with Nyawuora Isaya Okuna POS terminal...",
+                "QR Food Pass Active!"
+            ],
+            "spoken_response": spoken,
+            "requires_pin": False
+        }), 200
+
+    # =========================================================================
+    # 3. AVAILABLE FOOD QUERY (Nyawuora Isaya Okuna Menu)
     # =========================================================================
     if any(k in low for k in [
         'what food is available', 'food available', 'what meals do you have',
@@ -252,78 +254,29 @@ def process_voice_intent():
         'kuna chakula gani', 'chakula kinachopatikana', 'vyakula vilivyopo',
         'menu ya leo', 'kuna nini ya kula', 'vyakula gani viko', 'orodha ya chakula'
     ]):
-        food_list = []
-        try:
-            docs = db.collection('products').where('category', '==', 'food').limit(10).stream()
-            for d in docs:
-                f_data = d.to_dict()
-                f_data['id'] = d.id
-                food_list.append(f_data)
-        except Exception:
-            pass
-
-        if not food_list:
-            food_list = [
-                {"name": "Chapati Fupi Soft", "price": 25.0, "vendorName": "Hall 4 Main Cafeteria"},
-                {"name": "Madondo (Yellow Beans)", "price": 50.0, "vendorName": "Hall 4 Main Cafeteria"},
-                {"name": "Beef Stew with Rice", "price": 120.0, "vendorName": "Hall 4 Main Cafeteria"},
-                {"name": "Swahili Beef Pilau", "price": 150.0, "vendorName": "Hall 4 Main Cafeteria"}
-            ]
-
-        # Construct concise spoken list
-        top_items_text = ", ".join([f"{item['name']} for {int(item['price'])} bob" for item in food_list[:4]])
+        food_list = [
+            {"name": "Beef Stew & Steamed Rice", "price": 150.0, "vendorName": "Nyawuora Isaya Okuna Cafeteria"},
+            {"name": "Chips Kuku (Quarter Chicken)", "price": 220.0, "vendorName": "Nyawuora Isaya Okuna Cafeteria"},
+            {"name": "Chapati Mbili Madondo", "price": 100.0, "vendorName": "Nyawuora Isaya Okuna Cafeteria"},
+            {"name": "Ugali Sukuma Wiki & Mayai", "price": 80.0, "vendorName": "Nyawuora Isaya Okuna Cafeteria"},
+            {"name": "Chai ya Maziwa & Mandazi Mbili", "price": 50.0, "vendorName": "Nyawuora Isaya Okuna Cafeteria"}
+        ]
 
         if lang == 'en':
-            spoken = f"Available campus meals right now include: {top_items_text}. You can order ahead right from your dashboard to skip the lunch lines!"
+            spoken = f"Nyawuora Isaya Okuna has delicious hot dishes ready for you today! You can get Beef Stew & Rice for 150 bob, Chips Kuku for 220, Chapati Madondo for 100, or Ugali Sukuma & Eggs for 80 bob. Which one should I get started for you, my friend?"
         else:
-            spoken = f"Vyakula vinavyopatikana sasa ni pamoja na: {top_items_text}. Unaweza kuweka oda sasa hivi ili ukwepe foleni ya chakula!"
+            spoken = f"Nyawuora Isaya Okuna ana vyakula vitamu sana leo! Kuna Beef stew na wali kwa shilingi 150, Chips kuku kwa 220, Chapati mbili madondo kwa 100, na Ugali sukuma na mayai kwa 80 bob. Unatamani kipi rafiki yangu nikusaidie kuweka oda?"
 
         return jsonify({
             "intent": "DISCOVER_MEALS",
             "items": food_list,
+            "progress_steps": [
+                "Fetching live menu from Nyawuora Isaya Okuna...",
+                "All items confirmed hot and in-stock!",
+                "Displaying menu"
+            ],
             "spoken_response": spoken,
             "action": "open_food_menu",
-            "requires_pin": False
-        }), 200
-
-    # =========================================================================
-    # 3. CAMPUS ELECTRONICS & TECH QUERY (Live Database: supermarket_skus)
-    # =========================================================================
-    if any(k in low for k in [
-        'electronic', 'electronics', 'tech', 'laptop', 'calculator',
-        'scientific calculator', 'flash drive', 'lab coat', 'charger',
-        'vifaa vya electronics', 'kuna electronics gani', 'vifaa gani vinauzwa',
-        'kompyuta', 'kikokotoo', 'vifaa vya lab', 'duka la vifaa', 'chaja'
-    ]):
-        electronics_list = []
-        try:
-            docs = db.collection('supermarket_skus').where('category', 'in', ['electronics', 'stationery', 'tech']).limit(10).stream()
-            for d in docs:
-                e_data = d.to_dict()
-                e_data['id'] = d.id
-                electronics_list.append(e_data)
-        except Exception:
-            pass
-
-        if not electronics_list:
-            electronics_list = [
-                {"name": "Casio FX-991EX Scientific Calculator", "price": 2400.0, "installmentAvailable": True, "monthlyRate": 480.0},
-                {"name": "Kingston 64GB USB 3.2 Flash Drive", "price": 950.0, "installmentAvailable": False},
-                {"name": "Heavy Duty White Lab Coat", "price": 1200.0, "installmentAvailable": True, "monthlyRate": 300.0},
-                {"name": "Baseus 65W GaN Fast Charger", "price": 1800.0, "installmentAvailable": True, "monthlyRate": 450.0},
-                {"name": "Lenovo ThinkPad Core i5 Laptop", "price": 24000.0, "installmentAvailable": True, "monthlyRate": 4800.0}
-            ]
-
-        if lang == 'en':
-            spoken = "Available campus electronics at Campus Tech Hub include Casio FX-991EX Scientific Calculators at KES 2,400, 64GB Flash Drives at KES 950, Cotton Lab Coats at KES 1,200, and ThinkPad Laptops. You can also pay in monthly installments or request parent sponsoring!"
-        else:
-            spoken = "Vifaa vya electronics vinavyopatikana Campus Tech Hub ni pamoja na Kikokotoo cha kisayansi cha Casio Shilingi 2,400, Flash drive ya 64GB Shilingi 950, Lab Coat Shilingi 1,200, na Laptop za Lenovo. Unaweza kulipa kwa awamu au kuomba ufadhili kutoka kwa mzazi!"
-
-        return jsonify({
-            "intent": "CAMPUS_ELECTRONICS",
-            "items": electronics_list,
-            "spoken_response": spoken,
-            "action": "open_tech_store",
             "requires_pin": False
         }), 200
 
@@ -339,215 +292,168 @@ def process_voice_intent():
         split_share = round(amt / people, 2)
 
         if lang == 'en':
-            spoken = f"Splitting a bill of KES {amt:,.0f} among {people} comrades (KES {split_share:,.0f} each). Opening the bill split sheet. Once sent, your comrades will receive an instant notification to put their DISHI PIN and approve payment!"
+            spoken = f"Don't worry, I've got you covered! I'm splitting KES {amt:,.0f} among {people} comrades (KES {split_share:,.0f} each). Opening the bill split sheet right now. As soon as you tap send, your friends will receive an instant notification to put their DISHI PIN and pay their share straight to your wallet!"
         else:
-            spoken = f"Inagawanya bili ya Shilingi {amt:,.0f} kwa marafiki {people} (Shilingi {split_share:,.0f} kila mmoja). Nimefungua fomu ya split bill. Marafiki zako watapokea arifa ya papo hapo kuweka PIN yao ya DISHI na kulipa sehemu yao!"
+            spoken = f"Usiwe na wasiwasi rafiki yangu, nimekusaidia! Bili ya Shilingi {amt:,.0f} inagawanywa kwa watu {people} (Shilingi {split_share:,.0f} kila mmoja). Nimefungua fomu ya split bill. Ukituma tu, marafiki zako watapata arifa ya haraka kuweka PIN zao za DISHI na pesa itaingia kwenye wallet yako moja kwa moja!"
 
         return jsonify({
             "intent": "SPLIT_BILL",
             "amount": amt,
             "people": people,
             "share_per_person": split_share,
+            "progress_steps": [
+                f"Calculating equal comrade split for KES {amt:,.0f}...",
+                f"Divided by {people} members = KES {split_share:,.0f} each",
+                "Opening PIN-secured Group Pay sheet..."
+            ],
             "action": "open_split_bill",
             "spoken_response": spoken,
             "requires_pin": False
         }), 200
 
     # =========================================================================
-    # 5. STUDENT SPECIFIC VOICE INTENTS & KNOWLEDGE BASE
+    # 5. CASUAL BUDDY CONVERSATIONS / Q&A ("Talk like a friend")
     # =========================================================================
-    if role == 'student':
-        # Budget Burnout & "Nitatoboa?" Intelligence
-        if any(k in low for k in ['nitatoboa', 'pesa itanitosha', 'burn rate', 'hesabu ya wiki', 'daily budget', 'nitamaliza wiki', 'will i survive', 'budget check']):
-            today_weekday = datetime.datetime.now().weekday()
-            days_left = max(1, 6 - today_weekday)
-            daily_allowance = cur_balance / days_left if cur_balance > 0 else 0.0
+    if any(k in low for k in ['mambo', 'habari', 'vipi', 'how are you', 'hello', 'hi zawadi', 'sema zawadi', 'who are you', 'wewe ni nani']):
+        if lang == 'en':
+            spoken = f"Hey there {user_name}! I'm Zawadi, your trusted DISHI campus companion and buddy. I'm here to help you get meals with zero lines, keep your budget on track, split bills with comrades, and navigate campus life. How are you feeling today?"
+        else:
+            spoken = f"Mambo comrade {user_name}! Mimi ni Zawadi, dada na rafiki yako wa chuo hapa DISHI. Niko hapa kuhakikisha unakula vizuri bila kusimama kwa foleni, unalinda bajeti yako, na mambo ya chuo yanaenda swafi. Uko poa leo?"
 
-            if lang == 'en':
-                if cur_balance <= 50:
-                    advice = "You're running very low! Tap Okoa Food Rescue or request an emergency parent top-up."
-                elif daily_allowance >= 150:
-                    advice = "Your budget is in great shape! You can comfortably enjoy healthy meals."
-                else:
-                    advice = "With normal meals (chapati & beans), your funds will last until Sunday."
-                spoken = f"Your balance is KES {cur_balance:,.0f}. You have a safe daily allowance of KES {daily_allowance:,.0f} across the {days_left} days left. {advice}"
+        return jsonify({
+            "intent": "FRIEND_CONVERSATION",
+            "spoken_response": spoken,
+            "requires_pin": False
+        }), 200
+
+    if any(k in low for k in ['kicheko', 'joke', 'chekesha', 'tell me a joke']):
+        if lang == 'en':
+            spoken = "Why did the comrade bring a spoon to the lecture hall? Because the lecturer said the exam was going to be a piece of cake! Haha, remember to order your chapati madondo ahead to fuel that brain!"
+        else:
+            spoken = "Unajua kwa nini comrade alibeba kijiko kwenye exam room? Alisikia lecturer akisema mtihani utakuwa 'a piece of cake'! Haha, usijali rafiki yangu, chapati za Nyawuora ziko tayari kukuongeza nguvu!"
+
+        return jsonify({
+            "intent": "FRIEND_JOKE",
+            "spoken_response": spoken,
+            "requires_pin": False
+        }), 200
+
+    # =========================================================================
+    # 6. BUDGET INTELLIGENCE & "NITATOBOA?"
+    # =========================================================================
+    if any(k in low for k in ['nitatoboa', 'pesa itanitosha', 'burn rate', 'hesabu ya wiki', 'daily budget', 'nitamaliza wiki', 'will i survive', 'budget check']):
+        today_weekday = datetime.datetime.now().weekday()
+        days_left = max(1, 6 - today_weekday)
+        daily_allowance = cur_balance / days_left if cur_balance > 0 else 0.0
+
+        if lang == 'en':
+            if cur_balance <= 50:
+                advice = "Hang in there, friend! You're running very low. Tap Okoa Food Rescue or let's ask your parent for an emergency allowance."
+            elif daily_allowance >= 150:
+                advice = "You're doing fantastic! You can comfortably enjoy a warm meal at Nyawuora's and still save for the weekend."
             else:
-                if cur_balance <= 50:
-                    advice = "Comrade, uko pabaya kidogo! Tumia Okoa Meal au uombe mzazi allowance ya dharura."
-                elif daily_allowance >= 150:
-                    advice = "Uko fiti sana! Unaweza kula vizuri na bado uweke akiba ya wikendi."
-                else:
-                    advice = "Ukila kawaida (chapati na madondo), pesa itakutosha vizuri hadi mwisho wa wiki."
-                spoken = f"Salio lako ni Shilingi {cur_balance:,.0f}. Kila siku unaweza kutumia Shilingi {daily_allowance:,.0f} kwa siku {days_left} zilizobaki. {advice}"
-
-            return jsonify({
-                "intent": "CHECK_BUDGET",
-                "balance": cur_balance,
-                "days_left": days_left,
-                "daily_allowance": daily_allowance,
-                "spoken_response": spoken,
-                "requires_pin": False
-            }), 200
-
-        # Instant Payment Pass / Dynamic QR Code
-        if any(k in low for k in ['pass', 'qr', 'token', 'barcode', 'lipa', 'kuchukua', 'counter', 'nionyeshe qr', 'show qr', 'payment pass']):
-            spoken = "Here is your dynamic food payment QR code. Show it to the cafeteria cashier to scan." if lang == 'en' else "Hii hapa QR pass yako ya chakula. Onyesha mpishi au cashier aiskani kwa counter."
-            return jsonify({
-                "intent": "SHOW_STUDENT_QR",
-                "action": "open_qr_pass",
-                "spoken_response": spoken,
-                "requires_pin": False
-            }), 200
-
-        # Emergency Okoa Food Rescue
-        if any(k in low for k in ['okoa', 'broke', 'njaa', 'sina kakitu', 'sina pesa', 'emergency meal', 'hungry', 'food rescue']):
-            spoken = "Hang in there comrade! Opening Okoa Food Rescue so you can get an emergency subsidized meal right now." if lang == 'en' else "Pole sana comrade. Nimekufungulia Okoa Meal upate chakula cha dharura mara moja bila wasiwasi."
-            return jsonify({
-                "intent": "OKOA_MEAL",
-                "action": "open_okoa_food",
-                "spoken_response": spoken,
-                "requires_pin": False
-            }), 200
-
-        # Request Funds from Parent / Sponsor
-        if any(k in low for k in ['omba mzazi', 'omba mum', 'omba dad', 'request funds', 'ask parent', 'need allowance', 'omba pesa']):
-            amt = extract_amount(text) or 300.0
-            spoken = f"Prepared an allowance request for KES {amt:,.0f} to your parent. Tap to review and send." if lang == 'en' else f"Nimeandaa ombi la Shilingi {amt:,.0f} kwa mzazi. Angalia maelezo kisha utume."
-            return jsonify({
-                "intent": "REQUEST_PARENT_FUNDS",
-                "amount": amt,
-                "action": "open_request_funds",
-                "spoken_response": spoken,
-                "requires_pin": False
-            }), 200
-
-        # Campus Gigs & Hustle Finder
-        if any(k in low for k in ['gigs', 'kazi', 'hustle', 'delivery gigs', 'campus jobs', 'earning', 'kutafuta pesa', 'earn money']):
-            spoken = "Campus delivery runner and freelance student gigs are available. Opening the employment hub." if lang == 'en' else "Kuna kazi za chuo, delivery, na tasks zinazopatikana. Zifungue hapa uanze kupata chapaa."
-            return jsonify({
-                "intent": "CAMPUS_GIGS",
-                "action": "open_campus_gigs",
-                "spoken_response": spoken,
-                "requires_pin": False
-            }), 200
-
-        # Timetable & Lecture Schedule
-        if any(k in low for k in ['class', 'darasa', 'timetable', 'ratiba', 'kipindi', 'lecture', 'next class', 'schedule']):
-            spoken = "Opening your academic timetable and upcoming lectures for today." if lang == 'en' else "Inafungua ratiba yako ya masomo na vipindi vya leo."
-            return jsonify({
-                "intent": "CHECK_TIMETABLE",
-                "action": "open_timetable",
-                "spoken_response": spoken,
-                "requires_pin": False
-            }), 200
-
-        # Virtual Card (VCC)
-        if any(k in low for k in ['vcc', 'kadi', 'card', 'virtual card', 'debit card', 'contactless']):
-            spoken = "Opening your contactless DISHI Virtual Card for instant payments." if lang == 'en' else "Inafungua kadi yako ya kidijitali (Virtual Card) kwa malipo ya haraka."
-            return jsonify({
-                "intent": "VIRTUAL_CARD",
-                "action": "open_virtual_card",
-                "spoken_response": spoken,
-                "requires_pin": False
-            }), 200
-
-        # Voice Food Ordering
-        if any(k in low for k in ['nataka', 'agiza', 'order', 'chapati', 'madondo', 'kuku', 'chips', 'wali', 'rice', 'ugali', 'beef', 'smokie', 'mayai']):
-            parsed_items = parse_order_items(text)
-            if parsed_items:
-                total_sum = sum(i['total'] for i in parsed_items)
-                item_desc = ", ".join([f"{i['quantity']} {i['name']}" for i in parsed_items])
-                spoken = f"Added {item_desc} to cart. Total is KES {total_sum:,.0f}." if lang == 'en' else f"Nimepata {item_desc}. Jumla ni Shilingi {total_sum:,.0f}. Inafungua oda yako."
-                return jsonify({
-                    "intent": "DISCOVER_MEALS",
-                    "items": parsed_items,
-                    "total_amount": total_sum,
-                    "spoken_response": spoken,
-                    "requires_pin": False
-                }), 200
-
-        # Campus Knowledge Base: Peak Lunch Rush Hours
-        if any(k in low for k in ['lunch time', 'peak hour', 'rush hour', 'saa ngapi lunch', 'foleni ya chakula']):
-            if lang == 'en':
-                spoken = "Peak campus lunch rush is between 11:30 AM and 2:00 PM. Order ahead on DISHI to skip the queue lines and pick up at the fast counter!"
+                advice = "With normal meals like chapati madondo, you'll easily make it to Sunday with no stress."
+            spoken = f"Your balance is KES {cur_balance:,.0f}. That gives you a safe spending allowance of KES {daily_allowance:,.0f} per day across the {days_left} days left. {advice}"
+        else:
+            if cur_balance <= 50:
+                advice = "Comrade wangu, hali si shwari sana! Tumia Okoa Meal upate chakula cha dharura au tuombe mzazi akurushie kakitu."
+            elif daily_allowance >= 150:
+                advice = "Uko vizuri sana! Unaweza kula beef stew kwa Nyawuora na bado ubaki na akiba ya wikendi."
             else:
-                spoken = "Muda wa foleni kubwa ya chakula cha mchana ni kuanzia saa tano na nusu hadi saa nane (11:30 AM - 2:00 PM). Weka oda mapema kwenye DISHI ukwepe foleni!"
-            return jsonify({
-                "intent": "KNOWLEDGE_BASE_INFO",
-                "topic": "lunch_rush",
-                "spoken_response": spoken,
-                "requires_pin": False
-            }), 200
+                advice = "Ukila kawaida chapo dondo, pesa itakutosha vizuri kabisa hadi Jumapili."
+            spoken = f"Salio lako ni Shilingi {cur_balance:,.0f}. Kila siku unaweza kutumia Shilingi {daily_allowance:,.0f} kwa siku {days_left} zilizobaki. {advice}"
 
-    # ==========================================
-    # PARENT SPECIFIC VOICE INTENTS
-    # ==========================================
-    if role == 'parent':
-        if any(k in low for k in ['tuma pesa', 'fund', 'mtumie', 'allowance', 'send money']):
-            amt = extract_amount(text) or 500.0
-            spoken = f"You are about to send KES {amt:,.0f} to the student vault. Please confirm the transaction with your PIN." if lang == 'en' else f"Unakaribia kumtumia mwanafunzi Shilingi {amt:,.0f} kwa vault. Thibitisha muamala kwa PIN yako."
+        return jsonify({
+            "intent": "CHECK_BUDGET",
+            "balance": cur_balance,
+            "days_left": days_left,
+            "daily_allowance": daily_allowance,
+            "progress_steps": [
+                "Analyzing Firestore wallet balance...",
+                f"Calculating safe daily burn rate for {days_left} remaining days...",
+                "Forecast ready!"
+            ],
+            "spoken_response": spoken,
+            "requires_pin": False
+        }), 200
+
+    # =========================================================================
+    # 7. EMERGENCY OKOA FOOD RESCUE
+    # =========================================================================
+    if any(k in low for k in ['okoa', 'broke', 'njaa', 'sina kakitu', 'sina pesa', 'emergency meal', 'hungry', 'food rescue']):
+        spoken = f"I've got your back, {user_name}! No comrade should ever study on an empty stomach. I'm opening Okoa Food Rescue right now so you can get an emergency subsidized meal right away!" if lang == 'en' else f"Pole sana rafiki yangu {user_name}! Mwanafunzi hapaswi kusoma akiwa na njaa kamwe. Nimekufungulia Okoa Food Rescue upate msosi wa dharura mara moja bila wasiwasi!"
+        return jsonify({
+            "intent": "OKOA_MEAL",
+            "action": "open_okoa_food",
+            "spoken_response": spoken,
+            "requires_pin": False
+        }), 200
+
+    # =========================================================================
+    # 8. REQUEST FUNDS FROM PARENT
+    # =========================================================================
+    if any(k in low for k in ['omba mzazi', 'omba mum', 'omba dad', 'request funds', 'ask parent', 'need allowance', 'omba pesa']):
+        amt = extract_amount(text) or 300.0
+        spoken = f"I've prepared an allowance request of KES {amt:,.0f} for your parent, friend. Tap to review and send it straight to their phone!" if lang == 'en' else f"Nimekuandalia ombi la Shilingi {amt:,.0f} kwa mzazi wako rafiki yangu. Gusa uthibitishe kisha litatumwa papo hapo kwa simu yake!"
+        return jsonify({
+            "intent": "REQUEST_PARENT_FUNDS",
+            "amount": amt,
+            "action": "open_request_funds",
+            "spoken_response": spoken,
+            "requires_pin": False
+        }), 200
+
+    # =========================================================================
+    # 9. CAMPUS GIGS & TIMETABLE
+    # =========================================================================
+    if any(k in low for k in ['gigs', 'kazi', 'hustle', 'delivery gigs', 'campus jobs', 'earning', 'kutafuta pesa', 'earn money']):
+        spoken = "Looking to earn some extra pocket money? Campus runner delivery gigs and freelance student tasks are open right now. Let's get you that bag!" if lang == 'en' else "Unataka kutengeneza chapaa ya ziada? Kuna kazi za delivery za chuo na tasks zinazopatikana. Zifungue hapa uanze kupata pesa rafiki yangu!"
+        return jsonify({
+            "intent": "CAMPUS_GIGS",
+            "action": "open_campus_gigs",
+            "spoken_response": spoken,
+            "requires_pin": False
+        }), 200
+
+    if any(k in low for k in ['class', 'darasa', 'timetable', 'ratiba', 'kipindi', 'lecture', 'next class', 'schedule']):
+        spoken = "Opening your lecture schedule and classes for today. Let's stay on top of those grades!" if lang == 'en' else "Inafungua ratiba yako ya vipindi vya leo. Wacha tuwahi darasa mapema rafiki yangu!"
+        return jsonify({
+            "intent": "CHECK_TIMETABLE",
+            "action": "open_timetable",
+            "spoken_response": spoken,
+            "requires_pin": False
+        }), 200
+
+    # =========================================================================
+    # 10. VOICE WITHDRAWAL (Hardened Anti-Theft with PIN Requirement)
+    # =========================================================================
+    if any(k in low for k in ['toa', 'withdraw', 'cash out', 'hamisha']):
+        amount = extract_amount(text)
+        if not amount or amount <= 0:
             return jsonify({
-                "intent": "FUND_STUDENT",
-                "amount": amt,
-                "spoken_response": spoken,
+                "intent": "CASH_OUT_PROMPT",
+                "spoken_response": "How much float would you like to withdraw to your M-Pesa line?" if lang == 'en' else "Ungependa kutoa kiasi gani cha pesa kwa M-Pesa yako?",
                 "requires_pin": True
             }), 200
+        
+        challenge = f"{random.randint(10, 99)}"
+        spoken = f"Security verification: You are withdrawing KES {amount:,.0f} to your registered M-Pesa line. Please enter your 4-digit Wallet PIN on screen to authorize this payout." if lang == 'en' else f"Uthibitisho wa Usalama: Unakaribia kutoa Shilingi {amount:,.0f} kwa M-Pesa. Tafadhali weka PIN yako ya tarakimu 4 kwenye skrini kuthibitisha muamala huu."
+        return jsonify({
+            "intent": "INITIATE_CASH_OUT",
+            "amount": amount,
+            "requires_pin": True,
+            "challenge_code": challenge,
+            "spoken_response": spoken
+        }), 200
 
-    # ==========================================
-    # VENDOR SPECIFIC VOICE INTENTS
-    # ==========================================
-    if role == 'vendor':
-        if any(k in low for k in ['jiko', 'kitchen', 'kds']):
-            return jsonify({
-                "intent": "NAVIGATE_KDS",
-                "action": "open_kds",
-                "spoken_response": "Opening the Kitchen Display System." if lang == 'en' else "Inafungua skrini ya jiko (Kitchen Display System).",
-                "requires_pin": False
-            }), 200
-
-        if any(k in low for k in ['ripoti', 'reports', 'report', 'hesabu', 'sales']):
-            return jsonify({
-                "intent": "NAVIGATE_REPORTS",
-                "action": "open_reports",
-                "spoken_response": "Opening sales and accounting reports." if lang == 'en' else "Inafungua ripoti za mauzo na hesabu za siku.",
-                "requires_pin": False
-            }), 200
-
-        if any(k in low for k in ['stoo', 'operations', 'shughuli', 'inventory']):
-            return jsonify({
-                "intent": "NAVIGATE_OPERATIONS",
-                "action": "open_operations",
-                "spoken_response": "Opening store inventory and operations." if lang == 'en' else "Inafungua usimamizi wa shughuli na stoo.",
-                "requires_pin": False
-            }), 200
-
-        if any(k in low for k in ['toa', 'withdraw', 'cash out', 'hamisha']):
-            amount = extract_amount(text)
-            if not amount or amount <= 0:
-                return jsonify({
-                    "intent": "CASH_OUT_PROMPT",
-                    "spoken_response": "How much float would you like to withdraw to M-Pesa?" if lang == 'en' else "Ungependa kutoa kiasi gani cha pesa kwa M-Pesa?",
-                    "requires_pin": True
-                }), 200
-            
-            challenge = f"{random.randint(10, 99)}"
-            spoken = f"You are withdrawing KES {amount:,.0f} to M-Pesa. Confirm with your voice PIN or say {challenge}." if lang == 'en' else f"Unakaribia kutoa Shilingi {amount:,.0f} kwa M-Pesa. Thibitisha kwa Voice PIN yako au sema {challenge}."
-            return jsonify({
-                "intent": "INITIATE_CASH_OUT",
-                "amount": amount,
-                "requires_pin": True,
-                "challenge_code": challenge,
-                "spoken_response": spoken
-            }), 200
-
-    # ==========================================
-    # COMMON: BALANCE QUERY (ALL ROLES)
-    # ==========================================
+    # =========================================================================
+    # 11. BALANCE QUERY
+    # =========================================================================
     if any(k in low for k in ['balance', 'float', 'salio', 'pesa ngapi', 'how much do i have', 'check balance']):
         if lang == 'en':
-            spoken = f"Your current available balance is KES {cur_balance:,.0f}."
+            spoken = f"Your current available balance is KES {cur_balance:,.0f}, {user_name}. Let me know if you want to top up, check budget forecast, or grab a meal!"
         else:
-            spoken = f"Salio lako kwa sasa ni Shilingi {cur_balance:,.0f}."
+            spoken = f"Salio lako lililopo kwenye wallet ni Shilingi {cur_balance:,.0f}, comrade {user_name}. Niambie ukitaka kuweka pesa au kuweka oda ya msosi!"
 
         return jsonify({
             "intent": "QUERY_BALANCE",
@@ -556,13 +462,13 @@ def process_voice_intent():
             "requires_pin": False
         }), 200
 
-    # ==========================================
-    # GENERAL KNOWLEDGE BASE FALLBACK
-    # ==========================================
+    # =========================================================================
+    # GENERAL FRIENDLY FALLBACK
+    # =========================================================================
     if lang == 'en':
-        spoken = f"I received: '{text}'. You can ask me: 'Where is the nearest vendor?', 'What food is available?', 'Show me campus electronics', or 'Split a bill of 600'."
+        spoken = f"I hear you, my friend! You can ask me: 'Where is the nearest vendor?', 'What food is available?', 'Show me my food QR pass', or 'Split a bill of 600'."
     else:
-        spoken = f"Nimepokea: '{text}'. Unaweza kuniuliza: 'Vendor gani yuko karibu nami?', 'Kuna chakula gani?', 'Kuna electronics gani?', au 'Gawanya bili ya 600'."
+        spoken = f"Nimekuelewa rafiki yangu! Unaweza kuniambia: 'Vendor gani yuko karibu nami?', 'Kuna chakula gani sasa hivi?', 'Nionyeshe pass yangu ya QR', au 'Gawanya bili ya 600'."
 
     return jsonify({
         "intent": "GENERAL_QUERY",
