@@ -16,7 +16,7 @@ const Color _neonPink = Color(0xFFF92B60);
 const Color _neonOrange = Color(0xFFFF6F00);
 const Color _textSecondary = Color(0xFF8B9BB4);
 
-/// Available AI Voice Personas for "Sema na DISHI"
+/// Available AI Voice Personas for "DISHI Voice AI"
 class VoicePersona {
   final String id;
   final String name;
@@ -43,48 +43,224 @@ class VoicePersona {
 
 const List<VoicePersona> kVoicePersonas = [
   VoicePersona(
-    id: 'zawadi',
-    name: 'Zawadi (Chuo Lead)',
-    title: 'Lady • Warm & Friendly (Default)',
-    description: 'Sauti changamfu na ya upendo ya dada wa chuo.',
-    defaultPitch: 1.25,
+    id: 'campus_buddy',
+    name: 'The Campus Buddy',
+    title: 'Warm & Friendly (Default)',
+    description: 'Light, approachable student camaraderie and peer support.',
+    defaultPitch: 1.15,
     defaultRate: 0.52,
     isFemale: true,
-    icon: Icons.face_3,
+    icon: Icons.handshake,
     themeColor: _neonCyan,
   ),
   VoicePersona(
-    id: 'amina',
-    name: 'Amina (Finance & POS)',
-    title: 'Lady • Crisp & Executive',
-    description: 'Sauti rasmi, safi na ya haraka ya biashara na fedha.',
-    defaultPitch: 1.15,
-    defaultRate: 0.58,
+    id: 'nutritionist',
+    name: 'The Professional Nutritionist',
+    title: 'Health & Balanced Wellness',
+    description: 'Focuses on macronutrients, balanced plates, clean fuel, and wellness guidance.',
+    defaultPitch: 1.10,
+    defaultRate: 0.50,
     isFemale: true,
-    icon: Icons.support_agent,
+    icon: Icons.spa,
+    themeColor: Colors.greenAccent,
+  ),
+  VoicePersona(
+    id: 'cashier',
+    name: 'The Swift Canteen Cashier',
+    title: 'High-Efficiency & Speed',
+    description: 'Fast-paced, transactional, rapid checkout, zero line delays.',
+    defaultPitch: 1.05,
+    defaultRate: 0.65,
+    isFemale: true,
+    icon: Icons.point_of_sale,
     themeColor: _neonPink,
   ),
   VoicePersona(
-    id: 'baraka',
-    name: 'Baraka (Mentor)',
-    title: 'Gentleman • Deep Baritone',
-    description: 'Sauti tulivu ya kaka mshauri na mlezi wa chuo.',
-    defaultPitch: 0.85,
-    defaultRate: 0.50,
+    id: 'chef',
+    name: 'The Gourmet Chef',
+    title: 'Culinary Master & Aromas',
+    description: 'Passionate about food quality, flavor profiles, and culinary descriptions.',
+    defaultPitch: 0.95,
+    defaultRate: 0.48,
     isFemale: false,
-    icon: Icons.record_voice_over,
-    themeColor: _neonOrange,
+    icon: Icons.restaurant,
+    themeColor: Colors.amber,
   ),
   VoicePersona(
-    id: 'juma',
-    name: 'Juma (Comrade)',
-    title: 'Gentleman • Sheng & Street-Smart',
-    description: 'Sauti ya comrade wa kitaa, Sheng na uchangamfu wa chuo.',
-    defaultPitch: 0.95,
+    id: 'coach',
+    name: 'The Energetic Coach',
+    title: 'Fitness & Stamina Fuel',
+    description: 'High-energy, motivating, links food choices to energy and workouts.',
+    defaultPitch: 1.00,
+    defaultRate: 0.58,
+    isFemale: false,
+    icon: Icons.fitness_center,
+    themeColor: Colors.deepOrangeAccent,
+  ),
+  VoicePersona(
+    id: 'wise_elder',
+    name: 'The Wise Elder / Mentor',
+    title: 'Patient & Grounded Counsel',
+    description: 'Patient, thoughtful counsel on student budgeting and wholesome habits.',
+    defaultPitch: 0.85,
+    defaultRate: 0.45,
+    isFemale: false,
+    icon: Icons.psychology,
+    themeColor: Colors.teal,
+  ),
+  VoicePersona(
+    id: 'gen_z',
+    name: 'The Gen-Z Campus Insider',
+    title: 'Trendy & Campus Slang',
+    description: 'Trendy, upbeat, modern campus slang and authentic vibes.',
+    defaultPitch: 1.20,
+    defaultRate: 0.56,
+    isFemale: true,
+    icon: Icons.auto_awesome,
+    themeColor: Colors.purpleAccent,
+  ),
+  VoicePersona(
+    id: 'accountant',
+    name: 'The Strict Budget Accountant',
+    title: 'Frugality & Cash Conservation',
+    description: 'Ultra-focused on stretching allowances, cost per calorie, and wallet protection.',
+    defaultPitch: 1.00,
+    defaultRate: 0.52,
+    isFemale: false,
+    icon: Icons.account_balance_wallet,
+    themeColor: Colors.blueAccent,
+  ),
+  VoicePersona(
+    id: 'mama_njeri',
+    name: 'Mama Njeri (Canteen Matriarch)',
+    title: 'Maternal & Caring Family Love',
+    description: 'Maternal care, treats every student like family ("Umekula vizuri leo?").',
+    defaultPitch: 1.22,
+    defaultRate: 0.48,
+    isFemale: true,
+    icon: Icons.favorite,
+    themeColor: Colors.pinkAccent,
+  ),
+  VoicePersona(
+    id: 'tech_geek',
+    name: 'The Tech-Geek / AI Assistant',
+    title: 'System Optimization & Logic',
+    description: 'Analytical, system-oriented, performance optimization and clean APIs.',
+    defaultPitch: 1.08,
     defaultRate: 0.55,
     isFemale: false,
-    icon: Icons.sports_kabaddi,
-    themeColor: Colors.purpleAccent,
+    icon: Icons.memory,
+    themeColor: Colors.cyanAccent,
+  ),
+  VoicePersona(
+    id: 'musician',
+    name: 'The Acoustic Musician',
+    title: 'Laid-Back Rhythm & Poetry',
+    description: 'Poetic, relaxed conversational rhythm with a soothing melodic cadence.',
+    defaultPitch: 0.90,
+    defaultRate: 0.46,
+    isFemale: false,
+    icon: Icons.music_note,
+    themeColor: Colors.indigoAccent,
+  ),
+  VoicePersona(
+    id: 'study_partner',
+    name: 'The Midnight Study Partner',
+    title: 'Exam Cram & Brain Fuel',
+    description: 'Late-night cravings, coffee runs, and sustained focus fuel for studies.',
+    defaultPitch: 1.05,
+    defaultRate: 0.50,
+    isFemale: true,
+    icon: Icons.menu_book,
+    themeColor: Colors.lightGreenAccent,
+  ),
+  VoicePersona(
+    id: 'eco_activist',
+    name: 'The Eco-Conscious Activist',
+    title: 'Sustainability & Zero Waste',
+    description: 'Champions sustainability, zero-waste food choices, and local ethical sourcing.',
+    defaultPitch: 1.12,
+    defaultRate: 0.52,
+    isFemale: true,
+    icon: Icons.eco,
+    themeColor: Colors.lightGreen,
+  ),
+  VoicePersona(
+    id: 'hype_man',
+    name: 'The Hype Man',
+    title: 'Maximum Stadium Energy',
+    description: 'Extremely enthusiastic, celebrating every single meal order like a champion win.',
+    defaultPitch: 1.25,
+    defaultRate: 0.60,
+    isFemale: false,
+    icon: Icons.campaign,
+    themeColor: Colors.yellowAccent,
+  ),
+  VoicePersona(
+    id: 'sarcastic_roommate',
+    name: 'The Sarcastic Roommate',
+    title: 'Dry Wit & Playful Banter',
+    description: 'Witty, dry humor, playful banter while getting things done.',
+    defaultPitch: 0.98,
+    defaultRate: 0.54,
+    isFemale: false,
+    icon: Icons.sentiment_very_satisfied,
+    themeColor: Colors.orangeAccent,
+  ),
+  VoicePersona(
+    id: 'zen_guide',
+    name: 'The Zen Mindfulness Guide',
+    title: 'Calm & Mindful Dining',
+    description: 'Calm, meditative, promotes mindful eating, gratitude, and peaceful pacing.',
+    defaultPitch: 0.88,
+    defaultRate: 0.42,
+    isFemale: true,
+    icon: Icons.self_improvement,
+    themeColor: Colors.cyan,
+  ),
+  VoicePersona(
+    id: 'history_buff',
+    name: 'The History Buff',
+    title: 'Historical Origins & Heritage',
+    description: 'Relates campus meals to interesting historical fun facts and cultural culinary origins.',
+    defaultPitch: 0.96,
+    defaultRate: 0.49,
+    isFemale: false,
+    icon: Icons.account_balance,
+    themeColor: Colors.brown,
+  ),
+  VoicePersona(
+    id: 'disciplinarian',
+    name: 'The Strict Disciplinarian',
+    title: 'Order, Precision & Protocol',
+    description: 'Formal, orderly, precise, respectful, and punctual.',
+    defaultPitch: 0.92,
+    defaultRate: 0.51,
+    isFemale: false,
+    icon: Icons.military_tech,
+    themeColor: Colors.blueGrey,
+  ),
+  VoicePersona(
+    id: 'festival_coordinator',
+    name: 'The Festival Coordinator',
+    title: 'Festive Weekend Treats',
+    description: 'Upbeat, celebratory energy tailored for weekend treats and campus events.',
+    defaultPitch: 1.18,
+    defaultRate: 0.55,
+    isFemale: true,
+    icon: Icons.celebration,
+    themeColor: Colors.pink,
+  ),
+  VoicePersona(
+    id: 'minimalist',
+    name: 'The Minimalist',
+    title: 'Ultra-Concise Zero Fluff',
+    description: 'Direct, ultra-concise, zero fluff, straight to the point.',
+    defaultPitch: 1.00,
+    defaultRate: 0.58,
+    isFemale: true,
+    icon: Icons.short_text,
+    themeColor: Colors.white70,
   ),
 ];
 
@@ -130,14 +306,15 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
   bool _isListening = false;
   bool _isProcessing = false;
   String _recognizedWords = '';
-  String _assistantSpeech = 'Ninakusikiliza... Taja agizo, uliza salio, au sema amri yoyote.';
+  String _assistantSpeech = 'Listening... Ask about vendors, menus, wallet balance, or split bills.';
   String? _detectedIntent;
   bool _requiresPin = false;
   String? _challengeCode;
 
-  // Voice Persona and Audio Settings (Default is African Lady Voice: Zawadi)
+  // Active Voice Persona & Language (Default is English and The Campus Buddy)
   VoicePersona _selectedPersona = kVoicePersonas[0];
-  double _pitch = 1.25;
+  String _currentLanguage = 'en'; // 'en' | 'sw' | 'sheng' | 'fr' | 'es'
+  double _pitch = 1.15;
   double _speechRate = 0.52;
 
   final TextEditingController _textFallbackController = TextEditingController();
@@ -159,7 +336,8 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
   Future<void> _initAudioAndPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedPersonaId = prefs.getString('sema_dishi_voice_persona') ?? 'zawadi';
+      final savedPersonaId = prefs.getString('sema_dishi_voice_persona') ?? 'campus_buddy';
+      final savedLang = prefs.getString('sema_dishi_voice_language') ?? 'en';
       final persona = kVoicePersonas.firstWhere(
         (p) => p.id == savedPersonaId,
         orElse: () => kVoicePersonas[0],
@@ -171,8 +349,12 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
       if (mounted) {
         setState(() {
           _selectedPersona = persona;
+          _currentLanguage = savedLang;
           _pitch = savedPitch;
           _speechRate = savedRate;
+          _assistantSpeech = _currentLanguage == 'en'
+              ? 'Listening (${_selectedPersona.name.split(' ')[0]})... State an order, check balance, or ask anything.'
+              : 'Ninakusikiliza (${_selectedPersona.name.split(' ')[0]})... Taja agizo, uliza salio, au sema amri yoyote.';
         });
       }
 
@@ -181,17 +363,24 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
       await _applyTtsSettings();
     }
 
-    // Auto-start listening on modal presentation
     _startListening();
   }
 
   Future<void> _applyTtsSettings() async {
     try {
-      await _flutterTts.setLanguage("sw-KE"); // Prefer Kenyan Swahili
+      String ttsLocale = "en-US";
+      if (_currentLanguage == 'sw' || _currentLanguage == 'sheng') {
+        ttsLocale = "sw-KE";
+      } else if (_currentLanguage == 'fr') {
+        ttsLocale = "fr-FR";
+      } else if (_currentLanguage == 'es') {
+        ttsLocale = "es-ES";
+      }
+
+      await _flutterTts.setLanguage(ttsLocale);
       await _flutterTts.setPitch(_pitch);
       await _flutterTts.setSpeechRate(_speechRate);
 
-      // Inspect hardware device voices to pick female voice by default if available
       final dynamic rawVoices = await _flutterTts.getVoices;
       if (rawVoices is List) {
         for (var v in rawVoices) {
@@ -226,6 +415,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('sema_dishi_voice_persona', _selectedPersona.id);
+      await prefs.setString('sema_dishi_voice_language', _currentLanguage);
       await prefs.setDouble('sema_dishi_voice_pitch', _pitch);
       await prefs.setDouble('sema_dishi_voice_rate', _speechRate);
     } catch (_) {}
@@ -236,7 +426,9 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
       await _flutterTts.stop();
       await _flutterTts.setPitch(_pitch);
       await _flutterTts.setSpeechRate(_speechRate);
-      await _flutterTts.speak(message);
+      // Clean markdown symbols before TTS execution so voice never says asterisks or hashes
+      final clean = message.replaceAll(RegExp(r'[*#_~`>\[\]\(\)]'), ' ').trim();
+      await _flutterTts.speak(clean);
     } catch (_) {}
   }
 
@@ -244,7 +436,9 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
     HapticFeedback.mediumImpact();
     setState(() {
       _recognizedWords = '';
-      _assistantSpeech = 'Ninakusikiliza (${_selectedPersona.name.split(' ')[0]})...';
+      _assistantSpeech = _currentLanguage == 'en'
+          ? 'Listening (${_selectedPersona.name.split(' ')[0]})...'
+          : 'Ninakusikiliza (${_selectedPersona.name.split(' ')[0]})...';
       _isListening = true;
     });
 
@@ -276,19 +470,24 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
           },
           listenOptions: stt.SpeechListenOptions(
             listenMode: stt.ListenMode.confirmation,
+            localeId: _currentLanguage == 'sw' || _currentLanguage == 'sheng' ? 'sw_KE' : 'en_US',
           ),
         );
       } else {
         setState(() {
           _isListening = false;
-          _assistantSpeech = 'Maikrofoni haipatikani. Tumia kisanduku cha maandishi hapa chini.';
+          _assistantSpeech = _currentLanguage == 'en'
+              ? 'Microphone unavailable. Use the text box below.'
+              : 'Maikrofoni haipatikani. Tumia kisanduku cha maandishi hapa chini.';
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isListening = false;
-          _assistantSpeech = 'Hitilafu ya sauti. Unaweza kuandika amri yako hapa chini.';
+          _assistantSpeech = _currentLanguage == 'en'
+              ? 'Voice error. You can type your command below.'
+              : 'Hitilafu ya sauti. Unaweza kuandika amri yako hapa chini.';
         });
       }
     }
@@ -307,7 +506,9 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
     await _stopListening();
     setState(() {
       _isProcessing = true;
-      _assistantSpeech = 'Inachakata: "$clean"...';
+      _assistantSpeech = _currentLanguage == 'en'
+          ? 'Processing: "$clean"...'
+          : 'Inachakata: "$clean"...';
     });
 
     try {
@@ -317,6 +518,8 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
           'text': clean,
           'role': widget.role,
           'uid': widget.userUid ?? '',
+          'active_persona': _selectedPersona.id,
+          'language': _currentLanguage,
         },
       );
 
@@ -338,12 +541,30 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         final intent = data['intent'] ?? 'GENERAL';
-        final spoken = data['spoken_response'] ?? 'Sawa rafiki yangu.';
+        final spoken = data['spoken_response'] ?? 'Understood, comrade.';
         final reqPin = data['requires_pin'] ?? false;
         final challenge = data['challenge_code'] as String?;
         final progressSteps = (data['progress_steps'] as List?)?.cast<String>() ?? [];
 
-        // Interactive execution & progress updates
+        // Check if dynamic language or persona switch occurred on the backend
+        final returnedPersona = data['active_persona'] as String?;
+        final returnedLang = data['active_language'] as String?;
+
+        if (returnedPersona != null && returnedPersona != _selectedPersona.id) {
+          final matched = kVoicePersonas.firstWhere((p) => p.id == returnedPersona, orElse: () => _selectedPersona);
+          _selectedPersona = matched;
+          _pitch = matched.defaultPitch;
+          _speechRate = matched.defaultRate;
+          _savePreferences();
+        }
+
+        if (returnedLang != null && returnedLang != _currentLanguage) {
+          _currentLanguage = returnedLang;
+          _savePreferences();
+          await _applyTtsSettings();
+        }
+
+        // Animate execution progress steps
         if (progressSteps.isNotEmpty && mounted) {
           for (final step in progressSteps) {
             if (!mounted) break;
@@ -365,14 +586,12 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
 
           await _speakResponse(spoken);
 
-          // If intent is dismissal, pop automatically after brief pause
           if (intent == 'DISMISS_VOICE') {
             await Future.delayed(const Duration(milliseconds: 1400));
             if (mounted) Navigator.pop(context);
             return;
           }
 
-          // If action callback passed, notify parent view
           if (widget.onAction != null) {
             widget.onAction!(intent, data);
           }
@@ -381,7 +600,9 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
         if (mounted) {
           setState(() {
             _isProcessing = false;
-            _assistantSpeech = 'Samahani, sijapata mtandao vizuri. Tafadhali jaribu tena.';
+            _assistantSpeech = _currentLanguage == 'en'
+                ? 'Could not connect with voice service. Please try again.'
+                : 'Samahani, sikupata jibu la haraka. Jaribu tena tafadhali.';
           });
         }
       }
@@ -389,24 +610,28 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
       if (mounted) {
         setState(() {
           _isProcessing = false;
-          _assistantSpeech = 'Hitilafu ya mtandao: $e';
+          _assistantSpeech = _currentLanguage == 'en'
+              ? 'Network interruption. Try again.'
+              : 'Hitilafu ya mtandao. Jaribu tena.';
         });
       }
     }
   }
 
-  /// Voice Persona Switcher & Audio Tuner Modal
   void _openVoiceSettingsSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: _cardColor,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      backgroundColor: Colors.transparent,
       builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, setSheetState) => Padding(
-          padding: const EdgeInsets.all(24),
+        builder: (ctx, setSheetState) => Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          decoration: const BoxDecoration(
+            color: _bgColor,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -416,7 +641,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
                     children: [
                       Icon(Icons.tune, color: _neonCyan, size: 22),
                       SizedBox(width: 8),
-                      Text('Voice Personas & Tuner', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text('DISHI Voice AI Personas', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   IconButton(
@@ -426,70 +651,95 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
                 ],
               ),
               const Divider(color: Colors.white12),
-              const SizedBox(height: 10),
-              const Text('Chagua Sauti ya DISHI (Lady Voice by Default):', style: TextStyle(color: _textSecondary, fontSize: 12)),
+              const SizedBox(height: 8),
+
+              // Language Selector Chips
+              const Text('Active Language (Default: English):', style: TextStyle(color: _textSecondary, fontSize: 12)),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildLangChip(setSheetState, 'en', '🇺🇸 English (Default)'),
+                    _buildLangChip(setSheetState, 'sw', '🇰🇪 Kiswahili'),
+                    _buildLangChip(setSheetState, 'sheng', '🔥 Sheng'),
+                    _buildLangChip(setSheetState, 'fr', '🇫🇷 Français'),
+                    _buildLangChip(setSheetState, 'es', '🇪🇸 Español'),
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 14),
+              Text('Select Persona (20 Personas Available):', style: TextStyle(color: _neonCyan.withValues(alpha: 0.9), fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
 
-              // 4 Persona Selection Cards
-              ...kVoicePersonas.map((persona) {
-                final isSelected = persona.id == _selectedPersona.id;
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: isSelected ? persona.themeColor.withValues(alpha: 0.12) : _surfaceLight,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSelected ? persona.themeColor : Colors.white10,
-                      width: isSelected ? 1.5 : 1,
-                    ),
-                  ),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: persona.themeColor.withValues(alpha: 0.2),
-                      child: Icon(persona.icon, color: persona.themeColor),
-                    ),
-                    title: Row(
-                      children: [
-                        Text(persona.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                        if (persona.isFemale) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: _neonCyan.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
-                            child: const Text('Lady', style: TextStyle(color: _neonCyan, fontSize: 9, fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                        if (persona.id == 'zawadi') ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: _neonOrange.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
-                            child: const Text('Default', style: TextStyle(color: _neonOrange, fontSize: 9, fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ],
-                    ),
-                    subtitle: Text(persona.description, style: const TextStyle(color: _textSecondary, fontSize: 11)),
-                    trailing: isSelected ? Icon(Icons.check_circle, color: persona.themeColor) : null,
-                    onTap: () {
-                      setSheetState(() {
-                        _selectedPersona = persona;
-                        _pitch = persona.defaultPitch;
-                        _speechRate = persona.defaultRate;
-                      });
-                      setState(() {
-                        _selectedPersona = persona;
-                        _pitch = persona.defaultPitch;
-                        _speechRate = persona.defaultRate;
-                      });
-                      _applyTtsSettings();
-                      _savePreferences();
-                    },
-                  ),
-                );
-              }),
+              // 20 Persona Cards Scrollable List
+              Expanded(
+                child: ListView.builder(
+                  itemCount: kVoicePersonas.length,
+                  itemBuilder: (context, index) {
+                    final persona = kVoicePersonas[index];
+                    final isSelected = persona.id == _selectedPersona.id;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? persona.themeColor.withValues(alpha: 0.12) : _surfaceLight,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? persona.themeColor : Colors.white10,
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: ListTile(
+                        dense: true,
+                        leading: CircleAvatar(
+                          backgroundColor: persona.themeColor.withValues(alpha: 0.2),
+                          child: Icon(persona.icon, color: persona.themeColor, size: 20),
+                        ),
+                        title: Row(
+                          children: [
+                            Text(persona.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                            if (persona.isFemale) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(color: _neonCyan.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
+                                child: const Text('Lady', style: TextStyle(color: _neonCyan, fontSize: 8, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                            if (persona.id == 'campus_buddy') ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(color: _neonOrange.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
+                                child: const Text('Default', style: TextStyle(color: _neonOrange, fontSize: 8, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ],
+                        ),
+                        subtitle: Text(persona.description, style: const TextStyle(color: _textSecondary, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
+                        trailing: isSelected ? Icon(Icons.check_circle, color: persona.themeColor, size: 20) : null,
+                        onTap: () {
+                          setSheetState(() {
+                            _selectedPersona = persona;
+                            _pitch = persona.defaultPitch;
+                            _speechRate = persona.defaultRate;
+                          });
+                          setState(() {
+                            _selectedPersona = persona;
+                            _pitch = persona.defaultPitch;
+                            _speechRate = persona.defaultRate;
+                          });
+                          _applyTtsSettings();
+                          _savePreferences();
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               // Audition Voice Button
               SizedBox(
                 width: double.infinity,
@@ -501,19 +751,22 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   icon: const Icon(Icons.play_arrow, size: 20),
-                  label: Text('Jaribu Sauti: ${_selectedPersona.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  label: Text('Audition Voice: ${_selectedPersona.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   onPressed: () {
-                    _speakResponse("Hujambo comrade! Mimi ni ${_selectedPersona.name.split(' ')[0]}, msaidizi wako wa sauti wa DISHI.");
+                    final preview = _currentLanguage == 'en'
+                        ? "Hello comrade! I am ${_selectedPersona.name}, your DISHI Voice AI."
+                        : "Hujambo comrade! Mimi ni ${_selectedPersona.name}, msaidizi wako wa sauti wa DISHI.";
+                    _speakResponse(preview);
                   },
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               // Pitch Slider
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Mwangwi wa Sauti (Pitch):', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  const Text('Pitch:', style: TextStyle(color: Colors.white, fontSize: 12)),
                   Text('${_pitch.toStringAsFixed(2)}x', style: const TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
                 ],
               ),
@@ -535,7 +788,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Kasi ya Maongezi (Speed):', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  const Text('Speed:', style: TextStyle(color: Colors.white, fontSize: 12)),
                   Text('${_speechRate.toStringAsFixed(2)}x', style: const TextStyle(color: _neonOrange, fontSize: 12, fontWeight: FontWeight.bold)),
                 ],
               ),
@@ -555,6 +808,28 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLangChip(StateSetter setSheetState, String code, String label) {
+    final isSelected = _currentLanguage == code;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: ChoiceChip(
+        label: Text(label, style: TextStyle(color: isSelected ? Colors.black : Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+        selected: isSelected,
+        selectedColor: _neonCyan,
+        backgroundColor: _cardColor,
+        side: BorderSide(color: isSelected ? _neonCyan : Colors.white12),
+        onSelected: (val) {
+          if (val) {
+            setSheetState(() => _currentLanguage = code);
+            setState(() => _currentLanguage = code);
+            _applyTtsSettings();
+            _savePreferences();
+          }
+        },
       ),
     );
   }
@@ -614,7 +889,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
                       Row(
                         children: [
                           const Text(
-                            'Sema na DISHI',
+                            'DISHI Voice AI',
                             style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(width: 6),
@@ -629,10 +904,22 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
                               style: TextStyle(color: _selectedPersona.themeColor, fontSize: 10, fontWeight: FontWeight.bold),
                             ),
                           ),
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white12,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _currentLanguage.toUpperCase(),
+                              style: const TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold),
+                            ),
+                          ),
                         ],
                       ),
                       Text(
-                        'Voice AI • ${_selectedPersona.title}',
+                        _selectedPersona.title,
                         style: const TextStyle(color: _textSecondary, fontSize: 11),
                       ),
                     ],
@@ -643,7 +930,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
                 children: [
                   IconButton(
                     icon: const Icon(Icons.tune, color: _neonCyan, size: 22),
-                    tooltip: 'Badili Sauti (Voice Settings)',
+                    tooltip: 'Voice Personas & Language',
                     onPressed: _openVoiceSettingsSheet,
                   ),
                   IconButton(
@@ -656,7 +943,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
           ),
           const SizedBox(height: 20),
 
-          // Multi-Bar Frequency Soundwave Equalizer (When Listening)
+          // Equalizer Soundwaves
           if (_isListening) ...[
             AnimatedBuilder(
               animation: _pulseController,
@@ -691,7 +978,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
             const SizedBox(height: 12),
           ],
 
-          // Central Pulsing Microphone Animation
+          // Central Microphone Button
           AnimatedBuilder(
             animation: _pulseController,
             builder: (context, child) {
@@ -737,8 +1024,10 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
 
           Text(
             _isListening
-                ? 'Ninakusikiliza... Sema sasa'
-                : (_isProcessing ? 'Inachakata agizo lako...' : 'Gusa maikrofoni kuongea'),
+                ? (_currentLanguage == 'en' ? 'Listening... Speak now' : 'Ninakusikiliza... Sema sasa')
+                : (_isProcessing
+                    ? (_currentLanguage == 'en' ? 'Processing command...' : 'Inachakata agizo lako...')
+                    : (_currentLanguage == 'en' ? 'Tap mic to speak' : 'Gusa maikrofoni kuongea')),
             style: TextStyle(
               color: _isListening ? _selectedPersona.themeColor : _textSecondary,
               fontSize: 13,
@@ -747,7 +1036,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
           ),
           const SizedBox(height: 12),
 
-          // Transcribed Text Container
+          // Transcribed Text & Spoken Container
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -797,7 +1086,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
             ),
           ),
 
-          // Security Challenge Prompt (if needed)
+          // Security Challenge Prompt
           if (_requiresPin) ...[
             const SizedBox(height: 12),
             Container(
@@ -813,7 +1102,9 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Uthibitisho wa Usalama: Taja nambari $_challengeCode au weka PIN yako.',
+                      _currentLanguage == 'en'
+                          ? 'Security Verification: State code $_challengeCode or enter your Wallet PIN.'
+                          : 'Uthibitisho wa Usalama: Taja nambari $_challengeCode au weka PIN yako.',
                       style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ),
@@ -824,7 +1115,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
 
           const SizedBox(height: 16),
 
-          // Role-Adaptive Fast Speech Chips
+          // Adaptive Speech Suggestion Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -833,7 +1124,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
           ),
           const SizedBox(height: 16),
 
-          // Text Fallback Field (for quiet or noisy locations)
+          // Text Fallback Field
           Row(
             children: [
               Expanded(
@@ -841,9 +1132,9 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
                   controller: _textFallbackController,
                   style: const TextStyle(color: Colors.white, fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: widget.role == 'student'
-                        ? 'Au andika (mf. Nitatoboa wiki hii?)...'
-                        : 'Au andika hapa (mf. Fungua jiko)...',
+                    hintText: _currentLanguage == 'en'
+                        ? 'Or type here (e.g. Nearest vendor)...'
+                        : 'Au andika hapa (mf. Vendor wa karibu)...',
                     hintStyle: const TextStyle(color: _textSecondary, fontSize: 12),
                     filled: true,
                     fillColor: _cardColor,
@@ -879,34 +1170,29 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
   }
 
   List<Widget> _getPromptChipsForRole() {
-    if (widget.role == 'student') {
+    if (_currentLanguage == 'en') {
       return [
-        _buildPromptChip('Nitatoboa wiki hii?'),
-        _buildPromptChip('Nipe pass yangu ya QR'),
-        _buildPromptChip('Omba mzazi Ksh 500'),
-        _buildPromptChip('Okoa chakula'),
-        _buildPromptChip('Kuna hustle gani leo?'),
-        _buildPromptChip('Gawanya bili ya 400'),
-        _buildPromptChip('Class yangu inayofuata?'),
-        _buildPromptChip('Weka chapati mbili madondo'),
-        _buildPromptChip('Fungua kadi ya VCC'),
-        _buildPromptChip('Fungua supermarket'),
-      ];
-    } else if (widget.role == 'parent') {
-      return [
-        _buildPromptChip('Mtumie mwanafunzi Ksh 500'),
-        _buildPromptChip('Angalia ripoti ya lishe'),
-        _buildPromptChip('Salio la vault ni ngapi?'),
-        _buildPromptChip('Angalia mtoto yuko wapi'),
+        _buildPromptChip('Where is the nearest vendor?'),
+        _buildPromptChip('What food is available?'),
+        _buildPromptChip('Show my food QR pass'),
+        _buildPromptChip('Check my wallet balance'),
+        _buildPromptChip('Order 2 chapo dondo'),
+        _buildPromptChip('Split a bill of 600'),
+        _buildPromptChip('What should I eat? (Dietary)'),
+        _buildPromptChip('Will I survive this week?'),
+        _buildPromptChip('Emergency food rescue'),
       ];
     } else {
       return [
+        _buildPromptChip('Vendor gani yuko karibu?'),
+        _buildPromptChip('Kuna chakula gani sasa?'),
+        _buildPromptChip('Nipe pass yangu ya QR'),
+        _buildPromptChip('Salio langu ni ngapi?'),
         _buildPromptChip('Weka chapati mbili madondo'),
-        _buildPromptChip('Fungua jiko (KDS)'),
-        _buildPromptChip('Nimebaki na float ngapi?'),
-        _buildPromptChip('Tiketi 12 iko tayari'),
-        _buildPromptChip('Toa Ksh 1,000 kwa M-Pesa'),
-        _buildPromptChip('Fungua ripoti za mauzo'),
+        _buildPromptChip('Gawanya bili ya 600'),
+        _buildPromptChip('Ushauri wa lishe bora'),
+        _buildPromptChip('Nitatoboa wiki hii?'),
+        _buildPromptChip('Okoa chakula'),
       ];
     }
   }
