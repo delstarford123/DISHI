@@ -6,6 +6,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'dishi_voice_models.dart';
 import 'api_config.dart';
@@ -35,6 +36,7 @@ import '../../features/vendor/presentation/finance/payout_hub_view.dart';
 import '../../features/parent/presentation/parent_dashboard_view.dart';
 import '../../features/student/presentation/dynamic_qr_dialog.dart';
 import '../../features/match/presentation/match_campus_idol_view.dart';
+import '../../features/parent/presentation/parent_live_tracking_view.dart';
 
 /// Central Persistent Voice Assistant Service for DISHI ("Sema na DISHI")
 /// Keeps voice listening online continuously across the entire app once activated,
@@ -76,11 +78,17 @@ class DishiVoiceService {
   String get currentLanguage => _currentLanguage;
   String get voiceGender => _voiceGender;
 
-  /// Initialize speech engines and load stored voice preferences
-  Future<void> init({String role = 'student', String? uid}) async {
-    if (_isInitialized) return;
+  /// Dynamically update role and user ID when navigating between dashboards
+  void setRoleAndUid({required String role, String? uid}) {
     _userRole = role;
     _userUid = uid ?? FirebaseAuth.instance.currentUser?.uid;
+  }
+
+  /// Initialize speech engines and load stored voice preferences
+  Future<void> init({String role = 'student', String? uid}) async {
+    _userRole = role;
+    _userUid = uid ?? FirebaseAuth.instance.currentUser?.uid;
+    if (_isInitialized) return;
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -492,6 +500,8 @@ class DishiVoiceService {
       'map', 'ramani', 'directions',
       'timer', 'study', 'timetable', 'smartimer', 'focus',
       'saving', 'stash', 'akiba',
+      'child', 'dependant', 'dependent', 'student', 'mtoto', 'kijana', 'watoto', 'mwanafunzi',
+      'last bought', 'which shop', 'where is my', 'what did my',
       'parent', 'mzazi', 'omba pesa',
       'pos', 'counter terminal', 'kds', 'kitchen', 'inventory', 'stock', 'report', 'analytics', 'payout',
       'idol', 'campus idol', 'audition', 'the voice', 'sing', 'imba',
@@ -611,6 +621,189 @@ class DishiVoiceService {
     _dispatchLocalFallback(clean);
   }
 
+  /// Fetches real student dependant details from Firestore for parents:
+  /// Name, wallet balance, current campus/hostel location, last bought item and vendor shop.
+  Future<Map<String, dynamic>> fetchParentDependantsReport({String queryType = 'all'}) async {
+    try {
+      final parentUid = _userUid ?? FirebaseAuth.instance.currentUser?.uid;
+      if (parentUid == null || parentUid.isEmpty) {
+        return {
+          'spoken': _currentLanguage == 'sw'
+              ? "Tafadhali ingia katika akaunti yako ya mzazi ili kuona taarifa za mtoto wako."
+              : "Please sign into your parent account to check dependant details.",
+          'students': [],
+        };
+      }
+
+      final parentDoc = await FirebaseFirestore.instance.collection('users').doc(parentUid).get();
+      List<dynamic> studentUids = [];
+      String parentPhone = '';
+
+      if (parentDoc.exists) {
+        final pData = parentDoc.data() ?? {};
+        studentUids = List<dynamic>.from(pData['linkedStudents'] ?? pData['dependants'] ?? []);
+        parentPhone = (pData['phoneNumber'] ?? pData['phone'] ?? '').toString();
+      }
+
+      if (studentUids.isEmpty) {
+        final q1 = await FirebaseFirestore.instance
+            .collection('users')
+            .where('parentUid', isEqualTo: parentUid)
+            .limit(5)
+            .get();
+        if (q1.docs.isNotEmpty) {
+          studentUids = q1.docs.map((d) => d.id).toList();
+        } else if (parentPhone.isNotEmpty) {
+          final q2 = await FirebaseFirestore.instance
+              .collection('users')
+              .where('parentPhone', isEqualTo: parentPhone)
+              .limit(5)
+              .get();
+          studentUids = q2.docs.map((d) => d.id).toList();
+        }
+      }
+
+      if (studentUids.isEmpty) {
+        return {
+          'spoken': _currentLanguage == 'sw'
+              ? "Hujaunganisha mwanafunzi yeyote kwenye akaunti yako bado. Unaweza kumuunganisha kupitia kitufe cha Link Student kwenye dashibodi ya mzazi."
+              : "You do not have any linked student dependants yet. You can link your student by tapping Link Student in your parent dashboard.",
+          'students': [],
+        };
+      }
+
+      final reports = <String>[];
+      final studentList = <Map<String, dynamic>>[];
+
+      for (final sUid in studentUids.take(2)) {
+        final sDoc = await FirebaseFirestore.instance.collection('users').doc(sUid.toString()).get();
+        if (!sDoc.exists) continue;
+
+        final sData = sDoc.data() ?? {};
+        final name = sData['name'] ?? sData['displayName'] ?? 'Comrade Student';
+        final bal = (sData['walletBalance'] as num?)?.toDouble() ?? (sData['balance'] as num?)?.toDouble() ?? 0.0;
+
+        // Resolve location
+        String locationDesc = 'MMUST Main Campus';
+        final locObj = sData['location'];
+        if (locObj is Map<String, dynamic>) {
+          locationDesc = locObj['address'] ?? locObj['place'] ?? 'MMUST Campus';
+        } else if (locObj is String && locObj.isNotEmpty) {
+          locationDesc = locObj;
+        } else if (sData['hostel'] != null && sData['campus'] != null) {
+          locationDesc = "${sData['hostel']}, ${sData['campus']}";
+        } else if (sData['campus'] != null) {
+          locationDesc = sData['campus'];
+        }
+
+        // Query last transaction
+        String lastBoughtItem = 'Lunch meal';
+        String lastShop = 'Nyawuora Isaya Okuna Cafeteria';
+        double lastAmount = 0.0;
+        String timeAgo = 'recently';
+        bool hasTx = false;
+
+        try {
+          final txSnap = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(sUid.toString())
+              .collection('transactions')
+              .orderBy('timestamp', descending: true)
+              .limit(1)
+              .get();
+
+          Map<String, dynamic>? txData;
+          if (txSnap.docs.isNotEmpty) {
+            txData = txSnap.docs.first.data();
+          } else {
+            final rootTx = await FirebaseFirestore.instance
+                .collection('transactions')
+                .where('student_id', isEqualTo: sUid.toString())
+                .limit(5)
+                .get();
+            if (rootTx.docs.isNotEmpty) {
+              final sorted = rootTx.docs.toList()
+                ..sort((a, b) {
+                  final tA = a.data()['timestamp'] as Timestamp?;
+                  final tB = b.data()['timestamp'] as Timestamp?;
+                  if (tA != null && tB != null) return tB.compareTo(tA);
+                  return 0;
+                });
+              txData = sorted.first.data();
+            }
+          }
+
+          if (txData != null) {
+            hasTx = true;
+            lastBoughtItem = txData['itemName'] ?? txData['item'] ?? txData['description'] ?? txData['title'] ?? 'Food meal';
+            lastShop = txData['vendorName'] ?? txData['vendor_name'] ?? txData['shopName'] ?? txData['vendor'] ?? 'Nyawuora Cafeteria';
+            lastAmount = (txData['amount'] as num?)?.toDouble() ?? 0.0;
+
+            final ts = txData['timestamp'] as Timestamp?;
+            if (ts != null) {
+              final dt = ts.toDate();
+              final diff = DateTime.now().difference(dt);
+              if (diff.inMinutes < 60) {
+                timeAgo = '${diff.inMinutes} minutes ago';
+              } else if (diff.inHours < 24) {
+                timeAgo = '${diff.inHours} hours ago';
+              } else {
+                timeAgo = '${diff.inDays} days ago';
+              }
+            }
+          }
+        } catch (_) {}
+
+        studentList.add({
+          'uid': sUid.toString(),
+          'name': name,
+          'balance': bal,
+          'location': locationDesc,
+          'lastItem': lastBoughtItem,
+          'lastShop': lastShop,
+          'lastAmount': lastAmount,
+          'timeAgo': timeAgo,
+        });
+
+        if (_currentLanguage == 'sw') {
+          if (queryType == 'location') {
+            reports.add("$name yupo katika eneo la $locationDesc. Salio lake ni Shilingi ${bal.toStringAsFixed(0)}.");
+          } else if (queryType == 'spending' && hasTx) {
+            reports.add("Ununuzi wa mwisho wa $name ulikuwa $lastBoughtItem katika mkahawa wa $lastShop kwa Shilingi ${lastAmount.toStringAsFixed(0)} ($timeAgo).");
+          } else {
+            final txDetail = hasTx
+                ? " Ununuzi wake wa mwisho ulikuwa $lastBoughtItem katika mkahawa wa $lastShop kwa Shilingi ${lastAmount.toStringAsFixed(0)} ($timeAgo)."
+                : " Hakuna manunuzi mapya yaliyorekodiwa leo.";
+            reports.add("$name ana salio la Shilingi ${bal.toStringAsFixed(0)}, yupo eneo la $locationDesc.$txDetail");
+          }
+        } else {
+          if (queryType == 'location') {
+            reports.add("$name is currently located at $locationDesc. Current wallet balance is KES ${bal.toStringAsFixed(0)}.");
+          } else if (queryType == 'spending' && hasTx) {
+            reports.add("$name's last purchase was $lastBoughtItem from $lastShop costing KES ${lastAmount.toStringAsFixed(0)} ($timeAgo).");
+          } else {
+            final txDetail = hasTx
+                ? " Last purchase was $lastBoughtItem at $lastShop for KES ${lastAmount.toStringAsFixed(0)} ($timeAgo)."
+                : " No recent food purchases recorded today.";
+            reports.add("$name has a wallet balance of KES ${bal.toStringAsFixed(0)}, located at $locationDesc.$txDetail");
+          }
+        }
+      }
+
+      return {
+        'spoken': reports.join(' '),
+        'students': studentList,
+      };
+    } catch (_) {
+      return {
+        'spoken': _currentLanguage == 'sw'
+            ? "Kuna tatizo kidogo kupata taarifa za mwanafunzi kutoka kanzidata. Tafadhali jaribu tena."
+            : "Could not retrieve student dependant details right now. Please try again.",
+        'students': [],
+      };
+    }
+  }
+
   /// Offline direct fallback intent matcher covering the entire application
   void _dispatchLocalFallback(String clean) async {
     final low = clean.toLowerCase();
@@ -618,8 +811,37 @@ class DishiVoiceService {
     String spoken = '';
     Map<String, dynamic> data = {'intent': intent};
 
+    // 0. PARENT DEPENDANT QUERY (Details, Location, Last Bought Item, Shop)
+    if (_userRole == 'parent' ||
+        low.contains('child') ||
+        low.contains('mtoto') ||
+        low.contains('dependant') ||
+        low.contains('dependent') ||
+        low.contains('kijana') ||
+        low.contains('watoto') ||
+        low.contains('mwanafunzi') ||
+        low.contains('last bought') ||
+        low.contains('which shop') ||
+        low.contains('what did my') ||
+        low.contains('where is my') ||
+        (low.contains('student') && (_userRole == 'parent' || low.contains('balance') || low.contains('location') || low.contains('details')))) {
+      intent = 'QUERY_PARENT_DEPENDANTS';
+
+      String queryType = 'all';
+      if (low.contains('where') || low.contains('location') || low.contains('ramani') || low.contains('wapi')) {
+        queryType = 'location';
+      } else if (low.contains('bought') || low.contains('buy') || low.contains('shop') || low.contains('nunua') || low.contains('mkahawa') || low.contains('item')) {
+        queryType = 'spending';
+      }
+
+      isProcessingNotifier.value = true;
+      final report = await fetchParentDependantsReport(queryType: queryType);
+      spoken = report['spoken'] as String;
+      data['queryType'] = queryType;
+      data['students'] = report['students'];
+    }
     // 1. UniUptown
-    if (low.contains('uniuptown') || low.contains('uni uptown') || low.contains('uptown') || low.contains('dating hub')) {
+    else if (low.contains('uniuptown') || low.contains('uni uptown') || low.contains('uptown') || low.contains('dating hub')) {
       intent = 'OPEN_UNIUPTOWN';
       spoken = _currentLanguage == 'en'
           ? "Opening UniUptown now! Connect with campus comrades, faculty dating, and friendships."
@@ -724,7 +946,7 @@ class DishiVoiceService {
           : "Inafungua salio lako la chuo na historia ya fedha.";
     }
     // 16. Request Parent Funds
-    else if (low.contains('parent') || low.contains('mzazi') || low.contains('omba pesa')) {
+    else if (_userRole != 'parent' && (low.contains('parent') || low.contains('mzazi') || low.contains('omba pesa'))) {
       intent = 'REQUEST_PARENT_FUNDS';
       spoken = _currentLanguage == 'en'
           ? "Opening Parent Meal Allowance request."
@@ -898,6 +1120,20 @@ class DishiVoiceService {
       case 'OPEN_PARENT_DIET':
       case 'OPEN_PARENT_STATEMENTS':
         nav.push(MaterialPageRoute(builder: (_) => ParentDashboardView(user: userMap)));
+        break;
+
+      case 'QUERY_PARENT_DEPENDANTS':
+        if (data['queryType'] == 'location' && data['students'] != null && (data['students'] as List).isNotEmpty) {
+          final firstStudent = (data['students'] as List).first as Map<String, dynamic>;
+          nav.push(
+            MaterialPageRoute(
+              builder: (_) => ParentLiveTrackingView(
+                studentUid: firstStudent['uid'] as String,
+                studentName: firstStudent['name'] as String,
+              ),
+            ),
+          );
+        }
         break;
 
       case 'SHOW_STUDENT_QR':

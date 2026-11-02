@@ -143,6 +143,10 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
   @override
   void initState() {
     super.initState();
+    DishiVoiceService.instance.setRoleAndUid(
+      role: widget.role,
+      uid: widget.userUid,
+    );
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),

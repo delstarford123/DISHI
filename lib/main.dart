@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'core/theme/mpesa_theme.dart';
+import 'core/theme/theme_controller.dart';
 import 'features/auth/presentation/login_view.dart';
 import 'features/auth/presentation/pin_unlock_view.dart';
 import 'features/auth/presentation/splash_screen.dart';
@@ -78,6 +79,7 @@ void main() async {
     );
 
     await SmartiHiveService.init();
+    await ThemeController.init();
     
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     await FCMService.initialize();
@@ -132,40 +134,45 @@ class _DISHIAppState extends State<DISHIApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'DISHI',
-      navigatorKey: appNavigatorKey,
-      debugShowCheckedModeBanner: false,
-      theme: MPesaTheme.lightTheme,
-      darkTheme: MPesaTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      builder: (context, child) {
-        return SessionManager(
-          timeoutDuration: const Duration(minutes: 15),
-          onSessionTimeout: _handleSessionTimeout,
-          child: IncomingCallListener(
-            navigatorKey: appNavigatorKey,
-            child: Overlay(
-              initialEntries: [
-                OverlayEntry(
-                  builder: (ctx) => Stack(
-                    children: [
-                      child ?? const SizedBox.shrink(),
-                      const Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        child: DishiPersistentVoicePill(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.themeMode,
+      builder: (context, currentMode, _) {
+        return MaterialApp(
+          title: 'DISHI',
+          navigatorKey: appNavigatorKey,
+          debugShowCheckedModeBanner: false,
+          theme: MPesaTheme.lightTheme,
+          darkTheme: MPesaTheme.darkTheme,
+          themeMode: currentMode,
+          builder: (context, child) {
+            return SessionManager(
+              timeoutDuration: const Duration(minutes: 15),
+              onSessionTimeout: _handleSessionTimeout,
+              child: IncomingCallListener(
+                navigatorKey: appNavigatorKey,
+                child: Overlay(
+                  initialEntries: [
+                    OverlayEntry(
+                      builder: (ctx) => Stack(
+                        children: [
+                          child ?? const SizedBox.shrink(),
+                          const Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: DishiPersistentVoicePill(),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
+          home: const InitialRouter(),
         );
       },
-      home: const InitialRouter(),
     );
   }
 }

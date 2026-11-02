@@ -18,7 +18,15 @@ import 'widgets/custom_secure_keypad.dart';
 
 class PinSetupView extends StatefulWidget {
   final String role;
-  const PinSetupView({super.key, required this.role});
+  final bool isChangingPin;
+  final VoidCallback? onSuccess;
+
+  const PinSetupView({
+    super.key,
+    required this.role,
+    this.isChangingPin = false,
+    this.onSuccess,
+  });
 
   @override
   State<PinSetupView> createState() => _PinSetupViewState();
@@ -285,26 +293,29 @@ class _PinSetupViewState extends State<PinSetupView> with SingleTickerProviderSt
                           children: [
                             Row(
                               children: [
-                                Text(
-                                  label,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                Flexible(
+                                  child: Text(
+                                    label,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                   decoration: BoxDecoration(
                                     color: MPesaTheme.primaryGreen.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: const Text(
                                     'RECOMMENDED',
                                     style: TextStyle(
                                       color: MPesaTheme.primaryGreen,
-                                      fontSize: 10,
+                                      fontSize: 9,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -394,6 +405,19 @@ class _PinSetupViewState extends State<PinSetupView> with SingleTickerProviderSt
   }
 
   void _navigateToDashboard(Map<String, String?> userData) {
+    if (widget.isChangingPin) {
+      widget.onSuccess?.call();
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Recovery PIN changed and verified successfully! 🔒'),
+            backgroundColor: MPesaTheme.primaryGreen,
+          ),
+        );
+        return;
+      }
+    }
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -494,7 +518,12 @@ class _PinSetupViewState extends State<PinSetupView> with SingleTickerProviderSt
                   });
                 },
               )
-            : const SizedBox.shrink(),
+            : (Navigator.canPop(context)
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  )
+                : const SizedBox.shrink()),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),

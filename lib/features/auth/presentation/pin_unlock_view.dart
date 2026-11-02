@@ -463,14 +463,17 @@ class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProvider
                           size: 16,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          _preferredMethod == 'biometric'
-                              ? 'Default: Biometric / Pattern'
-                              : 'Default: 4-Digit PIN',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                        Flexible(
+                          child: Text(
+                            _preferredMethod == 'biometric'
+                                ? 'Default: Biometric / Pattern'
+                                : 'Default: 4-Digit PIN',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: 6),

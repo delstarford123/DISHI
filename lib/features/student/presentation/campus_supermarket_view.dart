@@ -1088,12 +1088,31 @@ class _CampusSupermarketViewState extends State<CampusSupermarketView> {
                   final name = (data['name'] ?? '').toString().toLowerCase();
                   final cat = (data['category'] ?? '').toString().toLowerCase();
                   final matchesCat = (_selectedCategory == 'all' || cat == _selectedCategory);
-                  final matchesSearch = (_searchQuery.isEmpty || name.contains(_searchQuery));
+                  final matchesSearch = (_searchQuery.isEmpty || name.contains(_searchQuery.toLowerCase()));
                   return matchesCat && matchesSearch;
                 }).toList();
 
                 if (filtered.isEmpty) {
-                  return _buildFallbackCatalog();
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.storefront_outlined, size: 56, color: Colors.white24),
+                        const SizedBox(height: 12),
+                        Text(
+                          _searchQuery.isNotEmpty
+                              ? 'No items found matching "$_searchQuery"'
+                              : 'No items in this category currently.',
+                          style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Try selecting "All" or searching for groceries, calculators or food.',
+                          style: TextStyle(color: Colors.white38, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  );
                 }
 
                 return GridView.builder(
@@ -1122,9 +1141,20 @@ class _CampusSupermarketViewState extends State<CampusSupermarketView> {
   Widget _buildProductCard(Map<String, dynamic> item) {
     final name = item['name'] ?? item['title'] ?? 'Campus Item';
     final price = (item['price'] as num?)?.toDouble() ?? 0.0;
-    final stock = (item['stock'] as num?)?.toInt() ?? 10;
-    final isAvailable = (item['isAvailable'] as bool? ?? true) && stock > 0;
-    final isTech = (item['category'] == 'electronics');
+    final stock = (item['stockQuantity'] as num?)?.toInt() ?? (item['stock'] as num?)?.toInt() ?? 10;
+    final isAvailable = ((item['inStock'] as bool?) ?? (item['isAvailable'] as bool?) ?? true) && stock > 0;
+    final category = (item['category'] ?? '').toString().toLowerCase();
+
+    String iconEmoji = '🛒';
+    if (category == 'electronics') {
+      iconEmoji = '💻';
+    } else if (category == 'food') {
+      iconEmoji = '🍕';
+    } else if (category == 'pharmacy') {
+      iconEmoji = '💊';
+    } else if (category == 'stationery') {
+      iconEmoji = '📚';
+    }
 
     return InkWell(
       onTap: () => _showProductDetailModal(item),
@@ -1145,7 +1175,7 @@ class _CampusSupermarketViewState extends State<CampusSupermarketView> {
                 decoration: BoxDecoration(color: _surfaceLight, borderRadius: BorderRadius.circular(12)),
                 child: Center(
                   child: Text(
-                    isTech ? '💻' : (item['category'] == 'food' ? '🍕' : '🛒'),
+                    iconEmoji,
                     style: const TextStyle(fontSize: 42),
                   ),
                 ),
@@ -1167,7 +1197,7 @@ class _CampusSupermarketViewState extends State<CampusSupermarketView> {
                   style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 14),
                 ),
                 Text(
-                  isAvailable ? '$stock in stock' : 'Out of stock',
+                  isAvailable ? '$stock left' : 'Out of stock',
                   style: TextStyle(color: isAvailable ? Colors.greenAccent : _neonPink, fontSize: 10),
                 ),
               ],
@@ -1190,35 +1220,6 @@ class _CampusSupermarketViewState extends State<CampusSupermarketView> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildFallbackCatalog() {
-    final defaultItems = [
-      {'id': 'f1', 'name': 'Scientific Calculator fx-82MS', 'category': 'electronics', 'price': 1850.0, 'stock': 15, 'isAvailable': true},
-      {'id': 'f2', 'name': 'Lab Coat 100% Cotton (Unisex)', 'category': 'electronics', 'price': 1200.0, 'stock': 24, 'isAvailable': true, 'variants': [{'name': 'Small', 'price': 1200.0}, {'name': 'Medium', 'price': 1200.0}, {'name': 'Large', 'price': 1250.0}]},
-      {'id': 'f3', 'name': 'Pure Honey & Nut Groceries Pack', 'category': 'supermarket', 'price': 450.0, 'stock': 30, 'isAvailable': true},
-      {'id': 'f4', 'name': 'Campus Tech USB Drive 64GB 3.0', 'category': 'electronics', 'price': 950.0, 'stock': 18, 'isAvailable': true, 'variants': [{'name': '32GB', 'price': 650.0}, {'name': '64GB', 'price': 950.0}, {'name': '128GB', 'price': 1600.0}]},
-      {'id': 'f5', 'name': 'Long Life Milk 500ml (Happy Hour)', 'category': 'supermarket', 'price': 65.0, 'stock': 40, 'isAvailable': true, 'isFlashDeal': true},
-      {'id': 'f6', 'name': 'Engineering Graph Pad A4 100pgs', 'category': 'stationery', 'price': 220.0, 'stock': 50, 'isAvailable': true},
-    ];
-
-    var filtered = defaultItems.where((item) {
-      final matchesCat = (_selectedCategory == 'all' || item['category'] == _selectedCategory);
-      final matchesSearch = (_searchQuery.isEmpty || item['name'].toString().toLowerCase().contains(_searchQuery));
-      return matchesCat && matchesSearch;
-    }).toList();
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.75,
-      ),
-      itemCount: filtered.length,
-      itemBuilder: (ctx, i) => _buildProductCard(filtered[i]),
     );
   }
 }

@@ -8,7 +8,8 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../../../core/theme/mpesa_theme.dart';
-import '../../../core/widgets/sema_na_dishi_overlay.dart';
+import '../../../core/widgets/sema_na_dishi_overlay.dart';
+import '../../../core/services/dishi_voice_service.dart';
 import 'offline_child_qr_view.dart';
 import '../../student/presentation/virtual_card_view.dart';
 import '../../../core/models/user_model.dart';
@@ -89,7 +90,11 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
 
   @override
   void initState() {
-    super.initState();
+    super.initState();
+    DishiVoiceService.instance.init(
+      role: 'parent',
+      uid: widget.user['uid'] ?? FirebaseAuth.instance.currentUser?.uid,
+    );
     _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat(reverse: true);
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(_pulseController);
     

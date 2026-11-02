@@ -473,7 +473,7 @@ class _SwipeableCardState extends State<_SwipeableCard> {
                   children: [
                     Row(
                       children: [
-                        Expanded(child: Text(widget.profile['displayName'] ?? widget.profile['name'] ?? 'Student', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold))),
+                        Expanded(child: Text(widget.profile['displayName'] ?? widget.profile['name'] ?? 'Student', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
                         if (isOnline) Container(width: 12, height: 12, decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle)),
                       ],
                     ),
@@ -485,7 +485,7 @@ class _SwipeableCardState extends State<_SwipeableCard> {
                       children: [
                         const Icon(Icons.album, color: Colors.greenAccent, size: 16),
                         const SizedBox(width: 4),
-                        Text(widget.profile['spotify'] ?? '', style: const TextStyle(color: Colors.white)),
+                        Expanded(child: Text(widget.profile['spotify'] ?? '', style: const TextStyle(color: Colors.white), overflow: TextOverflow.ellipsis)),
                       ],
                     ),
                     const SizedBox(height: 80), // Space for FABs
