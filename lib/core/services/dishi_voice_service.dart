@@ -34,6 +34,7 @@ import '../../features/vendor/presentation/inventory/inventory_dashboard_view.da
 import '../../features/vendor/presentation/finance/payout_hub_view.dart';
 import '../../features/parent/presentation/parent_dashboard_view.dart';
 import '../../features/student/presentation/dynamic_qr_dialog.dart';
+import '../../features/match/presentation/match_campus_idol_view.dart';
 
 /// Central Persistent Voice Assistant Service for DISHI ("Sema na DISHI")
 /// Keeps voice listening online continuously across the entire app once activated,
@@ -43,6 +44,8 @@ class DishiVoiceService {
   static final DishiVoiceService instance = DishiVoiceService._internal();
 
   DishiVoiceService._internal();
+
+  Timer? _silenceDebounceTimer;
 
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _flutterTts = FlutterTts();
@@ -386,9 +389,10 @@ class DishiVoiceService {
             if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
               final txt = transcriptNotifier.value.trim();
               if (txt.isNotEmpty) {
+                _silenceDebounceTimer?.cancel();
                 processVoiceCommand(txt);
               } else {
-                _scheduleRestartListening(delayMs: 350);
+                _scheduleRestartListening(delayMs: 150);
               }
             }
           }
@@ -396,7 +400,7 @@ class DishiVoiceService {
         onError: (_) {
           isListeningNotifier.value = false;
           if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
-            _scheduleRestartListening(delayMs: 500);
+            _scheduleRestartListening(delayMs: 300);
           }
         },
       );
@@ -406,12 +410,31 @@ class DishiVoiceService {
         await _speech.listen(
           onResult: (val) {
             transcriptNotifier.value = val.recognizedWords;
-            if (val.finalResult && val.recognizedWords.trim().isNotEmpty) {
-              processVoiceCommand(val.recognizedWords);
+            final words = val.recognizedWords.trim();
+            if (words.isNotEmpty) {
+              if (val.finalResult) {
+                _silenceDebounceTimer?.cancel();
+                _speech.stop();
+                processVoiceCommand(words);
+              } else {
+                // Real-time debounce: trigger 850ms after the comrade pauses speaking!
+                _silenceDebounceTimer?.cancel();
+                _silenceDebounceTimer = Timer(const Duration(milliseconds: 850), () async {
+                  if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
+                    final currentText = transcriptNotifier.value.trim();
+                    if (currentText.isNotEmpty) {
+                      await _speech.stop();
+                      processVoiceCommand(currentText);
+                    }
+                  }
+                });
+              }
             }
           },
           listenOptions: stt.SpeechListenOptions(
-            listenMode: stt.ListenMode.confirmation,
+            listenMode: stt.ListenMode.dictation,
+            partialResults: true,
+            cancelOnError: false,
             localeId: _currentLanguage == 'sw' || _currentLanguage == 'sheng' ? 'sw_KE' : 'en_US',
           ),
         );
@@ -419,18 +442,65 @@ class DishiVoiceService {
     } catch (_) {
       isListeningNotifier.value = false;
       if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
-        _scheduleRestartListening(delayMs: 600);
+        _scheduleRestartListening(delayMs: 400);
       }
     }
   }
 
-  void _scheduleRestartListening({int delayMs = 350}) {
+  void _scheduleRestartListening({int delayMs = 150}) {
     _rearmTimer?.cancel();
     _rearmTimer = Timer(Duration(milliseconds: delayMs), () {
       if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
         _startListeningLoop();
       }
     });
+  }
+
+  /// Toggle manual microphone listening state
+  Future<void> toggleListening() async {
+    if (isListeningNotifier.value) {
+      _silenceDebounceTimer?.cancel();
+      await _speech.stop();
+      isListeningNotifier.value = false;
+    } else {
+      await _startListeningLoop();
+    }
+  }
+
+  /// Ensure background listening loop is active without resetting user state
+  void ensureListeningInBackground() {
+    if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value && !isListeningNotifier.value) {
+      _scheduleRestartListening(delayMs: 100);
+    }
+  }
+
+  /// Fast-path filter for immediate local execution without network latency
+  bool _matchesDirectLocalIntent(String low) {
+    const keywords = [
+      'uniuptown', 'uni uptown', 'uptown', 'dating hub',
+      'swiping', 'swipe', 'anza kuswipe',
+      'matches and chats', 'matches', 'chats', 'gumzo', 'ujumbe',
+      'preorder', 'pre-order', 'order this', 'agiza',
+      'supermarket', 'grocer', 'calculator', 'lab coat', 'duka',
+      'gig', 'fundi', 'kazi', 'employment', 'kibarua',
+      'balance', 'salio', 'pesa', 'wallet',
+      'split', 'gawanya',
+      'nearest', 'vendor', 'where to eat',
+      'qr', 'pass', 'token',
+      'okoa', 'emergency food', 'rescue',
+      'hostel', 'keja', 'housing', 'rent',
+      'map', 'ramani', 'directions',
+      'timer', 'study', 'timetable', 'smartimer', 'focus',
+      'saving', 'stash', 'akiba',
+      'parent', 'mzazi', 'omba pesa',
+      'pos', 'counter terminal', 'kds', 'kitchen', 'inventory', 'stock', 'report', 'analytics', 'payout',
+      'idol', 'campus idol', 'audition', 'the voice', 'sing', 'imba',
+      'time', 'saa ngapi', 'what time',
+    ];
+    for (final kw in keywords) {
+      if (low.contains(kw)) return true;
+    }
+    return false;
   }
 
   /// Core Voice Command Parser & Universal System Dispatcher
@@ -502,7 +572,13 @@ class DishiVoiceService {
       return;
     }
 
-    // 5. ATTEMPT SECURE BACKEND INTENT PARSING FIRST
+    // 5. FAST-PATH DIRECT LOCAL INTENTS: Immediate local response (<20ms) for known actions
+    if (_matchesDirectLocalIntent(low)) {
+      _dispatchLocalFallback(clean);
+      return;
+    }
+
+    // 6. ATTEMPT SECURE BACKEND INTENT PARSING
     try {
       final resp = await SecureHttpClient.post(
         ApiConfig.v6VoiceIntent,
@@ -513,7 +589,7 @@ class DishiVoiceService {
           'active_persona': _selectedPersona.id,
           'language': _currentLanguage,
         },
-      );
+      ).timeout(const Duration(milliseconds: 3000));
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -689,7 +765,31 @@ class DishiVoiceService {
           ? "Opening Vendor Payout and M-PESA settlement hub."
           : "Inafungua kitovu cha malipo na kutoa pesa ya muuzaji.";
     }
-    // 22. General AI Reply
+    // 22. Campus Idol & Voice Auditions
+    else if (low.contains('campus idol') ||
+        low.contains('idol') ||
+        low.contains('the voice') ||
+        low.contains('audition') ||
+        low.contains('sing') ||
+        low.contains('imba') ||
+        low.contains('voice contest')) {
+      intent = 'OPEN_CAMPUS_IDOL';
+      spoken = _currentLanguage == 'en'
+          ? "Opening Campus Idol! Listen to real student voice auditions, record your voice, and turn chairs."
+          : "Inafungua Campus Idol! Sikiliza sauti za wanafunzi, rekodi sauti yako na upige kura.";
+    }
+    // 23. Current Time
+    else if (low.contains('time') || low.contains('saa ngapi') || low.contains('what time')) {
+      intent = 'CHECK_TIME';
+      final now = DateTime.now();
+      final hourStr = now.hour > 12 ? '${now.hour - 12}' : (now.hour == 0 ? '12' : '${now.hour}');
+      final amPm = now.hour >= 12 ? 'PM' : 'AM';
+      final minStr = now.minute.toString().padLeft(2, '0');
+      spoken = _currentLanguage == 'en'
+          ? "The current time is $hourStr:$minStr $amPm, comrade."
+          : "Sasa ni saa $hourStr na dakika $minStr $amPm, comrade.";
+    }
+    // 24. General AI Reply
     else {
       intent = 'GENERAL_QUERY';
       spoken = _currentLanguage == 'en'
@@ -788,6 +888,10 @@ class DishiVoiceService {
 
       case 'OPEN_VENDOR_PAYOUTS':
         nav.push(MaterialPageRoute(builder: (_) => const PayoutHubView()));
+        break;
+
+      case 'OPEN_CAMPUS_IDOL':
+        nav.push(MaterialPageRoute(builder: (_) => const MatchCampusIdolView()));
         break;
 
       case 'OPEN_PARENT_ALLOWANCE':

@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter/services.dart';
 
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 
-import 'package:flutter_tts/flutter_tts.dart';
 
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dart:convert';
 
@@ -45,6 +42,7 @@ import '../../features/vendor/presentation/inventory/inventory_dashboard_view.da
 import '../../features/vendor/presentation/finance/payout_hub_view.dart';
 import '../../features/parent/presentation/parent_dashboard_view.dart';
 import '../../features/student/presentation/dynamic_qr_dialog.dart';
+import '../../features/match/presentation/match_campus_idol_view.dart';
 import '../../main.dart' show appNavigatorKey;
 import 'dishi_persistent_voice_pill.dart';
 
@@ -56,501 +54,9 @@ const Color _surfaceLight = Color(0xFF1A2235);
 
 const Color _neonCyan = Color(0xFF05D5AA);
 
-const Color _neonPink = Color(0xFFF92B60);
-
 const Color _neonOrange = Color(0xFFFF6F00);
 
 const Color _textSecondary = Color(0xFF8B9BB4);
-
-/// Available AI Voice Personas for "DISHI Voice AI"
-
-class VoicePersona {
-
-  final String id;
-
-  final String name;
-
-  final String title;
-
-  final String description;
-
-  final double defaultPitch;
-
-  final double defaultRate;
-
-  final bool isFemale;
-
-  final IconData icon;
-
-  final Color themeColor;
-
-  const VoicePersona({
-
-    required this.id,
-
-    required this.name,
-
-    required this.title,
-
-    required this.description,
-
-    required this.defaultPitch,
-
-    required this.defaultRate,
-
-    required this.isFemale,
-
-    required this.icon,
-
-    required this.themeColor,
-
-  });
-
-}
-
-const List<VoicePersona> kVoicePersonas = [
-
-  VoicePersona(
-
-    id: 'campus_buddy',
-
-    name: 'The Campus Buddy',
-
-    title: 'Warm & Friendly (Default)',
-
-    description: 'Light, approachable student camaraderie and peer support.',
-
-    defaultPitch: 1.15,
-
-    defaultRate: 0.52,
-
-    isFemale: true,
-
-    icon: Icons.handshake,
-
-    themeColor: _neonCyan,
-
-  ),
-
-  VoicePersona(
-
-    id: 'nutritionist',
-
-    name: 'The Professional Nutritionist',
-
-    title: 'Health & Balanced Wellness',
-
-    description: 'Focuses on macronutrients, balanced plates, clean fuel, and wellness guidance.',
-
-    defaultPitch: 1.10,
-
-    defaultRate: 0.50,
-
-    isFemale: true,
-
-    icon: Icons.spa,
-
-    themeColor: Colors.greenAccent,
-
-  ),
-
-  VoicePersona(
-
-    id: 'cashier',
-
-    name: 'The Swift Canteen Cashier',
-
-    title: 'High-Efficiency & Speed',
-
-    description: 'Fast-paced, transactional, rapid checkout, zero line delays.',
-
-    defaultPitch: 1.05,
-
-    defaultRate: 0.65,
-
-    isFemale: true,
-
-    icon: Icons.point_of_sale,
-
-    themeColor: _neonPink,
-
-  ),
-
-  VoicePersona(
-
-    id: 'chef',
-
-    name: 'The Gourmet Chef',
-
-    title: 'Culinary Master & Aromas',
-
-    description: 'Passionate about food quality, flavor profiles, and culinary descriptions.',
-
-    defaultPitch: 0.95,
-
-    defaultRate: 0.48,
-
-    isFemale: false,
-
-    icon: Icons.restaurant,
-
-    themeColor: Colors.amber,
-
-  ),
-
-  VoicePersona(
-
-    id: 'coach',
-
-    name: 'The Energetic Coach',
-
-    title: 'Fitness & Stamina Fuel',
-
-    description: 'High-energy, motivating, links food choices to energy and workouts.',
-
-    defaultPitch: 1.00,
-
-    defaultRate: 0.58,
-
-    isFemale: false,
-
-    icon: Icons.fitness_center,
-
-    themeColor: Colors.deepOrangeAccent,
-
-  ),
-
-  VoicePersona(
-
-    id: 'wise_elder',
-
-    name: 'The Wise Elder / Mentor',
-
-    title: 'Patient & Grounded Counsel',
-
-    description: 'Patient, thoughtful counsel on student budgeting and wholesome habits.',
-
-    defaultPitch: 0.85,
-
-    defaultRate: 0.45,
-
-    isFemale: false,
-
-    icon: Icons.psychology,
-
-    themeColor: Colors.teal,
-
-  ),
-
-  VoicePersona(
-
-    id: 'gen_z',
-
-    name: 'The Gen-Z Campus Insider',
-
-    title: 'Trendy & Campus Slang',
-
-    description: 'Trendy, upbeat, modern campus slang and authentic vibes.',
-
-    defaultPitch: 1.20,
-
-    defaultRate: 0.56,
-
-    isFemale: true,
-
-    icon: Icons.auto_awesome,
-
-    themeColor: Colors.purpleAccent,
-
-  ),
-
-  VoicePersona(
-
-    id: 'accountant',
-
-    name: 'The Strict Budget Accountant',
-
-    title: 'Frugality & Cash Conservation',
-
-    description: 'Ultra-focused on stretching allowances, cost per calorie, and wallet protection.',
-
-    defaultPitch: 1.00,
-
-    defaultRate: 0.52,
-
-    isFemale: false,
-
-    icon: Icons.account_balance_wallet,
-
-    themeColor: Colors.blueAccent,
-
-  ),
-
-  VoicePersona(
-
-    id: 'mama_njeri',
-
-    name: 'Mama Njeri (Canteen Matriarch)',
-
-    title: 'Maternal & Caring Family Love',
-
-    description: 'Maternal care, treats every student like family ("Umekula vizuri leo?").',
-
-    defaultPitch: 1.22,
-
-    defaultRate: 0.48,
-
-    isFemale: true,
-
-    icon: Icons.favorite,
-
-    themeColor: Colors.pinkAccent,
-
-  ),
-
-  VoicePersona(
-
-    id: 'tech_geek',
-
-    name: 'The Tech-Geek / AI Assistant',
-
-    title: 'System Optimization & Logic',
-
-    description: 'Analytical, system-oriented, performance optimization and clean APIs.',
-
-    defaultPitch: 1.08,
-
-    defaultRate: 0.55,
-
-    isFemale: false,
-
-    icon: Icons.memory,
-
-    themeColor: Colors.cyanAccent,
-
-  ),
-
-  VoicePersona(
-
-    id: 'musician',
-
-    name: 'The Acoustic Musician',
-
-    title: 'Laid-Back Rhythm & Poetry',
-
-    description: 'Poetic, relaxed conversational rhythm with a soothing melodic cadence.',
-
-    defaultPitch: 0.90,
-
-    defaultRate: 0.46,
-
-    isFemale: false,
-
-    icon: Icons.music_note,
-
-    themeColor: Colors.indigoAccent,
-
-  ),
-
-  VoicePersona(
-
-    id: 'study_partner',
-
-    name: 'The Midnight Study Partner',
-
-    title: 'Exam Cram & Brain Fuel',
-
-    description: 'Late-night cravings, coffee runs, and sustained focus fuel for studies.',
-
-    defaultPitch: 1.05,
-
-    defaultRate: 0.50,
-
-    isFemale: true,
-
-    icon: Icons.menu_book,
-
-    themeColor: Colors.lightGreenAccent,
-
-  ),
-
-  VoicePersona(
-
-    id: 'eco_activist',
-
-    name: 'The Eco-Conscious Activist',
-
-    title: 'Sustainability & Zero Waste',
-
-    description: 'Champions sustainability, zero-waste food choices, and local ethical sourcing.',
-
-    defaultPitch: 1.12,
-
-    defaultRate: 0.52,
-
-    isFemale: true,
-
-    icon: Icons.eco,
-
-    themeColor: Colors.lightGreen,
-
-  ),
-
-  VoicePersona(
-
-    id: 'hype_man',
-
-    name: 'The Hype Man',
-
-    title: 'Maximum Stadium Energy',
-
-    description: 'Extremely enthusiastic, celebrating every single meal order like a champion win.',
-
-    defaultPitch: 1.25,
-
-    defaultRate: 0.60,
-
-    isFemale: false,
-
-    icon: Icons.campaign,
-
-    themeColor: Colors.yellowAccent,
-
-  ),
-
-  VoicePersona(
-
-    id: 'sarcastic_roommate',
-
-    name: 'The Sarcastic Roommate',
-
-    title: 'Dry Wit & Playful Banter',
-
-    description: 'Witty, dry humor, playful banter while getting things done.',
-
-    defaultPitch: 0.98,
-
-    defaultRate: 0.54,
-
-    isFemale: false,
-
-    icon: Icons.sentiment_very_satisfied,
-
-    themeColor: Colors.orangeAccent,
-
-  ),
-
-  VoicePersona(
-
-    id: 'zen_guide',
-
-    name: 'The Zen Mindfulness Guide',
-
-    title: 'Calm & Mindful Dining',
-
-    description: 'Calm, meditative, promotes mindful eating, gratitude, and peaceful pacing.',
-
-    defaultPitch: 0.88,
-
-    defaultRate: 0.42,
-
-    isFemale: true,
-
-    icon: Icons.self_improvement,
-
-    themeColor: Colors.cyan,
-
-  ),
-
-  VoicePersona(
-
-    id: 'history_buff',
-
-    name: 'The History Buff',
-
-    title: 'Historical Origins & Heritage',
-
-    description: 'Relates campus meals to interesting historical fun facts and cultural culinary origins.',
-
-    defaultPitch: 0.96,
-
-    defaultRate: 0.49,
-
-    isFemale: false,
-
-    icon: Icons.account_balance,
-
-    themeColor: Colors.brown,
-
-  ),
-
-  VoicePersona(
-
-    id: 'disciplinarian',
-
-    name: 'The Strict Disciplinarian',
-
-    title: 'Order, Precision & Protocol',
-
-    description: 'Formal, orderly, precise, respectful, and punctual.',
-
-    defaultPitch: 0.92,
-
-    defaultRate: 0.51,
-
-    isFemale: false,
-
-    icon: Icons.military_tech,
-
-    themeColor: Colors.blueGrey,
-
-  ),
-
-  VoicePersona(
-
-    id: 'festival_coordinator',
-
-    name: 'The Festival Coordinator',
-
-    title: 'Festive Weekend Treats',
-
-    description: 'Upbeat, celebratory energy tailored for weekend treats and campus events.',
-
-    defaultPitch: 1.18,
-
-    defaultRate: 0.55,
-
-    isFemale: true,
-
-    icon: Icons.celebration,
-
-    themeColor: Colors.pink,
-
-  ),
-
-  VoicePersona(
-
-    id: 'minimalist',
-
-    name: 'The Minimalist',
-
-    title: 'Ultra-Concise Zero Fluff',
-
-    description: 'Direct, ultra-concise, zero fluff, straight to the point.',
-
-    defaultPitch: 1.00,
-
-    defaultRate: 0.58,
-
-    isFemale: true,
-
-    icon: Icons.short_text,
-
-    themeColor: Colors.white70,
-
-  ),
-
-];
 
 class SemaNaDishiOverlay extends StatefulWidget {
 
@@ -615,403 +121,103 @@ class SemaNaDishiOverlay extends StatefulWidget {
 }
 
 class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTickerProviderStateMixin {
-
-  late stt.SpeechToText _speech;
-
-  late FlutterTts _flutterTts;
-
   late AnimationController _pulseController;
 
   bool _isListening = false;
-
   bool _isProcessing = false;
-
   String _recognizedWords = '';
-
   String _assistantSpeech = 'Listening... Ask about vendors, menus, wallet balance, or split bills.';
-
   String? _detectedIntent;
-
   bool _requiresPin = false;
-
   String? _challengeCode;
 
   // Active Voice Persona & Language (Default is English and The Campus Buddy)
-
   VoicePersona _selectedPersona = kVoicePersonas[0];
-
   String _currentLanguage = 'en'; // 'en' | 'sw' | 'sheng' | 'fr' | 'es'
-
   String _voiceGender = 'female'; // 'female' (Lady voice - default) | 'male' (Gentleman voice)
-
   double _pitch = 1.15;
-
   double _speechRate = 0.52;
 
   final TextEditingController _textFallbackController = TextEditingController();
 
   @override
-
   void initState() {
-
     super.initState();
-
-    _speech = stt.SpeechToText();
-
-    _flutterTts = FlutterTts();
-
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
 
-    DishiVoiceService.instance.activatePersistentVoice();
-
-    _initAudioAndPreferences();
-
-  }
-
-  Future<void> _initAudioAndPreferences() async {
-
-    try {
-
-      final prefs = await SharedPreferences.getInstance();
-
-      final savedPersonaId = prefs.getString('sema_dishi_voice_persona') ?? 'campus_buddy';
-
-      final savedLang = prefs.getString('sema_dishi_voice_language') ?? 'en';
-
-      final savedGender = prefs.getString('sema_dishi_voice_gender') ?? 'female';
-
-      final persona = kVoicePersonas.firstWhere(
-
-        (p) => p.id == savedPersonaId,
-
-        orElse: () => kVoicePersonas[0],
-
-      );
-
-      final savedPitch = prefs.getDouble('sema_dishi_voice_pitch') ?? (savedGender == 'male' ? 0.72 : 1.22);
-
-      final savedRate = prefs.getDouble('sema_dishi_voice_rate') ?? (savedGender == 'male' ? 0.48 : 0.52);
-
-      if (mounted) {
-
-        setState(() {
-
-          _selectedPersona = persona;
-
-          _currentLanguage = savedLang;
-
-          _voiceGender = savedGender;
-
-          _pitch = savedPitch;
-
-          _speechRate = savedRate;
-
-          _assistantSpeech = _currentLanguage == 'en'
-
-              ? 'Listening (${_selectedPersona.name.split(' ')[0]})... State an order, check balance, or ask anything.'
-
-              : 'Ninakusikiliza (${_selectedPersona.name.split(' ')[0]})... Taja agizo, uliza salio, au sema amri yoyote.';
-
-        });
-
-      }
-
-      await _applyTtsSettings();
-
-    } catch (_) {
-
-      await _applyTtsSettings();
-
+    _selectedPersona = DishiVoiceService.instance.selectedPersona;
+    _currentLanguage = DishiVoiceService.instance.currentLanguage;
+    _voiceGender = DishiVoiceService.instance.voiceGender;
+    _isListening = DishiVoiceService.instance.isListeningNotifier.value;
+    _isProcessing = DishiVoiceService.instance.isProcessingNotifier.value;
+    _recognizedWords = DishiVoiceService.instance.transcriptNotifier.value;
+    if (DishiVoiceService.instance.lastSpokenResponseNotifier.value.isNotEmpty) {
+      _assistantSpeech = DishiVoiceService.instance.lastSpokenResponseNotifier.value;
     }
 
-    _startListening();
+    DishiVoiceService.instance.transcriptNotifier.addListener(_onVoiceTranscript);
+    DishiVoiceService.instance.isListeningNotifier.addListener(_onVoiceListening);
+    DishiVoiceService.instance.isProcessingNotifier.addListener(_onVoiceProcessing);
+    DishiVoiceService.instance.lastSpokenResponseNotifier.addListener(_onVoiceSpoken);
+    DishiVoiceService.instance.currentIntentNotifier.addListener(_onVoiceIntent);
 
+    DishiVoiceService.instance.activatePersistentVoice();
   }
 
-  Future<void> _applyTtsSettings() async {
-    try {
-      String ttsLocale = "en-US";
-      String baseLang = "en";
-      if (_currentLanguage == 'sw' || _currentLanguage == 'sheng') {
-        ttsLocale = "sw-KE";
-        baseLang = "sw";
-      } else if (_currentLanguage == 'fr') {
-        ttsLocale = "fr-FR";
-        baseLang = "fr";
-      } else if (_currentLanguage == 'es') {
-        ttsLocale = "es-ES";
-        baseLang = "es";
+  void _onVoiceTranscript() {
+    if (mounted) {
+      setState(() => _recognizedWords = DishiVoiceService.instance.transcriptNotifier.value);
+    }
+  }
+
+  void _onVoiceListening() {
+    if (mounted) {
+      setState(() => _isListening = DishiVoiceService.instance.isListeningNotifier.value);
+    }
+  }
+
+  void _onVoiceProcessing() {
+    if (mounted) {
+      setState(() => _isProcessing = DishiVoiceService.instance.isProcessingNotifier.value);
+    }
+  }
+
+  void _onVoiceSpoken() {
+    if (mounted && DishiVoiceService.instance.lastSpokenResponseNotifier.value.isNotEmpty) {
+      setState(() => _assistantSpeech = DishiVoiceService.instance.lastSpokenResponseNotifier.value);
+    }
+  }
+
+  void _onVoiceIntent() {
+    final intent = DishiVoiceService.instance.currentIntentNotifier.value;
+    if (intent != null && mounted) {
+      setState(() => _detectedIntent = intent);
+      if (intent == 'DISMISS_VOICE' || intent == 'THANK_YOU_DISHI') {
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (mounted) Navigator.pop(context);
+        });
       }
-
-      await _flutterTts.setLanguage(ttsLocale);
-
-      // Distinct pitch: 0.72 for deep masculine voice, 1.22 for lady voice
-      final double targetPitch = (_voiceGender == 'male') ? 0.72 : 1.22;
-      final double targetRate = (_voiceGender == 'male') ? 0.48 : 0.52;
-      _pitch = targetPitch;
-      _speechRate = targetRate;
-
-      await _flutterTts.setPitch(_pitch);
-      await _flutterTts.setSpeechRate(_speechRate);
-
-      final dynamic rawVoices = await _flutterTts.getVoices;
-      if (rawVoices is List && rawVoices.isNotEmpty) {
-        Map? matchedVoice;
-        final bool isMaleTarget = _voiceGender == 'male';
-
-        // PASS 1: Search in current locale with strict gender filtering (never match 'female' as male!)
-        for (var v in rawVoices) {
-          if (v is Map) {
-            final name = (v['name'] ?? '').toString().toLowerCase();
-            final locale = (v['locale'] ?? '').toString().toLowerCase();
-            final gender = (v['gender'] ?? '').toString().toLowerCase();
-
-            final matchesLocale = locale.contains(baseLang) || locale.contains(ttsLocale.toLowerCase());
-            final isFemaleTag = name.contains('female') || name.contains('woman') || gender == 'female';
-
-            if (isMaleTarget) {
-              if (isFemaleTag) continue; // CRUCIAL: 'female'.contains('male') must be rejected!
-              final isMaleTag = name.contains('#male') ||
-                  name.contains('_male') ||
-                  name.contains('-male') ||
-                  name.contains('male_') ||
-                  name.contains('male') ||
-                  name.contains('man') ||
-                  name.contains('-iol-') ||
-                  name.contains('-tpd-') ||
-                  name.contains('-iom-') ||
-                  name.contains('-iob-') ||
-                  name.contains('-sfk-') ||
-                  name.contains('m0') ||
-                  gender == 'male';
-              if (matchesLocale && isMaleTag) {
-                matchedVoice = v;
-                break;
-              }
-            } else {
-              if (matchesLocale && isFemaleTag) {
-                matchedVoice = v;
-                break;
-              }
-            }
-          }
-        }
-
-        // PASS 2: If no voice matched in locale, search globally across all engine voices
-        if (matchedVoice == null) {
-          for (var v in rawVoices) {
-            if (v is Map) {
-              final name = (v['name'] ?? '').toString().toLowerCase();
-              final gender = (v['gender'] ?? '').toString().toLowerCase();
-              final isFemaleTag = name.contains('female') || name.contains('woman') || gender == 'female';
-
-              if (isMaleTarget) {
-                if (isFemaleTag) continue;
-                final isMaleTag = name.contains('#male') ||
-                    name.contains('_male') ||
-                    name.contains('-male') ||
-                    name.contains('male') ||
-                    name.contains('-iol-') ||
-                    name.contains('-tpd-') ||
-                    name.contains('-iom-') ||
-                    name.contains('m0') ||
-                    gender == 'male';
-                if (isMaleTag) {
-                  matchedVoice = v;
-                  break;
-                }
-              } else {
-                if (isFemaleTag) {
-                  matchedVoice = v;
-                  break;
-                }
-              }
-            }
-          }
-        }
-
-        // PASS 3: Index-based alternating fallback (Google TTS index 0 is female, index 1 is male)
-        if (matchedVoice == null) {
-          final localeVoices = rawVoices.where((v) {
-            if (v is! Map) return false;
-            final loc = (v['locale'] ?? '').toString().toLowerCase();
-            return loc.contains(baseLang);
-          }).toList();
-
-          if (localeVoices.isNotEmpty) {
-            if (isMaleTarget && localeVoices.length > 1) {
-              matchedVoice = localeVoices[1] as Map;
-            } else {
-              matchedVoice = localeVoices[0] as Map;
-            }
-          }
-        }
-
-        if (matchedVoice != null) {
-          await _flutterTts.setVoice({
-            'name': matchedVoice['name'],
-            'locale': matchedVoice['locale'],
-          });
-        }
-      }
-    } catch (_) {}
+    }
   }
 
-  Future<void> _savePreferences() async {
+  Future<void> _applyTtsSettings() async {}
 
-    try {
-
-      final prefs = await SharedPreferences.getInstance();
-
-      await prefs.setString('sema_dishi_voice_persona', _selectedPersona.id);
-
-      await prefs.setString('sema_dishi_voice_language', _currentLanguage);
-
-      await prefs.setString('sema_dishi_voice_gender', _voiceGender);
-
-      await prefs.setDouble('sema_dishi_voice_pitch', _pitch);
-
-      await prefs.setDouble('sema_dishi_voice_rate', _speechRate);
-
-    } catch (_) {}
-
-  }
+  Future<void> _savePreferences() async {}
 
   Future<void> _speakResponse(String message) async {
-    try {
-      await _flutterTts.stop();
-      // Synchronize exact active gender voice and pitch prior to audio playback
-      await _applyTtsSettings();
-      final clean = message.replaceAll(RegExp(r'[*#_~`>\[\]\(\)]'), ' ').trim();
-      await _flutterTts.speak(clean);
-    } catch (_) {}
+    await DishiVoiceService.instance.speak(message);
   }
 
   Future<void> _startListening() async {
-
     HapticFeedback.mediumImpact();
-
-    setState(() {
-
-      _recognizedWords = '';
-
-      _assistantSpeech = _currentLanguage == 'en'
-
-          ? 'Listening (${_selectedPersona.name.split(' ')[0]})...'
-
-          : 'Ninakusikiliza (${_selectedPersona.name.split(' ')[0]})...';
-
-      _isListening = true;
-
-    });
-
-    try {
-
-      bool available = await _speech.initialize(
-
-        onStatus: (status) {
-
-          if (status == 'done' || status == 'notListening') {
-
-            if (mounted && _isListening && _recognizedWords.isNotEmpty) {
-
-              _processSpokenText(_recognizedWords);
-
-            }
-
-          }
-
-        },
-
-        onError: (val) {
-
-          if (mounted) setState(() => _isListening = false);
-
-        },
-
-      );
-
-      if (available) {
-
-        _speech.listen(
-
-          onResult: (val) {
-
-            if (mounted) {
-
-              setState(() {
-
-                _recognizedWords = val.recognizedWords;
-
-              });
-
-              if (val.finalResult) {
-
-                _processSpokenText(val.recognizedWords);
-
-              }
-
-            }
-
-          },
-
-          listenOptions: stt.SpeechListenOptions(
-
-            listenMode: stt.ListenMode.confirmation,
-
-            localeId: _currentLanguage == 'sw' || _currentLanguage == 'sheng' ? 'sw_KE' : 'en_US',
-
-          ),
-
-        );
-
-      } else {
-
-        setState(() {
-
-          _isListening = false;
-
-          _assistantSpeech = _currentLanguage == 'en'
-
-              ? 'Microphone unavailable. Use the text box below.'
-
-              : 'Maikrofoni haipatikani. Tumia kisanduku cha maandishi hapa chini.';
-
-        });
-
-      }
-
-    } catch (e) {
-
-      if (mounted) {
-
-        setState(() {
-
-          _isListening = false;
-
-          _assistantSpeech = _currentLanguage == 'en'
-
-              ? 'Voice error. You can type your command below.'
-
-              : 'Hitilafu ya sauti. Unaweza kuandika amri yako hapa chini.';
-
-        });
-
-      }
-
-    }
-
+    await DishiVoiceService.instance.activatePersistentVoice();
   }
 
   Future<void> _stopListening() async {
-
-    await _speech.stop();
-
-    setState(() => _isListening = false);
-
+    await DishiVoiceService.instance.toggleListening();
   }
 
   void _handleDirectNavigation(String intent, Map<String, dynamic> data) async {
@@ -1141,6 +347,11 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
       case 'OPEN_VENDOR_PAYOUTS':
         Navigator.pop(context);
         rootNav.push(MaterialPageRoute(builder: (_) => const PayoutHubView()));
+        break;
+
+      case 'OPEN_CAMPUS_IDOL':
+        Navigator.pop(context);
+        rootNav.push(MaterialPageRoute(builder: (_) => const MatchCampusIdolView()));
         break;
 
       case 'OPEN_PARENT_ALLOWANCE':
@@ -1822,12 +1033,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
                           _pitch = 1.22;
                           _speechRate = 0.52;
                         });
-                        await _applyTtsSettings();
-                        await _savePreferences();
-                        final ack = _currentLanguage == 'en'
-                            ? "DISHI lady voice activated. How can I help you today?"
-                            : "Sauti ya kike ya DISHI imewashwa. Nikusaidie nini leo rafiki yangu?";
-                        await _speakResponse(ack);
+                        await DishiVoiceService.instance.setVoiceGender('female');
                       }
                     },
                   ),
@@ -1860,12 +1066,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
                           _pitch = 0.72;
                           _speechRate = 0.48;
                         });
-                        await _applyTtsSettings();
-                        await _savePreferences();
-                        final ack = _currentLanguage == 'en'
-                            ? "Gentleman voice activated. Ready to assist you, comrade!"
-                            : "Sauti ya kiume imewashwa. Niko tayari kukusaidia comrade!";
-                        await _speakResponse(ack);
+                        await DishiVoiceService.instance.setVoiceGender('male');
                       }
                     },
                   ),
@@ -2040,8 +1241,7 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
                             _pitch = pitch;
                             _speechRate = persona.defaultRate;
                           });
-                          await _applyTtsSettings();
-                          await _savePreferences();
+                          await DishiVoiceService.instance.setVoicePersona(persona);
                         },
 
                       ),
@@ -2214,20 +1414,12 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
 
         side: BorderSide(color: isSelected ? _neonCyan : Colors.white12),
 
-        onSelected: (val) {
-
+        onSelected: (val) async {
           if (val) {
-
             setSheetState(() => _currentLanguage = code);
-
             setState(() => _currentLanguage = code);
-
-            _applyTtsSettings();
-
-            _savePreferences();
-
+            await DishiVoiceService.instance.setLanguage(code);
           }
-
         },
 
       ),
@@ -2237,19 +1429,19 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
   }
 
   @override
-
   void dispose() {
-
-    _speech.stop();
-
-    _flutterTts.stop();
+    DishiVoiceService.instance.transcriptNotifier.removeListener(_onVoiceTranscript);
+    DishiVoiceService.instance.isListeningNotifier.removeListener(_onVoiceListening);
+    DishiVoiceService.instance.isProcessingNotifier.removeListener(_onVoiceProcessing);
+    DishiVoiceService.instance.lastSpokenResponseNotifier.removeListener(_onVoiceSpoken);
+    DishiVoiceService.instance.currentIntentNotifier.removeListener(_onVoiceIntent);
 
     _pulseController.dispose();
-
     _textFallbackController.dispose();
 
+    // Ensure persistent listening remains active in background!
+    DishiVoiceService.instance.ensureListeningInBackground();
     super.dispose();
-
   }
 
   @override
