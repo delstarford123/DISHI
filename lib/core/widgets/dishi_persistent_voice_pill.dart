@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../main.dart' show appNavigatorKey;
 import '../services/dishi_voice_service.dart';
 import '../services/dishi_voice_models.dart';
 import 'sema_na_dishi_overlay.dart';
@@ -38,8 +39,9 @@ class _DishiPersistentVoicePillState extends State<DishiPersistentVoicePill> wit
   void _checkShowTrainingSheet() {
     if (DishiVoiceService.instance.showTrainingSheetNotifier.value && mounted) {
       DishiVoiceService.instance.showTrainingSheetNotifier.value = false;
+      final targetContext = appNavigatorKey.currentContext ?? context;
       showModalBottomSheet(
-        context: context,
+        context: targetContext,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (_) => const DishiVoiceTrainingSheet(),
@@ -54,167 +56,173 @@ class _DishiPersistentVoicePillState extends State<DishiPersistentVoicePill> wit
       builder: (context, isOnline, _) {
         if (!isOnline) return const SizedBox.shrink();
 
-        return Positioned(
-          top: MediaQuery.of(context).padding.top + 8,
-          left: 12,
-          right: 12,
-          child: Material(
-            color: Colors.transparent,
-            child: ValueListenableBuilder<bool>(
-              valueListenable: DishiVoiceService.instance.isListeningNotifier,
-              builder: (context, isListening, _) {
-                return AnimatedBuilder(
-                  animation: _pulseController,
-                  builder: (context, child) {
-                    final pulse = _pulseController.value;
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F1523).withValues(alpha: 0.94),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isListening
-                              ? kVoiceNeonGold.withValues(alpha: 0.6 + (pulse * 0.4))
-                              : kVoiceNeonCyan.withValues(alpha: 0.4),
-                          width: 1.6,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
+        return SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Material(
+              color: Colors.transparent,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: DishiVoiceService.instance.isListeningNotifier,
+                builder: (context, isListening, _) {
+                  return AnimatedBuilder(
+                    animation: _pulseController,
+                    builder: (context, child) {
+                      final pulse = _pulseController.value;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F1523).withValues(alpha: 0.94),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
                             color: isListening
-                                ? kVoiceNeonGold.withValues(alpha: 0.3 * pulse)
-                                : kVoiceNeonCyan.withValues(alpha: 0.15),
-                            blurRadius: 14,
-                            spreadRadius: 1,
+                                ? kVoiceNeonGold.withValues(alpha: 0.6 + (pulse * 0.4))
+                                : kVoiceNeonCyan.withValues(alpha: 0.4),
+                            width: 1.6,
                           ),
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          // Animated Pulsing Mic Avatar
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: isListening
-                                    ? [const Color(0xFFFFF9A6), const Color(0xFFFFD700)]
-                                    : [kVoiceNeonCyan, const Color(0xFF009688)],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (isListening ? kVoiceNeonGold : kVoiceNeonCyan).withValues(alpha: 0.4),
-                                  blurRadius: 8,
+                          boxShadow: [
+                            BoxShadow(
+                              color: isListening
+                                  ? kVoiceNeonGold.withValues(alpha: 0.3 * pulse)
+                                  : kVoiceNeonCyan.withValues(alpha: 0.15),
+                              blurRadius: 14,
+                              spreadRadius: 1,
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            // Animated Pulsing Mic Avatar
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: isListening
+                                      ? [const Color(0xFFFFF9A6), const Color(0xFFFFD700)]
+                                      : [kVoiceNeonCyan, const Color(0xFF009688)],
                                 ),
-                              ],
-                            ),
-                            child: Icon(
-                              isListening ? Icons.mic : Icons.mic_none,
-                              color: const Color(0xFF0C101B),
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-
-                          // Dynamic Transcript & Status Text
-                          Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                SemaNaDishiOverlay.show(context);
-                              },
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'DISHI Voice Online',
-                                        style: TextStyle(
-                                          color: isListening ? kVoiceNeonGold : kVoiceNeonCyan,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          DishiVoiceService.instance.selectedPersona.name.split(' ')[0],
-                                          style: const TextStyle(color: Colors.white70, fontSize: 9),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 2),
-                                  ValueListenableBuilder<String>(
-                                    valueListenable: DishiVoiceService.instance.transcriptNotifier,
-                                    builder: (context, transcript, _) {
-                                      if (transcript.isNotEmpty) {
-                                        return Text(
-                                          '"$transcript"',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        );
-                                      }
-                                      return const Text(
-                                        'Say "Hello DISHI" or "Thank you DISHI"',
-                                        style: TextStyle(color: kVoiceTextSecondary, fontSize: 11),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      );
-                                    },
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: (isListening ? kVoiceNeonGold : kVoiceNeonCyan).withValues(alpha: 0.4),
+                                    blurRadius: 8,
                                   ),
                                 ],
                               ),
+                              child: Icon(
+                                isListening ? Icons.mic : Icons.mic_none,
+                                color: const Color(0xFF0C101B),
+                                size: 20,
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 10),
 
-                          // Interactive Action Buttons
-                          IconButton(
-                            icon: const Icon(Icons.school_rounded, color: Colors.amberAccent, size: 20),
-                            tooltip: 'Voice Training',
-                            onPressed: () {
-                              HapticFeedback.lightImpact();
-                              DishiVoiceService.instance.launchVoiceTraining();
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.open_in_full_rounded, color: Colors.white70, size: 18),
-                            tooltip: 'Expand Voice Assistant',
-                            onPressed: () {
-                              HapticFeedback.lightImpact();
-                              SemaNaDishiOverlay.show(context);
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.power_settings_new_rounded, color: Colors.redAccent, size: 20),
-                            tooltip: 'Standby / Manual Mode ("Thank you DISHI")',
-                            onPressed: () {
-                              HapticFeedback.mediumImpact();
-                              DishiVoiceService.instance.setStandby(speakDismiss: true);
-                            },
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
+                            // Dynamic Transcript & Status Text
+                            Expanded(
+                              child: InkWell(
+                                onTap: () {
+                                  final targetContext = appNavigatorKey.currentContext ?? context;
+                                  SemaNaDishiOverlay.show(targetContext);
+                                },
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          'DISHI Voice Online',
+                                          style: TextStyle(
+                                            color: isListening ? kVoiceNeonGold : kVoiceNeonCyan,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            DishiVoiceService.instance.selectedPersona.name.split(' ')[0],
+                                            style: const TextStyle(color: Colors.white70, fontSize: 9),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    ValueListenableBuilder<String>(
+                                      valueListenable: DishiVoiceService.instance.transcriptNotifier,
+                                      builder: (context, transcript, _) {
+                                        if (transcript.isNotEmpty) {
+                                          return Text(
+                                            '"$transcript"',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          );
+                                        }
+                                        return const Text(
+                                          'Say "Hello DISHI" or "Thank you DISHI"',
+                                          style: TextStyle(color: kVoiceTextSecondary, fontSize: 11),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            // Interactive Action Buttons
+                            IconButton(
+                              icon: const Icon(Icons.school_rounded, color: Colors.amberAccent, size: 20),
+                              padding: const EdgeInsets.all(8),
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                DishiVoiceService.instance.launchVoiceTraining();
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.open_in_full_rounded, color: Colors.white70, size: 18),
+                              padding: const EdgeInsets.all(8),
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                final targetContext = appNavigatorKey.currentContext ?? context;
+                                SemaNaDishiOverlay.show(targetContext);
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.power_settings_new_rounded, color: Colors.redAccent, size: 20),
+                              padding: const EdgeInsets.all(8),
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                HapticFeedback.mediumImpact();
+                                DishiVoiceService.instance.setStandby(speakDismiss: true);
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
         );

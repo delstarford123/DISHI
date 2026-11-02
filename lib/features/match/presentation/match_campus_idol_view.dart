@@ -131,17 +131,20 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                       onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
                         Navigator.pop(context);
                         await FirebaseFirestore.instance.collection('campus_idols').add({
                           'uid': currentUid,
                           'filter': _selectedFilter,
-                          'colorHex': _selectedCover.value,
+                          'colorHex': _selectedCover.toARGB32(),
                           'likes': 0,
                           'createdAt': FieldValue.serverTimestamp(),
                           'isAnonymous': true, // Photos hidden initially
                         });
-                        setState(() => _recordingProgress = 0.0);
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Audition published!')));
+                        if (mounted) {
+                          setState(() => _recordingProgress = 0.0);
+                          messenger.showSnackBar(const SnackBar(content: Text('Audition published!')));
+                        }
                       },
                       child: const Text('Submit Audition', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
@@ -181,7 +184,11 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Keep Swiping')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-            onPressed: () { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opened Chat!'))); },
+            onPressed: () {
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.pop(context);
+              messenger.showSnackBar(const SnackBar(content: Text('Opened Chat!')));
+            },
             child: const Text('Message', style: TextStyle(color: Colors.white)),
           )
         ],
@@ -285,7 +292,7 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
                   // Blurry Cover Art Background
                   Container(
                     decoration: BoxDecoration(
-                      gradient: RadialGradient(colors: [coverColor.withOpacity(0.5), Colors.black], radius: 1.5),
+                      gradient: RadialGradient(colors: [coverColor.withValues(alpha: 0.5), Colors.black], radius: 1.5),
                     ),
                   ),
                   

@@ -45,6 +45,7 @@ import '../../features/vendor/presentation/inventory/inventory_dashboard_view.da
 import '../../features/vendor/presentation/finance/payout_hub_view.dart';
 import '../../features/parent/presentation/parent_dashboard_view.dart';
 import '../../features/student/presentation/dynamic_qr_dialog.dart';
+import '../../main.dart' show appNavigatorKey;
 import 'dishi_persistent_voice_pill.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
@@ -583,9 +584,11 @@ class SemaNaDishiOverlay extends StatefulWidget {
 
   }) {
 
+    final targetContext = appNavigatorKey.currentContext ?? context;
+
     showModalBottomSheet(
 
-      context: context,
+      context: targetContext,
 
       isScrollControlled: true,
 
@@ -2444,8 +2447,6 @@ class _SemaNaDishiOverlayState extends State<SemaNaDishiOverlay> with SingleTick
                   IconButton(
 
                     icon: const Icon(Icons.tune, color: _neonCyan, size: 22),
-
-                    tooltip: 'Voice Personas & Language',
 
                     onPressed: _openVoiceSettingsSheet,
 

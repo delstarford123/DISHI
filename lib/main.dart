@@ -145,10 +145,21 @@ class _DISHIAppState extends State<DISHIApp> {
           onSessionTimeout: _handleSessionTimeout,
           child: IncomingCallListener(
             navigatorKey: appNavigatorKey,
-            child: Stack(
-              children: [
-                child ?? const SizedBox.shrink(),
-                const DishiPersistentVoicePill(),
+            child: Overlay(
+              initialEntries: [
+                OverlayEntry(
+                  builder: (ctx) => Stack(
+                    children: [
+                      child ?? const SizedBox.shrink(),
+                      const Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: DishiPersistentVoicePill(),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
