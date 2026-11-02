@@ -520,3 +520,339 @@ def refund_escrow():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+
+
+@campus_gigs_v6_bp.route('/verify_handoff', methods=['POST'])
+def verify_courier_handoff():
+    """
+    Called by Vendor to securely verify that the DeLiv Courier at the counter
+    matches the order before handing over prepared food or valuable electronics.
+    """
+    data = request.json or {}
+    order_id = data.get('order_id')
+    vendor_id = data.get('vendor_id')
+    provided_pin = str(data.get('vendor_pickup_pin', '')).strip()
+
+    if not order_id or not provided_pin:
+        return jsonify({'error': 'Missing order_id or vendor_pickup_pin'}), 400
+
+    db = firestore.client()
+
+    try:
+        # Check in orders collection first
+        order_ref = db.collection('orders').document(order_id)
+        order_doc = order_ref.get()
+
+        deliv_req_doc = None
+        deliv_req_ref = None
+
+        if not order_doc.exists:
+            # Maybe order_id is actually a deliv_requests ID
+            deliv_req_ref = db.collection('deliv_requests').document(order_id)
+            deliv_req_doc = deliv_req_ref.get()
+            if not deliv_req_doc.exists:
+                return jsonify({'error': 'Order or delivery request not found'}), 404
+            order_data = deliv_req_doc.to_dict()
+        else:
+            order_data = order_doc.to_dict()
+            linked_gig_id = order_data.get('deliv_request_id') or order_data.get('gig_id')
+            if linked_gig_id:
+                deliv_req_ref = db.collection('deliv_requests').document(linked_gig_id)
+                deliv_req_doc = deliv_req_ref.get()
+
+        # Validate vendor pickup pin
+        expected_pin = str(order_data.get('vendor_pickup_pin') or order_data.get('pickup_pin') or '').strip()
+        if not expected_pin and deliv_req_doc and deliv_req_doc.exists:
+            expected_pin = str(deliv_req_doc.to_dict().get('vendor_pickup_pin', '')).strip()
+
+        if expected_pin and provided_pin != expected_pin:
+            return jsonify({'error': 'Incorrect Vendor Pickup PIN. Courier must provide PIN matching the order.'}), 400
+
+        # Update order status to in_transit
+        update_payload = {
+            'status': 'in_transit',
+            'prep_status': 'in_transit',
+            'handed_to_courier': True,
+            'handed_to_courier_at': firestore.SERVER_TIMESTAMP,
+            'updatedAt': firestore.SERVER_TIMESTAMP,
+        }
+        if order_doc.exists:
+            order_ref.update(update_payload)
+
+        # Update deliv_requests stage to delivering
+        if deliv_req_ref:
+            deliv_req_ref.update({
+                'stage': 'delivering',
+                'status': 'in_transit',
+                'handed_to_courier_at': firestore.SERVER_TIMESTAMP,
+                'updatedAt': firestore.SERVER_TIMESTAMP,
+            })
+
+        student_uid = order_data.get('studentUid') or order_data.get('student_id') or order_data.get('userId') or order_data.get('postedBy')
+        vendor_name = order_data.get('vendorName') or order_data.get('vendor_name') or 'Vendor'
+
+        # Send push notification to student
+        if student_uid:
+            try:
+                from utils.fcm_utils import send_fcm_notification
+                send_fcm_notification(
+                    student_uid,
+                    'Order In Transit! 🛵',
+                    f'Your order from {vendor_name} has been picked up by your courier and is on the way!',
+                    data={'type': 'order_in_transit', 'order_id': order_id}
+                )
+            except Exception as fcm_err:
+                print('FCM notification error:', fcm_err)
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Courier handover verified successfully. Order is now en-route to the student.'
+        }), 200
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@campus_gigs_v6_bp.route('/complete', methods=['POST'])
+def complete_courier_delivery():
+    """
+    Called by DeLiv Courier upon arrival at student's doorstep/seat.
+    Requires Student's 4-digit Delivery PIN to complete and unlock Escrow payout.
+    """
+    data = request.json or {}
+    request_id = data.get('request_id')
+    driver_id = data.get('driver_id')
+    provided_pin = str(data.get('delivery_pin', '')).strip()
+
+    if not request_id or not provided_pin:
+        return jsonify({'error': 'Missing request_id or delivery_pin'}), 400
+
+    db = firestore.client()
+
+    try:
+        # Search deliv_requests first
+        gig_ref = db.collection('deliv_requests').document(request_id)
+        gig_doc = gig_ref.get()
+
+        order_ref = None
+        order_doc = None
+
+        if not gig_doc.exists:
+            # Check if request_id is an order_id
+            order_ref = db.collection('orders').document(request_id)
+            order_doc = order_ref.get()
+            if not order_doc.exists:
+                return jsonify({'error': 'Delivery gig not found'}), 404
+            gig_data = order_doc.to_dict()
+        else:
+            gig_data = gig_doc.to_dict()
+            linked_order_id = gig_data.get('orderId') or gig_data.get('order_id')
+            if linked_order_id:
+                order_ref = db.collection('orders').document(linked_order_id)
+                order_doc = order_ref.get()
+
+        # Validate delivery pin
+        expected_pin = str(gig_data.get('studentDeliveryPin') or gig_data.get('student_delivery_pin') or gig_data.get('completion_pin') or '').strip()
+        if not expected_pin and order_doc and order_doc.exists:
+            expected_pin = str(order_doc.to_dict().get('studentDeliveryPin') or order_doc.to_dict().get('student_delivery_pin') or '').strip()
+
+        if expected_pin and provided_pin != expected_pin:
+            return jsonify({'error': 'Incorrect Student Delivery PIN. Please ask the student for their 4-digit PIN.'}), 400
+
+        delivery_fee = float(gig_data.get('deliveryFee') or gig_data.get('delivery_fee') or gig_data.get('pay') or 50.0)
+        actual_driver_id = driver_id or gig_data.get('driverId') or gig_data.get('worker_id')
+        student_uid = gig_data.get('studentUid') or gig_data.get('student_id') or gig_data.get('userId') or gig_data.get('postedBy')
+
+        # Credit delivery fee to Driver's wallet
+        if actual_driver_id:
+            driver_ref = db.collection('users').document(actual_driver_id)
+            driver_snap = driver_ref.get()
+            if driver_snap.exists:
+                cur_bal = float(driver_snap.to_dict().get('walletBalance') or 0.0)
+                driver_ref.update({
+                    'walletBalance': cur_bal + delivery_fee,
+                    'updatedAt': firestore.SERVER_TIMESTAMP
+                })
+                # Add transaction record
+                driver_ref.collection('transactions').add({
+                    'type': 'DELIV_EARNING',
+                    'amount': delivery_fee,
+                    'desc': f'Campus Courier Delivery Completed (#{request_id[:6]})',
+                    'timestamp': firestore.SERVER_TIMESTAMP,
+                    'request_id': request_id
+                })
+
+        # Mark delivery request as completed
+        if gig_doc.exists:
+            gig_ref.update({
+                'status': 'completed',
+                'stage': 'completed',
+                'escrow_status': 'RELEASED',
+                'completedAt': firestore.SERVER_TIMESTAMP,
+                'updatedAt': firestore.SERVER_TIMESTAMP
+            })
+
+        # Mark linked order as fulfilled/completed
+        if order_ref and order_doc and order_doc.exists:
+            order_ref.update({
+                'status': 'completed',
+                'prep_status': 'fulfilled',
+                'delivery_status': 'delivered',
+                'completedAt': firestore.SERVER_TIMESTAMP,
+                'updatedAt': firestore.SERVER_TIMESTAMP
+            })
+
+        # Send FCM notification to Student and Driver
+        try:
+            from utils.fcm_utils import send_fcm_notification
+            if student_uid:
+                send_fcm_notification(
+                    student_uid,
+                    'Order Delivered! 🎉',
+                    'Your order has been safely delivered. Thank you for using DISHI!',
+                    data={'type': 'order_delivered', 'request_id': request_id}
+                )
+            if actual_driver_id:
+                send_fcm_notification(
+                    actual_driver_id,
+                    'Delivery Completed! 💵',
+                    f'You earned KES {delivery_fee:.0f} for this delivery. Great job!',
+                    data={'type': 'payout_credited', 'amount': str(delivery_fee)}
+                )
+        except Exception as fcm_err:
+            print('FCM delivery completion error:', fcm_err)
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Delivery successfully verified and completed! Courier fee paid.',
+            'earned': delivery_fee
+        }), 200
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@campus_gigs_v6_bp.route('/request_order_delivery', methods=['POST'])
+def request_order_delivery():
+    """
+    Dispatches a DeLiv Campus Courier for an existing preorder or supermarket purchase.
+    Locks courier delivery fee in Escrow and creates dual OTP pins for secure handoff.
+    """
+    data = request.json or {}
+    order_id = data.get('order_id')
+    student_id = data.get('student_id')
+    dropoff_location = data.get('dropoff_location', 'Campus Hostel')
+    dropoff_lat = data.get('dropoff_lat')
+    dropoff_lng = data.get('dropoff_lng')
+    delivery_fee = float(data.get('delivery_fee', 50.0))
+
+    if not order_id or not student_id:
+        return jsonify({'error': 'Missing order_id or student_id'}), 400
+
+    db = firestore.client()
+
+    try:
+        # Check student balance
+        student_ref = db.collection('users').document(student_id)
+        student_snap = student_ref.get()
+        if not student_snap.exists:
+            return jsonify({'error': 'Student user not found'}), 404
+
+        student_data = student_snap.to_dict()
+        cur_bal = float(student_data.get('walletBalance') or 0.0)
+
+        if cur_bal < delivery_fee:
+            return jsonify({'error': f'Insufficient wallet balance. Courier fee requires KES {delivery_fee:.2f}'}), 400
+
+        # Fetch order details
+        order_ref = db.collection('orders').document(order_id)
+        order_snap = order_ref.get()
+        vendor_name = 'Campus Vendor'
+        vendor_id = ''
+        items_summary = 'Food / Goods'
+        if order_snap.exists:
+            o_data = order_snap.to_dict()
+            vendor_name = o_data.get('vendorName') or o_data.get('vendor_name') or 'Campus Vendor'
+            vendor_id = o_data.get('vendorId') or o_data.get('vendor_id') or ''
+            items = o_data.get('items', [])
+            if items:
+                items_summary = ', '.join([f"{it.get('quantity', 1)}x {it.get('name', 'Item')}" for it in items[:3]])
+
+        # Generate 4-digit Vendor Pickup PIN and Student Delivery PIN
+        vendor_pickup_pin = f"{random.randint(1000, 9999)}"
+        student_delivery_pin = f"{random.randint(1000, 9999)}"
+        rand_suffix = uuid.uuid4().hex[:8].upper()
+        gig_id = f"DELIV_{rand_suffix}"
+
+        # Deduct delivery fee and place in Escrow
+        student_ref.update({
+            'walletBalance': cur_bal - delivery_fee,
+            'updatedAt': firestore.SERVER_TIMESTAMP
+        })
+        student_ref.collection('transactions').add({
+            'type': 'DELIV_ESCROW_HOLD',
+            'amount': -delivery_fee,
+            'desc': f'DeLiv Courier Escrow Hold (#{order_id[:6]})',
+            'timestamp': firestore.SERVER_TIMESTAMP,
+            'order_id': order_id,
+            'gig_id': gig_id
+        })
+
+        # Create deliv_requests entry
+        gig_doc_data = {
+            'id': gig_id,
+            'orderId': order_id,
+            'order_id': order_id,
+            'type': 'Food Delivery',
+            'status': 'open',
+            'stage': 'en_route_pickup',
+            'pay': f'KES {delivery_fee:.0f}',
+            'deliveryFee': delivery_fee,
+            'pickup': vendor_name,
+            'vendorName': vendor_name,
+            'vendorId': vendor_id,
+            'dropoff': dropoff_location,
+            'dropoffLocation': dropoff_location,
+            'studentUid': student_id,
+            'postedBy': student_id,
+            'studentName': student_data.get('displayName') or student_data.get('name') or 'Student',
+            'studentPhone': student_data.get('phoneNumber') or '',
+            'itemsSummary': items_summary,
+            'vendorPickupPin': vendor_pickup_pin,
+            'studentDeliveryPin': student_delivery_pin,
+            'escrow_status': 'HELD',
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'timestamp': firestore.SERVER_TIMESTAMP,
+        }
+        if dropoff_lat is not None and dropoff_lng is not None:
+            gig_doc_data['dropoffLat'] = float(dropoff_lat)
+            gig_doc_data['dropoffLng'] = float(dropoff_lng)
+
+        db.collection('deliv_requests').document(gig_id).set(gig_doc_data)
+
+        # Update order with courier details
+        if order_snap.exists:
+            order_ref.update({
+                'fulfillmentType': 'deliv_courier',
+                'deliv_request_id': gig_id,
+                'deliveryFee': delivery_fee,
+                'dropoffLocation': dropoff_location,
+                'vendorPickupPin': vendor_pickup_pin,
+                'studentDeliveryPin': student_delivery_pin,
+                'deliveryStatus': 'courier_requested',
+                'updatedAt': firestore.SERVER_TIMESTAMP
+            })
+
+        return jsonify({
+            'status': 'success',
+            'message': 'DeLiv courier requested! Nearby riders have been notified.',
+            'gig_id': gig_id,
+            'vendor_pickup_pin': vendor_pickup_pin,
+            'student_delivery_pin': student_delivery_pin,
+        }), 200
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500

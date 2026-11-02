@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../../core/services/api_config.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -328,21 +331,132 @@ class _DelivActiveRouteViewState extends State<DelivActiveRouteView> {
   }
 
   /// Advance delivery lifecycle stage
+
+  Future<void> _promptForStudentDeliveryPin() async {
+    final pinController = TextEditingController();
+    bool isVerifying = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (pCtx) => StatefulBuilder(
+        builder: (context, setPState) => AlertDialog(
+          backgroundColor: const Color(0xFF101726),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.verified, color: MPesaTheme.primaryGreen),
+              SizedBox(width: 10),
+              Text('Student Handover PIN', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Ask the student for their 4-digit DISHI Delivery PIN from their app to confirm handover and release escrow payment.',
+                style: TextStyle(color: Color(0xFF8B9BB4), fontSize: 12),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: pinController,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20, letterSpacing: 4),
+                textAlign: TextAlign.center,
+                decoration: InputDecoration(
+                  hintText: '• • • •',
+                  hintStyle: const TextStyle(color: Colors.white24),
+                  filled: true,
+                  fillColor: const Color(0xFF1A2235),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(pCtx),
+              child: const Text('Cancel', style: TextStyle(color: Color(0xFF8B9BB4))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: MPesaTheme.primaryGreen,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: isVerifying ? null : () async {
+                final pin = pinController.text.trim();
+                if (pin.isEmpty) return;
+                setPState(() => isVerifying = true);
+
+                try {
+                  final resp = await http.post(
+                    Uri.parse(ApiConfig.campusGigsComplete),
+                    headers: {'Content-Type': 'application/json'},
+                    body: json.encode({
+                      'request_id': widget.rideId,
+                      'driver_id': _driverUid,
+                      'delivery_pin': pin,
+                    }),
+                  ).timeout(const Duration(seconds: 30));
+
+                  Navigator.pop(pCtx);
+
+                  if (resp.statusCode == 200) {
+                    await _finishDelivery();
+                  } else {
+                    String errMsg = 'Incorrect Delivery PIN';
+                    try {
+                      final parsed = json.decode(resp.body);
+                      errMsg = parsed['error'] ?? resp.body;
+                    } catch (_) {}
+                    if (mounted) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        SnackBar(content: Text('Error: $errMsg'), backgroundColor: Colors.redAccent),
+                      );
+                    }
+                  }
+                } on TimeoutException {
+                  Navigator.pop(pCtx);
+                  if (mounted) {
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      const SnackBar(content: Text('Request timed out. Please try again.'), backgroundColor: Colors.redAccent),
+                    );
+                  }
+                } catch (e) {
+                  Navigator.pop(pCtx);
+                  if (mounted) {
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+                    );
+                  }
+                }
+              },
+              child: Text(isVerifying ? 'Verifying...' : 'Complete & Cash Out', style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _advanceStage() async {
     String nextStage;
     String feedbackMsg;
 
     if (_deliveryStage == 'en_route_pickup') {
       nextStage = 'at_pickup';
-      feedbackMsg = 'Arrived at Cafeteria! Collect the meal package.';
+      feedbackMsg = 'Arrived at Cafeteria/Store! Show pickup code to vendor.';
     } else if (_deliveryStage == 'at_pickup') {
       nextStage = 'delivering';
-      feedbackMsg = 'Meal collected! Head to student dorm.';
+      feedbackMsg = 'Order collected! Head to student drop-off.';
     } else if (_deliveryStage == 'delivering') {
       nextStage = 'arrived';
-      feedbackMsg = 'Arrived at destination! Hand over meal to student.';
+      feedbackMsg = 'Arrived at destination! Request student PIN to complete.';
     } else {
-      await _finishDelivery();
+      await _promptForStudentDeliveryPin();
       return;
     }
 
@@ -761,6 +875,40 @@ class _DelivActiveRouteViewState extends State<DelivActiveRouteView> {
                       ],
                     ),
                     const SizedBox(height: 18),
+
+                    // Vendor Pickup PIN Display Banner
+                    if (_deliveryStage == 'at_pickup') ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withAlpha(25),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.amber.withAlpha(120)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.qr_code, color: Colors.amber, size: 24),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Show PIN to Vendor: ${_gigData?['vendorPickupPin'] ?? _gigData?['vendor_pickup_pin'] ?? 'Ask Vendor'}',
+                                    style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1.2),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text('The vendor will verify this PIN before handing you the package.',
+                                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     // Primary Stage Button
                     SizedBox(

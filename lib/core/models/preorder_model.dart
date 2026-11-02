@@ -12,6 +12,13 @@ class PreorderModel {
   final String status; // 'pending', 'preparing', 'ready', 'completed', 'cancelled'
   final DateTime pickupTime;
   final DateTime? createdAt;
+  final String? fulfillmentType; // 'counter_pickup', 'dine_in', 'deliv_courier'
+  final String? delivRequestId;
+  final String? driverName;
+  final String? driverPhone;
+  final String? driverVehicle;
+  final String? vendorPickupPin;
+  final String? dropoffLocation;
 
   PreorderModel({
     required this.id,
@@ -25,6 +32,13 @@ class PreorderModel {
     required this.status,
     required this.pickupTime,
     this.createdAt,
+    this.fulfillmentType,
+    this.delivRequestId,
+    this.driverName,
+    this.driverPhone,
+    this.driverVehicle,
+    this.vendorPickupPin,
+    this.dropoffLocation,
   });
 
   factory PreorderModel.fromJson(Map<String, dynamic> json, String documentId) {
@@ -56,6 +70,13 @@ class PreorderModel {
       status: json['status'] ?? 'pending',
       pickupTime: parsedPickup,
       createdAt: parsedCreated,
+      fulfillmentType: json['fulfillmentType'] as String?,
+      delivRequestId: (json['deliv_request_id'] ?? json['delivRequestId']) as String?,
+      driverName: (json['driverName'] ?? json['driver_name']) as String?,
+      driverPhone: (json['driverPhone'] ?? json['driver_phone']) as String?,
+      driverVehicle: (json['driverVehicle'] ?? json['driver_vehicle']) as String?,
+      vendorPickupPin: (json['vendorPickupPin'] ?? json['vendor_pickup_pin'])?.toString(),
+      dropoffLocation: (json['dropoffLocation'] ?? json['dropoff']) as String?,
     );
   }
 
@@ -76,6 +97,13 @@ class PreorderModel {
       'status': status,
       'pickupTime': Timestamp.fromDate(pickupTime),
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'fulfillmentType': fulfillmentType,
+      'deliv_request_id': delivRequestId,
+      'driverName': driverName,
+      'driverPhone': driverPhone,
+      'driverVehicle': driverVehicle,
+      'vendorPickupPin': vendorPickupPin,
+      'dropoffLocation': dropoffLocation,
     };
   }
 }

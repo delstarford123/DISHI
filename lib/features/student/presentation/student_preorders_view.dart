@@ -1,3 +1,4 @@
+import '../../deliv/presentation/deliv_active_route_view.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -99,6 +100,174 @@ class _StudentPreordersViewState extends State<StudentPreordersView> {
     );
   }
 
+
+  void _showRequestCourierModal(String orderId, String vendorName) {
+    final locationController = TextEditingController(text: 'Hall 4, Room B12');
+    final List<String> campusLandmarks = [
+      'Hall 1', 'Hall 2', 'Hall 3', 'Hall 4', 'Hall 5',
+      'Science Complex', 'Main Library', 'Engineering Labs', 'Postgrad Hostel'
+    ];
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (mCtx) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.two_wheeler, color: _neonOrange, size: 28),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Request DeLiv Courier', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text('Pick up from $vendorName & deliver to you', style: const TextStyle(color: _textSecondary, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text('Select or enter your campus drop-off point:', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 10),
+
+              // Landmark quick chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: campusLandmarks.map((lm) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ActionChip(
+                      backgroundColor: _surfaceLight,
+                      label: Text(lm, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                      onPressed: () {
+                        setModalState(() {
+                          locationController.text = '$lm, Room ';
+                        });
+                      },
+                    ),
+                  )).toList(),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              TextField(
+                controller: locationController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Hostel / Building & Room Number',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  filled: true,
+                  fillColor: _surfaceLight,
+                  prefixIcon: const Icon(Icons.door_front_door, color: _neonCyan),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Escrow Courier Fee Card
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _surfaceLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.shield_outlined, color: _neonCyan, size: 18),
+                        SizedBox(width: 8),
+                        Text('Courier Fee (DISHI Escrow):', style: TextStyle(color: _textSecondary, fontSize: 13)),
+                      ],
+                    ),
+                    Text('KES 50.00', style: TextStyle(color: _neonOrange, fontWeight: FontWeight.bold, fontSize: 15)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _neonOrange,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: isSubmitting
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.delivery_dining),
+                  label: Text(isSubmitting ? 'Dispatching...' : 'Dispatch Courier (KES 50)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  onPressed: isSubmitting ? null : () async {
+                    final dropoff = locationController.text.trim();
+                    if (dropoff.isEmpty) return;
+                    setModalState(() => isSubmitting = true);
+
+                    try {
+                      final resp = await http.post(
+                        Uri.parse(ApiConfig.campusGigsRequestOrderDelivery),
+                        headers: {'Content-Type': 'application/json'},
+                        body: json.encode({
+                          'order_id': orderId,
+                          'student_id': _currentUserId,
+                          'dropoff_location': dropoff,
+                          'delivery_fee': 50.0,
+                        }),
+                      ).timeout(const Duration(seconds: 30));
+
+                      Navigator.pop(mCtx);
+
+                      if (resp.statusCode == 200) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          const SnackBar(
+                            content: Text('🎉 Courier dispatched! Track rider live in this card.'),
+                            backgroundColor: _neonCyan,
+                          ),
+                        );
+                      } else {
+                        String errMsg = 'Failed to request courier';
+                        try {
+                          final parsed = json.decode(resp.body);
+                          errMsg = parsed['error'] ?? resp.body;
+                        } catch (_) {}
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(content: Text('Error: $errMsg'), backgroundColor: Colors.redAccent),
+                        );
+                      }
+                    } on TimeoutException {
+                      Navigator.pop(mCtx);
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        const SnackBar(content: Text('Request timed out. Please try again.'), backgroundColor: Colors.redAccent),
+                      );
+                    } catch (e) {
+                      Navigator.pop(mCtx);
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+                      );
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -183,13 +352,18 @@ class _StudentPreordersViewState extends State<StudentPreordersView> {
     final total = (order['totalAmount'] as num?)?.toDouble() ?? 0.0;
     final orderId = order['id'] as String? ?? 'ORD_001';
     final tableNumber = order['table_number'] as String?;
+    final vendorName = (order['vendorName'] ?? order['vendor_name'] ?? 'Campus Canteen').toString();
+    final isCourier = order['fulfillmentType'] == 'deliv_courier' || order['deliv_request_id'] != null;
+    final delivGigId = (order['deliv_request_id'] ?? order['gig_id']) as String?;
+    final deliveryPin = (order['studentDeliveryPin'] ?? order['student_delivery_pin'] ?? '----').toString();
+    final dropoffLocation = (order['dropoffLocation'] ?? order['dropoff'] ?? 'Hostel').toString();
 
     Color statusColor = _neonCyan;
     int stepIndex = 0;
     if (status.toLowerCase().contains('cooking') || status.toLowerCase().contains('prep')) {
       statusColor = _neonOrange;
       stepIndex = 1;
-    } else if (status.toLowerCase().contains('ready')) {
+    } else if (status.toLowerCase().contains('ready') || status.toLowerCase().contains('transit')) {
       statusColor = Colors.greenAccent;
       stepIndex = 2;
     }
@@ -215,16 +389,38 @@ class _StudentPreordersViewState extends State<StudentPreordersView> {
                 'Order #${orderId.length > 6 ? orderId.substring(orderId.length - 6) : orderId}',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withAlpha(35),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  status.toUpperCase(),
-                  style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11),
-                ),
+              Row(
+                children: [
+                  if (isCourier)
+                    Container(
+                      margin: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _neonOrange.withAlpha(40),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: _neonOrange.withAlpha(120)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.two_wheeler, color: _neonOrange, size: 12),
+                          SizedBox(width: 4),
+                          Text('DeLiv', style: TextStyle(color: _neonOrange, fontWeight: FontWeight.bold, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withAlpha(35),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      status.toUpperCase(),
+                      style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -238,6 +434,21 @@ class _StudentPreordersViewState extends State<StudentPreordersView> {
               ],
             ),
           ],
+          if (isCourier) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.location_on, color: _neonOrange, size: 14),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text('Deliver to: $dropoffLocation',
+                    style: const TextStyle(color: _neonOrange, fontSize: 12, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
 
           // Feature 16: Live Preparation Queue Stepper
@@ -245,9 +456,9 @@ class _StudentPreordersViewState extends State<StudentPreordersView> {
             children: [
               _buildStepNode('Queued', stepIndex >= 0, statusColor),
               _buildStepConnector(stepIndex >= 1, statusColor),
-              _buildStepNode('Cooking', stepIndex >= 1, statusColor),
+              _buildStepNode(isCourier ? 'Prep' : 'Cooking', stepIndex >= 1, statusColor),
               _buildStepConnector(stepIndex >= 2, statusColor),
-              _buildStepNode('Ready', stepIndex >= 2, statusColor),
+              _buildStepNode(isCourier ? 'Dispatched' : 'Ready', stepIndex >= 2, statusColor),
             ],
           ),
           const SizedBox(height: 14),
@@ -261,21 +472,85 @@ class _StudentPreordersViewState extends State<StudentPreordersView> {
           ),
           const SizedBox(height: 8),
 
+          // If courier is active, show the secret Delivery PIN Banner
+          if (isCourier) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.withAlpha(20),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.amber.withAlpha(100)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.lock, color: Colors.amber, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Your Delivery PIN: $deliveryPin',
+                          style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1.5),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text('Tell this PIN to the courier to verify & receive your package.',
+                          style: TextStyle(color: Colors.white70, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Total: KES ${total.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-              // Feature 17: Dynamic Pickup QR Button
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _neonCyan,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                icon: const Icon(Icons.qr_code_2, size: 18),
-                label: const Text('Pickup QR & PIN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                onPressed: () => _showDynamicQRTokenModal(orderId),
+              Wrap(
+                spacing: 8,
+                children: [
+                  if (isCourier && delivGigId != null)
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _neonOrange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: const Icon(Icons.map, size: 16),
+                      label: const Text('Track Courier', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => DelivActiveRouteView(rideId: delivGigId)));
+                      },
+                    )
+                  else if (!isCourier)
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: _neonOrange),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: const Icon(Icons.two_wheeler, color: _neonOrange, size: 16),
+                      label: const Text('Send Courier', style: TextStyle(color: _neonOrange, fontWeight: FontWeight.bold, fontSize: 12)),
+                      onPressed: () => _showRequestCourierModal(orderId, vendorName),
+                    ),
+
+                  // Feature 17: Dynamic Pickup QR Button
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _neonCyan,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Icon(Icons.qr_code_2, size: 18),
+                    label: const Text('Pickup QR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    onPressed: () => _showDynamicQRTokenModal(orderId),
+                  ),
+                ],
               ),
             ],
           ),
@@ -377,6 +652,7 @@ class _DynamicQRTokenSheetState extends State<_DynamicQRTokenSheet> {
     _refreshTimer?.cancel();
     super.dispose();
   }
+
 
   @override
   Widget build(BuildContext context) {

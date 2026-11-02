@@ -57,6 +57,7 @@ class ApiConfig {
   static const String campusGigsVerifyHandoff = '$campusGigs/verify_handoff';
   static const String campusGigsComplete = '$campusGigs/complete';
   static const String campusGigsRefundEscrow = '$campusGigs/refund_escrow';
+  static const String campusGigsRequestOrderDelivery = '$campusGigs/request_order_delivery';
 
   // V6 Pan-African & Regional Vendor Discovery
   static const String vendorsV6 = '$v6Base/vendors';

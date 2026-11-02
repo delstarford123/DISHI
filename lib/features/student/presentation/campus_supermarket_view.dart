@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -537,7 +538,7 @@ class _CampusSupermarketViewState extends State<CampusSupermarketView> {
                   ),
                   onPressed: () {
                     Navigator.pop(ctx);
-                    _checkoutWithStudentWallet();
+                    _showFulfillmentSelectionModal();
                   },
                   child: const Text('Pay with DISHI Wallet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 ),
@@ -638,14 +639,205 @@ class _CampusSupermarketViewState extends State<CampusSupermarketView> {
     }
   }
 
-  Future<void> _checkoutWithStudentWallet() async {
+  void _showFulfillmentSelectionModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (bCtx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.delivery_dining, color: _neonCyan, size: 28),
+                SizedBox(width: 10),
+                Text('Choose Delivery Method', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text('How would you like to receive your food & goods?', style: TextStyle(color: _textSecondary, fontSize: 13)),
+            const SizedBox(height: 20),
+
+            // Option 1: Self Counter Pickup
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              tileColor: _surfaceLight,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: _neonCyan.withAlpha(50))),
+              leading: const CircleAvatar(backgroundColor: Color(0xFF0C101B), child: Icon(Icons.storefront, color: _neonCyan)),
+              title: const Text('Store Counter Pickup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              subtitle: const Text('Collect directly at counter with dynamic QR pass', style: TextStyle(color: _textSecondary, fontSize: 12)),
+              trailing: const Text('FREE', style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+              onTap: () {
+                Navigator.pop(bCtx);
+                _checkoutWithStudentWallet();
+              },
+            ),
+            const SizedBox(height: 12),
+
+            // Option 2: Request DeLiv Courier
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              tileColor: _surfaceLight,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: _neonOrange.withAlpha(80))),
+              leading: const CircleAvatar(backgroundColor: Color(0xFF0C101B), child: Icon(Icons.two_wheeler, color: _neonOrange)),
+              title: const Text('DeLiv Courier to Dorm / Seat', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              subtitle: const Text('Campus rider picks up & brings to your hostel room', style: TextStyle(color: _textSecondary, fontSize: 12)),
+              trailing: const Text('+ KES 50', style: TextStyle(color: _neonOrange, fontWeight: FontWeight.bold)),
+              onTap: () {
+                Navigator.pop(bCtx);
+                _showCourierDropoffModal();
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCourierDropoffModal() {
+    final locationController = TextEditingController(text: 'Hall 4, Room B12');
+    final List<String> campusLandmarks = [
+      'Hall 1', 'Hall 2', 'Hall 3', 'Hall 4', 'Hall 5',
+      'Science Complex', 'Main Library', 'Engineering Labs', 'Postgrad Hostel'
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (dCtx) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.location_on, color: _neonOrange, size: 26),
+                  SizedBox(width: 10),
+                  Text('DeLiv Drop-off Location', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 6),
+              const Text('Where should the courier bring your items?', style: TextStyle(color: _textSecondary, fontSize: 13)),
+              const SizedBox(height: 14),
+
+              // Quick Campus Landmark Chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: campusLandmarks.map((lm) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ActionChip(
+                      backgroundColor: _surfaceLight,
+                      label: Text(lm, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                      onPressed: () {
+                        setModalState(() {
+                          locationController.text = '$lm, Room ';
+                        });
+                      },
+                    ),
+                  )).toList(),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              TextField(
+                controller: locationController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Dorm / Hostel / Building & Room',
+                  labelStyle: const TextStyle(color: _textSecondary),
+                  filled: true,
+                  fillColor: _surfaceLight,
+                  prefixIcon: const Icon(Icons.home, color: _neonCyan),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Fee Breakdown
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _surfaceLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Items Subtotal:', style: TextStyle(color: _textSecondary, fontSize: 13)),
+                        Text('KES ${_cartTotal.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('DeLiv Courier Fee (Escrow):', style: TextStyle(color: _textSecondary, fontSize: 13)),
+                        Text('KES 50.00', style: TextStyle(color: _neonOrange, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const Divider(color: Colors.white24, height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total from Wallet:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text('KES ${(_cartTotal + 50.0).toStringAsFixed(2)}', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 16)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _neonOrange,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.two_wheeler),
+                  label: const Text('Confirm & Dispatch Courier', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  onPressed: () {
+                    final dropoff = locationController.text.trim();
+                    if (dropoff.isEmpty) return;
+                    Navigator.pop(dCtx);
+                    _checkoutWithStudentWallet(dropoffLocation: dropoff);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _checkoutWithStudentWallet({String? dropoffLocation}) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
+    final isCourier = dropoffLocation != null && dropoffLocation.isNotEmpty;
+    final deliveryFee = isCourier ? 50.0 : 0.0;
+    final totalPayable = _cartTotal + deliveryFee;
+
     final balance = widget.userModel?.walletBalance ?? 0.0;
-    if (balance < _cartTotal) {
+    if (balance < totalPayable) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Insufficient balance. Need KES ${_cartTotal.toStringAsFixed(2)}, Available: KES ${balance.toStringAsFixed(2)}'), backgroundColor: _neonPink),
+        SnackBar(content: Text('Insufficient balance. Need KES ${totalPayable.toStringAsFixed(2)}, Available: KES ${balance.toStringAsFixed(2)}'), backgroundColor: _neonPink),
       );
       return;
     }
@@ -660,29 +852,72 @@ class _CampusSupermarketViewState extends State<CampusSupermarketView> {
         'price': _cartItems[e.key]?['price'] ?? 0.0,
       }).toList();
 
+      final rand = Random();
+      final vendorPickupPin = (1000 + rand.nextInt(9000)).toString();
+      final studentDeliveryPin = (1000 + rand.nextInt(9000)).toString();
+      final gigId = 'DELIV_${DateTime.now().millisecondsSinceEpoch.toRadixString(36).toUpperCase()}';
+
       await db.runTransaction((tx) async {
         final uRef = db.collection('users').doc(uid);
         final uSnap = await tx.get(uRef);
         final curBal = (uSnap.data()?['walletBalance'] as num?)?.toDouble() ?? 0.0;
-        if (curBal < _cartTotal) throw Exception('Insufficient balance');
+        if (curBal < totalPayable) throw Exception('Insufficient balance');
 
         tx.update(uRef, {
-          'walletBalance': curBal - _cartTotal,
-          'wallet_balance': curBal - _cartTotal,
+          'walletBalance': curBal - totalPayable,
+          'wallet_balance': curBal - totalPayable,
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
-        tx.set(orderRef, {
+        final orderData = {
           'studentUid': uid,
           'student_id': uid,
           'items': itemsList,
-          'totalAmount': _cartTotal,
+          'totalAmount': totalPayable,
+          'subtotal': _cartTotal,
+          'deliveryFee': deliveryFee,
+          'fulfillmentType': isCourier ? 'deliv_courier' : 'counter_pickup',
+          'dropoffLocation': isCourier ? dropoffLocation : null,
+          'vendorPickupPin': vendorPickupPin,
+          'studentDeliveryPin': studentDeliveryPin,
+          'deliv_request_id': isCourier ? gigId : null,
           'status': 'Queued',
           'prep_status': 'Queued',
+          'deliveryStatus': isCourier ? 'courier_requested' : 'counter_ready',
           'type': 'supermarket_checkout',
           'createdAt': FieldValue.serverTimestamp(),
           'timestamp': FieldValue.serverTimestamp(),
-        });
+        };
+
+        tx.set(orderRef, orderData);
+
+        if (isCourier) {
+          final gigRef = db.collection('deliv_requests').doc(gigId);
+          tx.set(gigRef, {
+            'id': gigId,
+            'orderId': orderRef.id,
+            'order_id': orderRef.id,
+            'type': 'Parcel Pickup',
+            'status': 'open',
+            'stage': 'en_route_pickup',
+            'pay': 'KES 50',
+            'deliveryFee': 50.0,
+            'pickup': 'Campus Supermarket & Tech Store',
+            'vendorName': 'Campus Supermarket & Tech Store',
+            'dropoff': dropoffLocation,
+            'dropoffLocation': dropoffLocation,
+            'studentUid': uid,
+            'postedBy': uid,
+            'studentName': widget.userModel?.displayName ?? 'Student',
+            'studentPhone': widget.userModel?.phoneNumber ?? '',
+            'itemsSummary': itemsList.map((i) => "${i['quantity']}x ${i['name']}").join(', '),
+            'vendorPickupPin': vendorPickupPin,
+            'studentDeliveryPin': studentDeliveryPin,
+            'escrow_status': 'HELD',
+            'createdAt': FieldValue.serverTimestamp(),
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+        }
       });
 
       setState(() {
@@ -691,7 +926,13 @@ class _CampusSupermarketViewState extends State<CampusSupermarketView> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('🎉 Supermarket order placed successfully!'), backgroundColor: _neonCyan),
+        SnackBar(
+          content: Text(isCourier
+              ? '🎉 Order placed & DeLiv courier requested! Track live in Pre-Orders.'
+              : '🎉 Supermarket order placed successfully! Show your QR pass at counter.'),
+          backgroundColor: _neonCyan,
+          duration: const Duration(seconds: 4),
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
