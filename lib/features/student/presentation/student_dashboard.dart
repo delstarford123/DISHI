@@ -17,6 +17,7 @@ import '../../../core/models/user_model.dart';
 import '../../admin/presentation/admin_dashboard_view.dart';
 
 import '../../auth/presentation/login_view.dart';
+import '../../auth/presentation/forgot_pin_view.dart';
 
 import '../../match/presentation/match_hub_view.dart';
 
@@ -8742,8 +8743,15 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
                 children: [
                   Row(
                     children: [
-                      Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                      const Spacer(),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
@@ -8902,7 +8910,21 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
 
                 const SizedBox(height: 14),
 
-                const Text('Your 4-Digit Wallet PIN:', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Your 4-Digit Wallet Security PIN:', style: TextStyle(color: _textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPinView()));
+                      },
+                      child: const Text('Forgot PIN?', style: TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Text('The 4-digit security PIN created during account setup (e.g. 2002 or 1234).', style: TextStyle(color: Colors.white54, fontSize: 11)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: pinController,

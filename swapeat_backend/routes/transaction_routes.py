@@ -393,7 +393,17 @@ def charge():
             if not is_valid_temp:
                 if not actual_pin:
                     return jsonify({"error": "PIN not set on student account"}), 403
-                if str(provided_pin) != str(actual_pin):
+                import hashlib
+                salt = "DISHI_SECURE_SALT_2026"
+                hashed_salt = hashlib.sha256((str(provided_pin) + salt).encode()).hexdigest()
+                hashed_plain = hashlib.sha256(str(provided_pin).encode()).hexdigest()
+                is_pin_match = (
+                    str(provided_pin) == str(actual_pin) or
+                    hashed_salt == str(actual_pin) or
+                    hashed_plain == str(actual_pin) or
+                    hashed_plain == str(student_data.get("pin_hash", ""))
+                )
+                if not is_pin_match:
                     return jsonify({"error": "Invalid PIN"}), 403
 
         # Wash Trading Cooldown Check
