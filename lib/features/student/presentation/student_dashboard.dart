@@ -82,6 +82,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
   
   bool _isSearching = false;
   String _searchQuery = '';
+  UserModel? _cachedUserModel;
   
   String _generateRandomToken() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -287,26 +288,168 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
   }
 
   void _handleVoiceAction(String intent, Map<String, dynamic> data) {
+    final userModel = _cachedUserModel ?? UserModel.fromJson(widget.user, widget.user['uid'] ?? 'student');
+
     switch (intent) {
-      case 'NAVIGATE_SCANNER':
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusSupermarketView()));
+      case 'SHOW_STUDENT_QR':
+        _showDynamicQRDialog(userModel);
         break;
-      case 'QUERY_BALANCE':
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLedgerView()));
+
+      case 'CHECK_BUDGET':
+        _showVoiceBudgetBurnRateDialog(data, userModel);
         break;
-      case 'CREATE_POS_ORDER':
-      case 'NAVIGATE_OPERATIONS':
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusSupermarketView()));
+
+      case 'REQUEST_PARENT_FUNDS':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => RequestFundsView(userModel: userModel)));
         break;
+
+      case 'SPLIT_BILL':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => SplitBillView(userModel: userModel)));
+        break;
+
+      case 'CAMPUS_GIGS':
       case 'OPEN_WHOLESALE':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusEmploymentHubView()));
         break;
+
+      case 'CHECK_TIMETABLE':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const TimetableView()));
+        break;
+
+      case 'VIRTUAL_CARD':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => VirtualCardView(userModel: userModel)));
+        break;
+
+      case 'DISCOVER_MEALS':
+      case 'CREATE_POS_ORDER':
+      case 'OPEN_SUPERMARKET':
+      case 'NAVIGATE_SCANNER':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusSupermarketView()));
+        break;
+
       case 'OKOA_MEAL':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const OkoaFoodView()));
         break;
+
+      case 'QUERY_BALANCE':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLedgerView()));
+        break;
+
       default:
         break;
     }
+  }
+
+  void _showVoiceBudgetBurnRateDialog(Map<String, dynamic> data, UserModel userModel) {
+    final balance = (data['balance'] as num?)?.toDouble() ?? userModel.walletBalance;
+    final daily = (data['daily_allowance'] as num?)?.toDouble() ?? (balance / 5);
+    final days = data['days_left'] ?? 5;
+    final spoken = data['spoken_response'] as String? ?? 'Salio lako ni KES $balance.';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.query_stats, color: _neonCyan, size: 24),
+                    SizedBox(width: 8),
+                    Text('Budget Burn Rate Forecast', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                IconButton(icon: const Icon(Icons.close, color: _textSecondary), onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
+            const Divider(color: Colors.white12),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _surfaceLight,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _neonCyan.withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Current Balance:', style: TextStyle(color: _textSecondary, fontSize: 13)),
+                      Text('KES ${balance.toStringAsFixed(0)}', style: const TextStyle(color: _neonCyan, fontSize: 18, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Days Left (to Weekend):', style: TextStyle(color: _textSecondary, fontSize: 13)),
+                      Text('$days Days', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Safe Daily Burn Rate:', style: TextStyle(color: _textSecondary, fontSize: 13)),
+                      Text('KES ${daily.toStringAsFixed(0)} / day', style: const TextStyle(color: _neonOrange, fontSize: 16, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(spoken, style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4)),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _neonCyan,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    icon: const Icon(Icons.family_restroom, size: 16),
+                    label: const Text('Omba Mzazi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => RequestFundsView(userModel: userModel)));
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _neonOrange),
+                      foregroundColor: _neonOrange,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    icon: const Icon(Icons.receipt_long, size: 16),
+                    label: const Text('Ledger Breakdown', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLedgerView()));
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -333,6 +476,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
             } else {
               userModel = UserModel.fromJson(widget.user, widget.user['uid'] ?? 'offline_user');
             }
+            _cachedUserModel = userModel;
 
             return Stack(
               children: [
