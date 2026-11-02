@@ -39,6 +39,7 @@ import '../../fundi/presentation/fundi_dashboard_view.dart';
 import '../../fundi/presentation/fundi_registration_view.dart';
 import '../../fundi/presentation/fundi_marketplace_view.dart';
 import '../../../core/services/call_service.dart';
+import '../../../core/widgets/sema_na_dishi_overlay.dart';
 
 import 'dart:convert';
 import 'dart:async';
@@ -285,6 +286,29 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
     }
   }
 
+  void _handleVoiceAction(String intent, Map<String, dynamic> data) {
+    switch (intent) {
+      case 'NAVIGATE_SCANNER':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusSupermarketView()));
+        break;
+      case 'QUERY_BALANCE':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLedgerView()));
+        break;
+      case 'CREATE_POS_ORDER':
+      case 'NAVIGATE_OPERATIONS':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusSupermarketView()));
+        break;
+      case 'OPEN_WHOLESALE':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusEmploymentHubView()));
+        break;
+      case 'OKOA_MEAL':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const OkoaFoodView()));
+        break;
+      default:
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -453,6 +477,17 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
             );
           },
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => SemaNaDishiOverlay.show(
+          context,
+          role: 'student',
+          userUid: widget.user['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? '',
+          onAction: _handleVoiceAction,
+        ),
+        backgroundColor: _neonCyan,
+        icon: const Icon(Icons.mic, color: Colors.black, size: 20),
+        label: const Text('Sema na DISHI', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
       ),
     );
   }

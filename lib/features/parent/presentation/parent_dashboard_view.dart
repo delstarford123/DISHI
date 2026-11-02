@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../../../core/theme/mpesa_theme.dart';
+import '../../../core/widgets/sema_na_dishi_overlay.dart';
 import 'offline_child_qr_view.dart';
 import '../../student/presentation/virtual_card_view.dart';
 import '../../../core/models/user_model.dart';
@@ -700,6 +701,24 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
   final PageController _vaultPageController = PageController();
   int _currentVaultPage = 0;
 
+  void _handleVoiceAction(String intent, Map<String, dynamic> data) {
+    switch (intent) {
+      case 'NAVIGATE_FINANCE':
+      case 'QUERY_BALANCE':
+        setState(() => _selectedIndex = 2);
+        break;
+      case 'NAVIGATE_OPERATIONS':
+      case 'NAVIGATE_REPORTS':
+        setState(() => _selectedIndex = 1);
+        break;
+      case 'NAVIGATE_HOME':
+        setState(() => _selectedIndex = 0);
+        break;
+      default:
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> tabs = [
@@ -719,6 +738,17 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
                 index: _selectedIndex,
                 children: tabs,
               ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => SemaNaDishiOverlay.show(
+          context,
+          role: 'parent',
+          userUid: widget.user['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? '',
+          onAction: _handleVoiceAction,
+        ),
+        backgroundColor: _neonCyan,
+        icon: const Icon(Icons.mic, color: Colors.black, size: 20),
+        label: const Text('Sema na DISHI', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
       ),
       bottomNavigationBar: _buildPremiumBottomNav(),
     );

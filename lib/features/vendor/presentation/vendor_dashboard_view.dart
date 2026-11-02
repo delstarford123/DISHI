@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/utils/withdrawal_helper.dart';
+import '../../../core/utils/pdf_generator.dart';
 import '../../../core/widgets/high_friction_action.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/models/user_model.dart';
 import '../../auth/presentation/login_view.dart';
 import 'qr_scanner_page.dart';
+import 'package:fl_chart/fl_chart.dart';
+import '../../../core/widgets/sema_na_dishi_overlay.dart';
 import 'vendor_topup_view.dart';
 import 'vendor_kds_view.dart';
 import 'vendor_reports_view.dart';
@@ -44,6 +47,86 @@ class VendorDashboardView extends StatefulWidget {
 class _VendorDashboardViewState extends State<VendorDashboardView> {
   final FirestoreService _firestoreService = FirestoreService();
   int _selectedIndex = 0;
+  String _activeCashierName = 'Main Cashier';
+  String _activeShift = 'Morning Rush';
+  double _todayRevenue = 0.0;
+  int _todayOrdersCount = 0;
+
+  void _showShiftSwitcherDialog(BuildContext context) {
+    final nameController = TextEditingController(text: _activeCashierName);
+    String selectedShift = _activeShift;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: _cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: _neonCyan, width: 1.5)),
+          title: const Row(
+            children: [
+              Icon(Icons.badge, color: _neonCyan, size: 24),
+              SizedBox(width: 8),
+              Text('Cashier Shift Switcher', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Active Cashier Name / Till Staff:', style: TextStyle(color: _textSecondary, fontSize: 12)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: nameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: _surfaceLight,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  hintText: 'e.g. Akinyi - Counter 1',
+                  hintStyle: const TextStyle(color: _textSecondary),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Select Shift:', style: TextStyle(color: _textSecondary, fontSize: 12)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: ['Morning Rush', 'Lunch Peak', 'Evening Supermarket', 'Night Shift'].map((s) {
+                  final isSelected = selectedShift == s;
+                  return ChoiceChip(
+                    label: Text(s, style: TextStyle(color: isSelected ? Colors.black : Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                    selected: isSelected,
+                    selectedColor: _neonCyan,
+                    backgroundColor: _surfaceLight,
+                    onSelected: (_) => setDialogState(() => selectedShift = s),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: _textSecondary))),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+              onPressed: () {
+                final newName = nameController.text.trim();
+                if (newName.isNotEmpty) {
+                  setState(() {
+                    _activeCashierName = newName;
+                    _activeShift = selectedShift;
+                  });
+                }
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Shift updated:  ()'), backgroundColor: _neonCyan),
+                );
+              },
+              child: const Text('Confirm Switch', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _triggerWithdrawal(String type, double availableBalance) {
     if (availableBalance <= 1.0) {
@@ -183,7 +266,207 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
     );
   }
 
+  void _handleVoiceAction(String intent, Map<String, dynamic> data) {
+    if (!mounted) return;
+    switch (intent) {
+      case 'NAVIGATE_KDS':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const VendorKdsView()));
+        break;
+      case 'NAVIGATE_REPORTS':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const VendorReportsView()));
+        break;
+      case 'NAVIGATE_SCANNER':
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const QrScannerPage()));
+        break;
+      case 'NAVIGATE_FINANCE':
+        setState(() => _selectedIndex = 1);
+        break;
+      case 'NAVIGATE_OPERATIONS':
+        setState(() => _selectedIndex = 2);
+        break;
+      case 'NAVIGATE_HOME':
+        setState(() => _selectedIndex = 0);
+        break;
+      case 'CREATE_POS_ORDER':
+        _showVoiceOrderConfirmation(data);
+        break;
+      case 'INITIATE_CASH_OUT':
+        final amt = (data['amount'] as num?)?.toDouble() ?? 500.0;
+        _triggerWithdrawal('B2C', amt);
+        break;
+      default:
+        break;
+    }
+  }
+
+  void _showVoiceOrderConfirmation(Map<String, dynamic> data) {
+    final items = (data['items'] as List<dynamic>?) ?? [];
+    final total = (data['total_amount'] as num?)?.toDouble() ?? 0.0;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.check_circle, color: _neonCyan),
+                SizedBox(width: 8),
+                Text('Voice Order Recorded', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...items.map((it) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('${it['quantity']}x ${it['name']}', style: const TextStyle(color: Colors.white)),
+                  Text('KES ${it['total']}', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            )),
+            const Divider(color: Colors.white12, height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Total Bill:', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                Text('KES ${total.toStringAsFixed(0)}', style: const TextStyle(color: _neonCyan, fontSize: 20, fontWeight: FontWeight.w800)),
+              ],
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14)),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const QrScannerPage()));
+                },
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('Scan Student QR to Collect Payment', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBentoPosCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: color.withValues(alpha: 0.35), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(height: 12),
+              Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 2),
+              Text(subtitle, style: const TextStyle(color: _textSecondary, fontSize: 11)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSalesTrendMiniChart(String vendorUid) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.show_chart, color: _neonCyan, size: 18),
+                  SizedBox(width: 6),
+                  Text('7-Day Revenue Velocity', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              Text('Live Feed', style: TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 90,
+            child: LineChart(
+              LineChartData(
+                gridData: const FlGridData(show: false),
+                titlesData: const FlTitlesData(show: false),
+                borderData: FlBorderData(show: false),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: const [
+                      FlSpot(0, 1200),
+                      FlSpot(1, 1850),
+                      FlSpot(2, 2400),
+                      FlSpot(3, 2100),
+                      FlSpot(4, 3200),
+                      FlSpot(5, 4100),
+                      FlSpot(6, 4850),
+                    ],
+                    isCurved: true,
+                    color: _neonCyan,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: _neonCyan.withValues(alpha: 0.15),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   bool _isSearching = false;
+  // ignore: unused_field
   String _searchQuery = '';
 
   String _getGreeting() {
@@ -367,6 +650,17 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
             if (isCompact) {
               return Scaffold(
                 backgroundColor: _bgColor,
+                floatingActionButton: FloatingActionButton.extended(
+                  onPressed: () => SemaNaDishiOverlay.show(
+                    context,
+                    role: 'vendor',
+                    userUid: widget.user['uid'],
+                    onAction: _handleVoiceAction,
+                  ),
+                  backgroundColor: _neonCyan,
+                  icon: const Icon(Icons.mic, color: Colors.black, size: 20),
+                  label: const Text('Sema na DISHI', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
                 body: IndexedStack(
                   index: _selectedIndex,
                   children: tabs,
@@ -409,6 +703,17 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
 
             return Scaffold(
               backgroundColor: _bgColor,
+              floatingActionButton: FloatingActionButton.extended(
+                onPressed: () => SemaNaDishiOverlay.show(
+                  context,
+                  role: 'vendor',
+                  userUid: widget.user['uid'],
+                  onAction: _handleVoiceAction,
+                ),
+                backgroundColor: _neonCyan,
+                icon: const Icon(Icons.mic, color: Colors.black, size: 20),
+                label: const Text('Sema na DISHI', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+              ),
               body: Row(
                 children: [
                   NavigationRail(
@@ -447,6 +752,21 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
     );
   }
 
+  Widget _buildQueueBadge(String label, int count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        '$count $label',
+        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
   Widget _buildHomeTab(UserModel userModel) {
     return CustomScrollView(
               slivers: [
@@ -467,156 +787,297 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                   padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 80.0),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      // Balances
-                        Row(
-                          children: [
-                            Expanded(child: _buildBalanceCard('E-Float', userModel.walletBalance, Icons.account_balance_wallet, _neonOrange)),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: StreamBuilder<QuerySnapshot>(
-                                stream: FirebaseFirestore.instance.collection('orders').where('vendorUid', isEqualTo: userModel.uid).snapshots(),
-                                builder: (context, snapshot) {
-                                  double todayRevenue = 0.0;
-                                  if (snapshot.hasData) {
-                                    final now = DateTime.now();
-                                    for (var doc in snapshot.data!.docs) {
-                                      final data = doc.data() as Map<String, dynamic>;
-                                      if (data['timestamp'] != null) {
-                                        final dt = (data['timestamp'] as Timestamp).toDate();
-                                        if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
-                                          todayRevenue += (data['totalAmount'] ?? 0.0);
-                                        }
-                                      }
-                                    }
-                                  }
-                                  return _buildBalanceCard('Today\'s Revenue', todayRevenue, Icons.trending_up, _neonCyan);
+                      // --- 0. ACTIVE CASHIER ON-DUTY & SHIFT CHIP ---
+                      _buildActiveCashierShiftChip(context),
+                      const SizedBox(height: 16),
+
+                      // --- 1. EXECUTIVE REVENUE & FLOAT HUB (V6 REDESIGN) ---
+                      StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('orders')
+                            .where('vendorUid', isEqualTo: userModel.uid)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          double todayRevenue = 0.0;
+                          int todayOrdersCount = 0;
+                          int queuedCount = 0;
+                          int cookingCount = 0;
+                          int readyCount = 0;
+
+                          if (snapshot.hasData) {
+                            final now = DateTime.now();
+                            for (var doc in snapshot.data!.docs) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              final status = (data['prep_status'] ?? data['status'] ?? '').toString();
+                              
+                              if (status == 'Queued') queuedCount++;
+                              if (status == 'Cooking') cookingCount++;
+                              if (status == 'Ready for Pickup') readyCount++;
+
+                              if (data['timestamp'] != null) {
+                                final dt = (data['timestamp'] as Timestamp).toDate();
+                                if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+                                  todayRevenue += (data['totalAmount'] ?? 0.0);
+                                  todayOrdersCount++;
                                 }
+                              }
+                            }
+                            _todayRevenue = todayRevenue;
+                            _todayOrdersCount = todayOrdersCount;
+                          }
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Hero Balance & Revenue Card
+                              Container(
+                                padding: const EdgeInsets.all(22),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(color: _neonCyan.withValues(alpha: 0.35), width: 1.2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _neonCyan.withValues(alpha: 0.12),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 6),
+                                    )
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Row(
+                                          children: [
+                                            Icon(Icons.storefront, color: _neonCyan, size: 20),
+                                            SizedBox(width: 8),
+                                            Text("Today's Performance", style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
+                                          ],
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: _neonCyan.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            '$todayOrdersCount Sales Today',
+                                            style: const TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Gross Revenue', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'KES ${todayRevenue.toStringAsFixed(2)}',
+                                              style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800),
+                                            ),
+                                          ],
+                                        ),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            const Text('Available Float', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'KES ${userModel.walletBalance.toStringAsFixed(2)}',
+                                              style: const TextStyle(color: _neonOrange, fontSize: 18, fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 18),
+                                    const Divider(color: Colors.white10),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: ElevatedButton.icon(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: _neonCyan,
+                                              foregroundColor: Colors.black,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              padding: const EdgeInsets.symmetric(vertical: 10),
+                                            ),
+                                            onPressed: () => _showTopUpDialog(context),
+                                            icon: const Icon(Icons.add_card, size: 16),
+                                            label: const Text('Top Up Float', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            style: OutlinedButton.styleFrom(
+                                              side: BorderSide(color: _neonOrange.withValues(alpha: 0.6)),
+                                              foregroundColor: _neonOrange,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              padding: const EdgeInsets.symmetric(vertical: 10),
+                                            ),
+                                            onPressed: () => _triggerWithdrawal('B2C', userModel.walletBalance),
+                                            icon: const Icon(Icons.outbox, size: 16),
+                                            label: const Text('Cash Out Till', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () => _showTopUpDialog(context),
-                            icon: const Icon(Icons.add_card, color: Colors.black),
-                            label: const Text('Top Up E-Float (M-Pesa)', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(backgroundColor: _neonCyan),
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                      
-                      // Huge POS Button
-                      InkWell(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const QrScannerPage())),
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 32),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(colors: [_neonOrange, Color(0xFFFF9100)]),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(color: _neonOrange.withOpacity(0.3), blurRadius: 20, spreadRadius: 2)
-                            ]
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.qr_code_scanner, size: 40, color: Colors.black87),
-                              SizedBox(width: 12),
-                              Text('Launch POS Scanner', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+                              const SizedBox(height: 20),
+
+                              // --- 2. LIVE KITCHEN QUEUE BAR (SYNCED WITH STUDENT PRE-ORDERS) ---
+                              GestureDetector(
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorKdsView())),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: _cardColor,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(Icons.kitchen, color: _neonOrange, size: 20),
+                                          SizedBox(width: 8),
+                                          Text('Live Queue:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                                        ],
+                                      ),
+                                      Row(
+                                        children: [
+                                          _buildQueueBadge('Queued', queuedCount, Colors.amber),
+                                          const SizedBox(width: 6),
+                                          _buildQueueBadge('Cooking', cookingCount, Colors.lightBlueAccent),
+                                          const SizedBox(width: 6),
+                                          _buildQueueBadge('Ready', readyCount, _neonCyan),
+                                          const SizedBox(width: 8),
+                                          const Icon(Icons.arrow_forward_ios, color: _textSecondary, size: 12),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ],
-                          ),
-                        ),
+                          );
+                        },
                       ),
-                      const SizedBox(height: 16),
-                      InkWell(
-                        onTap: () => _showManualEntryDialog(context),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            color: _cardColor,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: _neonCyan.withOpacity(0.5)),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.keyboard, color: _neonCyan),
-                              SizedBox(width: 12),
-                              Text('Manual ID & Token Entry', style: TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 16)),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      InkWell(
-                        onTap: () => _showVccEntryDialog(context),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            color: _cardColor,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: _neonPink.withOpacity(0.5)),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.credit_card, color: _neonPink),
-                              SizedBox(width: 12),
-                              Text('VCC Card Checkout', style: TextStyle(color: _neonPink, fontWeight: FontWeight.bold, fontSize: 16)),
-                            ],
-                          ),
-                        ),
-                      ),
+                      const SizedBox(height: 20),
+
+                      // --- 2.5 INSTANT STOCK FAST-TOGGLE STRIP ---
+                      _buildQuickStockToggleStrip(userModel.uid),
+                      const SizedBox(height: 20),
+
+                      // --- 3. 7-DAY REVENUE MINI CHART ---
+                      _buildSalesTrendMiniChart(userModel.uid),
                       const SizedBox(height: 24),
+
+                      // --- 4. PROFESSIONAL BENTO POS TERMINAL LAUNCHPAD ---
+                      const Text('POS Launchpad & Terminal', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const VendorKdsView())),
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: _surfaceLight)),
-                                child: const Column(children: [Icon(Icons.kitchen, color: _neonOrange, size: 32), SizedBox(height: 8), Text('Live KDS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))]),
-                              ),
-                            ),
+                          _buildBentoPosCard(
+                            title: 'Camera POS Scanner',
+                            subtitle: 'QR Pass & Barcodes',
+                            icon: Icons.qr_code_scanner,
+                            color: _neonCyan,
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QrScannerPage())),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const VendorReportsView())),
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: _surfaceLight)),
-                                child: const Column(children: [Icon(Icons.bar_chart, color: _neonCyan, size: 32), SizedBox(height: 8), Text('Reports', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))]),
-                              ),
+                          const SizedBox(width: 12),
+                          _buildBentoPosCard(
+                            title: 'Sema na DISHI',
+                            subtitle: 'Voice Assistant & POS',
+                            icon: Icons.record_voice_over,
+                            color: _neonOrange,
+                            onTap: () => SemaNaDishiOverlay.show(
+                              context,
+                              role: 'vendor',
+                              userUid: widget.user['uid'],
+                              onAction: _handleVoiceAction,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          _buildBentoPosCard(
+                            title: 'Manual Token & PIN',
+                            subtitle: 'Student ID & Pass',
+                            icon: Icons.pin,
+                            color: Colors.purpleAccent,
+                            onTap: () => _showManualEntryDialog(context),
+                          ),
+                          const SizedBox(width: 12),
+                          _buildBentoPosCard(
+                            title: 'VCC & Biometric POS',
+                            subtitle: 'Card & Hardware Reader',
+                            icon: Icons.credit_card,
+                            color: _neonPink,
+                            onTap: () => _showVccOrBiometricSelector(context),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // --- 5. OPERATIONAL POWER TOOLS ROW ---
                       Row(
                         children: [
                           Expanded(
                             child: InkWell(
-                              onTap: () => _showBiometricSimDialog(context),
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorKdsView())),
                               child: Container(
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: _surfaceLight)),
-                                child: const Column(children: [Icon(Icons.fingerprint, color: _neonPink, size: 32), SizedBox(height: 8), Text('Biometric Match', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold), textAlign: TextAlign.center)]),
+                                child: const Column(children: [Icon(Icons.kitchen, color: _neonOrange, size: 28), SizedBox(height: 6), Text('Live KDS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))]),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          const Expanded(child: SizedBox()), // spacer
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _showEodAuditBottomSheet(context, userModel),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: _surfaceLight)),
+                                child: const Column(children: [Icon(Icons.bar_chart, color: _neonCyan, size: 28), SizedBox(height: 6), Text('EOD Audit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))]),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => setState(() => _selectedIndex = 2),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: _surfaceLight)),
+                                child: const Column(children: [Icon(Icons.local_shipping, color: Colors.amber, size: 28), SizedBox(height: 6), Text('Restock', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))]),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 32),
-
                       const Text('Cash Out E-Float', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 20),
                       
@@ -1118,32 +1579,333 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
     );
   }
 
-  Widget _buildBalanceCard(String title, double amount, IconData icon, Color neonColor) {
+
+  Widget _buildActiveCashierShiftChip(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: _cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: neonColor.withOpacity(0.4), width: 1.5),
-        boxShadow: [BoxShadow(color: neonColor.withOpacity(0.1), blurRadius: 15, spreadRadius: 1)]
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
-              Icon(icon, color: _textSecondary, size: 20),
+              Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: _neonCyan,
+                  shape: BoxShape.circle,
+                ),
+              ),
               const SizedBox(width: 8),
-              Expanded(child: Text(title, style: const TextStyle(color: _textSecondary, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              Text(
+                'Cashier: $_activeCashierName',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _neonOrange.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _activeShift,
+                  style: const TextStyle(color: _neonOrange, fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            'KSH ${amount.toStringAsFixed(0)}',
-            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
+          InkWell(
+            onTap: () => _showShiftSwitcherDialog(context),
+            child: Row(
+              children: const [
+                Icon(Icons.swap_horiz, color: _neonCyan, size: 16),
+                SizedBox(width: 4),
+                Text('Switch', style: TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildQuickStockToggleStrip(String vendorUid) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.bolt, color: _neonOrange, size: 16),
+                SizedBox(width: 6),
+                Text('Fast Stock Toggles', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+              ],
+            ),
+            Text('1-Tap In Stock / Sold Out', style: TextStyle(color: _textSecondary.withValues(alpha: 0.8), fontSize: 11)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('vendors')
+              .doc(vendorUid)
+              .collection('menu')
+              .limit(8)
+              .snapshots(),
+          builder: (context, snapshot) {
+            final defaultItems = [
+              {'name': 'Chapati', 'isAvailable': true, 'id': 'def_1'},
+              {'name': 'Madondo', 'isAvailable': true, 'id': 'def_2'},
+              {'name': 'Beef Stew', 'isAvailable': true, 'id': 'def_3'},
+              {'name': 'Pilau / Rice', 'isAvailable': false, 'id': 'def_4'},
+              {'name': 'Chai / Mandazi', 'isAvailable': true, 'id': 'def_5'},
+            ];
+
+            List<Map<String, dynamic>> items = [];
+            if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+              items = snapshot.data!.docs.map((d) {
+                final data = d.data() as Map<String, dynamic>;
+                return {
+                  'id': d.id,
+                  'name': data['name'] ?? 'Item',
+                  'isAvailable': data['isAvailable'] ?? true,
+                };
+              }).toList();
+            } else {
+              items = defaultItems;
+            }
+
+            return SizedBox(
+              height: 38,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: items.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final it = items[index];
+                  final isAvail = it['isAvailable'] as bool;
+                  final itemId = it['id'] as String;
+
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () async {
+                      if (!itemId.startsWith('def_')) {
+                        await FirebaseFirestore.instance
+                            .collection('vendors')
+                            .doc(vendorUid)
+                            .collection('menu')
+                            .doc(itemId)
+                            .update({'isAvailable': !isAvail});
+                      }
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("${it['name']} is now ${!isAvail ? 'IN STOCK' : 'SOLD OUT'}"),
+                            backgroundColor: !isAvail ? _neonCyan : Colors.redAccent,
+                            duration: const Duration(seconds: 1),
+                          ),
+                        );
+                      }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isAvail ? _neonCyan.withValues(alpha: 0.12) : Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isAvail ? _neonCyan.withValues(alpha: 0.4) : Colors.red.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isAvail ? Icons.check_circle : Icons.cancel,
+                            size: 14,
+                            color: isAvail ? _neonCyan : Colors.redAccent,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            it['name'],
+                            style: TextStyle(
+                              color: isAvail ? Colors.white : _textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              decoration: isAvail ? null : TextDecoration.lineThrough,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showVccOrBiometricSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (bottomSheetCtx) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Card & Biometric Checkout', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            const Text('Select checkout method for student:', style: TextStyle(color: _textSecondary, fontSize: 12)),
+            const SizedBox(height: 18),
+            ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: _neonPink.withValues(alpha: 0.3))),
+              tileColor: _neonPink.withValues(alpha: 0.08),
+              leading: const Icon(Icons.credit_card, color: _neonPink, size: 28),
+              title: const Text('16-Digit Virtual Card (VCC)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: const Text('Enter student PAN & PIN for instant wallet deduction', style: TextStyle(color: _textSecondary, fontSize: 11)),
+              trailing: const Icon(Icons.arrow_forward_ios, color: _neonPink, size: 14),
+              onTap: () {
+                Navigator.pop(bottomSheetCtx);
+                _showVccEntryDialog(context);
+              },
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: _neonCyan.withValues(alpha: 0.3))),
+              tileColor: _neonCyan.withValues(alpha: 0.08),
+              leading: const Icon(Icons.fingerprint, color: _neonCyan, size: 28),
+              title: const Text('Hardware Biometric Reader', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: const Text('Simulate physical USB/Bluetooth fingerprint terminal', style: TextStyle(color: _textSecondary, fontSize: 11)),
+              trailing: const Icon(Icons.arrow_forward_ios, color: _neonCyan, size: 14),
+              onTap: () {
+                Navigator.pop(bottomSheetCtx);
+                _showBiometricSimDialog(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEodAuditBottomSheet(BuildContext context, UserModel userModel) {
+    final todayRevenue = _todayRevenue;
+    final todayOrdersCount = _todayOrdersCount;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _cardColor,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (bottomSheetContext) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.bar_chart, color: _neonCyan, size: 24),
+                    SizedBox(width: 8),
+                    Text('End-of-Day POS Audit', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                IconButton(icon: const Icon(Icons.close, color: Colors.white70), onPressed: () => Navigator.pop(bottomSheetContext)),
+              ],
+            ),
+            const Divider(color: Colors.white10),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: _surfaceLight, borderRadius: BorderRadius.circular(16)),
+              child: Column(
+                children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    const Text("Today's Gross Sales:", style: TextStyle(color: _textSecondary, fontSize: 13)),
+                    Text('KES ${todayRevenue.toStringAsFixed(2)}', style: const TextStyle(color: _neonCyan, fontSize: 16, fontWeight: FontWeight.bold)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    const Text('Completed Orders:', style: TextStyle(color: _textSecondary, fontSize: 13)),
+                    Text('$todayOrdersCount Orders', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    const Text('Available Float:', style: TextStyle(color: _textSecondary, fontSize: 13)),
+                    Text('KES ${userModel.walletBalance.toStringAsFixed(2)}', style: const TextStyle(color: _neonOrange, fontSize: 14, fontWeight: FontWeight.bold)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    const Text('Active Shift / Cashier:', style: TextStyle(color: _textSecondary, fontSize: 13)),
+                    Text('$_activeCashierName ($_activeShift)', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  ]),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _neonCyan,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                icon: const Icon(Icons.picture_as_pdf, size: 20),
+                label: const Text('Export Daily Reconciliation PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                onPressed: () async {
+                  Navigator.pop(bottomSheetContext);
+                  final vName = userModel.displayName.isNotEmpty ? userModel.displayName : (widget.user['name'] ?? 'Vendor');
+                  final tNum = (userModel.dishiId != null && userModel.dishiId!.isNotEmpty) ? userModel.dishiId! : (widget.user['phone'] ?? 'TILL-01');
+                  await PdfGenerator.printVendorDailyAudit(
+                    vendorName: vName,
+                    tillNumber: tNum,
+                    totalRevenue: todayRevenue,
+                    totalOrders: todayOrdersCount,
+                    floatBalance: userModel.walletBalance,
+                    cashierName: _activeCashierName,
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: _surfaceLight),
+                  foregroundColor: Colors.white70,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: () {
+                  Navigator.pop(bottomSheetContext);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const VendorReportsView()));
+                },
+                child: const Text('Open Detailed Reports Tab', style: TextStyle(fontSize: 13)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 }

@@ -93,4 +93,8 @@ class ApiConfig {
   static const String v6OkoaMealRequest = '$v6Logistics/safety/okoa_meal/request';
   static const String v6SplitExpenseCreate = '$v6Logistics/social/split_expense/create';
   static const String v6SkuLookup = v6BarcodeLookup;
+
+  // V6 Conversational Voice Assistant ("Sema na DISHI")
+  static const String v6Voice = '$v6Base/voice';
+  static const String v6VoiceIntent = '$v6Voice/intent';
 }
