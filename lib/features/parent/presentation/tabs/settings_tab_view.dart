@@ -248,7 +248,7 @@ class _SettingsTabViewState extends State<SettingsTabView> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: const Color(0xFF161C2C),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: _neonPink.withOpacity(0.4))),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: Border.all(color: _neonPink.withOpacity(0.4))),
           title: const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: _neonPink, size: 28),

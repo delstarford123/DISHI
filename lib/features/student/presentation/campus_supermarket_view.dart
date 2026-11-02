@@ -1077,9 +1077,25 @@ class _CampusSupermarketViewState extends State<CampusSupermarketView> {
 
                 var docs = snapshot.data?.docs ?? [];
                 
-                // Fallback items if database is freshly initialized
                 if (docs.isEmpty) {
-                  return _buildFallbackCatalog();
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.storefront_outlined, size: 56, color: Colors.white24),
+                        SizedBox(height: 12),
+                        Text(
+                          'No campus supermarket items yet.',
+                          style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Catalog products will appear here once loaded.',
+                          style: TextStyle(color: Colors.white38, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  );
                 }
 
                 // Filter by category and search
