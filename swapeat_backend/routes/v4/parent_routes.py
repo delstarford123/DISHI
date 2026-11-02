@@ -4,7 +4,7 @@ import base64
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from firebase_admin import firestore, messaging
-from routes.mpesa_routes import _fmt_phone, generate_access_token, _send_notification, _notify_parent
+from routes.mpesa_routes import _fmt_phone, generate_access_token, _send_notification, _notify_parent, resolve_user_ref, _credit_wallet_safely
 
 parent_v4_bp = Blueprint('parent_v4', __name__)
 
@@ -71,17 +71,11 @@ def fund_student_v4():
     formatted_phone = _fmt_phone(phone_number)
     db = firestore.client()
 
-    # Verify student exists
-    student_ref = db.collection('users').document(student_uid)
-    student_doc = student_ref.get()
-    if not student_doc.exists:
-        # Fallback query by swapeatCode / dishiId
-        q = db.collection('users').where('dishiId', '==', student_uid).limit(1).get()
-        if q:
-            student_doc = q[0]
-            student_uid = student_doc.id
-        else:
-            return jsonify({"error": f"Student account '{student_uid}' not found."}), 404
+    # Verify student exists (supports UID, DISHI ID, email, phone)
+    student_ref, student_doc, resolved_uid = resolve_user_ref(db, student_uid)
+    if not student_ref or not student_doc.exists:
+        return jsonify({"error": f"Student account '{student_uid}' not found."}), 404
+    student_uid = resolved_uid
 
     s_data = student_doc.to_dict() or {}
     resolved_name = s_data.get('displayName') or s_data.get('name') or child_name
@@ -315,8 +309,13 @@ def transfer_from_vault_v4():
         return jsonify({'error': 'Amount must be greater than 0'}), 400
 
     db = firestore.client()
-    parent_ref = db.collection('users').document(parent_uid)
-    student_ref = db.collection('users').document(student_uid)
+    p_ref, p_doc, resolved_p_uid = resolve_user_ref(db, parent_uid)
+    parent_ref = p_ref if p_ref else db.collection('users').document(parent_uid)
+    parent_uid = resolved_p_uid if resolved_p_uid else parent_uid
+
+    s_ref, s_doc, resolved_s_uid = resolve_user_ref(db, student_uid)
+    student_ref = s_ref if s_ref else db.collection('users').document(student_uid)
+    student_uid = resolved_s_uid if resolved_s_uid else student_uid
 
     @firestore.transactional
     def run_zero_fee_transfer(transaction):
@@ -360,9 +359,12 @@ def transfer_from_vault_v4():
             remaining_to_deduct -= deduct_wallet
 
         transaction.update(parent_ref, parent_updates)
-        transaction.update(student_ref, {
-            'walletBalance': student_wallet + amount
-        })
+        transaction.set(student_ref, {
+            'walletBalance': student_wallet + amount,
+            'wallet_balance': student_wallet + amount,
+            'updatedAt': firestore.SERVER_TIMESTAMP,
+            'updated_at': firestore.SERVER_TIMESTAMP
+        }, merge=True)
 
         student_name = student_data.get('name') or student_data.get('displayName') or 'Student'
 
@@ -469,11 +471,18 @@ def bulk_fund_students_v4():
             if not s_uid or amt <= 0:
                 continue
 
-            s_ref = db.collection('users').document(s_uid)
+            s_r, s_d, resolved_s = resolve_user_ref(db, s_uid)
+            s_ref = s_r if s_r else db.collection('users').document(s_uid)
+            s_uid = resolved_s if resolved_s else s_uid
             s_snap = s_ref.get(transaction=transaction)
             if s_snap.exists:
                 cur_bal = float((s_snap.to_dict() or {}).get('walletBalance', 0.0) or 0.0)
-                transaction.update(s_ref, {'walletBalance': cur_bal + amt})
+                transaction.set(s_ref, {
+                    'walletBalance': cur_bal + amt,
+                    'wallet_balance': cur_bal + amt,
+                    'updatedAt': firestore.SERVER_TIMESTAMP,
+                    'updated_at': firestore.SERVER_TIMESTAMP
+                }, merge=True)
 
                 tx_ref = db.collection('transactions').document()
                 transaction.set(tx_ref, {

@@ -1,3 +1,4 @@
+from routes.mpesa_routes import resolve_user_ref
 from flask import Blueprint, request, jsonify
 from firebase_admin import firestore, messaging
 import hmac
@@ -34,8 +35,13 @@ def parent_to_student_transfer():
             return jsonify({'error': 'Amount must be greater than 0'}), 400
             
         db = firestore.client()
-        parent_ref = db.collection('users').document(parent_uid)
-        student_ref = db.collection('users').document(student_uid)
+        p_ref, p_doc, resolved_p_uid = resolve_user_ref(db, parent_uid)
+        parent_ref = p_ref if p_ref else db.collection('users').document(parent_uid)
+        parent_uid = resolved_p_uid if resolved_p_uid else parent_uid
+
+        s_ref, s_doc, resolved_s_uid = resolve_user_ref(db, student_uid)
+        student_ref = s_ref if s_ref else db.collection('users').document(student_uid)
+        student_uid = resolved_s_uid if resolved_s_uid else student_uid
         
         @firestore.transactional
         def run_transfer(transaction):
@@ -81,9 +87,12 @@ def parent_to_student_transfer():
                 remaining_to_deduct -= deduct_wallet
                 
             transaction.update(parent_ref, parent_updates)
-            transaction.update(student_ref, {
-                'walletBalance': student_wallet + amount
-            })
+            transaction.set(student_ref, {
+                'walletBalance': student_wallet + amount,
+                'wallet_balance': student_wallet + amount,
+                'updatedAt': firestore.SERVER_TIMESTAMP,
+                'updated_at': firestore.SERVER_TIMESTAMP
+            }, merge=True)
             
             student_name = student_data.get('name') or student_data.get('displayName') or 'Student'
             
@@ -1127,8 +1136,18 @@ def execute_p2p_transfer():
         new_s_bal = s_bal - amount
         new_r_bal = r_bal + amount
 
-        transaction.update(sender_ref, {'walletBalance': new_s_bal})
-        transaction.update(receiver_ref, {'walletBalance': new_r_bal})
+        transaction.set(sender_ref, {
+            'walletBalance': new_s_bal,
+            'wallet_balance': new_s_bal,
+            'updatedAt': firestore.SERVER_TIMESTAMP,
+            'updated_at': firestore.SERVER_TIMESTAMP
+        }, merge=True)
+        transaction.set(receiver_ref, {
+            'walletBalance': new_r_bal,
+            'wallet_balance': new_r_bal,
+            'updatedAt': firestore.SERVER_TIMESTAMP,
+            'updated_at': firestore.SERVER_TIMESTAMP
+        }, merge=True)
 
         tx_ref = db.collection('transactions').document()
         transaction.set(tx_ref, {

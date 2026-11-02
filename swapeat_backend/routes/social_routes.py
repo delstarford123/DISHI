@@ -69,10 +69,19 @@ def donate_harambee():
         recipient_ref = db.collection('users').document(recipient_id)
         
         # Deduct from donor
-        transaction.update(d_ref, {'walletBalance': firestore.Increment(-total_deduct)})
+        transaction.update(d_ref, {
+            'walletBalance': firestore.Increment(-total_deduct),
+            'wallet_balance': firestore.Increment(-total_deduct),
+            'updatedAt': firestore.SERVER_TIMESTAMP
+        })
         
         # Credit recipient
-        transaction.update(recipient_ref, {'walletBalance': firestore.Increment(amount)})
+        transaction.set(recipient_ref, {
+            'walletBalance': firestore.Increment(amount),
+            'wallet_balance': firestore.Increment(amount),
+            'updatedAt': firestore.SERVER_TIMESTAMP,
+            'updated_at': firestore.SERVER_TIMESTAMP
+        }, merge=True)
         
         # System Commission
         admin_ref = db.collection('admin_finances').document('dishi_system_pool')

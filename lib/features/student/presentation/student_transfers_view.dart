@@ -75,8 +75,20 @@ class _StudentTransfersViewState extends State<StudentTransfersView> {
       final currentUid = FirebaseAuth.instance.currentUser?.uid;
       final usersRef = FirebaseFirestore.instance.collection('users');
 
-      // 1. Try search by DISHI ID
+      // 1. Try search by DISHI ID (dishiId, dishi_id, shortId)
       var snap = await usersRef.where('dishiId', isEqualTo: trimmed.toUpperCase()).limit(1).get();
+      if (snap.docs.isEmpty) {
+        snap = await usersRef.where('dishi_id', isEqualTo: trimmed.toUpperCase()).limit(1).get();
+      }
+      if (snap.docs.isEmpty) {
+        snap = await usersRef.where('dishiId', isEqualTo: trimmed).limit(1).get();
+      }
+      if (snap.docs.isEmpty) {
+        snap = await usersRef.where('dishi_id', isEqualTo: trimmed).limit(1).get();
+      }
+      if (snap.docs.isEmpty) {
+        snap = await usersRef.where('shortId', isEqualTo: trimmed.toUpperCase()).limit(1).get();
+      }
 
       // 2. If not found, try search by phone
       if (snap.docs.isEmpty) {
@@ -284,11 +296,19 @@ class _StudentTransfersViewState extends State<StudentTransfersView> {
         final receiverData = receiverSnap.data();
         final receiverBalance = (receiverData?['walletBalance'] as num?)?.toDouble() ?? 0.0;
 
-        // Deduct from sender
-        tx.update(senderRef, {'walletBalance': senderBalance - amount});
+        // Deduct from sender (both camelCase and snake_case for universal v3-v6 compatibility)
+        tx.update(senderRef, {
+          'walletBalance': senderBalance - amount,
+          'wallet_balance': senderBalance - amount,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
 
-        // Credit receiver
-        tx.update(receiverRef, {'walletBalance': receiverBalance + amount});
+        // Credit receiver (both camelCase and snake_case for universal v3-v6 compatibility)
+        tx.update(receiverRef, {
+          'walletBalance': receiverBalance + amount,
+          'wallet_balance': receiverBalance + amount,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
 
         // Log transaction record
         final txDocRef = firestore.collection('transactions').doc();

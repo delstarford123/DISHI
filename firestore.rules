@@ -84,12 +84,14 @@ service cloud.firestore {
       // Parents can create offline child profiles
       // Allow authenticated users to credit recipient walletBalance for P2P transfers
       allow write: if isSelf(userId) || isAdmin() || 
+                   // P2P transfers & funding: allow any authenticated user to credit recipient's wallet
                    (resource != null && isAuth() && 
-                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['walletBalance']) && 
-                    request.resource.data.walletBalance >= resource.data.walletBalance) ||
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['walletBalance', 'wallet_balance', 'updatedAt', 'updated_at']) && 
+                    (request.resource.data.get('walletBalance', 0) >= resource.data.get('walletBalance', 0) || 
+                     request.resource.data.get('wallet_balance', 0) >= resource.data.get('wallet_balance', 0))) ||
                    (resource != null && isParentOf(userId)) || 
-                   (resource != null && isAuth() && hasRole('parent') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedParents'])) ||
-                   (resource != null && isAuth() && hasRole('parent') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedStudents'])) ||
+                   (resource != null && isAuth() && (hasRole('parent') || isParentOf(userId)) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedParents', 'updatedAt', 'updated_at'])) ||
+                   (resource != null && isAuth() && (hasRole('parent') || isParentOf(userId)) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedStudents', 'updatedAt', 'updated_at'])) ||
                    (resource == null && isAuth() && hasRole('parent') && request.resource.data.isOffline == true);
 
       // All subcollections under /users/{uid}/... (menu, staff, notifications, bounties, geofence_alerts, locationBreadcrumbs, etc.)
@@ -1144,8 +1146,8 @@ service cloud.firestore {
     }
     match /user_game_stats/{userId} {
       allow read: if isSelf(userId) || isAdmin();
-      // Only backend updates stats (like last_spin)
-      allow write: if isAdmin();
+      // Allow users to record their own spin / game timestamps and stats
+      allow write: if isSelf(userId) || isAdmin();
     }
     match /taste_profiles/{userId} {
       allow read: if isAuth();

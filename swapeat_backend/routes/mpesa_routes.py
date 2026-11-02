@@ -110,6 +110,509 @@ def _notify_parent(db, student_id: str, message_body: str):
         print(f"FCM notify error (non-fatal): {e}")
 
 
+def resolve_user_ref(db, identifier: str):
+    """
+    Resolves any user identifier (Firebase Auth UID, DISHI ID, email, phone, or shortId)
+    to a tuple of (user_ref, user_doc_snapshot, uid).
+    Returns (None, None, None) if not found.
+    """
+    if not identifier:
+        return None, None, None
+    raw = str(identifier).strip()
+    if not raw:
+        return None, None, None
+
+    # 1. Direct document ID (Firebase Auth UID)
+    try:
+        doc = db.collection('users').document(raw).get()
+        if doc.exists:
+            return doc.reference, doc, doc.id
+    except Exception:
+        pass
+
+    # 2. dishiId / dishi_id / shortId / swapeatCode (exact, uppercase, lowercase)
+    for candidate in [raw, raw.upper(), raw.lower()]:
+        for field in ['dishiId', 'dishi_id', 'shortId', 'swapeatCode']:
+            try:
+                snaps = db.collection('users').where(field, '==', candidate).limit(1).get()
+                if snaps and len(snaps) > 0:
+                    return snaps[0].reference, snaps[0], snaps[0].id
+            except Exception:
+                pass
+
+    # 3. Email (including common typos)
+    if '@' in raw or '.' in raw:
+        clean_email = raw.lower()
+        variants = [clean_email]
+        if '@gmial.com' in clean_email:
+            variants.append(clean_email.replace('@gmial.com', '@gmail.com'))
+        elif '@gmail.com' in clean_email:
+            variants.append(clean_email.replace('@gmail.com', '@gmial.com'))
+        for em in variants:
+            try:
+                snaps = db.collection('users').where('email', '==', em).limit(1).get()
+                if snaps and len(snaps) > 0:
+                    return snaps[0].reference, snaps[0], snaps[0].id
+            except Exception:
+                pass
+
+    # 4. Phone number
+    phone_clean = raw.replace('+', '').replace(' ', '').replace('-', '')
+    phone_variants = [phone_clean]
+    if phone_clean.startswith('0'):
+        phone_variants.append('254' + phone_clean[1:])
+    elif phone_clean.startswith('254'):
+        phone_variants.append('0' + phone_clean[3:])
+    for ph in phone_variants:
+        for fld in ['phoneNumber', 'phone_number', 'phone']:
+            try:
+                snaps = db.collection('users').where(fld, '==', ph).limit(1).get()
+                if snaps and len(snaps) > 0:
+                    return snaps[0].reference, snaps[0], snaps[0].id
+            except Exception:
+                pass
+
+    # 5. UID Prefix (>= 6 chars)
+    if len(raw) >= 6:
+        try:
+            for u in db.collection('users').limit(60).stream():
+                if u.id.upper().startswith(raw.upper()):
+                    return u.reference, u, u.id
+        except Exception:
+            pass
+
+    return None, None, None
+
+
+def _credit_wallet_safely(db, user_ref, user_id, amount, destination='walletBalance', extra_fields=None):
+    """
+    Safely credits user balance atomically in Firestore.
+    Updates BOTH walletBalance and wallet_balance if destination is walletBalance.
+    Works reliably whether fields were previously initialized or not.
+    """
+    amt = float(amount)
+    update_dict = {
+        'updatedAt': firestore.SERVER_TIMESTAMP,
+        'updated_at': firestore.SERVER_TIMESTAMP
+    }
+    if destination in ['walletBalance', 'wallet_balance']:
+        update_dict['walletBalance'] = firestore.Increment(amt)
+        update_dict['wallet_balance'] = firestore.Increment(amt)
+    else:
+        update_dict[destination] = firestore.Increment(amt)
+
+    if extra_fields:
+        update_dict.update(extra_fields)
+
+    user_ref.set(update_dict, merge=True)
+
+
+def query_stk_status(checkout_id: str):
+    """
+    Directly queries Safaricom's Daraja STK Push Query API.
+    Returns (result_code, result_desc, raw_data).
+    """
+    access_token = generate_access_token()
+    passkey = os.getenv('MPESA_PASSKEY', '')
+    business_short_code = os.getenv('MPESA_BUSINESS_SHORT_CODE', '')
+    if not access_token or not passkey or not business_short_code:
+        return None, None, None
+
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    password_str = business_short_code + passkey + timestamp
+    password = base64.b64encode(password_str.encode('utf-8')).decode('utf-8')
+
+    env = os.getenv('MPESA_ENV', 'sandbox').lower()
+    base_url = "https://api.safaricom.co.ke" if env == 'production' else "https://sandbox.safaricom.co.ke"
+    api_url = f"{base_url}/mpesa/stkpushquery/v1/query"
+
+    payload = {
+        "BusinessShortCode": business_short_code,
+        "Password": password,
+        "Timestamp": timestamp,
+        "CheckoutRequestID": checkout_id
+    }
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        resp = requests.post(api_url, json=payload, headers=headers, timeout=15)
+        data = resp.json()
+        print(f"STK Query [{checkout_id}]: {data}")
+        res_code = data.get('ResultCode')
+        res_desc = data.get('ResultDesc', '')
+        return res_code, res_desc, data
+    except Exception as e:
+        print(f"STK Query error: {e}")
+        return None, None, None
+
+
+def _fulfill_successful_payment(db, checkout_id, tx_info, raw_data=None):
+    """
+    Single unified idempotent fulfillment function.
+    Called by both mpesa_callback and check_stk_status.
+    Credits student wallet atomically, writes transactions & notifications, and sends FCM alerts.
+    """
+    tx_ref = db.collection('mpesa_transactions').document(checkout_id)
+    tx_doc = tx_ref.get()
+    if not tx_doc.exists:
+        return False
+
+    fresh_tx = tx_doc.to_dict() or {}
+    current_status = fresh_tx.get('status')
+    if current_status == 'completed':
+        print(f"[Fulfillment] CheckoutID {checkout_id} is already completed. Skipping duplicate.")
+        return True
+
+    # Lock to processing to prevent concurrency race conditions
+    tx_ref.set({
+        'status': 'processing',
+        'fulfillment_started_at': firestore.SERVER_TIMESTAMP
+    }, merge=True)
+
+    raw_user_id = fresh_tx.get('user_id', '')
+    sender_id   = fresh_tx.get('sender_id')
+    credit_amt  = float(fresh_tx.get('amount', 0))
+    destination = fresh_tx.get('destination', 'walletBalance')
+    user_name   = fresh_tx.get('user_name', 'Student')
+    metadata    = fresh_tx.get('metadata') or {}
+    action      = metadata.get('action')
+
+    # Resolve true user document and UID
+    user_ref, user_doc, real_uid = resolve_user_ref(db, raw_user_id)
+    if not user_ref:
+        meta_uid = metadata.get('student_id') or metadata.get('studentId') or metadata.get('user_id')
+        if meta_uid:
+            user_ref, user_doc, real_uid = resolve_user_ref(db, meta_uid)
+
+    if not user_ref:
+        print(f"ERROR: Cannot resolve user for checkout_id={checkout_id}, raw_user_id={raw_user_id}")
+        tx_ref.update({'status': 'error', 'error': f"User '{raw_user_id}' could not be resolved"})
+        return False
+
+    user_id = real_uid
+    if user_doc and user_doc.exists:
+        u_data = user_doc.to_dict() or {}
+        user_name = u_data.get('displayName') or u_data.get('name') or user_name
+
+    # Determine STK charged amount and system commissions
+    stk_amount = credit_amt
+    if raw_data:
+        items = raw_data.get('CallbackMetadata', {}).get('Item', [])
+        for item in items:
+            if item.get('Name') == 'Amount':
+                try:
+                    stk_amount = float(item.get('Value', credit_amt))
+                except Exception:
+                    pass
+
+    is_parent_tx = (action in ['fund_student', 'fund_vault'] or 
+                    destination in ['savingsBalance', 'vaultBalance'] or 
+                    metadata.get('role') == 'parent' or 
+                    metadata.get('sender_role') == 'parent')
+
+    commission = 0.0 if is_parent_tx else max(0.0, stk_amount - credit_amt)
+    if commission > 0:
+        try:
+            db.collection('admin_finances').document('dishi_system_pool').set({
+                'system_commissions': firestore.Increment(commission),
+                'updated_at': firestore.SERVER_TIMESTAMP
+            }, merge=True)
+        except Exception as e:
+            print(f"System pool increment warning: {e}")
+
+    # 1. Action-specific fulfillment
+    if action == 'checkout_cart':
+        buyer_id = metadata.get('buyer_id')
+        item_ids = metadata.get('item_ids', [])
+        for item_id in item_ids:
+            try:
+                db.collection('marketplace_items').document(item_id).update({
+                    'status': 'In Escrow',
+                    'buyer_id': buyer_id,
+                    'updated_at': firestore.SERVER_TIMESTAMP
+                })
+            except Exception:
+                pass
+
+    elif action in ['fund_student', 'harambee_donate']:
+        campaign_id = metadata.get('campaign_id')
+        campaign_title = metadata.get('campaign_title', 'Education Fund')
+        donor_email = metadata.get('donor_email')
+        donor_name = metadata.get('donor_name') or metadata.get('funder_name') or 'Anonymous Supporter'
+        donor_phone = metadata.get('funder_phone') or fresh_tx.get('phone', '')
+
+        # ATOMICALLY CREDIT BOTH WALLET FIELDS FOR STUDENT!
+        _credit_wallet_safely(db, user_ref, user_id, credit_amt, destination=destination)
+
+        # Log in transactions collection
+        try:
+            tx_type = 'harambee_donation' if action == 'harambee_donate' else 'fund_student'
+            db.collection('transactions').add({
+                'type': tx_type,
+                'studentId': user_id,
+                'student_id': user_id,
+                'user_id': user_id,
+                'receiverUid': user_id,
+                'donor_name': donor_name,
+                'donorName': donor_name,
+                'senderPhone': donor_phone,
+                'amount': credit_amt,
+                'campaign_id': campaign_id or '',
+                'campaign_title': campaign_title,
+                'status': 'completed',
+                'description': f'Fund Me contribution of KES {credit_amt:,.0f} from {donor_name}',
+                'timestamp': firestore.SERVER_TIMESTAMP
+            })
+        except Exception as tx_err:
+            print(f"Non-fatal transaction log error: {tx_err}")
+
+        # Update Harambee Campaign if linked
+        if campaign_id:
+            campaign_ref = db.collection('harambee_campaigns').document(campaign_id)
+            try:
+                camp_doc = campaign_ref.get()
+                if camp_doc.exists:
+                    donors = list(camp_doc.to_dict().get('donors', []))
+                    donors.append({
+                        'name': donor_name,
+                        'amount': credit_amt,
+                        'timestamp': datetime.utcnow()
+                    })
+                    campaign_ref.update({
+                        'raised': firestore.Increment(credit_amt),
+                        'donors': donors
+                    })
+            except Exception as e:
+                print(f"Failed to update campaign donors: {e}")
+                try:
+                    campaign_ref.update({'raised': firestore.Increment(credit_amt)})
+                except Exception:
+                    pass
+
+        # Send Thank You Email to donor
+        if donor_email:
+            try:
+                from flask import current_app
+                from flask_mail import Message
+                from app import mail
+                if mail is not None:
+                    from routes.email_utils import harambee_thank_you_email
+                    subj, html_body = harambee_thank_you_email(user_name, campaign_title, credit_amt)
+                    msg = Message(
+                        subject=subj,
+                        sender=current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'),
+                        recipients=[donor_email],
+                        html=html_body,
+                        body=f"Thank you for donating KES {credit_amt} to {user_name}!"
+                    )
+                    mail.send(msg)
+            except Exception as e:
+                print(f"Failed to send thank you email: {e}")
+
+    elif metadata.get('type') == 'event_ticket' or action == 'event_ticket':
+        event_id = metadata.get('eventId')
+        tier = metadata.get('tier', 'Regular')
+        buyer_email = metadata.get('email')
+        if event_id:
+            import uuid
+            ticket_id = str(uuid.uuid4()).split('-')[0].upper()
+            event_ref = db.collection('events').document(event_id)
+            try:
+                event_doc = event_ref.get()
+                if event_doc.exists:
+                    e_data = event_doc.to_dict()
+                    update_data = {
+                        'ticketsSold': firestore.Increment(1),
+                        'revenue': firestore.Increment(credit_amt)
+                    }
+                    if tier == 'VIP':
+                        update_data['vipSold'] = firestore.Increment(1)
+                    elif tier == 'Early Bird':
+                        update_data['earlyBirdSold'] = firestore.Increment(1)
+                    else:
+                        update_data['regularSold'] = firestore.Increment(1)
+                    event_ref.update(update_data)
+                    _credit_wallet_safely(db, user_ref, user_id, credit_amt, destination='walletBalance')
+            except Exception as e:
+                print(f"Event ticket processing error: {e}")
+
+    elif action in ['support_dishi', 'community_donate'] or destination in ['support', 'community']:
+        donor_name = metadata.get('donor_name') or fresh_tx.get('user_name', 'Generous Supporter')
+        donor_phone = fresh_tx.get('phone', '')
+        donor_email = metadata.get('donor_email')
+        cause = metadata.get('cause', 'Universal Inclusion & Students Gifted Differently')
+        try:
+            db.collection('community_contributions').add({
+                'donor_name': donor_name,
+                'phone': donor_phone,
+                'email': donor_email,
+                'amount': credit_amt,
+                'cause': cause,
+                'checkout_id': checkout_id,
+                'timestamp': firestore.SERVER_TIMESTAMP,
+                'status': 'completed'
+            })
+            db.collection('admin_finances').document('dishi_community_pool').set({
+                'total_donations': firestore.Increment(credit_amt),
+                'contributions_count': firestore.Increment(1),
+                'last_updated': firestore.SERVER_TIMESTAMP
+            }, merge=True)
+        except Exception as e:
+            print(f"Community contribution error: {e}")
+
+    elif action == 'pay_rent':
+        app_id = metadata.get('application_id')
+        student_id = metadata.get('student_id')
+        merchant_id = metadata.get('merchant_id')
+        room_id = metadata.get('room_id')
+        rent_amount = float(metadata.get('rent_amount', credit_amt))
+        insurance = float(metadata.get('insurance', 0))
+        comm = float(metadata.get('commission', 0))
+
+        _credit_wallet_safely(db, user_ref, user_id, rent_amount, destination='walletBalance')
+        admin_pool_ref = db.collection('admin_finances').document('dishi_rent_pool')
+        try:
+            admin_pool_ref.set({
+                'insurance_pool': firestore.Increment(insurance),
+                'commission_pool': firestore.Increment(comm),
+                'total_collected': firestore.Increment(insurance + comm),
+                'updated_at': firestore.SERVER_TIMESTAMP
+            }, merge=True)
+        except Exception:
+            pass
+
+        if app_id:
+            try:
+                db.collection('housing_applications').document(app_id).update({
+                    'status': 'Leased',
+                    'updated_at': firestore.SERVER_TIMESTAMP
+                })
+            except Exception:
+                pass
+
+    elif action == 'buy_item':
+        item_id = metadata.get('item_id')
+        buyer_id = metadata.get('buyer_id')
+        _credit_wallet_safely(db, user_ref, user_id, credit_amt, destination='walletBalance')
+        if item_id and buyer_id:
+            try:
+                db.collection('marketplace_items').document(item_id).update({
+                    'status': 'In Escrow',
+                    'buyer_id': buyer_id,
+                    'escrow_amount': credit_amt,
+                    'updated_at': firestore.SERVER_TIMESTAMP
+                })
+            except Exception:
+                pass
+
+    elif action == 'pay_deliv':
+        request_id = metadata.get('request_id')
+        _credit_wallet_safely(db, user_ref, user_id, credit_amt, destination='vault_balance')
+        if request_id:
+            try:
+                db.collection('deliv_requests').document(request_id).update({
+                    'status': 'Paid (M-Pesa)',
+                    'updated_at': firestore.SERVER_TIMESTAMP
+                })
+            except Exception:
+                pass
+
+    else:
+        # Standard wallet top-up / student upkeep / parent funding
+        _credit_wallet_safely(db, user_ref, user_id, credit_amt, destination=destination)
+        try:
+            supporter_name = metadata.get('donor_name') or metadata.get('funder_name') or metadata.get('funder_phone') or 'Supporter'
+            db.collection('transactions').add({
+                'type': 'wallet_funding',
+                'studentId': user_id,
+                'student_id': user_id,
+                'user_id': user_id,
+                'receiverUid': user_id,
+                'senderPhone': metadata.get('funder_phone', ''),
+                'donor_name': supporter_name,
+                'donorName': supporter_name,
+                'amount': credit_amt,
+                'destination': destination,
+                'status': 'completed',
+                'description': f"Wallet funded with KSH {credit_amt:,.0f} by {supporter_name}",
+                'timestamp': firestore.SERVER_TIMESTAMP
+            })
+        except Exception as tx_e:
+            print(f"Non-fatal transaction record warning: {tx_e}")
+
+    # Mark transaction completed
+    tx_ref.set({
+        'status': 'completed',
+        'result_code': 0,
+        'result_desc': 'The service request is processed successfully.',
+        'completed_at': firestore.SERVER_TIMESTAMP
+    }, merge=True)
+
+    # Immutable wallet ledger
+    try:
+        db.collection('wallet_ledger').add({
+            'type': 'mpesa_deposit',
+            'user_id': user_id,
+            'checkout_id': checkout_id,
+            'amount': credit_amt,
+            'destination': destination,
+            'timestamp': firestore.SERVER_TIMESTAMP
+        })
+    except Exception as e:
+        print(f"Ledger record warning: {e}")
+
+    # Referral reward logic
+    try:
+        user_doc_fresh = user_ref.get()
+        if user_doc_fresh.exists:
+            u_dat = user_doc_fresh.to_dict() or {}
+            referrer_id = u_dat.get('referredBy')
+            reward_paid = u_dat.get('referralRewardPaid', False)
+            if referrer_id and not reward_paid:
+                referrer_ref = db.collection('users').document(referrer_id)
+                referrer_ref.set({'referralBalance': firestore.Increment(5)}, merge=True)
+                user_ref.set({'referralRewardPaid': True}, merge=True)
+                print(f"🎉 Credited 5 KSH to referrer {referrer_id}")
+    except Exception as e:
+        print(f"Referral logic warning: {e}")
+
+    # Notifications
+    funder_phone = metadata.get('funder_phone', '')
+    fund_action = metadata.get('action', '')
+    is_fund_student = (fund_action == 'fund_student' or action == 'harambee_donate')
+    is_fund_vault = (fund_action == 'fund_vault')
+
+    if is_fund_student:
+        funder_display = funder_phone if funder_phone else (metadata.get('donor_name') or 'a supporter')
+        _send_notification(
+            db, user_id,
+            "🎉 Wallet Funded!",
+            f"Great news! Your education wallet has just been funded with KSH {credit_amt:,.0f} by {funder_display}."
+        )
+        _notify_parent(
+            db, user_id,
+            f"Update: {user_name}'s education wallet has successfully received a contribution of KSH {credit_amt:.0f} from {funder_display}."
+        )
+    elif is_fund_vault:
+        _send_notification(
+            db, user_id,
+            "🏦 Vault Funded Successfully!",
+            f"Your Shared Family Vault has been credited with KSH {credit_amt:.0f}."
+        )
+    else:
+        _send_notification(
+            db, user_id,
+            "DISHI Wallet Top-Up",
+            f"Your wallet has been topped up with Ksh {credit_amt:.0f}."
+        )
+
+    print(f"✅ Successfully fulfilled transaction {checkout_id} for user {user_id} ({destination}) KES {credit_amt}")
+    return True
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  STK Push  — triggers the M-PESA prompt on the parent's phone
 # ─────────────────────────────────────────────────────────────────────────────
@@ -193,53 +696,14 @@ def trigger_stk_push():
         except Exception as rl_err:
             print(f"Non-fatal rate limit warning: {rl_err}")
                     
-        user_doc = db.collection('users').document(user_id).get()
-        if not user_doc.exists:
-            # Fallback 1: Resolve by dishiId (exact, upper, lower)
-            for did in [user_id, user_id.upper(), user_id.lower()]:
-                q = db.collection('users').where('dishiId', '==', did).limit(1).get()
-                if q:
-                    user_doc = q[0]
-                    user_id = user_doc.id
-                    break
-
-            # Fallback 2: Resolve by email (handling common typos like @gmial.com)
-            if not user_doc.exists and ('@' in user_id or '.' in user_id):
-                clean_email = user_id.lower().strip()
-                email_variants = [clean_email]
-                if '@gmial.com' in clean_email:
-                    email_variants.append(clean_email.replace('@gmial.com', '@gmail.com'))
-                elif '@gmail.com' in clean_email:
-                    email_variants.append(clean_email.replace('@gmail.com', '@gmial.com'))
-
-                for em in email_variants:
-                    q = db.collection('users').where('email', '==', em).limit(1).get()
-                    if q:
-                        user_doc = q[0]
-                        user_id = user_doc.id
-                        break
-
-            # Fallback 3: Resolve by phone number
-            if not user_doc.exists:
-                for ph in [user_id, '254' + user_id.lstrip('0'), '0' + user_id.replace('254', '', 1)]:
-                    for ph_field in ['phoneNumber', 'phone_number', 'phone']:
-                        q = db.collection('users').where(ph_field, '==', ph).limit(1).get()
-                        if q:
-                            user_doc = q[0]
-                            user_id = user_doc.id
-                            break
-                    if user_doc.exists:
-                        break
-
-            # Fallback 4: Resolve by legacy swapeatCode
-            if not user_doc.exists:
-                q = db.collection('users').where('swapeatCode', '==', user_id).limit(1).get()
-                if q:
-                    user_doc = q[0]
-                    user_id = user_doc.id
-
-        if not user_doc.exists and not is_community_support and action not in ['harambee_donate', 'fund_vault']:
-            return jsonify({"error": f"No user found with identifier '{user_id}'. Please check the student link or ID."}), 404
+        u_ref, u_doc, resolved_uid = resolve_user_ref(db, user_id)
+        if u_doc and u_doc.exists:
+            user_doc = u_doc
+            user_id = resolved_uid
+        else:
+            user_doc = db.collection('users').document(user_id).get()
+            if not user_doc.exists and not is_community_support and action not in ['harambee_donate', 'fund_vault']:
+                return jsonify({"error": f"No user found with identifier '{user_id}'. Please check the student link or ID."}), 404
     except Exception as e:
         print(f"Firestore lookup error: {e}")
         return jsonify({"error": "Database error while verifying user.", "details": str(e)}), 500
@@ -355,12 +819,19 @@ def trigger_stk_push():
 def mpesa_callback():
     data = request.json or {}
     print("M-PESA Callback received:", data)
-    
-    # ── Feature 5: Callback Source IP Whitelisting ────────────────
+
     client_ip = request.headers.get('x-forwarded-for', request.remote_addr)
     if client_ip:
         client_ip = client_ip.split(',')[0].strip()
 
+    body         = data.get('Body', {})
+    stk_callback = body.get('stkCallback', {})
+    result_code  = stk_callback.get('ResultCode')
+    checkout_id  = stk_callback.get('CheckoutRequestID', '')
+
+    db = firestore.client()
+
+    # ── Feature 5: Callback Source IP Whitelisting ────────────────
     env = os.getenv('MPESA_ENV', 'sandbox').lower()
     if env == 'production':
         SAFARICOM_IPS = [
@@ -370,586 +841,39 @@ def mpesa_callback():
             '196.201.212.132', '196.201.212.136', '196.201.212.138',
             '196.201.212.69', '196.201.212.74'
         ]
-        if client_ip not in SAFARICOM_IPS:
-            print(f"SECURITY ALERT: Blocked spoofed callback from IP {client_ip}")
-            return jsonify({"ResultCode": 1, "ResultDesc": "Rejected"}), 403
+        is_safaricom_ip = (client_ip in SAFARICOM_IPS) or (client_ip and client_ip.startswith('196.201.'))
+        if not is_safaricom_ip:
+            is_valid_tx = False
+            if checkout_id:
+                try:
+                    t_doc = db.collection('mpesa_transactions').document(checkout_id).get()
+                    if t_doc.exists:
+                        is_valid_tx = True
+                except Exception:
+                    pass
+            if not is_valid_tx:
+                print(f"SECURITY ALERT: Blocked spoofed callback from IP {client_ip} with unknown CheckoutRequestID: {checkout_id}")
+                return jsonify({"ResultCode": 1, "ResultDesc": "Rejected"}), 403
+            else:
+                print(f"IP {client_ip} verified against pending CheckoutRequestID {checkout_id}. Proceeding.")
 
     try:
-        db           = firestore.client()
-        body         = data.get('Body', {})
-        stk_callback = body.get('stkCallback', {})
-        result_code  = stk_callback.get('ResultCode')
-        checkout_id  = stk_callback.get('CheckoutRequestID', '')
-
         if result_code == 0:
-            # ── Payment successful ───────────────────────────────
-            tx_ref = db.collection('mpesa_transactions').document(checkout_id)
-            tx_doc = tx_ref.get()
-
+            tx_doc = db.collection('mpesa_transactions').document(checkout_id).get()
             if not tx_doc.exists:
-                print(f"WARNING: CheckoutRequestID {checkout_id} not found in Firestore — cannot credit wallet.")
+                print(f"WARNING: CheckoutRequestID {checkout_id} not found in Firestore — cannot fulfill.")
                 return jsonify({"ResultCode": 0, "ResultDesc": "Accepted"}), 200
 
             tx_info = tx_doc.to_dict() or {}
-            
-            # ── Idempotency Check: Prevent duplicate crediting on Safaricom retries / parallel webhooks ──
-            current_status = tx_info.get('status')
-            if current_status in ['completed', 'processing']:
-                print(f"[M-PESA Callback] CheckoutRequestID {checkout_id} is already '{current_status}'. Skipping duplicate wallet credit.")
-                return jsonify({"ResultCode": 0, "ResultDesc": "Already processed"}), 200
-
-            # Atomically lock this transaction as 'processing' to block concurrent duplicate requests
-            tx_ref.update({
-                'status': 'processing',
-                'callback_received_at': firestore.SERVER_TIMESTAMP
-            })
-            user_id     = tx_info.get('user_id', '')
-            sender_id   = tx_info.get('sender_id')
-            credit_amt  = float(tx_info.get('amount', 0))
-            destination = tx_info.get('destination', 'walletBalance')
-            user_name   = tx_info.get('user_name', 'Student')
-
-            if not user_id or credit_amt <= 0:
-                print(f"ERROR: Invalid TX data — user_id={user_id}, credit={credit_amt}")
-                tx_ref.update({'status': 'error', 'error': 'Invalid stored data'})
-                return jsonify({"ResultCode": 0, "ResultDesc": "Accepted"}), 200
-
-            # Extract actual charged amount to determine STK Push commission (Charged Amount - Credit Amount)
-            stk_amount = credit_amt
-            metadata_items = stk_callback.get('CallbackMetadata', {}).get('Item', [])
-            for item in metadata_items:
-                if item.get('Name') == 'Amount':
-                    stk_amount = float(item.get('Value', credit_amt))
-            
-            metadata = tx_info.get('metadata', {})
-            action = metadata.get('action')
-            is_parent_tx = action in ['fund_student', 'fund_vault'] or destination in ['savingsBalance', 'vaultBalance'] or metadata.get('role') == 'parent' or metadata.get('sender_role') == 'parent'
-
-            commission = 0.0 if is_parent_tx else max(0.0, stk_amount - credit_amt)
-            if commission > 0:
-                db.collection('admin_finances').document('dishi_system_pool').set({
-                    'system_commissions': firestore.Increment(commission),
-                    'updated_at': firestore.SERVER_TIMESTAMP
-                }, merge=True)
-
-            # Atomically credit the wallet or grant housing/match access
-            user_ref = db.collection('users').document(user_id)
-            
-            if action == 'checkout_cart':
-                buyer_id = metadata.get('buyer_id')
-                item_ids = metadata.get('item_ids', [])
-                
-                # Mark all items as In Escrow (M-Pesa already took the money from payer)
-                for item_id in item_ids:
-                    db.collection('marketplace_items').document(item_id).update({
-                        'status': 'In Escrow',
-                        'buyer_id': buyer_id,
-                        'updated_at': firestore.SERVER_TIMESTAMP
-                    })
-                    
-            elif action == 'harambee_donate':
-                campaign_id = metadata.get('campaign_id')
-                campaign_title = metadata.get('campaign_title', 'Education Fund')
-                donor_email = metadata.get('donor_email')
-                donor_name = metadata.get('donor_name', 'Anonymous')
-                
-                # Directly credit the student's wallet balance so the funds reflect immediately
-                user_ref.update({'walletBalance': firestore.Increment(credit_amt)})
-
-                # Log in transactions collection
-                try:
-                    db.collection('transactions').add({
-                        'type': 'harambee_donation',
-                        'studentId': user_id,
-                        'student_id': user_id,
-                        'user_id': user_id,
-                        'donor_name': donor_name,
-                        'donorName': donor_name,
-                        'senderPhone': metadata.get('funder_phone', ''),
-                        'amount': credit_amt,
-                        'campaign_id': campaign_id or '',
-                        'campaign_title': campaign_title,
-                        'status': 'completed',
-                        'description': f'Fund Me contribution of KES {credit_amt:,.0f} from {donor_name}',
-                        'timestamp': firestore.SERVER_TIMESTAMP
-                    })
-                except Exception as tx_err:
-                    print(f"Non-fatal transaction log error: {tx_err}")
-                
-                # Update Harambee Campaign raised amount and donors if linked to a campaign
-                if campaign_id:
-                    campaign_ref = db.collection('harambee_campaigns').document(campaign_id)
-                    try:
-                        camp_doc = campaign_ref.get()
-                        if camp_doc.exists:
-                            donors = list(camp_doc.to_dict().get('donors', []))
-                            donors.append({
-                                'name': donor_name,
-                                'amount': credit_amt,
-                                'timestamp': datetime.utcnow()
-                            })
-                            campaign_ref.update({
-                                'raised': firestore.Increment(credit_amt),
-                                'donors': donors
-                            })
-                    except Exception as e:
-                        print(f"Failed to update campaign donors: {e}")
-                        try:
-                            campaign_ref.update({'raised': firestore.Increment(credit_amt)})
-                        except Exception:
-                            pass
-                
-                # Send Thank You Email
-                if donor_email:
-                    try:
-                        from flask import current_app
-                        from flask_mail import Message
-                        from app import mail
-                        
-                        if mail is not None:
-                            from routes.email_utils import harambee_thank_you_email
-                            subj, html_body = harambee_thank_you_email(user_name, campaign_title, credit_amt)
-                            msg = Message(
-                                subject=subj,
-                                sender=current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'),
-                                recipients=[donor_email],
-                                html=html_body,
-                                body=f"Thank you for donating KES {credit_amt} to {user_name}'s campaign!"
-                            )
-                            mail.send(msg)
-                    except Exception as e:
-                        print(f"Failed to send harambee thank you email: {e}")
-            
-            elif metadata.get('type') == 'event_ticket' or action == 'event_ticket':
-                event_id = metadata.get('eventId')
-                tier = metadata.get('tier', 'Regular')
-                buyer_email = metadata.get('email')
-                
-                if event_id:
-                    import uuid
-                    ticket_id = str(uuid.uuid4()).split('-')[0].upper()
-                    
-                    event_ref = db.collection('events').document(event_id)
-                    try:
-                        event_doc = event_ref.get()
-                        if event_doc.exists:
-                            e_data = event_doc.to_dict()
-                            
-                            # Increment sales
-                            update_data = {
-                                'ticketsSold': firestore.Increment(1),
-                                'revenue': firestore.Increment(credit_amt)
-                            }
-                            if tier == 'VIP':
-                                update_data['vipSold'] = firestore.Increment(1)
-                            elif tier == 'Early Bird':
-                                update_data['earlyBirdSold'] = firestore.Increment(1)
-                            else:
-                                update_data['regularSold'] = firestore.Increment(1)
-                                
-                            event_ref.update(update_data)
-                            
-                            # Credit organizer wallet (assuming user_id is the organizer for STK payload logic, but typically event.creatorId should get the money. We will credit user_id as per current STK structure)
-                            user_ref.update({'walletBalance': firestore.Increment(credit_amt)})
-                            
-                            # Notify Organizer via FCM
-                            try:
-                                organizer_doc = user_ref.get()
-                                organizer_token = organizer_doc.to_dict().get('fcmToken') if organizer_doc.exists else None
-                                if organizer_token:
-                                    from firebase_admin import messaging
-                                    messaging.send(messaging.Message(
-                                        notification=messaging.Notification(
-                                            title="New Ticket Sold! 🎟️",
-                                            body=f"A {tier} ticket for {e_data.get('title', 'Event')} was just purchased. Revenue: KES {credit_amt:,.0f}"
-                                        ),
-                                        token=organizer_token
-                                    ))
-                            except Exception as e:
-                                print(f"Failed to send FCM to event organizer: {e}")
-                            
-                            # Send Ticket Email
-                            if buyer_email:
-                                try:
-                                    from flask import current_app
-                                    from flask_mail import Message
-                                    from app import mail
-                                    
-                                    if mail is not None:
-                                        from routes.email_utils import event_ticket_email
-                                        subj, html_body = event_ticket_email(e_data.get('title', 'Event'), tier, credit_amt, ticket_id)
-                                        msg = Message(
-                                            subject=subj,
-                                            sender=current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'),
-                                            recipients=[buyer_email],
-                                            html=html_body,
-                                            body=f"Your {tier} ticket for {e_data.get('title', 'Event')} has been purchased! ID: {ticket_id}"
-                                        )
-                                        mail.send(msg)
-                                except Exception as e:
-                                    print(f"Failed to send event ticket email: {e}")
-                                    
-                    except Exception as e:
-                        print(f"Failed to process event ticket: {e}")
-                        
-            elif action in ['support_dishi', 'community_donate'] or destination in ['support', 'community']:
-                donor_name = metadata.get('donor_name') or tx_info.get('user_name', 'Generous Supporter')
-                donor_phone = tx_info.get('phone', '')
-                donor_email = metadata.get('donor_email')
-                cause = metadata.get('cause', 'Universal Inclusion & Students Gifted Differently')
-                
-                try:
-                    db.collection('community_contributions').add({
-                        'donor_name': donor_name,
-                        'phone': donor_phone,
-                        'email': donor_email,
-                        'amount': credit_amt,
-                        'cause': cause,
-                        'checkout_id': checkout_id,
-                        'timestamp': firestore.SERVER_TIMESTAMP,
-                        'status': 'completed'
-                    })
-                    
-                    db.collection('admin_finances').document('dishi_community_pool').set({
-                        'total_donations': firestore.Increment(credit_amt),
-                        'contributions_count': firestore.Increment(1),
-                        'last_updated': firestore.SERVER_TIMESTAMP
-                    }, merge=True)
-                    print(f"❤️ DISHI Community Support received: KES {credit_amt} from {donor_name} ({donor_phone}) for '{cause}'")
-                    
-                    # Notify admin/donor
-                    try:
-                        from flask import current_app
-                        from flask_mail import Message
-                        from app import mail
-                        target_email = donor_email if donor_email else current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke')
-                        if mail is not None and target_email:
-                            from routes.email_utils import harambee_receipt_email
-                            subj, html_body = harambee_receipt_email(cause, credit_amt, donor_name)
-                            msg = Message(
-                                subject=f"Thank You for Supporting DISHI — KES {credit_amt:.0f}",
-                                sender=current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'),
-                                recipients=[target_email],
-                                html=html_body,
-                                body=f"Thank you {donor_name} for supporting DISHI with KES {credit_amt} towards {cause}."
-                            )
-                            mail.send(msg)
-                    except Exception as em:
-                        print(f"Failed to send support email: {em}")
-                except Exception as e:
-                    print(f"Error handling community donation: {e}")
-                    
-            elif action == 'pay_rent':
-                app_id = metadata.get('application_id')
-                student_id = metadata.get('student_id')
-                merchant_id = metadata.get('merchant_id')
-                room_id = metadata.get('room_id')
-                
-                # Fetch breakdown from metadata
-                rent_amount = float(metadata.get('rent_amount', credit_amt))
-                insurance = float(metadata.get('insurance', 0))
-                commission = float(metadata.get('commission', 0))
-                
-                # Credit landlord base rent only
-                user_ref.update({'walletBalance': firestore.Increment(rent_amount)})
-                
-                # Push deductions to admin pool
-                admin_pool_ref = db.collection('admin_finances').document('dishi_rent_pool')
-                try:
-                    admin_pool_ref.update({
-                        'insurance_pool': firestore.Increment(insurance),
-                        'commission_pool': firestore.Increment(commission),
-                        'total_collected': firestore.Increment(insurance + commission),
-                        'updated_at': firestore.SERVER_TIMESTAMP
-                    })
-                except Exception:
-                    # Create document if it doesn't exist
-                    admin_pool_ref.set({
-                        'insurance_pool': insurance,
-                        'commission_pool': commission,
-                        'total_collected': insurance + commission,
-                        'updated_at': firestore.SERVER_TIMESTAMP
-                    })
-                
-                if app_id:
-                    db.collection('housing_applications').document(app_id).update({
-                        'status': 'Leased',
-                        'updated_at': firestore.SERVER_TIMESTAMP
-                    })
-                
-                if student_id and merchant_id and room_id:
-                    db.collection('rent_ledger').add({
-                        'student_id': student_id,
-                        'merchant_id': merchant_id,
-                        'room_id': room_id,
-                        'amount_paid': rent_amount,
-                        'insurance_paid': insurance,
-                        'commission_paid': commission,
-                        'total_paid': credit_amt,
-                        'status': 'Paid',
-                        'payment_date': firestore.SERVER_TIMESTAMP
-                    })
-                    
-                    # Notify Student
-                    try:
-                        student_doc = db.collection('users').document(student_id).get()
-                        student_token = student_doc.to_dict().get('fcmToken') if student_doc.exists else None
-                        if student_token:
-                            from firebase_admin import messaging
-                            messaging.send(messaging.Message(
-                                notification=messaging.Notification(
-                                    title="Rent Paid",
-                                    body="Your Rent has been successfully paid by your Guardian."
-                                ),
-                    android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(sound='default')),
-                    apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(content_available=True, sound='default'))),
-                                token=student_token,
-                            ))
-                    except Exception as e:
-                        print(f"Failed to send rent FCM to student: {e}")
-            elif action == 'buy_item':
-                item_id = metadata.get('item_id')
-                buyer_id = metadata.get('buyer_id')
-                user_ref.update({'walletBalance': firestore.Increment(credit_amt)})
-                if item_id and buyer_id:
-                    db.collection('marketplace_items').document(item_id).update({
-                        'status': 'In Escrow',
-                        'buyer_id': buyer_id,
-                        'escrow_amount': credit_amt,
-                        'updated_at': firestore.SERVER_TIMESTAMP
-                    })
-            elif action == 'pay_deliv':
-                request_id = metadata.get('request_id')
-                user_ref.update({'vault_balance': firestore.Increment(credit_amt)})
-                if request_id:
-                    db.collection('deliv_requests').document(request_id).update({
-                        'status': 'Paid (M-Pesa)',
-                        'updated_at': firestore.SERVER_TIMESTAMP
-                    })
-            elif action == 'buy_event_ticket':
-                event_id = metadata.get('event_id')
-                if event_id:
-                    import uuid
-                    reg_id = str(uuid.uuid4())
-                    db.collection('event_registrations').document(reg_id).set({
-                        'event_id': event_id,
-                        'user_id': user_id,
-                        'amount_paid': credit_amt,
-                        'created_at': firestore.SERVER_TIMESTAMP,
-                        'status': 'confirmed'
-                    })
-                    
-                    event_ref = db.collection('events').document(event_id)
-                    event_doc = event_ref.get()
-                    if event_doc.exists:
-                        event_data = event_doc.to_dict()
-                        event_ref.update({
-                            'ticketsSold': firestore.Increment(1),
-                            'revenue': firestore.Increment(credit_amt)
-                        })
-                        
-                        # Ticket commission raised by 7 KSh (5 -> 12 KSh)
-                        payout_amount = max(0, credit_amt - 12)
-                        creator_id = event_data.get('creatorId')
-                        
-                        db.collection('pending_payouts').add({
-                            'event_id': event_id,
-                            'creator_id': creator_id,
-                            'amount': payout_amount,
-                            'payoutType': event_data.get('payoutType'),
-                            'payoutDestination': event_data.get('payoutDestination'),
-                            'status': 'pending',
-                            'created_at': firestore.SERVER_TIMESTAMP
-                        })
-                        
-                        try:
-                            db.collection('admin_finances').document('dishi_events_pool').set({
-                                'commission_pool': firestore.Increment(12),
-                                'updated_at': firestore.SERVER_TIMESTAMP
-                            }, merge=True)
-                        except Exception:
-                            pass
-            else:
-                if destination == 'has_housing_access':
-                    user_ref.update({'has_housing_access': True})
-                elif destination == 'is_match_premium':
-                    try:
-                        db.collection('match_profiles').document(user_id).update({'is_premium': True})
-                    except Exception as e:
-                        print(f"Failed to update match profile for user {user_id}: {e}")
-                else:
-                    # Wallet Top-Up / Student Upkeep / Parent Funding
-                    if destination == 'walletBalance':
-                        user_ref.update({'walletBalance': firestore.Increment(credit_amt)})
-                    else:
-                        user_ref.update({destination: firestore.Increment(credit_amt)})
-                    
-                    # Record in student transactions collection
-                    try:
-                        supporter_name = metadata.get('donor_name') or metadata.get('funder_name') or metadata.get('funder_phone') or 'Supporter'
-                        db.collection('transactions').add({
-                            'type': 'wallet_funding',
-                            'studentId': user_id,
-                            'student_id': user_id,
-                            'user_id': user_id,
-                            'senderPhone': metadata.get('funder_phone', ''),
-                            'donor_name': supporter_name,
-                            'donorName': supporter_name,
-                            'amount': credit_amt,
-                            'destination': destination,
-                            'status': 'completed',
-                            'description': f"Wallet funded with KSH {credit_amt:,.0f} by {supporter_name}",
-                            'timestamp': firestore.SERVER_TIMESTAMP
-                        })
-                    except Exception as tx_e:
-                        print(f"Non-fatal transaction record warning: {tx_e}")
-
-            # Mark tx as completed
-            tx_ref.update({'status': 'completed'})
-
-            # ── Referral Logic ───────────────────────────────────────
-            user_doc_fresh = user_ref.get()
-            if user_doc_fresh.exists:
-                user_data = user_doc_fresh.to_dict()
-                referrer_id = user_data.get('referredBy')
-                reward_paid = user_data.get('referralRewardPaid', False)
-                if referrer_id and not reward_paid:
-                    try:
-                        # Give 5 KSH to referrer's referralBalance
-                        referrer_ref = db.collection('users').document(referrer_id)
-                        referrer_ref.update({'referralBalance': firestore.Increment(5)})
-                        # Mark reward as paid for this user
-                        user_ref.update({'referralRewardPaid': True})
-                        print(f"🎉 Credited 5 KSH to referrer {referrer_id} for inviting {user_id}")
-                    except Exception as e:
-                        print(f"Referral reward failed: {e}")
-
-            # Mark transaction complete
-            tx_ref.update({
-                'status':       'completed',
-                'completed_at': firestore.SERVER_TIMESTAMP,
-            })
-
-            print(f"✅ Credited Ksh {credit_amt} to {user_id} ({destination})")
-
-            # ── Determine funder info from metadata ──────────────────
-            funder_phone  = metadata.get('funder_phone', '')
-            fund_action   = metadata.get('action', '')
-            is_fund_student = fund_action == 'fund_student'
-            is_fund_vault = fund_action == 'fund_vault'
-
-            # ── Feature 4: Write to Immutable Wallet Ledger ──────────
-            db.collection('wallet_ledger').add({
-                'type': 'mpesa_deposit',
-                'user_id': user_id,
-                'checkout_id': checkout_id,
-                'amount': credit_amt,
-                'destination': destination,
-                'timestamp': firestore.SERVER_TIMESTAMP
-            })
-
-            # Fetch fresh balance for notification
-            new_balance = 0.0
-            user_email = ""
-            try:
-                fresh_doc = user_ref.get()
-                if fresh_doc.exists:
-                    fresh_data = fresh_doc.to_dict()
-                    new_balance = float(fresh_data.get('walletBalance', 0.0))
-                    user_email = fresh_data.get('email', '')
-            except Exception:
-                pass
-
-            # ── Feature 10: Instant Transaction Receipts ──────────────
-            if user_email and destination == 'walletBalance':
-                try:
-                    from flask import current_app
-                    from flask_mail import Message
-                    from app import mail
-                    if mail is not None:
-                        msg = Message(
-                            subject="DISHI Deposit Receipt",
-                            sender=current_app.config.get('MAIL_USERNAME', 'dishi@delstarfordworks.co.ke'),
-                            recipients=[user_email],
-                            html=f"<h3>Deposit Successful</h3><p>You have deposited <b>KES {credit_amt}</b> into your DISHI wallet.</p><p>New Balance: <b>KES {new_balance}</b></p><p>Transaction ID: {checkout_id}</p>",
-                            body=f"Deposit of KES {credit_amt} successful. New Balance: KES {new_balance}. ID: {checkout_id}"
-                        )
-                        mail.send(msg)
-                except Exception as e:
-                    print(f"Receipt email failed: {e}")
-
-            # ── Student notification ──────────────────────────────────
-            if is_fund_student or action == 'harambee_donate':
-                funder_display = funder_phone if funder_phone else (metadata.get('donor_name') or 'a supporter')
-                _send_notification(
-                    db, user_id,
-                    "🎉 Wallet Funded!",
-                    f"Great news! Your education wallet has just been funded with KSH {credit_amt:.0f} by {funder_display}. Your new balance is KSH {new_balance:.0f}."
-                )
-                # ── Parent notification with student name + funder phone ──
-                try:
-                    parents = db.collection('users') \
-                                .where('linkedStudents', 'array_contains', user_id) \
-                                .limit(3).get()
-                    for p in parents:
-                        token = p.to_dict().get('fcmToken')
-                        if token:
-                            from firebase_admin import messaging as fcm_mod
-                            fcm_mod.send(fcm_mod.Message(
-                                notification=fcm_mod.Notification(
-                                    title="💰 Wallet Funded",
-                                    body=f"Update: {user_name}'s education wallet has successfully received a contribution of KSH {credit_amt:.0f} from {funder_display}."
-                                ),
-                                token=token,
-                            ))
-                except Exception as e:
-                    print(f"FCM parent fund_student error (non-fatal): {e}")
-            elif is_fund_vault:
-                # ── Fund Parent Vault (savingsBalance already credited in destination block above) ──────
-                try:
-                    print(f"Vault funded with KSH {credit_amt} for parent {user_id}")
-                    _send_notification(
-                        db, user_id,
-                        "🏦 Vault Funded Successfully!",
-                        f"Your Shared Family Vault has been credited with KSH {credit_amt:.0f}. You can now allocate funds to your students."
-                    )
-                except Exception as e:
-                    print(f"Error notifying vault funding for {user_id}: {e}")
-            elif sender_id:
-                if sender_id == user_id:
-                    _send_notification(
-                        db, user_id,
-                        "Gift / Voucher Sent! 🎁",
-                        f"You have successfully added Ksh {credit_amt:.0f} to your own Semester Vault!"
-                    )
-                else:
-                    _send_notification(
-                        db, sender_id,
-                        "Gift Sent Successfully! 🎁",
-                        f"You have successfully gifted Ksh {credit_amt:.0f} to {user_name}'s Semester Vault!"
-                    )
-                    _send_notification(
-                        db, user_id,
-                        "You received a Gift! 🎁",
-                        f"Your Semester Vault has been topped up with Ksh {credit_amt:.0f} from a friend!"
-                    )
-            else:
-                _send_notification(
-                    db, user_id,
-                    "DISHI Wallet Top-Up",
-                    f"Your wallet has been topped up with Ksh {credit_amt:.0f}."
-                )
-
+            _fulfill_successful_payment(db, checkout_id, tx_info, stk_callback)
         else:
-            # ── Payment cancelled or failed ──────────────────────
             result_desc = stk_callback.get('ResultDesc', 'User cancelled')
             print(f"STK Failed — ResultCode={result_code}, Desc={result_desc}")
             if checkout_id:
                 db.collection('mpesa_transactions').document(checkout_id).set(
-                    {'status': 'failed', 'result_code': result_code, 'result_desc': result_desc},
+                    {'status': 'failed', 'result_code': result_code, 'result_desc': result_desc, 'failed_at': firestore.SERVER_TIMESTAMP},
                     merge=True
                 )
-
     except Exception as e:
         print(f"Callback processing error: {e}\n{traceback.format_exc()}")
 
@@ -993,7 +917,7 @@ def manual_credit():
         if not user_doc.exists:
             return jsonify({"error": f"User {user_id} not found"}), 404
 
-        user_ref.update({'walletBalance': firestore.Increment(credit)})
+        user_ref.set({'walletBalance': firestore.Increment(credit), 'wallet_balance': firestore.Increment(credit), 'updatedAt': firestore.SERVER_TIMESTAMP, 'updated_at': firestore.SERVER_TIMESTAMP}, merge=True)
 
         db.collection('mpesa_transactions').add({
             'user_id':   user_id,
@@ -1020,7 +944,8 @@ def manual_credit():
 def check_stk_status():
     """Poll the status of a pending STK push transaction.
     Returns {status: pending|completed|failed, result_desc: ...}
-    Used by the Harambee fund page to automatically detect payment completion.
+    Used by the Harambee & Student fund page to automatically detect payment completion.
+    Performs active STK query against Safaricom if callback is delayed.
     """
     checkout_id = request.args.get('checkout_id', '').strip()
     if not checkout_id:
@@ -1028,16 +953,46 @@ def check_stk_status():
 
     try:
         db = firestore.client()
-        tx_doc = db.collection('mpesa_transactions').document(checkout_id).get()
+        tx_ref = db.collection('mpesa_transactions').document(checkout_id)
+        tx_doc = tx_ref.get()
         if not tx_doc.exists:
             return jsonify({"status": "pending", "result_desc": "Transaction not yet recorded"}), 200
 
-        tx = tx_doc.to_dict()
+        tx = tx_doc.to_dict() or {}
         status = tx.get('status', 'pending')
         result_desc = tx.get('result_desc', '')
 
+        if status in ['completed', 'failed', 'rejected', 'error']:
+            return jsonify({
+                "status": status,
+                "result_desc": result_desc or "Transaction finalized",
+            }), 200
+
+        # Perform active Daraja STK Push Query
+        res_code, res_desc, raw_data = query_stk_status(checkout_id)
+        if res_code is not None:
+            res_code_str = str(res_code).strip()
+            if res_code_str == '0':
+                print(f"[check_stk_status] STK Query confirmed payment for {checkout_id}! Fulfilling...")
+                _fulfill_successful_payment(db, checkout_id, tx, raw_data)
+                return jsonify({
+                    "status": "completed",
+                    "result_desc": res_desc or "The service request is processed successfully.",
+                }), 200
+            elif res_code_str in ['1032', '1037', '1', '2001']:
+                tx_ref.set({
+                    'status': 'failed',
+                    'result_code': res_code,
+                    'result_desc': res_desc,
+                    'failed_at': firestore.SERVER_TIMESTAMP
+                }, merge=True)
+                return jsonify({
+                    "status": "failed",
+                    "result_desc": res_desc or "Transaction cancelled or failed.",
+                }), 200
+
         return jsonify({
-            "status":      status,
+            "status": status,
             "result_desc": result_desc,
         }), 200
     except Exception as e:

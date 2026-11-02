@@ -4437,7 +4437,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
                               if (rem > 0 && pVault > 0) { double d = pVault >= rem ? rem : pVault; pUp['vaultBalance'] = pVault - d; rem -= d; }
                               if (rem > 0 && pWallet > 0) { double d = pWallet >= rem ? rem : pWallet; pUp['walletBalance'] = pWallet - d; rem -= d; }
                               tx.update(pRef, pUp);
-                              tx.update(sRef, {'walletBalance': sWallet + parsedAmt});
+                              tx.update(sRef, {'walletBalance': sWallet + parsedAmt, 'wallet_balance': sWallet + parsedAmt, 'updatedAt': FieldValue.serverTimestamp()});
                               
                               final txRef = db.collection('transactions').doc();
                               tx.set(txRef, {
@@ -4477,7 +4477,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
                               if (rem > 0 && pVault > 0) { double d = pVault >= rem ? rem : pVault; pUp['vaultBalance'] = pVault - d; rem -= d; }
                               if (rem > 0 && pWallet > 0) { double d = pWallet >= rem ? rem : pWallet; pUp['walletBalance'] = pWallet - d; rem -= d; }
                               tx.update(pRef, pUp);
-                              tx.update(sRef, {'walletBalance': sWallet + parsedAmt});
+                              tx.update(sRef, {'walletBalance': sWallet + parsedAmt, 'wallet_balance': sWallet + parsedAmt, 'updatedAt': FieldValue.serverTimestamp()});
                             });
                             isSuccess = true;
                             msg = 'Transferred KSH ${parsedAmt.toStringAsFixed(2)} from Family Vault to $childName!';

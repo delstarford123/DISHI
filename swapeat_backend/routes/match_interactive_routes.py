@@ -152,8 +152,17 @@ def send_gift():
         if current_balance < total_deduct:
             return False, f"Insufficient balance. You need {total_deduct} KSH (including any applicable commission) to send this gift."
             
-        transaction.update(sender_ref, {'walletBalance': current_balance - total_deduct})
-        transaction.set(recipient_ref, {'walletBalance': firestore.Increment(amount_float)}, merge=True)
+        transaction.update(sender_ref, {
+            'walletBalance': current_balance - total_deduct,
+            'wallet_balance': current_balance - total_deduct,
+            'updatedAt': firestore.SERVER_TIMESTAMP
+        })
+        transaction.set(recipient_ref, {
+            'walletBalance': firestore.Increment(amount_float),
+            'wallet_balance': firestore.Increment(amount_float),
+            'updatedAt': firestore.SERVER_TIMESTAMP,
+            'updated_at': firestore.SERVER_TIMESTAMP
+        }, merge=True)
         
         if commission > 0:
             admin_ref = db.collection('admin_finances').document('dishi_system_pool')
