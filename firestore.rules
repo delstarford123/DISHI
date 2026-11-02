@@ -593,6 +593,7 @@ service cloud.firestore {
     // Vendor bookings at feature level
     match /match_bookings/{bookingId}       { allow read, write: if isAuth(); }
     match /escrows/{escrowId}               { allow read, write: if isAuth(); }
+    match /escrow_transactions/{txId}       { allow read, write: if isAuth(); }
     match /supplier_requests/{requestId}    { allow read, write: if isAuth(); }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -720,12 +721,8 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /support_tickets/{ticketId} {
-      allow read: if isAuth() &&
-        (resource == null ||
-         request.auth.uid == resource.data.user_id ||
-         isAdmin());
-      allow create: if isAuth();
-      allow update, delete: if isAdmin();
+      allow read, create, update: if isAuth();
+      allow delete: if isAdmin();
     }
     match /admin_alerts/{alertId} {
       allow read: if isAdmin();
