@@ -8,6 +8,8 @@ import 'package:swapeat/features/student/presentation/student_profile_settings.d
 import 'package:swapeat/features/match/presentation/match_hub_view.dart';
 import '../../../core/security/secure_storage_service.dart';
 import '../../admin/presentation/admin_dashboard_view.dart';
+import '../../../core/widgets/sema_na_dishi_overlay.dart';
+import 'package:flutter/services.dart';
 
 class StudentMainScaffold extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -176,30 +178,88 @@ class _StudentMainScaffoldState extends State<StudentMainScaffold> {
           child: BackdropFilter(
             filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: BottomNavigationBar(
-              currentIndex: _currentIndex,
-              onTap: (index) => setState(() => _currentIndex = index),
-              backgroundColor: const Color(0xFF161B29).withOpacity(0.7), // Semi-transparent card color
-              selectedItemColor: const Color(0xFF00FFD1), // Neon cyan
+              currentIndex: _currentIndex >= 2 ? _currentIndex + 1 : _currentIndex,
+              onTap: (index) {
+                if (index == 2) {
+                  HapticFeedback.mediumImpact();
+                  SemaNaDishiOverlay.show(
+                    context,
+                    role: 'student',
+                    userUid: widget.user['uid'] ?? FirebaseAuth.instance.currentUser?.uid,
+                  );
+                  return;
+                }
+                setState(() => _currentIndex = index > 2 ? index - 1 : index);
+              },
+              backgroundColor: const Color(0xFF161B29).withOpacity(0.85),
+              selectedItemColor: const Color(0xFF00FFD1),
               unselectedItemColor: Colors.white.withOpacity(0.5),
               type: BottomNavigationBarType.fixed,
+              selectedFontSize: 11,
+              unselectedFontSize: 10,
               elevation: 0,
-              items: const [
-                BottomNavigationBarItem(
+              items: [
+                const BottomNavigationBarItem(
                   icon: Icon(Icons.home_outlined),
                   activeIcon: Icon(Icons.home),
                   label: 'Home',
                 ),
-                BottomNavigationBarItem(
+                const BottomNavigationBarItem(
                   icon: Icon(Icons.grid_view_outlined),
                   activeIcon: Icon(Icons.grid_view),
                   label: 'Apps',
                 ),
                 BottomNavigationBarItem(
+                  icon: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFDF00), Color(0xFFD4AF37), Color(0xFFAA771C)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFFD700).withValues(alpha: 0.45),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                      border: Border.all(color: const Color(0xFFFFF7A1), width: 1.5),
+                    ),
+                    child: const Icon(Icons.mic_rounded, color: Color(0xFF0C101B), size: 20),
+                  ),
+                  activeIcon: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFF7A1), Color(0xFFFFD700), Color(0xFFD4AF37)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFFD700).withValues(alpha: 0.7),
+                          blurRadius: 12,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: const Icon(Icons.mic_rounded, color: Color(0xFF0C101B), size: 22),
+                  ),
+                  label: 'Sema na DISHI',
+                ),
+                const BottomNavigationBarItem(
                   icon: Icon(Icons.people_outline),
                   activeIcon: Icon(Icons.people),
-                  label: 'Social',
+                  label: 'Socials',
                 ),
-                BottomNavigationBarItem(
+                const BottomNavigationBarItem(
                   icon: Icon(Icons.person_outline),
                   activeIcon: Icon(Icons.person),
                   label: 'Profile',

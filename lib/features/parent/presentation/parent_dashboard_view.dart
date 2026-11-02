@@ -740,29 +740,47 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
                 children: tabs,
               ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => SemaNaDishiOverlay.show(
-          context,
-          role: 'parent',
-          userUid: widget.user['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? '',
-          onAction: _handleVoiceAction,
-        ),
-        backgroundColor: _neonCyan,
-        icon: const Icon(Icons.mic, color: Colors.black, size: 20),
-        label: const Text('Sema na DISHI', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
-      ),
       bottomNavigationBar: _buildPremiumBottomNav(),
     );
   }
 
   Widget _buildPremiumBottomNav() {
-    final items = [
-      (Icons.home_rounded, Icons.home_outlined, 'Home'),
-      (Icons.people_rounded, Icons.people_outline, 'Dependents'),
-      (Icons.account_balance_wallet_rounded, Icons.account_balance_wallet_outlined, 'Vault'),
-      (Icons.public_rounded, Icons.public_outlined, 'Community'),
-      (Icons.settings_rounded, Icons.settings_outlined, 'Settings'),
-    ];
+    Widget buildNavButton(int tabIndex, IconData activeIcon, IconData inactiveIcon, String label) {
+      final isSelected = _selectedIndex == tabIndex;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _selectedIndex = tabIndex),
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: isSelected ? _neonCyan.withOpacity(0.12) : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isSelected ? activeIcon : inactiveIcon,
+                  color: isSelected ? _neonCyan : _textSecondary,
+                  size: 22,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? _neonCyan : _textSecondary,
+                    fontSize: 10,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -775,54 +793,78 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
           filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF0E1421).withOpacity(0.75),
+              color: const Color(0xFF0E1421).withOpacity(0.85),
               border: Border(top: BorderSide(color: Colors.white.withOpacity(0.07), width: 1)),
             ),
             child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Row(
-            children: List.generate(items.length, (i) {
-              final isSelected = _selectedIndex == i;
-              final item = items[i];
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedIndex = i),
-                  behavior: HitTestBehavior.opaque,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isSelected ? _neonCyan.withOpacity(0.12) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isSelected ? item.$1 : item.$2,
-                          color: isSelected ? _neonCyan : _textSecondary,
-                          size: 22,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Row(
+                  children: [
+                    buildNavButton(0, Icons.home_rounded, Icons.home_outlined, 'Home'),
+                    buildNavButton(1, Icons.people_rounded, Icons.people_outline, 'Dependents'),
+                    // Golden Sema na DISHI button in the middle
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.mediumImpact();
+                          SemaNaDishiOverlay.show(
+                            context,
+                            role: 'parent',
+                            userUid: widget.user['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? '',
+                            onAction: _handleVoiceAction,
+                          );
+                        },
+                        behavior: HitTestBehavior.opaque,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFFFDF00), Color(0xFFD4AF37), Color(0xFFAA771C)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFFFD700).withValues(alpha: 0.5),
+                                    blurRadius: 9,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                                border: Border.all(color: const Color(0xFFFFF7A1), width: 1.5),
+                              ),
+                              child: const Icon(Icons.mic_rounded, color: Color(0xFF0C101B), size: 20),
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'Sema na DISHI',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Color(0xFFFFD700),
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          item.$3,
-                          style: TextStyle(
-                            color: isSelected ? _neonCyan : _textSecondary,
-                            fontSize: 10,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                    buildNavButton(2, Icons.account_balance_wallet_rounded, Icons.account_balance_wallet_outlined, 'Vault'),
+                    buildNavButton(4, Icons.settings_rounded, Icons.settings_outlined, 'Settings'),
+                  ],
                 ),
-              );
-            }),
+              ),
+            ),
           ),
         ),
       ),
-    ))));
+    );
   }
 
   Widget _buildHomeTab() {

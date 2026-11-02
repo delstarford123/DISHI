@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../../core/widgets/sema_na_dishi_overlay.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -631,8 +633,19 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
         border: Border(top: BorderSide(color: Colors.white.withOpacity(0.06))),
       ),
       child: BottomNavigationBar(
-        currentIndex: _currentTabIndex,
-        onTap: (index) => setState(() => _currentTabIndex = index),
+        currentIndex: _currentTabIndex >= 2 ? _currentTabIndex + 1 : _currentTabIndex,
+        onTap: (index) {
+          if (index == 2) {
+            HapticFeedback.mediumImpact();
+            SemaNaDishiOverlay.show(
+              context,
+              role: 'fundi',
+              userUid: _currentUid,
+            );
+            return;
+          }
+          setState(() => _currentTabIndex = index > 2 ? index - 1 : index);
+        },
         backgroundColor: Colors.transparent,
         elevation: 0,
         type: BottomNavigationBarType.fixed,
@@ -640,23 +653,68 @@ class _FundiDashboardViewState extends State<FundiDashboardView>
         unselectedItemColor: Colors.white54,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
         unselectedLabelStyle: const TextStyle(fontSize: 10),
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined),
             activeIcon: Icon(Icons.dashboard),
             label: 'Workspace',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.assignment_turned_in_outlined),
             activeIcon: Icon(Icons.assignment_turned_in),
             label: 'My Gigs',
           ),
           BottomNavigationBarItem(
+            icon: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFDF00), Color(0xFFD4AF37), Color(0xFFAA771C)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.45),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ],
+                border: Border.all(color: const Color(0xFFFFF7A1), width: 1.5),
+              ),
+              child: const Icon(Icons.mic_rounded, color: Color(0xFF0C101B), size: 20),
+            ),
+            activeIcon: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFF7A1), Color(0xFFFFD700), Color(0xFFD4AF37)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.7),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                  ),
+                ],
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const Icon(Icons.mic_rounded, color: Color(0xFF0C101B), size: 22),
+            ),
+            label: 'Sema DISHI',
+          ),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.explore_outlined),
             activeIcon: Icon(Icons.explore),
-            label: 'Campus Market',
+            label: 'Market',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.price_change_outlined),
             activeIcon: Icon(Icons.price_change),
             label: 'Rate Card',

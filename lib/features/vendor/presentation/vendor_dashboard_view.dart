@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/utils/withdrawal_helper.dart';
 import '../../../core/utils/pdf_generator.dart';
@@ -650,17 +651,7 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
             if (isCompact) {
               return Scaffold(
                 backgroundColor: _bgColor,
-                floatingActionButton: FloatingActionButton.extended(
-                  onPressed: () => SemaNaDishiOverlay.show(
-                    context,
-                    role: 'vendor',
-                    userUid: widget.user['uid'],
-                    onAction: _handleVoiceAction,
-                  ),
-                  backgroundColor: _neonCyan,
-                  icon: const Icon(Icons.mic, color: Colors.black, size: 20),
-                  label: const Text('Sema na DISHI', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
-                ),
+
                 body: IndexedStack(
                   index: _selectedIndex,
                   children: tabs,
@@ -676,10 +667,20 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                     ),
                   ),
                   child: BottomNavigationBar(
-                    currentIndex: _selectedIndex,
+                    currentIndex: _selectedIndex >= 2 ? _selectedIndex + 1 : _selectedIndex,
                     onTap: (int index) {
+                      if (index == 2) {
+                        HapticFeedback.mediumImpact();
+                        SemaNaDishiOverlay.show(
+                          context,
+                          role: 'vendor',
+                          userUid: widget.user['uid'],
+                          onAction: _handleVoiceAction,
+                        );
+                        return;
+                      }
                       setState(() {
-                        _selectedIndex = index;
+                        _selectedIndex = index > 2 ? index - 1 : index;
                       });
                     },
                     backgroundColor: Colors.transparent,
@@ -687,14 +688,59 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                     type: BottomNavigationBarType.fixed,
                     selectedItemColor: _neonOrange,
                     unselectedItemColor: _textSecondary,
-                    selectedFontSize: 11,
-                    unselectedFontSize: 10,
-                    items: const [
-                      BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-                      BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'Finance'),
-                      BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Operations'),
-                      BottomNavigationBarItem(icon: Icon(Icons.campaign), label: 'Sales & CX'),
-                      BottomNavigationBarItem(icon: Icon(Icons.badge), label: 'Management'),
+                    selectedFontSize: 10,
+                    unselectedFontSize: 9,
+                    items: [
+                      const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+                      const BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'Finance'),
+                      BottomNavigationBarItem(
+                        icon: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFFDF00), Color(0xFFD4AF37), Color(0xFFAA771C)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFFD700).withValues(alpha: 0.45),
+                                blurRadius: 8,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                            border: Border.all(color: const Color(0xFFFFF7A1), width: 1.5),
+                          ),
+                          child: const Icon(Icons.mic_rounded, color: Color(0xFF0C101B), size: 20),
+                        ),
+                        activeIcon: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFFF7A1), Color(0xFFFFD700), Color(0xFFD4AF37)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFFD700).withValues(alpha: 0.7),
+                                blurRadius: 12,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(Icons.mic_rounded, color: Color(0xFF0C101B), size: 22),
+                        ),
+                        label: 'Sema DISHI',
+                      ),
+                      const BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Ops'),
+                      const BottomNavigationBarItem(icon: Icon(Icons.campaign), label: 'Sales'),
+                      const BottomNavigationBarItem(icon: Icon(Icons.badge), label: 'Manage'),
                     ],
                   ),
                 ),
