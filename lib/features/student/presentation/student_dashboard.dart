@@ -304,7 +304,18 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
         break;
 
       case 'SPLIT_BILL':
-        Navigator.push(context, MaterialPageRoute(builder: (_) => SplitBillView(userModel: userModel)));
+        {
+          final amt = (data['amount'] as num?)?.toDouble() ?? 600.0;
+          Navigator.push(context, MaterialPageRoute(builder: (_) => SplitBillView(userModel: userModel, initialAmount: amt)));
+        }
+        break;
+
+      case 'NEAREST_VENDOR':
+        _showNearestVendorDialog(data, userModel);
+        break;
+
+      case 'CAMPUS_ELECTRONICS':
+        _showCampusElectronicsDialog(data, userModel);
         break;
 
       case 'CAMPUS_GIGS':
@@ -340,7 +351,288 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
     }
   }
 
-  void _showVoiceBudgetBurnRateDialog(Map<String, dynamic> data, UserModel userModel) {
+  void _showNearestVendorDialog(Map<String, dynamic> data, UserModel userModel) {
+    final vendor = (data['vendor'] as Map?)?.cast<String, dynamic>() ?? {
+      'businessName': 'Hall 4 Main Cafeteria',
+      'location': 'Student Centre, Ground Floor',
+      'rating': 4.8,
+      'specialties': ['Chapati', 'Madondo', 'Beef Stew', 'Pilau'],
+    };
+    final spoken = data['spoken_response'] as String? ?? 'Nearest vendor found.';
+    final vName = vendor['businessName'] ?? vendor['name'] ?? 'Campus Vendor';
+    final vLoc = vendor['location'] ?? 'Student Centre';
+    final vRating = vendor['rating'] ?? 4.8;
+    final List specs = List.from(vendor['specialties'] ?? ['Hot Meals', 'Drinks']);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.storefront, color: _neonCyan, size: 24),
+                    SizedBox(width: 8),
+                    Text('Nearest Campus Vendor', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                IconButton(icon: const Icon(Icons.close, color: _textSecondary), onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
+            const Divider(color: Colors.white12),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _surfaceLight,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _neonCyan.withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(vName, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      Row(
+                        children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 16),
+                          const SizedBox(width: 4),
+                          Text('$vRating', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, color: _neonCyan, size: 14),
+                      const SizedBox(width: 6),
+                      Text(vLoc, style: const TextStyle(color: _textSecondary, fontSize: 13)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: specs.map((s) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(color: _neonCyan.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                      child: Text('$s', style: const TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.bold)),
+                    )).toList(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(spoken, style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4)),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _neonCyan,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.restaurant_menu, size: 18),
+                label: const Text('View Vendor Menu & Order', style: TextStyle(fontWeight: FontWeight.bold)),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusSupermarketView()));
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCampusElectronicsDialog(Map<String, dynamic> data, UserModel userModel) {
+    final items = (data['items'] as List?)?.cast<Map>() ?? [];
+    final spoken = data['spoken_response'] as String? ?? 'Campus electronics available.';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.devices, color: _neonCyan, size: 24),
+                    SizedBox(width: 8),
+                    Text('Campus Electronics & Tech Hub', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                IconButton(icon: const Icon(Icons.close, color: _textSecondary), onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
+            const Divider(color: Colors.white12),
+            const SizedBox(height: 8),
+            Text(spoken, style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4)),
+            const SizedBox(height: 16),
+            ...items.take(4).map((item) {
+              final name = item['name'] ?? 'Tech Device';
+              final price = ((item['price'] ?? 0.0) as num).toDouble();
+              final isInst = item['installmentAvailable'] == true;
+              final mo = ((item['monthlyRate'] ?? (price / 5)) as num).toDouble();
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _surfaceLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                          if (isInst)
+                            Text('Installment: KES ${mo.toStringAsFixed(0)}/mo', style: const TextStyle(color: _neonOrange, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                    Text('KES ${price.toStringAsFixed(0)}', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 14)),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _neonCyan,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.shopping_bag, size: 18),
+                label: const Text('Browse Electronics & Installments', style: TextStyle(fontWeight: FontWeight.bold)),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const CampusSupermarketView()));
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildComradeSplitBillAlertBanner(UserModel userModel) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('split_bills')
+          .where('participantUids', arrayContains: userModel.uid)
+          .where('status', isEqualTo: 'pending')
+          .limit(3)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final unpaidDocs = snapshot.data!.docs.where((doc) {
+          final d = doc.data() as Map<String, dynamic>;
+          final paid = List<String>.from(d['paidMembers'] ?? []);
+          return !paid.contains(userModel.uid);
+        }).toList();
+
+        if (unpaidDocs.isEmpty) return const SizedBox.shrink();
+
+        final firstDoc = unpaidDocs.first;
+        final data = firstDoc.data() as Map<String, dynamic>;
+        final creator = data['creatorName'] ?? 'Comrade';
+        final share = ((data['perPersonAmount'] ?? 0.0) as num).toDouble();
+        final title = data['title'] ?? 'Meal Split';
+
+        return Container(
+          margin: const EdgeInsets.only(top: 14),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _surfaceLight,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _neonOrange, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: _neonOrange.withValues(alpha: 0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _neonOrange.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.group_add, color: _neonOrange, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Comrade Bill Split Request 👥', style: TextStyle(color: _neonOrange, fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 2),
+                    Text('$creator requested KES ${share.toStringAsFixed(0)} for $title.', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  ],
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _neonOrange,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => SplitBillView(userModel: userModel)),
+                  );
+                },
+                child: const Text('Lipa na PIN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+    void _showVoiceBudgetBurnRateDialog(Map<String, dynamic> data, UserModel userModel) {
     final balance = (data['balance'] as num?)?.toDouble() ?? userModel.walletBalance;
     final daily = (data['daily_allowance'] as num?)?.toDouble() ?? (balance / 5);
     final days = data['days_left'] ?? 5;
@@ -518,6 +810,9 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
                             const SizedBox(height: 8),
                             _buildPaginationDots(),
 
+                            // COMRADE SPLIT BILL REAL-TIME ALERT
+                            _buildComradeSplitBillAlertBanner(userModel),
+
                             // 2. LIVE ACTIVE PREORDER STREAM (Immediate Food Status)
                             const SizedBox(height: 16),
                             _buildLiveActiveOrderStream(userModel),
@@ -563,10 +858,49 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
                     ],
                   ),
                 ),
-                // Existing context-aware FAB
+                // Bottom-Left Voice Assistant Capsule (No overlap!)
                 Positioned(
                   bottom: 24,
-                  right: 24,
+                  left: 20,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _neonCyan.withValues(alpha: 0.35),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: FloatingActionButton.extended(
+                      heroTag: 'student_voice_fab',
+                      onPressed: () => SemaNaDishiOverlay.show(
+                        context,
+                        role: 'student',
+                        userUid: widget.user['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? '',
+                        onAction: _handleVoiceAction,
+                      ),
+                      backgroundColor: const Color(0xFF131A2A),
+                      foregroundColor: _neonCyan,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        side: const BorderSide(color: _neonCyan, width: 1.5),
+                      ),
+                      icon: const Icon(Icons.mic, color: _neonCyan, size: 20),
+                      label: const Text(
+                        'Sema na DISHI',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Bottom-Right Primary Action FAB (Lunch Time / Pay)
+                Positioned(
+                  bottom: 24,
+                  right: 20,
                   child: FloatingActionButton.extended(
                     heroTag: 'student_main_fab',
                     onPressed: () {
@@ -621,17 +955,6 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
             );
           },
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => SemaNaDishiOverlay.show(
-          context,
-          role: 'student',
-          userUid: widget.user['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? '',
-          onAction: _handleVoiceAction,
-        ),
-        backgroundColor: _neonCyan,
-        icon: const Icon(Icons.mic, color: Colors.black, size: 20),
-        label: const Text('Sema na DISHI', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
       ),
     );
   }
@@ -733,6 +1056,24 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
             child: const Padding(
               padding: EdgeInsets.all(8.0),
               child: Icon(Icons.search, color: Colors.white, size: 22),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => SemaNaDishiOverlay.show(
+              context,
+              role: 'student',
+              userUid: widget.user['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? '',
+              onAction: _handleVoiceAction,
+            ),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: _neonCyan.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+                border: Border.all(color: _neonCyan.withValues(alpha: 0.4)),
+              ),
+              child: const Icon(Icons.mic, color: _neonCyan, size: 18),
             ),
           ),
           _buildNotificationBell(userModel.uid),
