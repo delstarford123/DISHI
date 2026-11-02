@@ -4205,7 +4205,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
     try {
       final adminToken = await SecureStorageService.getGhostAdminReturnToken();
       final adminUserMap = await SecureStorageService.getGhostAdminUserMap() ??
-          (widget.user['adminUser'] as Map<String, dynamic>?);
+          (widget.user['adminUser'] is Map ? Map<String, dynamic>.from(widget.user['adminUser'] as Map) : null);
 
       if (adminToken != null && adminToken.isNotEmpty) {
         await FirebaseAuth.instance.signInWithCustomToken(adminToken);

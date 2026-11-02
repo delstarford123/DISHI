@@ -62,6 +62,12 @@ class UserModel {
   // Meal Swipes
   final int diningSwipes;
 
+  // Vendor Agent & Commission Accounts
+  final double commissionBalance;
+  final double e_float;
+  final double dailyCommissionEarned;
+  final double totalCommissionEarned;
+
   UserModel({
     required this.uid,
     required this.displayName,
@@ -109,6 +115,10 @@ class UserModel {
     this.studentImageUrl,
     this.virtualCard,
     this.diningSwipes = 0,
+    this.commissionBalance = 0.0,
+    this.e_float = 0.0,
+    this.dailyCommissionEarned = 0.0,
+    this.totalCommissionEarned = 0.0,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json, String documentId) {
@@ -165,6 +175,10 @@ class UserModel {
       studentImageUrl: json['studentImageUrl'],
       virtualCard: json['virtualCard'] != null ? Map<String, dynamic>.from(json['virtualCard'] as Map) : null,
       diningSwipes: json['diningSwipes'] ?? 0,
+      commissionBalance: ((json['commissionBalance'] ?? json['commission_balance'] ?? 0.0) as num).toDouble(),
+      e_float: ((json['e_float'] ?? json['eFloat'] ?? json['floatBalance'] ?? 0.0) as num).toDouble(),
+      dailyCommissionEarned: ((json['dailyCommissionEarned'] ?? 0.0) as num).toDouble(),
+      totalCommissionEarned: ((json['totalCommissionEarned'] ?? 0.0) as num).toDouble(),
     );
   }
 

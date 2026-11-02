@@ -336,8 +336,15 @@ class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProvider
     return Scaffold(
       backgroundColor: MPesaTheme.darkBg,
       body: SafeArea(
-        child: Column(
-          children: [
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
+                    children: [
             // Top App Bar: User Profile Info & Switch Account
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
@@ -541,35 +548,51 @@ class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProvider
 
             // Options Row: Show PIN & Forgot PIN
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  TextButton.icon(
-                    onPressed: () => setState(() => _obscurePin = !_obscurePin),
-                    icon: Icon(
-                      _obscurePin ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      color: Colors.white60,
-                      size: 16,
-                    ),
-                    label: Text(
-                      _obscurePin ? 'Show PIN' : 'Hide PIN',
-                      style: const TextStyle(color: Colors.white60, fontSize: 13),
+                  Flexible(
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () => setState(() => _obscurePin = !_obscurePin),
+                      icon: Icon(
+                        _obscurePin ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        color: Colors.white60,
+                        size: 16,
+                      ),
+                      label: Text(
+                        _obscurePin ? 'Show PIN' : 'Hide PIN',
+                        style: const TextStyle(color: Colors.white60, fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const ForgotPinView()),
-                      );
-                    },
-                    child: const Text(
-                      'Forgot PIN?',
-                      style: TextStyle(
-                        color: MPesaTheme.neonCyan,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                  Flexible(
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ForgotPinView()),
+                        );
+                      },
+                      child: const Text(
+                        'Forgot PIN?',
+                        style: TextStyle(
+                          color: MPesaTheme.neonCyan,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
@@ -590,8 +613,13 @@ class _PinUnlockViewState extends State<PinUnlockView> with SingleTickerProvider
               biometricLabel: _biometricLabel,
             ),
 
-            const SizedBox(height: 20),
-          ],
+            const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

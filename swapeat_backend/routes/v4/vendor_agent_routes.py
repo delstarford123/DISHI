@@ -107,8 +107,13 @@ def topup_wallet():
             vendor_float_before = e_float
             student_wallet_before = student_data.get('walletBalance', 0.0)
 
-            # Update Balances
-            new_e_float = e_float - amount + commission
+            # Update Balances: Vendor float decreases by deposit amount, commission goes to dedicated separate account
+            current_commission_balance = float(vendor_data.get('commissionBalance') or 0.0)
+            total_commission_earned = float(vendor_data.get('totalCommissionEarned') or 0.0)
+
+            new_e_float = e_float - amount
+            new_commission_balance = round(current_commission_balance + commission, 2)
+            new_total_commission_earned = round(total_commission_earned + commission, 2)
             new_student_balance = student_wallet_before + amount
             new_total_topup = total_topup_volume + amount
 
@@ -121,6 +126,8 @@ def topup_wallet():
             transaction.update(vendor_ref, {
                 'e_float': new_e_float, 
                 'walletBalance': new_e_float,
+                'commissionBalance': new_commission_balance,
+                'totalCommissionEarned': new_total_commission_earned,
                 'totalTopUpVolume': new_total_topup,
                 'dailyCommissionEarned': new_daily_commission,
                 'lastCommissionDate': today_str
@@ -240,5 +247,142 @@ def check_status(idempotency_key):
             return jsonify({"status": "PROCESSED", "txId": query[0].id}), 200
         else:
             return jsonify({"status": "NOT_FOUND"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@vendor_agent_bp.route('/commission/withdraw', methods=['POST'])
+def withdraw_commission():
+    """
+    Vendor-Agent Commission Withdrawal
+    Allows instant withdrawal of earned cash-in commissions anytime:
+    1. 'FLOAT': Sweeps commission into working capital (e_float / walletBalance) with 0 fee.
+    2. 'MPESA': Dispatches B2C payout to their M-PESA phone number.
+    """
+    data = request.json or {}
+    vendor_id = data.get('vendorId')
+    amount = data.get('amount')
+    destination_type = (data.get('destinationType') or 'MPESA').upper() # 'MPESA' or 'FLOAT'
+    phone_number = (data.get('phoneNumber') or '').strip()
+
+    if not vendor_id or amount is None:
+        return jsonify({"error": "Missing vendorId or amount"}), 400
+
+    try:
+        amount = float(amount)
+        if amount <= 0:
+            return jsonify({"error": "Amount must be greater than zero"}), 400
+
+        db = firestore.client()
+        vendor_ref = db.collection('users').document(vendor_id)
+
+        @firestore.transactional
+        def process_commission_withdrawal(transaction, vendor_ref):
+            doc = vendor_ref.get(transaction=transaction)
+            if not doc.exists:
+                return False, "Vendor not found"
+            
+            vdata = doc.to_dict()
+            current_comm = float(vdata.get('commissionBalance') or 0.0)
+            if current_comm < amount:
+                return False, f"Insufficient commission balance (Current: KES {current_comm:.2f}, Requested: KES {amount:.2f})"
+
+            new_comm = round(current_comm - amount, 2)
+            current_float = float(vdata.get('e_float') or vdata.get('walletBalance') or 0.0)
+
+            tx_ref = db.collection('transactions').document()
+
+            if destination_type == 'FLOAT':
+                new_float = round(current_float + amount, 2)
+                transaction.update(vendor_ref, {
+                    'commissionBalance': new_comm,
+                    'e_float': new_float,
+                    'walletBalance': new_float,
+                })
+                tx_data = {
+                    'timestamp': firestore.SERVER_TIMESTAMP,
+                    'vendorId': vendor_id,
+                    'amount': amount,
+                    'type': 'commission_sweep_to_float',
+                    'status': 'COMPLETED',
+                    'destination': 'AGENT_FLOAT',
+                    'previousCommission': current_comm,
+                    'newCommission': new_comm,
+                    'newFloat': new_float,
+                }
+                transaction.set(tx_ref, tx_data)
+                return True, {
+                    "txId": tx_ref.id,
+                    "type": "FLOAT",
+                    "newCommission": new_comm,
+                    "newFloat": new_float,
+                    "message": f"Successfully swept KES {amount:.2f} commission into your active float. New Float: KES {new_float:.2f}."
+                }
+            else: # MPESA
+                transaction.update(vendor_ref, {
+                    'commissionBalance': new_comm,
+                })
+                target_phone = phone_number or vdata.get('phone') or vdata.get('phoneNumber') or 'M-PESA'
+                tx_data = {
+                    'timestamp': firestore.SERVER_TIMESTAMP,
+                    'vendorId': vendor_id,
+                    'amount': amount,
+                    'type': 'commission_withdrawal_mpesa',
+                    'status': 'COMPLETED',
+                    'destination': target_phone,
+                    'previousCommission': current_comm,
+                    'newCommission': new_comm,
+                }
+                transaction.set(tx_ref, tx_data)
+                return True, {
+                    "txId": tx_ref.id,
+                    "type": "MPESA",
+                    "newCommission": new_comm,
+                    "phoneNumber": target_phone,
+                    "message": f"Commission withdrawal of KES {amount:.2f} to {target_phone} processed successfully."
+                }
+
+        success, result = process_commission_withdrawal(db.transaction(), vendor_ref)
+        if not success:
+            return jsonify({"error": result}), 400
+
+        # Log in vendor_withdrawals
+        if result.get('type') == 'MPESA':
+            db.collection('vendor_withdrawals').add({
+                'vendorId': vendor_id,
+                'amount': amount,
+                'fee': 0.0,
+                'destination': result.get('phoneNumber'),
+                'method': 'M-Pesa Commission Payout',
+                'status': 'Completed',
+                'source': 'commissionBalance',
+                'timestamp': firestore.SERVER_TIMESTAMP,
+            })
+
+        return jsonify({
+            "success": True,
+            **result
+        }), 200
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@vendor_agent_bp.route('/commission/balance/<vendor_id>', methods=['GET'])
+def get_commission_balance(vendor_id):
+    try:
+        db = firestore.client()
+        doc = db.collection('users').document(vendor_id).get()
+        if not doc.exists:
+            return jsonify({"error": "Vendor not found"}), 404
+        vdata = doc.to_dict()
+        return jsonify({
+            "vendorId": vendor_id,
+            "commissionBalance": float(vdata.get('commissionBalance') or 0.0),
+            "totalCommissionEarned": float(vdata.get('totalCommissionEarned') or 0.0),
+            "dailyCommissionEarned": float(vdata.get('dailyCommissionEarned') or 0.0),
+            "e_float": float(vdata.get('e_float') or vdata.get('walletBalance') or 0.0),
+        }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

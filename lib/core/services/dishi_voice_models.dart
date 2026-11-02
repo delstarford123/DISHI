@@ -315,3 +315,4 @@ String getVoiceTrainingOverview(String lang) {
 String sanitizeForTts(String text) {
   return text.replaceAll(RegExp(r'[*#_~`>\[\]\(\)]'), ' ').trim();
 }
+

@@ -745,14 +745,85 @@ def dashboard_stats():
         return jsonify({"error": "Unauthorized"}), 401
     try:
         db = firestore.client()
-        # Use aggregation queries for performance
-        users_count = db.collection('users').count().get()[0][0].value
-        vendors_count = db.collection('users').where('role', '==', 'vendor').count().get()[0][0].value
-        float_sum = db.collection('users').aggregate(firestore.Sum('walletBalance')).get()[0][0].value
+        
+        users_docs = db.collection('users').get()
+        users_count = len(users_docs)
+        vendors_count = 0
+        
+        student_wallets = 0.0
+        vendor_capital = 0.0
+        agent_float = 0.0
+        agent_commissions = 0.0
+        savings_vault = 0.0
+        driver_wallets = 0.0
+        fundi_wallets = 0.0
+
+        for d in users_docs:
+            u = d.to_dict()
+            role = (u.get('role') or '').lower()
+            roles = [str(r).lower() for r in u.get('roles', [])]
+            if 'vendor' in roles or role == 'vendor':
+                vendors_count += 1
+                vendor_capital += float(u.get('walletBalance') or u.get('vendorEarnings') or 0.0)
+                agent_float += float(u.get('e_float') or 0.0)
+                agent_commissions += float(u.get('commissionBalance') or u.get('dailyCommissionEarned') or 0.0)
+            elif 'driver' in roles or role == 'driver':
+                driver_wallets += float(u.get('walletBalance') or u.get('vault_balance') or 0.0)
+            elif 'fundi' in roles or role == 'fundi':
+                fundi_wallets += float(u.get('walletBalance') or 0.0)
+            else:
+                student_wallets += float(u.get('walletBalance') or 0.0)
+                savings_vault += float(u.get('vaultBalance') or u.get('savingsBalance') or 0.0)
+
+        # Comprehensive Real-time Platform Escrow
+        tuition_docs = db.collection('tuition_escrow').where('status', '==', 'locked').get()
+        housing_docs = db.collection('housing_payments').where('status', '==', 'escrow').get()
+        gig_docs = db.collection('campus_gig_requests').where('escrow_status', '==', 'HELD').get()
+        vendor_escrows = db.collection('escrows').where('status', 'in', ['held', 'pending', 'ACTIVE']).get()
+        market_escrows = db.collection('escrow_transactions').where('status', 'in', ['HELD', 'PENDING', 'ACTIVE']).get()
+
+        tuition_escrow = sum(float(d.to_dict().get('amount', 0.0)) for d in tuition_docs)
+        housing_escrow = sum(float(d.to_dict().get('amount', 0.0)) for d in housing_docs)
+        gig_escrow = sum(float(d.to_dict().get('net_amount', 0.0) + d.to_dict().get('fee_deducted', 0.0)) for d in gig_docs)
+        v_escrow = sum(float(d.to_dict().get('amount', 0.0)) for d in vendor_escrows)
+        m_escrow = sum(float(d.to_dict().get('amount', 0.0)) for d in market_escrows)
+
+        platform_escrow = tuition_escrow + housing_escrow + gig_escrow + v_escrow + m_escrow
+
+        total_money_in_system = (
+            student_wallets +
+            vendor_capital +
+            agent_float +
+            agent_commissions +
+            savings_vault +
+            platform_escrow +
+            driver_wallets +
+            fundi_wallets
+        )
+
         return jsonify({
             'usersCount': users_count,
             'vendorsCount': vendors_count,
-            'floatSum': float_sum,
+            'floatSum': round(total_money_in_system, 2),
+            'totalMoneyInSystem': round(total_money_in_system, 2),
+            'categories': {
+                'studentWallets': round(student_wallets, 2),
+                'vendorCapital': round(vendor_capital, 2),
+                'agentFloat': round(agent_float, 2),
+                'agentCommissions': round(agent_commissions, 2),
+                'savingsVault': round(savings_vault, 2),
+                'platformEscrow': round(platform_escrow, 2),
+                'driverWallets': round(driver_wallets, 2),
+                'fundiWallets': round(fundi_wallets, 2),
+            },
+            'escrowBreakdown': {
+                'tuitionEscrow': round(tuition_escrow, 2),
+                'housingEscrow': round(housing_escrow, 2),
+                'gigEscrow': round(gig_escrow, 2),
+                'vendorEscrow': round(v_escrow, 2),
+                'marketEscrow': round(m_escrow, 2),
+                'totalEscrow': round(platform_escrow, 2)
+            },
             'flaggedTransactions': 0
         }), 200
     except Exception as e:

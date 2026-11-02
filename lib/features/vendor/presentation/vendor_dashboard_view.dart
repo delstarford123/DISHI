@@ -1,3 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../core/security/secure_storage_service.dart';
+import '../../admin/presentation/admin_dashboard_view.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 
 import 'package:flutter/services.dart';
@@ -36,9 +40,7 @@ import 'tabs/vendor_finance_tab.dart';
 
 import 'tabs/vendor_operations_tab.dart';
 
-import 'tabs/vendor_sales_tab.dart';
 
-import 'tabs/vendor_management_tab.dart';
 
 import '../../../shared/presentation/universal_support_widget.dart';
 
@@ -93,6 +95,260 @@ class VendorDashboardView extends StatefulWidget {
 
 
 class _VendorDashboardViewState extends State<VendorDashboardView> {
+
+  Future<void> _exitGhostSession() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: _neonCyan),
+      ),
+    );
+
+    try {
+      final adminToken = await SecureStorageService.getGhostAdminReturnToken();
+      final rawAdminUser = widget.user['adminUser'];
+      final adminUserMap = await SecureStorageService.getGhostAdminUserMap() ??
+          (rawAdminUser is Map ? Map<String, dynamic>.from(rawAdminUser as Map) : null);
+
+      if (adminToken != null && adminToken.isNotEmpty) {
+        await FirebaseAuth.instance.signInWithCustomToken(adminToken);
+      }
+
+      await SecureStorageService.endGhostSession();
+
+      if (mounted) {
+        Navigator.pop(context); // dismiss progress
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        } else {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => AdminDashboardView(
+                user: adminUserMap ?? {'roles': ['admin']},
+              ),
+            ),
+            (route) => false,
+          );
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ghost Mode exited. Super Admin session restored.'),
+            backgroundColor: _neonCyan,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to exit ghost mode: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showWithdrawCommissionDialog(BuildContext context, UserModel userModel) {
+    final amountCtrl = TextEditingController(text: userModel.commissionBalance > 0 ? userModel.commissionBalance.toStringAsFixed(0) : '');
+    final phoneCtrl = TextEditingController(text: widget.user['phone'] ?? widget.user['phoneNumber'] ?? '');
+    String destinationType = 'MPESA';
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: _cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0xFFFFD700), width: 1.5),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.monetization_on_rounded, color: Color(0xFFFFD700), size: 24),
+              SizedBox(width: 8),
+              Text('Withdraw Commission', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Available Commission:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    Text(
+                      'KES ${userModel.commissionBalance.toStringAsFixed(2)}',
+                      style: const TextStyle(color: Color(0xFFFFD700), fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Withdrawal Destination:', style: TextStyle(color: _textSecondary, fontSize: 12)),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Center(child: Text('M-PESA Phone', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                      selected: destinationType == 'MPESA',
+                      selectedColor: _neonCyan,
+                      backgroundColor: _surfaceLight,
+                      labelStyle: TextStyle(color: destinationType == 'MPESA' ? Colors.black : Colors.white),
+                      onSelected: (val) {
+                        if (val) setDialogState(() => destinationType = 'MPESA');
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Center(child: Text('Sweep to Float', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                      selected: destinationType == 'FLOAT',
+                      selectedColor: const Color(0xFFFFD700),
+                      backgroundColor: _surfaceLight,
+                      labelStyle: TextStyle(color: destinationType == 'FLOAT' ? Colors.black : Colors.white),
+                      onSelected: (val) {
+                        if (val) setDialogState(() => destinationType = 'FLOAT');
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              if (destinationType == 'MPESA') ...[
+                const Text('M-Pesa Number:', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: _surfaceLight,
+                    prefixIcon: const Icon(Icons.phone_android, color: _neonCyan, size: 18),
+                    hintText: 'e.g. 0712345678',
+                    hintStyle: const TextStyle(color: _textSecondary),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              const Text('Amount to Withdraw (KES):', style: TextStyle(color: _textSecondary, fontSize: 12)),
+              const SizedBox(height: 4),
+              TextField(
+                controller: amountCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: _surfaceLight,
+                  prefixIcon: const Icon(Icons.currency_exchange, color: Color(0xFFFFD700), size: 18),
+                  hintText: 'e.g. 50',
+                  hintStyle: const TextStyle(color: _textSecondary),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: _textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFD700),
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: isSubmitting ? null : () async {
+                final amountStr = amountCtrl.text.trim();
+                final amount = double.tryParse(amountStr);
+                if (amount == null || amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a valid amount'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                if (amount > userModel.commissionBalance) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Amount exceeds available commission'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                setDialogState(() => isSubmitting = true);
+                try {
+                  final response = await http.post(
+                    Uri.parse(ApiConfig.vendorAgentCommissionWithdraw),
+                    headers: {'Content-Type': 'application/json'},
+                    body: jsonEncode({
+                      'vendorId': userModel.uid,
+                      'amount': amount,
+                      'destinationType': destinationType,
+                      'phoneNumber': phoneCtrl.text.trim(),
+                    }),
+                  ).timeout(const Duration(seconds: 30));
+
+                  if (response.statusCode == 200) {
+                    final resp = jsonDecode(response.body);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(resp['message'] ?? 'Commission withdrawn successfully!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } else {
+                    final err = jsonDecode(response.body)['error'] ?? 'Withdrawal failed';
+                    setDialogState(() => isSubmitting = false);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red),
+                      );
+                    }
+                  }
+                } on TimeoutException {
+                  setDialogState(() => isSubmitting = false);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Request timed out. Please try again.'), backgroundColor: Colors.red),
+                    );
+                  }
+                } catch (e) {
+                  setDialogState(() => isSubmitting = false);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              },
+              child: isSubmitting
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                  : const Text('Withdraw Now', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   final FirestoreService _firestoreService = FirestoreService();
 
@@ -1278,18 +1534,11 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
 
 
 
-            final List<Widget> tabs = [
-
+                        final List<Widget> tabs = [
               _buildHomeTab(userModel),
-
-              VendorFinanceTabView(user: widget.user),
-
               VendorOperationsTabView(user: widget.user),
-
-              VendorSalesTabView(user: widget.user),
-
-              VendorManagementTabView(user: widget.user),
-
+              _buildAgentTab(userModel),
+              VendorFinanceTabView(user: widget.user),
             ];
 
 
@@ -1299,8 +1548,52 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
 
 
             if (isCompact) {
-
-              return Scaffold(
+              return PopScope(
+                canPop: widget.user['isGhostMode'] != true,
+                onPopInvokedWithResult: (didPop, result) {
+                  if (didPop) return;
+                  if (widget.user['isGhostMode'] == true) {
+                    _exitGhostSession();
+                  }
+                },
+                child: Scaffold(
+                  appBar: widget.user['isGhostMode'] == true
+                      ? PreferredSize(
+                          preferredSize: const Size.fromHeight(48),
+                          child: SafeArea(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF161B29),
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(color: const Color(0xFF00FFD1), width: 1.5),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.remove_red_eye, color: Color(0xFF00FFD1), size: 16),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'GHOST MODE: ${widget.user['displayName'] ?? widget.user['businessName'] ?? 'Vendor'}',
+                                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: _exitGhostSession,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(color: const Color(0xFF00FFD1), borderRadius: BorderRadius.circular(20)),
+                                      child: const Text('Exit Ghost', style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      : null,
 
                 backgroundColor: _bgColor,
 
@@ -1384,9 +1677,16 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
 
                     items: [
 
-                      const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-
-                      const BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'Finance'),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.point_of_sale_rounded),
+                        activeIcon: Icon(Icons.point_of_sale_rounded, color: _neonCyan),
+                        label: 'Counter POS',
+                      ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.receipt_long_rounded),
+                        activeIcon: Icon(Icons.receipt_long_rounded, color: _neonCyan),
+                        label: 'Orders',
+                      ),
 
                       BottomNavigationBarItem(
                         icon: Transform.translate(
@@ -1448,11 +1748,16 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                         ),
                         label: 'Sema DISHI',
                       ),
-                      const BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Ops'),
-
-                      const BottomNavigationBarItem(icon: Icon(Icons.campaign), label: 'Sales'),
-
-                      const BottomNavigationBarItem(icon: Icon(Icons.badge), label: 'Manage'),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.currency_exchange_rounded),
+                        activeIcon: Icon(Icons.currency_exchange_rounded, color: _neonCyan),
+                        label: 'Agent Portal',
+                      ),
+                      const BottomNavigationBarItem(
+                        icon: Icon(Icons.account_balance_wallet_rounded),
+                        activeIcon: Icon(Icons.account_balance_wallet_rounded, color: _neonCyan),
+                        label: 'Finance',
+                      ),
 
                     ],
 
@@ -1460,7 +1765,8 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
 
                 ),
 
-              );
+              ),
+            );
 
             }
 
@@ -1502,18 +1808,11 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
 
                     labelType: NavigationRailLabelType.all,
 
-                    destinations: const [
-
-                      NavigationRailDestination(icon: Icon(Icons.home), label: Text('Home')),
-
-                      NavigationRailDestination(icon: Icon(Icons.account_balance_wallet), label: Text('Finance')),
-
-                      NavigationRailDestination(icon: Icon(Icons.storefront), label: Text('Operations')),
-
-                      NavigationRailDestination(icon: Icon(Icons.campaign), label: Text('Sales & CX')),
-
-                      NavigationRailDestination(icon: Icon(Icons.badge), label: Text('Management')),
-
+                                        destinations: const [
+                      NavigationRailDestination(icon: Icon(Icons.point_of_sale_rounded), label: Text('Counter POS')),
+                      NavigationRailDestination(icon: Icon(Icons.receipt_long_rounded), label: Text('Orders')),
+                      NavigationRailDestination(icon: Icon(Icons.currency_exchange_rounded), label: Text('Agent Portal')),
+                      NavigationRailDestination(icon: Icon(Icons.account_balance_wallet_rounded), label: Text('Finance & Store')),
                     ],
 
                   ),
@@ -1623,6 +1922,129 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
                       _buildActiveCashierShiftChip(context),
 
                       const SizedBox(height: 16),
+
+                      // --- 0. FAST COUNTER POS (RUSH MODE - FIRST THINGS FIRST) ---
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: _neonCyan.withValues(alpha: 0.5), width: 1.5),
+                          boxShadow: [
+                            BoxShadow(color: _neonCyan.withValues(alpha: 0.15), blurRadius: 16),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.bolt, color: Colors.amberAccent, size: 20),
+                                    SizedBox(width: 6),
+                                    Text('Fast Counter POS', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(color: Colors.amberAccent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+                                  child: const Text('Rush Mode Active', style: TextStyle(color: Colors.amberAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Quick scan CTA
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _neonCyan,
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QrScannerPage())),
+                                icon: const Icon(Icons.qr_code_scanner, size: 22),
+                                label: const Text('Scan Student QR Pass', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(color: Colors.purpleAccent),
+                                      foregroundColor: Colors.purpleAccent,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                    ),
+                                    onPressed: () => _showManualEntryDialog(context),
+                                    icon: const Icon(Icons.pin, size: 16),
+                                    label: const Text('Enter Token/PIN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(color: _neonPink),
+                                      foregroundColor: _neonPink,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                    ),
+                                    onPressed: () => _showVccOrBiometricSelector(context),
+                                    icon: const Icon(Icons.credit_card, size: 16),
+                                    label: const Text('VCC / Hardware', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Quick Jump to DISHI Agent Cash-In & Dedicated Commission
+                      InkWell(
+                        onTap: () => setState(() => _selectedIndex = 2),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF161E2E),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(color: const Color(0xFFFFD700).withValues(alpha: 0.15), shape: BoxShape.circle),
+                                child: const Icon(Icons.currency_exchange, color: Color(0xFFFFD700), size: 16),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('DISHI Agent Cash-In Portal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                    Text('Commission Balance: KES ${userModel.commissionBalance.toStringAsFixed(2)}', style: const TextStyle(color: Color(0xFFFFD700), fontSize: 11, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios, color: Color(0xFFFFD700), size: 12),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
 
 
 
@@ -3860,4 +4282,486 @@ class _VendorDashboardViewState extends State<VendorDashboardView> {
 
 
 
+
+  Widget _buildAgentTab(UserModel userModel) {
+    return _VendorAgentPortalWidget(
+      userModel: userModel,
+      vendorUser: widget.user,
+      onTopUpFloat: () => _showTopUpDialog(context),
+      onWithdrawCommission: () => _showWithdrawCommissionDialog(context, userModel),
+    );
+  }
+
+}
+
+class _VendorAgentPortalWidget extends StatefulWidget {
+  final UserModel userModel;
+  final Map<String, dynamic> vendorUser;
+  final VoidCallback onTopUpFloat;
+  final VoidCallback onWithdrawCommission;
+
+  const _VendorAgentPortalWidget({
+    required this.userModel,
+    required this.vendorUser,
+    required this.onTopUpFloat,
+    required this.onWithdrawCommission,
+  });
+
+  @override
+  State<_VendorAgentPortalWidget> createState() => _VendorAgentPortalWidgetState();
+}
+
+class _VendorAgentPortalWidgetState extends State<_VendorAgentPortalWidget> {
+  final _studentIdCtrl = TextEditingController();
+  final _amountCtrl = TextEditingController();
+  final _authCodeCtrl = TextEditingController();
+  bool _isSubmitting = false;
+
+  void _setAmount(double amt) {
+    setState(() {
+      _amountCtrl.text = amt.toStringAsFixed(0);
+    });
+  }
+
+  Future<void> _processCashIn() async {
+    final studentId = _studentIdCtrl.text.trim();
+    final amountStr = _amountCtrl.text.trim();
+    final authCode = _authCodeCtrl.text.trim();
+
+    if (studentId.isEmpty || amountStr.isEmpty || authCode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all required cash-in fields'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    final amount = double.tryParse(amountStr);
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid deposit amount'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    final currentFloat = widget.userModel.e_float > 0 ? widget.userModel.e_float : widget.userModel.walletBalance;
+    if (amount > currentFloat) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Insufficient agent float balance (Current: KES ${currentFloat.toStringAsFixed(2)})'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final idempotencyKey = 'agent_topup_${DateTime.now().millisecondsSinceEpoch}_${widget.userModel.uid}';
+      final response = await http.post(
+        Uri.parse(ApiConfig.vendorAgentTopup),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'vendorId': widget.userModel.uid,
+          'studentToken': studentId,
+          'amount': amount,
+          'authCode': authCode,
+          'idempotencyKey': idempotencyKey,
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      setState(() => _isSubmitting = false);
+
+      if (response.statusCode == 200) {
+        final resp = jsonDecode(response.body);
+        _studentIdCtrl.clear();
+        _amountCtrl.clear();
+        _authCodeCtrl.clear();
+
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: _cardColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFFFFD700), width: 1.5)),
+              title: const Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 28),
+                  SizedBox(width: 8),
+                  Text('Deposit Success! 💵', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Student Credited: KES ${amount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Commission Earned:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        Text('+ KES ${resp['commissionEarned'] ?? (amount * 0.005).toStringAsFixed(2)}', style: const TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text('Credited to your Dedicated Commission Account.', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                ],
+              ),
+              actions: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          );
+        }
+      } else {
+        String errorMsg = 'Failed to process deposit';
+        try {
+          final errJson = jsonDecode(response.body);
+          errorMsg = errJson['error'] ?? response.body;
+        } catch (_) {}
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $errorMsg'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } on TimeoutException {
+      setState(() => _isSubmitting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Request timed out. Please try again.'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      setState(() => _isSubmitting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Exception: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final floatBal = widget.userModel.e_float > 0 ? widget.userModel.e_float : widget.userModel.walletBalance;
+
+    return Scaffold(
+      backgroundColor: _bgColor,
+      appBar: AppBar(
+        backgroundColor: _bgColor,
+        elevation: 0,
+        title: const Row(
+          children: [
+            Icon(Icons.currency_exchange_rounded, color: _neonCyan, size: 22),
+            SizedBox(width: 8),
+            Text('DISHI Agent Cash-In & Commissions', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. Two Hero Balance Cards (Float & Dedicated Commission Account)
+            Row(
+              children: [
+                // Agent Float Card
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: _cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: _neonCyan.withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.account_balance, color: _neonCyan, size: 16),
+                            SizedBox(width: 6),
+                            Expanded(child: Text('Agent Float', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text('KES ${floatBal.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _neonCyan,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: widget.onTopUpFloat,
+                            child: const Text('Top Up Float', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Dedicated Commission Account Card (Gold)
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF1F1A08),
+                          _cardColor,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.6), width: 1.2),
+                      boxShadow: [
+                        BoxShadow(color: const Color(0xFFFFD700).withValues(alpha: 0.1), blurRadius: 10),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.monetization_on_rounded, color: Color(0xFFFFD700), size: 16),
+                            SizedBox(width: 6),
+                            Expanded(child: Text('Commission Acc.', style: TextStyle(color: Color(0xFFFFD700), fontSize: 11, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text('KES ${widget.userModel.commissionBalance.toStringAsFixed(2)}', style: const TextStyle(color: Color(0xFFFFD700), fontSize: 16, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFFD700),
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: widget.onWithdrawCommission,
+                            child: const Text('Withdraw', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // 2. Student Cash-In Deposit Terminal (First Things First: Quick & Fast)
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: _cardColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.add_card_rounded, color: _neonCyan, size: 20),
+                      SizedBox(width: 8),
+                      Text('Deposit Cash for Student', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                      Spacer(),
+                      Text('Earn 0.5% Commission', style: TextStyle(color: Color(0xFFFFD700), fontSize: 11, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  const Text('Student ID / Phone / Token:', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _studentIdCtrl,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: _surfaceLight,
+                      hintText: 'e.g. DISHI-8892 or 0712345678',
+                      hintStyle: const TextStyle(color: _textSecondary),
+                      prefixIcon: const Icon(Icons.person_search, color: _neonCyan, size: 18),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  const Text('Amount to Deposit (KES):', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _amountCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: _surfaceLight,
+                      hintText: 'e.g. 500',
+                      hintStyle: const TextStyle(color: _textSecondary),
+                      prefixIcon: const Icon(Icons.currency_exchange, color: Colors.greenAccent, size: 18),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Quick Amount Chips
+                  Wrap(
+                    spacing: 8,
+                    children: [100.0, 200.0, 500.0, 1000.0, 2000.0].map((amt) {
+                      return ActionChip(
+                        label: Text('+KES ${amt.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                        backgroundColor: _surfaceLight,
+                        side: BorderSide(color: _neonCyan.withValues(alpha: 0.3)),
+                        onPressed: () => _setAmount(amt),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 14),
+
+                  const Text("Student's 4-Digit PIN or Auth Code:", style: TextStyle(color: _textSecondary, fontSize: 12)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _authCodeCtrl,
+                    keyboardType: TextInputType.number,
+                    obscureText: true,
+                    maxLength: 6,
+                    style: const TextStyle(color: Colors.white, letterSpacing: 4, fontWeight: FontWeight.bold),
+                    decoration: InputDecoration(
+                      counterText: '',
+                      filled: true,
+                      fillColor: _surfaceLight,
+                      hintText: '••••',
+                      hintStyle: const TextStyle(color: _textSecondary, letterSpacing: 4),
+                      prefixIcon: const Icon(Icons.pin, color: Colors.purpleAccent, size: 18),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _neonCyan,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: _isSubmitting ? null : _processCashIn,
+                      icon: _isSubmitting
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                          : const Icon(Icons.check_circle_outline, size: 20),
+                      label: Text(_isSubmitting ? 'Processing Deposit...' : 'Deposit Cash & Earn Commission', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // 3. Recent Agent Transactions Stream
+            const Text('Recent Cash-In Deposits', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('transactions')
+                  .where('vendorId', isEqualTo: widget.userModel.uid)
+                  .where('type', isEqualTo: 'vendor_agent_topup')
+                  .orderBy('timestamp', descending: true)
+                  .limit(10)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: _neonCyan));
+                }
+                final docs = snapshot.data?.docs ?? [];
+                if (docs.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(color: _cardColor, borderRadius: BorderRadius.circular(16)),
+                    child: const Center(
+                      child: Text('No cash-in deposits processed yet today.', style: TextStyle(color: _textSecondary, fontSize: 13)),
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: docs.length,
+                  separatorBuilder: (_, index) => const SizedBox(height: 8),
+                  itemBuilder: (context, idx) {
+                    final data = docs[idx].data() as Map<String, dynamic>;
+                    final studentName = data['studentName'] ?? 'Student';
+                    final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+                    final comm = (data['commissionEarned'] as num?)?.toDouble() ?? (amount * 0.005);
+
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(color: _neonCyan.withValues(alpha: 0.15), shape: BoxShape.circle),
+                            child: const Icon(Icons.arrow_downward_rounded, color: _neonCyan, size: 16),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(studentName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                                const SizedBox(height: 2),
+                                Text('Deposit • KES ${amount.toStringAsFixed(2)}', style: const TextStyle(color: _textSecondary, fontSize: 11)),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text('+ KES ${comm.toStringAsFixed(2)}', style: const TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold, fontSize: 13)),
+                              const SizedBox(height: 2),
+                              const Text('Commission', style: TextStyle(color: _textSecondary, fontSize: 10)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

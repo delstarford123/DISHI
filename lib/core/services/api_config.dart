@@ -28,6 +28,8 @@ class ApiConfig {
   static const String transactionPreorder = '$baseUrl/api/v1/transaction/preorder';
   static const String transactionPreorderCancel = '$baseUrl/api/v1/transaction/preorder/cancel';
   static const String vendorAgentTopup = '$baseUrl/api/v4/vendor/topup';
+  static const String vendorAgentCommissionWithdraw = '$baseUrl/api/v4/vendor/commission/withdraw';
+  static const String vendorAgentCommissionBalance = '$baseUrl/api/v4/vendor/commission/balance';
   
   // V4 Parent Services (0% Commission Guaranteed)
   static const String parentV4 = '$baseUrl/api/v4/parent';

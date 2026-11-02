@@ -174,7 +174,7 @@ class _StudentMainScaffoldState extends State<StudentMainScaffold> {
 
       final adminUserMap = await SecureStorageService.getGhostAdminUserMap() ??
 
-          (widget.user['adminUser'] as Map<String, dynamic>?);
+          (widget.user['adminUser'] is Map ? Map<String, dynamic>.from(widget.user['adminUser'] as Map) : null);
 
 
 

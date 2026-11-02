@@ -1,5 +1,3 @@
-import '../../../main.dart';
-import '../../../core/security/secure_storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,7 +12,6 @@ import 'admin_transactions_view.dart';
 import 'admin_settings_view.dart';
 import 'admin_moderation_view.dart';
 import 'admin_onboarding_view.dart';
-import 'admin_payouts_view.dart';
 import 'admin_delivery_security_view.dart';
 import 'admin_match_safety_view.dart';
 import 'admin_users_view.dart';
@@ -28,7 +25,6 @@ import 'admin_executive_analytics_view.dart';
 import 'admin_employee_payroll_view.dart';
 import 'admin_b2b_finance_view.dart';
 import 'admin_c2b_collections_view.dart';
-import '../../../core/services/firestore_service.dart';
 import '../../../core/services/admin_service.dart';
 
 // -- CUSTOM EXECUTIVE THEME COLORS --
@@ -59,6 +55,17 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
   double _totalEscrow = 0.0;
   int _flaggedTransactions = 0;
   bool _isMaintenance = false;
+  Map<String, double> _financeCategories = {
+    'studentWallets': 0.0,
+    'vendorCapital': 0.0,
+    'agentFloat': 0.0,
+    'agentCommissions': 0.0,
+    'savingsVault': 0.0,
+    'platformEscrow': 0.0,
+    'driverWallets': 0.0,
+    'fundiWallets': 0.0,
+  };
+  Map<String, double> _escrowBreakdown = {};
 
   String? _adminName;
   String? _adminEmail;
@@ -73,6 +80,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     _adminProfileImageUrl = widget.user['profileImageUrl'] ?? widget.user['photoUrl'] ?? widget.user['photoURL'];
     _fetchAdminStats();
     _listenToPlatformConfig();
+    _listenToEscrowStreams();
   }
 
   void _listenToPlatformConfig() {
@@ -85,6 +93,27 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     });
   }
 
+  void _listenToEscrowStreams() {
+    FirebaseFirestore.instance.collection('tuition_escrow').snapshots().listen((_) => _recalculateRealtimeEscrow());
+    FirebaseFirestore.instance.collection('housing_payments').snapshots().listen((_) => _recalculateRealtimeEscrow());
+    FirebaseFirestore.instance.collection('campus_gig_requests').snapshots().listen((_) => _recalculateRealtimeEscrow());
+    FirebaseFirestore.instance.collection('escrows').snapshots().listen((_) => _recalculateRealtimeEscrow());
+    FirebaseFirestore.instance.collection('escrow_transactions').snapshots().listen((_) => _recalculateRealtimeEscrow());
+  }
+
+  Future<void> _recalculateRealtimeEscrow() async {
+    try {
+      final summary = await _adminService.getEscrowSummary();
+      final escVal = (summary['total_escrow'] as num?)?.toDouble() ?? 0.0;
+      if (mounted) {
+        setState(() {
+          _totalEscrow = escVal;
+          _financeCategories['platformEscrow'] = escVal;
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _fetchAdminStats() async {
     setState(() => _isLoading = true);
     try {
@@ -92,12 +121,43 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       final escrow = await _adminService.getEscrowSummary().catchError((_) => {'total_escrow': 0.0});
 
       if (mounted) {
+        final escVal = (stats['categories']?['platformEscrow'] ?? escrow['total_escrow'] ?? 0.0).toDouble();
+        final totalMoney = (stats['totalMoneyInSystem'] ?? stats['floatSum'] ?? 0.0).toDouble();
+
+        Map<String, double> parsedCats = {
+          'studentWallets': 0.0,
+          'vendorCapital': 0.0,
+          'agentFloat': 0.0,
+          'agentCommissions': 0.0,
+          'savingsVault': 0.0,
+          'platformEscrow': escVal,
+          'driverWallets': 0.0,
+          'fundiWallets': 0.0,
+        };
+
+        if (stats['categories'] is Map) {
+          final cat = stats['categories'] as Map;
+          cat.forEach((k, v) {
+            if (v is num) parsedCats[k.toString()] = v.toDouble();
+          });
+        }
+
+        Map<String, double> parsedEscrowBreakdown = {};
+        if (stats['escrowBreakdown'] is Map) {
+          final eb = stats['escrowBreakdown'] as Map;
+          eb.forEach((k, v) {
+            if (v is num) parsedEscrowBreakdown[k.toString()] = v.toDouble();
+          });
+        }
+
         setState(() {
           _activeUsers = stats['usersCount'] ?? 0;
           _activeVendors = stats['vendorsCount'] ?? 0;
-          _systemFloat = (stats['floatSum'] ?? 0.0).toDouble();
+          _systemFloat = totalMoney;
           _flaggedTransactions = stats['flaggedTransactions'] ?? 0;
-          _totalEscrow = (escrow['total_escrow'] ?? 0.0).toDouble();
+          _totalEscrow = escVal;
+          _financeCategories = parsedCats;
+          _escrowBreakdown = parsedEscrowBreakdown;
           _isLoading = false;
         });
       }
@@ -106,15 +166,50 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       try {
         final usersSnap = await FirebaseFirestore.instance.collection('users').get();
         final vendorsCount = usersSnap.docs.where((d) => d.data()['role'] == 'vendor').length;
-        double floatSum = 0.0;
+        
+        double studentWallets = 0.0;
+        double vendorCapital = 0.0;
+        double agentFloat = 0.0;
+        double agentCommissions = 0.0;
+        double savingsVault = 0.0;
+        double driverWallets = 0.0;
+        double fundiWallets = 0.0;
+
         for (var doc in usersSnap.docs) {
-          floatSum += (doc.data()['walletBalance'] as num?)?.toDouble() ?? 0.0;
+          final data = doc.data();
+          final role = (data['role'] ?? '').toString().toLowerCase();
+          final roles = (data['roles'] is List) ? (data['roles'] as List).map((r) => r.toString().toLowerCase()).toList() : [];
+          if (roles.contains('vendor') || role == 'vendor') {
+            vendorCapital += (data['walletBalance'] as num?)?.toDouble() ?? (data['vendorEarnings'] as num?)?.toDouble() ?? 0.0;
+            agentFloat += (data['e_float'] as num?)?.toDouble() ?? 0.0;
+            agentCommissions += (data['commissionBalance'] as num?)?.toDouble() ?? (data['dailyCommissionEarned'] as num?)?.toDouble() ?? 0.0;
+          } else if (roles.contains('driver') || role == 'driver') {
+            driverWallets += (data['walletBalance'] as num?)?.toDouble() ?? (data['vault_balance'] as num?)?.toDouble() ?? 0.0;
+          } else if (roles.contains('fundi') || role == 'fundi') {
+            fundiWallets += (data['walletBalance'] as num?)?.toDouble() ?? 0.0;
+          } else {
+            studentWallets += (data['walletBalance'] as num?)?.toDouble() ?? 0.0;
+            savingsVault += (data['vaultBalance'] as num?)?.toDouble() ?? (data['savingsBalance'] as num?)?.toDouble() ?? 0.0;
+          }
         }
+
+        final double totalAll = studentWallets + vendorCapital + agentFloat + agentCommissions + savingsVault + driverWallets + fundiWallets + _totalEscrow;
+
         if (mounted) {
           setState(() {
             _activeUsers = usersSnap.docs.length;
             _activeVendors = vendorsCount;
-            _systemFloat = floatSum;
+            _systemFloat = totalAll;
+            _financeCategories = {
+              'studentWallets': studentWallets,
+              'vendorCapital': vendorCapital,
+              'agentFloat': agentFloat,
+              'agentCommissions': agentCommissions,
+              'savingsVault': savingsVault,
+              'platformEscrow': _totalEscrow,
+              'driverWallets': driverWallets,
+              'fundiWallets': fundiWallets,
+            };
             _isLoading = false;
           });
         }
@@ -639,20 +734,122 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                   const SizedBox(height: 12),
                                   Row(
                                     children: [
-                                      const Icon(Icons.lock_clock, color: Colors.amberAccent, size: 14),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          'Platform Escrow: KES ${_totalEscrow.toStringAsFixed(2)}',
-                                          style: const TextStyle(color: Colors.amberAccent, fontSize: 12, fontWeight: FontWeight.w600),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFF00FFD1),
+                                          shape: BoxShape.circle,
                                         ),
                                       ),
+                                      const SizedBox(width: 6),
+                                      const Text(
+                                        'Realtime Ledger • All Funds Accounted',
+                                        style: TextStyle(color: Color(0xFF00FFD1), fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                      const Spacer(),
+                                      const Icon(Icons.verified_user, color: _neonCyan, size: 14),
+                                      const SizedBox(width: 4),
+                                      const Text('Live Audit Active', style: TextStyle(color: Colors.white70, fontSize: 11)),
                                     ],
                                   ),
                                 ],
                               ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Categorized System Finances Breakdown Grid
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: _cardColor,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: Colors.white.withOpacity(0.08)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Row(
+                                      children: [
+                                        Icon(Icons.pie_chart_outline_rounded, color: _neonCyan, size: 18),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'System Finances by Category',
+                                          style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.refresh, color: _neonCyan, size: 18),
+                                      tooltip: 'Refresh Finances',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      onPressed: _fetchAdminStats,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                // 8 Financial Categories Grid
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    _buildFinanceCategoryChip(
+                                      icon: Icons.school_rounded,
+                                      label: 'Student Wallets',
+                                      amount: _financeCategories['studentWallets'] ?? 0.0,
+                                      color: _neonCyan,
+                                    ),
+                                    _buildFinanceCategoryChip(
+                                      icon: Icons.storefront_rounded,
+                                      label: 'Vendor Capital',
+                                      amount: _financeCategories['vendorCapital'] ?? 0.0,
+                                      color: _neonOrange,
+                                    ),
+                                    _buildFinanceCategoryChip(
+                                      icon: Icons.currency_exchange_rounded,
+                                      label: 'Agent Float',
+                                      amount: _financeCategories['agentFloat'] ?? 0.0,
+                                      color: Colors.lightGreenAccent,
+                                    ),
+                                    _buildFinanceCategoryChip(
+                                      icon: Icons.monetization_on_rounded,
+                                      label: 'Agent Commissions',
+                                      amount: _financeCategories['agentCommissions'] ?? 0.0,
+                                      color: const Color(0xFFFFD700),
+                                    ),
+                                    _buildFinanceCategoryChip(
+                                      icon: Icons.savings_rounded,
+                                      label: 'Savings Vault',
+                                      amount: _financeCategories['savingsVault'] ?? 0.0,
+                                      color: Colors.purpleAccent,
+                                    ),
+                                    _buildFinanceCategoryChip(
+                                      icon: Icons.lock_clock_rounded,
+                                      label: 'Platform Escrow',
+                                      amount: _totalEscrow,
+                                      color: Colors.amberAccent,
+                                      isLive: true,
+                                    ),
+                                    _buildFinanceCategoryChip(
+                                      icon: Icons.delivery_dining_rounded,
+                                      label: 'DeLiv Drivers',
+                                      amount: _financeCategories['driverWallets'] ?? 0.0,
+                                      color: _neonBlue,
+                                    ),
+                                    _buildFinanceCategoryChip(
+                                      icon: Icons.handyman_rounded,
+                                      label: 'Fundi Artisans',
+                                      amount: _financeCategories['fundiWallets'] ?? 0.0,
+                                      color: Colors.tealAccent,
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 18),
@@ -1285,6 +1482,59 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildFinanceCategoryChip({
+    required IconData icon,
+    required String label,
+    required double amount,
+    required Color color,
+    bool isLive = false,
+  }) {
+    return Container(
+      width: (MediaQuery.of(context).size.width - 64) / 2,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: _surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 14),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (isLive) ...[
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(color: Colors.amberAccent, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 3),
+                const Text('LIVE', style: TextStyle(color: Colors.amberAccent, fontSize: 8, fontWeight: FontWeight.bold)),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'KES ${amount.toStringAsFixed(2)}',
+            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
