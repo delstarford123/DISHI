@@ -69,6 +69,266 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
     super.dispose();
   }
 
+
+  void _showWholesaleCatalogSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.local_shipping, color: _neonCyan),
+                      SizedBox(width: 8),
+                      Text('Direct Wholesale B2B Restocking', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  IconButton(icon: const Icon(Icons.close, color: _textSecondary), onPressed: () => Navigator.pop(ctx)),
+                ],
+              ),
+              const Text('Order raw food staples and bulk ingredients directly from verified campus distributors with zero middleman markup.', style: TextStyle(color: _textSecondary, fontSize: 12)),
+              const SizedBox(height: 16),
+              Expanded(
+                child: FutureBuilder<dynamic>(
+                  future: SecureHttpClient.get(ApiConfig.v6WholesaleCatalog),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator(color: _neonCyan));
+                    }
+                    if (snapshot.hasError || !snapshot.hasData || snapshot.data.statusCode != 200) {
+                      return const Center(child: Text('Could not load wholesale catalog.', style: TextStyle(color: _textSecondary)));
+                    }
+                    final data = jsonDecode(snapshot.data.body);
+                    final catalog = (data['catalog'] as List<dynamic>?) ?? [];
+                    return ListView.builder(
+                      itemCount: catalog.length,
+                      itemBuilder: (context, idx) {
+                        final item = catalog[idx];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: _bgColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(color: _neonCyan.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                                child: const Icon(Icons.inventory_2, color: _neonCyan, size: 28),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(item['name'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                                    const SizedBox(height: 2),
+                                    Text('Pack: ${item['unit']} • Supplier: ${item['supplier']}', style: const TextStyle(color: _textSecondary, fontSize: 11)),
+                                    const SizedBox(height: 4),
+                                    Text('KES ${item['price']}', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 14)),
+                                  ],
+                                ),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Restock order placed for ${item['name']}! Delivery within ${item['delivery_window'] ?? "24 hrs"}.'), backgroundColor: _neonCyan),
+                                  );
+                                },
+                                child: const Text('Order Bulk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showBarcodeRegistrationDialog() {
+    final skuCtrl = TextEditingController();
+    final nameCtrl = TextEditingController();
+    final priceCtrl = TextEditingController();
+    final stockCtrl = TextEditingController(text: '20');
+    String selectedCategory = 'supermarket';
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: _cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: _neonCyan)),
+          title: const Row(
+            children: [
+              Icon(Icons.qr_code_scanner, color: _neonCyan),
+              SizedBox(width: 8),
+              Text('Register Product Barcode / SKU', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Link an EAN-13 or UPC product barcode to your supermarket inventory for rapid scanning and live student searches.', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: skuCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Barcode / SKU (e.g. 6161100000018)',
+                    labelStyle: const TextStyle(color: _neonCyan),
+                    filled: true,
+                    fillColor: _bgColor,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Product Name (e.g. Broadways Bread 400g)',
+                    labelStyle: const TextStyle(color: _neonCyan),
+                    filled: true,
+                    fillColor: _bgColor,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: priceCtrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Price (KES)',
+                          labelStyle: const TextStyle(color: _neonCyan),
+                          filled: true,
+                          fillColor: _bgColor,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: stockCtrl,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Initial Stock',
+                          labelStyle: const TextStyle(color: _neonCyan),
+                          filled: true,
+                          fillColor: _bgColor,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedCategory,
+                  dropdownColor: _cardColor,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Department',
+                    labelStyle: const TextStyle(color: _neonCyan),
+                    filled: true,
+                    fillColor: _bgColor,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'supermarket', child: Text('Supermarket & Grocery')),
+                    DropdownMenuItem(value: 'food', child: Text('Cafeteria & Hot Meals')),
+                    DropdownMenuItem(value: 'electronics', child: Text('Electronics & Tech Locker')),
+                    DropdownMenuItem(value: 'stationery', child: Text('Stationery & Academic')),
+                    DropdownMenuItem(value: 'pharmacy', child: Text('Pharmacy & Personal Care')),
+                  ],
+                  onChanged: (val) => setDialogState(() => selectedCategory = val ?? 'supermarket'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: _textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+              onPressed: isSaving ? null : () async {
+                final sku = skuCtrl.text.trim();
+                final name = nameCtrl.text.trim();
+                final price = double.tryParse(priceCtrl.text.trim()) ?? 0;
+                final stock = int.tryParse(stockCtrl.text.trim()) ?? 0;
+                if (sku.isEmpty || name.isEmpty || price <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid SKU, Name and Price.')));
+                  return;
+                }
+                setDialogState(() => isSaving = true);
+                try {
+                  final resp = await SecureHttpClient.post(
+                    ApiConfig.v6BarcodeRegister,
+                    body: {
+                      'vendor_uid': widget.user['uid'],
+                      'sku': sku,
+                      'name': name,
+                      'price': price,
+                      'stock': stock,
+                      'category': selectedCategory,
+                    },
+                  );
+                  Navigator.pop(ctx);
+                  final data = jsonDecode(resp.body);
+                  if (resp.statusCode == 200 || resp.statusCode == 201) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(data['message'] ?? 'SKU Barcode registered!'), backgroundColor: _neonCyan),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(data['error'] ?? 'Registration failed'), backgroundColor: Colors.red),
+                    );
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                }
+              },
+              child: isSaving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) : const Text('Register SKU', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -401,6 +661,61 @@ class _VendorOperationsTabViewState extends State<VendorOperationsTabView> {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
+
+        // --- V6 POWER TOOLS: WHOLESALE B2B RESTOCKING & BARCODE SKU REGISTRATION ---
+        Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: _showWholesaleCatalogSheet,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _neonCyan.withOpacity(0.4)),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.local_shipping, color: _neonCyan, size: 28),
+                      SizedBox(height: 8),
+                      Text('B2B Wholesale', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      SizedBox(height: 2),
+                      Text('Direct restock', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: GestureDetector(
+                onTap: _showBarcodeRegistrationDialog,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _neonOrange.withOpacity(0.4)),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.qr_code_scanner, color: _neonOrange, size: 28),
+                      SizedBox(height: 8),
+                      Text('SKU Barcode', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      SizedBox(height: 2),
+                      Text('Register items', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
         // AI Predictive Prep
         _buildSectionHeader('AI Predictive Prep', Icons.auto_awesome, _neonCyan),
         const SizedBox(height: 8),

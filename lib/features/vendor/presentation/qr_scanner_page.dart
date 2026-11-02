@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'vendor_topup_view.dart';
 import '../../../core/services/permission_disclosure_service.dart';
+import '../../../core/services/api_config.dart';
+import '../../../core/services/secure_http_client.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF161B29);
 const Color _neonCyan = Color(0xFF05D5AA);
@@ -54,7 +56,162 @@ class _QrScannerPageState extends State<QrScannerPage> {
     }
   }
 
+  void _handlePickupVerification(String orderId, String token, String pin) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(
+        child: CircularProgressIndicator(color: _neonCyan),
+      ),
+    );
+
+    try {
+      final vendorUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final resp = await SecureHttpClient.post(
+        ApiConfig.v6ValidatePickupToken,
+        body: {
+          'order_id': orderId,
+          'token': token,
+          'pin': pin,
+          'vendor_uid': vendorUid,
+        },
+      );
+
+      Navigator.pop(context); // dismiss loading
+
+      final data = jsonDecode(resp.body);
+      if (resp.statusCode == 200 && data['valid'] == true) {
+        final studentName = data['student_name'] ?? 'Student';
+        final items = (data['items'] as List<dynamic>?) ?? [];
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: _cardColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: _neonCyan)),
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle, color: _neonCyan, size: 28),
+                SizedBox(width: 10),
+                Text('Order Verified & Released', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Customer: $studentName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                Text('Order #$orderId', style: const TextStyle(color: _neonCyan, fontSize: 12)),
+                const SizedBox(height: 12),
+                const Text('Items to Hand Over:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const SizedBox(height: 6),
+                ...items.map((it) => Text('• ${it['name']} x${it['quantity'] ?? 1}', style: const TextStyle(color: Colors.white))),
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.pop(context); // return to dashboard
+                },
+                child: const Text('Complete Pickup', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      } else {
+        final err = data['error'] ?? 'Token invalid or expired.';
+        _showErrorAndResume(err);
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      _showErrorAndResume('Verification failed: $e');
+    }
+  }
+
+  void _handleSupermarketSku(String sku) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator(color: _neonCyan)),
+    );
+
+    try {
+      final resp = await SecureHttpClient.get('${ApiConfig.v6SkuLookup}/$sku');
+      Navigator.pop(context); // dismiss loading
+
+      final data = jsonDecode(resp.body);
+      if (resp.statusCode == 200 && data['found'] == true) {
+        final product = data['product'] as Map<String, dynamic>;
+        if (!mounted) return;
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: _cardColor,
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+          builder: (ctx) => Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(child: Text(product['name'] ?? 'Product', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
+                    IconButton(icon: const Icon(Icons.close, color: Colors.white54), onPressed: () => Navigator.pop(ctx)),
+                  ],
+                ),
+                Text('SKU Barcode: $sku', style: const TextStyle(color: _neonCyan, fontSize: 12)),
+                const SizedBox(height: 12),
+                Text('Price: KES ${product['price']}', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                Text('Stock Remaining: ${product['stock'] ?? 0} units', style: const TextStyle(color: Colors.white70)),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Navigator.pop(context, product);
+                    },
+                    child: const Text('Add to POS Cart', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        _showErrorAndResume('SKU not found in catalog.');
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      _showErrorAndResume('Error scanning SKU: $e');
+    }
+  }
+
   void _handleScannedPayload(String payload) async {
+    // 1. Dynamic DISHI Pickup Pass
+    if (payload.startsWith('DISHI:PICKUP:')) {
+      final parts = payload.split(':');
+      if (parts.length >= 5) {
+        final orderId = parts[2];
+        final token = parts[3];
+        final pin = parts[4];
+        _handlePickupVerification(orderId, token, pin);
+        return;
+      }
+    }
+
+    // 2. Supermarket SKU Barcode (UPC / EAN-13 / 8-14 numeric digits)
+    final trimmed = payload.trim();
+    if (RegExp(r'^\d{8,14}$').hasMatch(trimmed)) {
+      _handleSupermarketSku(trimmed);
+      return;
+    }
+
     String? uid;
     
     // Try JSON parsing first

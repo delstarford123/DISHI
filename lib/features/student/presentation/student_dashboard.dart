@@ -16,6 +16,7 @@ import 'student_ledger_view.dart';
 import 'student_preorders_view.dart';
 import 'student_transfers_view.dart';
 import 'vendor_directory_view.dart';
+import 'campus_supermarket_view.dart';
 import 'campus_employment_hub.dart';
 import 'split_bill_view.dart';
 import 'okoa_food_view.dart';
@@ -2839,6 +2840,12 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
               label: 'Keja Yangu',
               glowColor: _neonBlue,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => HousingDashboardView(user: userModel.toJson()))),
+            ),
+            _buildGridActionItem(
+              icon: Icons.shopping_basket_rounded,
+              label: 'Supermarket',
+              glowColor: const Color(0xFF00E5FF),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CampusSupermarketView(userModel: userModel))),
             ),
             _buildGridActionItem(
               icon: Icons.storefront,

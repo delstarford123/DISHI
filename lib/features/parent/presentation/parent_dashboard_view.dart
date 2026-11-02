@@ -1079,15 +1079,27 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: GestureDetector(
-                  onTap: _showKillSwitchDialog,
+                  onTap: () => _showNutritionDigestDialog(student['uid'] as String, student['name'] as String),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(color: _neonPink.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: _neonPink.withOpacity(0.5))),
+                    decoration: BoxDecoration(color: Colors.lightGreenAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.lightGreenAccent.withOpacity(0.5))),
                     alignment: Alignment.center,
-                    child: const Text('Controls', style: TextStyle(color: _neonPink, fontWeight: FontWeight.bold, fontSize: 12)),
+                    child: const Text('Nutrition', style: TextStyle(color: Colors.lightGreenAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _showVelocityLimitsDialog(student['uid'] as String, student['name'] as String),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(color: Colors.purpleAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.purpleAccent.withOpacity(0.5))),
+                    alignment: Alignment.center,
+                    child: const Text('Caps', style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ),
               ),
@@ -1119,6 +1131,9 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
 
   Widget _buildParentQuickActions() {
     final actions = [
+      _buildParentActionIcon(Icons.restaurant_menu_rounded, 'Nutrition', Colors.lightGreenAccent, _showNutritionDigestDialog),
+      _buildParentActionIcon(Icons.speed_rounded, 'Spend Caps', Colors.purpleAccent, _showVelocityLimitsDialog),
+      _buildParentActionIcon(Icons.account_balance_rounded, 'Tuition/Rent', _neonCyan, _showTuitionDisburseDialog),
       _buildParentActionIcon(Icons.security_rounded, 'Kill Switch', _neonPink, _showKillSwitchDialog),
       _buildParentActionIcon(Icons.warning_amber_rounded, 'SOS Alerts', MPesaTheme.primaryRed, _showEmergencyAlerts, badge: _unresolvedSosCount),
       _buildParentActionIcon(Icons.gavel_rounded, 'Disputes', const Color(0xFFF59E0B), _showDisputes),
@@ -3511,6 +3526,353 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
     );
   }
 
+  void _showNutritionDigestDialog([String? directUid, String? directName]) async {
+    String studentUid = directUid ?? _globalSelectedStudentUid ?? (_linkedStudents.isNotEmpty ? _linkedStudents.first['uid'] : '');
+    String studentName = directName ?? (_linkedStudents.isNotEmpty ? _linkedStudents.first['name'] : 'Student');
+    if (studentUid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No student selected.')));
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Colors.lightGreenAccent.withOpacity(0.5))),
+        title: Row(
+          children: [
+            const Icon(Icons.eco_rounded, color: Colors.lightGreenAccent),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text("$studentName's Nutrition Digest", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+        content: FutureBuilder<http.Response>(
+          future: SecureHttpClient.get('${ApiConfig.v6NutritionDigest}/$studentUid'),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                height: 150,
+                child: Center(child: CircularProgressIndicator(color: Colors.lightGreenAccent)),
+              );
+            }
+            if (snapshot.hasError || !snapshot.hasData || snapshot.data!.statusCode != 200) {
+              return const SizedBox(
+                height: 120,
+                child: Center(child: Text('No meal history recorded in the past 14 days.', style: TextStyle(color: _textSecondary), textAlign: TextAlign.center)),
+              );
+            }
+            try {
+              final data = jsonDecode(snapshot.data!.body);
+              final breakdown = data['breakdown'] as Map<String, dynamic>? ?? {};
+              final wellness = data['wellness_summary'] ?? 'Active Nutrition';
+              final meals = data['total_meals_recorded'] ?? 0;
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(color: Colors.lightGreenAccent.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.health_and_safety, color: Colors.lightGreenAccent, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(wellness, style: const TextStyle(color: Colors.lightGreenAccent, fontWeight: FontWeight.bold, fontSize: 13))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('14-Day Breakdown ($meals Meals Recorded):', style: const TextStyle(color: _textSecondary, fontSize: 12)),
+                  const SizedBox(height: 12),
+                  _buildNutrientBar('Greens & Vegetables', (breakdown['greens'] as num?)?.toDouble() ?? 25.0, Colors.green),
+                  const SizedBox(height: 8),
+                  _buildNutrientBar('Protein (Meat, Beans, Eggs)', (breakdown['protein'] as num?)?.toDouble() ?? 35.0, Colors.orangeAccent),
+                  const SizedBox(height: 8),
+                  _buildNutrientBar('Energy Grains (Rice, Ugali)', (breakdown['grains'] as num?)?.toDouble() ?? 30.0, Colors.amber),
+                  const SizedBox(height: 8),
+                  _buildNutrientBar('Fruits & Healthy Drinks', (breakdown['fruits'] as num?)?.toDouble() ?? 10.0, Colors.cyanAccent),
+                ],
+              );
+            } catch (e) {
+              return Text('Error displaying report: $e', style: const TextStyle(color: Colors.red));
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close', style: TextStyle(color: Colors.lightGreenAccent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNutrientBar(String label, double percentage, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+            Text('${percentage.toStringAsFixed(0)}%', style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: (percentage / 100).clamp(0.0, 1.0),
+            backgroundColor: Colors.white12,
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+            minHeight: 6,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showVelocityLimitsDialog([String? directUid, String? directName]) {
+    String studentUid = directUid ?? _globalSelectedStudentUid ?? (_linkedStudents.isNotEmpty ? _linkedStudents.first['uid'] : '');
+    String studentName = directName ?? (_linkedStudents.isNotEmpty ? _linkedStudents.first['name'] : 'Student');
+    if (studentUid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No student linked.')));
+      return;
+    }
+
+    final dailyCtrl = TextEditingController(text: '600');
+    final perTxCtrl = TextEditingController(text: '350');
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: _cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.purpleAccent)),
+          title: Row(
+            children: [
+              const Icon(Icons.speed_rounded, color: Colors.purpleAccent),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Spending Limits: $studentName', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Prevent excessive spending by setting velocity caps.', style: TextStyle(color: _textSecondary, fontSize: 12)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: dailyCtrl,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Daily Spending Cap (KES)',
+                  labelStyle: const TextStyle(color: Colors.purpleAccent),
+                  prefixIcon: const Icon(Icons.calendar_today, color: Colors.purpleAccent, size: 18),
+                  filled: true,
+                  fillColor: _bgColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: perTxCtrl,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Max Per-Transaction Cap (KES)',
+                  labelStyle: const TextStyle(color: Colors.purpleAccent),
+                  prefixIcon: const Icon(Icons.payments, color: Colors.purpleAccent, size: 18),
+                  filled: true,
+                  fillColor: _bgColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: _textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.purpleAccent, foregroundColor: Colors.white),
+              onPressed: isSaving ? null : () async {
+                final daily = double.tryParse(dailyCtrl.text.trim()) ?? 0;
+                final perTx = double.tryParse(perTxCtrl.text.trim()) ?? 0;
+                if (daily <= 0 || perTx <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid caps.')));
+                  return;
+                }
+                setDialogState(() => isSaving = true);
+                try {
+                  final resp = await SecureHttpClient.post(
+                    ApiConfig.v6SpendingLimits,
+                    body: {
+                      'student_uid': studentUid,
+                      'daily_limit': daily,
+                      'per_tx_limit': perTx,
+                    },
+                  );
+                  Navigator.pop(ctx);
+                  if (resp.statusCode == 200) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Spending caps saved for $studentName!'), backgroundColor: Colors.purpleAccent),
+                    );
+                    _fetchParentData();
+                  } else {
+                    final err = jsonDecode(resp.body)['error'] ?? 'Failed to update caps';
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err), backgroundColor: Colors.red));
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                }
+              },
+              child: isSaving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Save Caps'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTuitionDisburseDialog() {
+    final amountCtrl = TextEditingController();
+    final shortcodeCtrl = TextEditingController();
+    final accountCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: _cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: _neonCyan)),
+          title: const Row(
+            children: [
+              Icon(Icons.account_balance_rounded, color: _neonCyan),
+              SizedBox(width: 8),
+              Text('Tuition & Rent Disbursement', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Directly disburse funds from your locked vault to verified university tuition paybills or hostel accounts.', style: TextStyle(color: _textSecondary, fontSize: 12)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Amount (KES)',
+                    labelStyle: const TextStyle(color: _neonCyan),
+                    filled: true,
+                    fillColor: _bgColor,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: shortcodeCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Paybill / Till Number',
+                    labelStyle: const TextStyle(color: _neonCyan),
+                    filled: true,
+                    fillColor: _bgColor,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: accountCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Account / Reg No / Room No',
+                    labelStyle: const TextStyle(color: _neonCyan),
+                    filled: true,
+                    fillColor: _bgColor,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Purpose (e.g. Semester Tuition, Hostel Rent)',
+                    labelStyle: const TextStyle(color: _neonCyan),
+                    filled: true,
+                    fillColor: _bgColor,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: _textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+              onPressed: isSubmitting ? null : () async {
+                final amt = double.tryParse(amountCtrl.text.trim()) ?? 0;
+                final sc = shortcodeCtrl.text.trim();
+                final acc = accountCtrl.text.trim();
+                if (amt <= 0 || sc.isEmpty || acc.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields.')));
+                  return;
+                }
+                setDialogState(() => isSubmitting = true);
+                try {
+                  final resp = await SecureHttpClient.post(
+                    ApiConfig.v6TuitionVaultDisburse,
+                    body: {
+                      'parent_uid': FirebaseAuth.instance.currentUser?.uid ?? '',
+                      'amount': amt,
+                      'target_shortcode': sc,
+                      'account_reference': acc,
+                      'institution_name': noteCtrl.text.trim().isEmpty ? 'Institution' : noteCtrl.text.trim(),
+                    },
+                  );
+                  Navigator.pop(ctx);
+                  final data = jsonDecode(resp.body);
+                  if (resp.statusCode == 200) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(data['message'] ?? 'Disbursement processed!'), backgroundColor: _neonCyan),
+                    );
+                    _fetchParentData();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(data['error'] ?? 'Disbursement failed'), backgroundColor: Colors.red),
+                    );
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                }
+              },
+              child: isSubmitting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) : const Text('Disburse Funds', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showScheduledAllowances() {
     Navigator.push(
       context,
@@ -4080,6 +4442,7 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
     final amountController = TextEditingController();
     bool isProcessing = false;
     String selectedMethod = 'vault'; // 'vault' or 'mpesa'
+    String selectedPurpose = 'all'; // 'all', 'food', 'equipment'
 
     showModalBottomSheet(
       context: context,
@@ -4314,6 +4677,39 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
                 ),
                 const SizedBox(height: 16),
 
+                // Purpose-Locked Allowance Selector (Feature 9)
+                const Text('Purpose-Locked Allowance:', style: TextStyle(color: _textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    {'id': 'all', 'label': '🌟 General', 'color': _neonCyan},
+                    {'id': 'food', 'label': '🍕 Food Only', 'color': _neonOrange},
+                    {'id': 'equipment', 'label': '💻 Tech & Lab', 'color': _neonBlue},
+                  ].map((p) {
+                    final isSel = (selectedPurpose == p['id']);
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () => setModalState(() => selectedPurpose = p['id'] as String),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSel ? (p['color'] as Color).withOpacity(0.25) : _cardColor,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: isSel ? (p['color'] as Color) : Colors.white12),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            p['label'] as String,
+                            style: TextStyle(color: isSel ? Colors.white : Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+
                 // Amount Text Field
                 TextField(
                   controller: amountController,
@@ -4385,14 +4781,21 @@ class _ParentDashboardViewState extends State<ParentDashboardView> with SingleTi
                           final parentUid = FirebaseAuth.instance.currentUser!.uid;
                           http.Response response;
                           try {
+                            final targetUrl = (selectedPurpose != 'all') 
+                                ? ApiConfig.v6PurposeTransfer 
+                                : ApiConfig.parentV4Transfer;
+                            final payload = {
+                              'parentUid': parentUid,
+                              'parent_uid': parentUid,
+                              'studentUid': childUid,
+                              'student_uid': childUid,
+                              'amount': parsedAmt,
+                              if (selectedPurpose != 'all') 'purpose': selectedPurpose,
+                            };
                             response = await http.post(
-                              Uri.parse(ApiConfig.parentV4Transfer),
+                              Uri.parse(targetUrl),
                               headers: {'Content-Type': 'application/json'},
-                              body: json.encode({
-                                'parentUid': parentUid,
-                                'studentUid': childUid,
-                                'amount': parsedAmt,
-                              }),
+                              body: json.encode(payload),
                             ).timeout(const Duration(seconds: 30));
                           } catch (_) {
                             response = await http.post(

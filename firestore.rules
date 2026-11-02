@@ -1321,6 +1321,41 @@ service cloud.firestore {
     match /c2b_collections/{collectionId} {
       allow read, write: if isAdmin();
     }
+
+    // ── V6 CAMPUS COMMERCE, SUPERMARKETS & SMART LOGISTICS ──────────────────
+    match /supermarket_skus/{skuId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+    match /equipment_installments/{installmentId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+    match /dorm_chama_pools/{poolId} {
+      allow read, write: if isAuth();
+    }
+    match /sponsored_carts/{cartId} {
+      allow read, write: if isAuth();
+    }
+    match /okoa_meal_vouchers/{voucherId} {
+      allow read, write: if isAuth();
+    }
+    match /dorm_splits/{splitId} {
+      allow read, write: if isAuth();
+    }
+    match /dine_in_orders/{orderId} {
+      allow read, write: if isAuth();
+    }
+    match /flash_deals/{dealId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+    match /wholesale_orders/{orderId} {
+      allow read, write: if isAuth();
+    }
+    match /tuition_vault/{vaultId} {
+      allow read, write: if isAuth();
+    }
   }
 }
 

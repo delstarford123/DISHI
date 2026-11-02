@@ -132,6 +132,9 @@ from routes.virtual_card_routes import card_bp
 from routes.vibe_routes import vibe_bp
 from routes.v6.campus_gigs_routes import campus_gigs_v6_bp
 from routes.v6.vendor_discovery_routes import vendor_discovery_v6_bp
+from routes.v6.commerce_routes import commerce_v6_bp
+from routes.v6.parent_sync_routes import parent_sync_v6_bp
+from routes.v6.campus_logistics_routes import campus_logistics_v6_bp
 from routes.sos_notify_routes import sos_notify_bp
 from routes.games_routes import games_bp
 from routes.system_routes import system_bp
@@ -190,6 +193,9 @@ app.register_blueprint(card_bp)
 app.register_blueprint(vibe_bp, url_prefix='/api/vibe')
 app.register_blueprint(campus_gigs_v6_bp,   url_prefix='/api/v6/campus_gigs')
 app.register_blueprint(vendor_discovery_v6_bp, url_prefix='/api/v6/vendors')
+app.register_blueprint(commerce_v6_bp,          url_prefix='/api/v6/commerce')
+app.register_blueprint(parent_sync_v6_bp,       url_prefix='/api/v6/parent_sync')
+app.register_blueprint(campus_logistics_v6_bp,  url_prefix='/api/v6/logistics')
 app.register_blueprint(sos_notify_bp,        url_prefix='/api/v1/notify')
 app.register_blueprint(games_bp,             url_prefix='/api/v1/games')
 
@@ -484,6 +490,30 @@ def student_fund_shortlink(code):
 @app.route('/harambee/<string:code>')
 def harambee_shortlink(code):
     return redirect(f"/fund?code={code}&dishi_id={code}")
+
+@app.route('/pay_cart')
+def sponsored_cart_pay():
+    cart_id = (request.args.get('cart_id') or request.args.get('id') or '').strip()
+    if not cart_id:
+        return render_template('donate.html', error="Invalid cart payment link.", student_name="Student", user_id="", dest="walletBalance", campaign=None)
+    try:
+        from firebase_admin import firestore
+        db = firestore.client()
+        cart_doc = db.collection('sponsored_carts').document(cart_id).get()
+        if not cart_doc.exists:
+            return render_template('donate.html', error="Sponsored cart not found or has expired.", student_name="Student", user_id="", dest="walletBalance", campaign=None)
+        cart_data = cart_doc.to_dict() or {}
+        student_name = cart_data.get('student_name', 'Student')
+        user_id = cart_data.get('student_uid', '')
+        total_amt = cart_data.get('total_amount', 0)
+        return render_template('donate.html', 
+                               student_name=f"{student_name} (Cart: KES {total_amt:,.0f})",
+                               user_id=user_id,
+                               dest='walletBalance',
+                               cart=cart_data,
+                               campaign=None)
+    except Exception as e:
+        return render_template('donate.html', error="Error loading cart payment page.", student_name="Student", user_id="", dest="walletBalance", campaign=None)
 
 @app.route('/fund')
 def harambee_fund():

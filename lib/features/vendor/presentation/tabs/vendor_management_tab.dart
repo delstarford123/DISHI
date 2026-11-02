@@ -243,7 +243,24 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Staff added'), backgroundColor: _neonCyan));
+        // Also record in vendor subcollection for instant reactive UI
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.user['uid'])
+              .collection('staff')
+              .add({
+            'name': name,
+            'role': role,
+            'pin': pin,
+            'isOnDuty': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        } catch (_) {}
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Staff added successfully'), backgroundColor: _neonCyan));
+        }
         _staffNameController.clear();
         _staffRoleController.clear();
         _staffPinController.clear();
@@ -497,7 +514,83 @@ class _VendorManagementTabViewState extends State<VendorManagementTabView> {
                   label: Text(_isStaffAdding ? 'Adding...' : 'Add Staff Member', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(backgroundColor: _neonPink, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 ),
-              )
+              ),
+
+              // Real-Time Active Attendants & Fast Cashier PIN Switch (V6 Feature 23)
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(widget.user['uid'])
+                    .collection('staff')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 20),
+                      const Divider(color: _textSecondary),
+                      const SizedBox(height: 8),
+                      const Text('Attendants & Cashiers on Duty (1-Tap Switch):', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      ...snapshot.data!.docs.map((sDoc) {
+                        final sData = sDoc.data() as Map<String, dynamic>;
+                        final bool isOnDuty = sData['isOnDuty'] ?? false;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _bgColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isOnDuty ? _neonCyan : Colors.white12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 14,
+                                    backgroundColor: isOnDuty ? _neonCyan : Colors.white24,
+                                    child: Icon(Icons.person, size: 16, color: isOnDuty ? Colors.black : Colors.white),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(sData['name'] ?? 'Staff', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                                      Text('${sData['role'] ?? 'Cashier'} • PIN: ****', style: const TextStyle(color: _textSecondary, fontSize: 11)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isOnDuty ? _neonCyan : Colors.white12,
+                                  foregroundColor: isOnDuty ? Colors.black : Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  minimumSize: Size.zero,
+                                ),
+                                onPressed: () async {
+                                  await sDoc.reference.update({'isOnDuty': !isOnDuty});
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('${sData['name']} is now ${!isOnDuty ? "Active Cashier on Duty" : "Off Duty"}!'), backgroundColor: _neonCyan),
+                                    );
+                                  }
+                                },
+                                child: Text(isOnDuty ? 'Active On Duty' : 'Set Active', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  );
+                },
+              ),
             ],
           ),
         ),
