@@ -440,15 +440,20 @@ class DishiVoiceService {
 
   void _handleSpeechStatus(String status) {
     if (status == 'done' || status == 'notListening') {
-      isListeningNotifier.value = false;
+      final txt = transcriptNotifier.value.trim();
+      if (txt.isNotEmpty && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
+        isListeningNotifier.value = false;
+        _silenceDebounceTimer?.cancel();
+        processVoiceCommand(txt);
+        return;
+      }
+
+      // If speech finished without words, silently restart the listening loop
+      // Keep isListeningNotifier.value = true so the UI remains calm and does not flicker!
       if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
-        final txt = transcriptNotifier.value.trim();
-        if (txt.isNotEmpty) {
-          _silenceDebounceTimer?.cancel();
-          processVoiceCommand(txt);
-        } else {
-          _scheduleRestartListening(delayMs: 60);
-        }
+        _scheduleRestartListening(delayMs: 100);
+      } else {
+        isListeningNotifier.value = false;
       }
     } else if (status == 'listening') {
       isListeningNotifier.value = true;
@@ -456,9 +461,11 @@ class DishiVoiceService {
   }
 
   void _handleSpeechError(dynamic error) {
-    isListeningNotifier.value = false;
+    // Normal speech timeouts and silence cycles should silently restart without flickering the UI
     if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
-      _scheduleRestartListening(delayMs: 200);
+      _scheduleRestartListening(delayMs: 250);
+    } else {
+      isListeningNotifier.value = false;
     }
   }
 
@@ -531,17 +538,18 @@ class DishiVoiceService {
           }
         },
         listenOptions: stt.SpeechListenOptions(
-          listenMode: stt.ListenMode.confirmation,
+          listenMode: stt.ListenMode.dictation,
           partialResults: true,
           cancelOnError: false,
-          pauseFor: const Duration(milliseconds: 1000),
+          pauseFor: const Duration(seconds: 4),
           localeId: _currentLanguage == 'sw' || _currentLanguage == 'sheng' ? 'sw_KE' : 'en_US',
         ),
       );
     } catch (_) {
-      isListeningNotifier.value = false;
       if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
-        _scheduleRestartListening(delayMs: 250);
+        _scheduleRestartListening(delayMs: 300);
+      } else {
+        isListeningNotifier.value = false;
       }
     }
   }

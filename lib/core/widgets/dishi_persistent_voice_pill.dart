@@ -142,17 +142,21 @@ class _DishiPersistentVoicePillState extends State<DishiPersistentVoicePill> wit
                                   children: [
                                     Row(
                                       children: [
-                                        Text(
-                                          isListening ? 'DISHI Listening...' : 'DISHI Online (Tap to Speak)',
-                                          style: TextStyle(
-                                            color: isListening ? kVoiceNeonGold : kVoiceNeonCyan,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
+                                        Flexible(
+                                          child: Text(
+                                            isListening ? 'Listening...' : 'DISHI Online',
+                                            style: TextStyle(
+                                              color: isListening ? kVoiceNeonGold : kVoiceNeonCyan,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
                                           ),
                                         ),
-                                        const SizedBox(width: 6),
+                                        const SizedBox(width: 4),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                           decoration: BoxDecoration(
                                             color: Colors.white.withValues(alpha: 0.1),
                                             borderRadius: BorderRadius.circular(6),
@@ -195,8 +199,8 @@ class _DishiPersistentVoicePillState extends State<DishiPersistentVoicePill> wit
 
                             // Interactive Action Buttons
                             IconButton(
-                              icon: const Icon(Icons.school_rounded, color: Colors.amberAccent, size: 20),
-                              padding: const EdgeInsets.all(8),
+                              icon: const Icon(Icons.school_rounded, color: Colors.amberAccent, size: 19),
+                              padding: const EdgeInsets.all(4),
                               constraints: const BoxConstraints(),
                               onPressed: () {
                                 HapticFeedback.lightImpact();
@@ -204,8 +208,8 @@ class _DishiPersistentVoicePillState extends State<DishiPersistentVoicePill> wit
                               },
                             ),
                             IconButton(
-                              icon: const Icon(Icons.open_in_full_rounded, color: Colors.white70, size: 18),
-                              padding: const EdgeInsets.all(8),
+                              icon: const Icon(Icons.open_in_full_rounded, color: Colors.white70, size: 17),
+                              padding: const EdgeInsets.all(4),
                               constraints: const BoxConstraints(),
                               onPressed: () {
                                 HapticFeedback.lightImpact();
@@ -214,8 +218,8 @@ class _DishiPersistentVoicePillState extends State<DishiPersistentVoicePill> wit
                               },
                             ),
                             IconButton(
-                              icon: const Icon(Icons.power_settings_new_rounded, color: Colors.redAccent, size: 20),
-                              padding: const EdgeInsets.all(8),
+                              icon: const Icon(Icons.power_settings_new_rounded, color: Colors.redAccent, size: 19),
+                              padding: const EdgeInsets.all(4),
                               constraints: const BoxConstraints(),
                               onPressed: () {
                                 HapticFeedback.mediumImpact();
