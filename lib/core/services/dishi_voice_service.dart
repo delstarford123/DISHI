@@ -72,7 +72,10 @@ class DishiVoiceService {
   String? _userUid;
 
   Timer? _rearmTimer;
+  Timer? _speechWatchdogTimer;
   bool _isInitialized = false;
+  bool _isSpeechInitialized = false;
+  Map? _cachedVoice;
 
   VoicePersona get selectedPersona => _selectedPersona;
   String get currentLanguage => _currentLanguage;
@@ -106,20 +109,25 @@ class DishiVoiceService {
 
       await _applyTtsSettings();
 
-      // Configure TTS completion handler to resume listening loop
+      // Configure TTS completion handler to immediately resume listening loop
       _flutterTts.setCompletionHandler(() {
+        _speechWatchdogTimer?.cancel();
         isSpeakingNotifier.value = false;
         if (isOnlineNotifier.value) {
-          _scheduleRestartListening(delayMs: 300);
+          _scheduleRestartListening(delayMs: 60);
         }
       });
 
       _flutterTts.setErrorHandler((_) {
+        _speechWatchdogTimer?.cancel();
         isSpeakingNotifier.value = false;
         if (isOnlineNotifier.value) {
-          _scheduleRestartListening(delayMs: 400);
+          _scheduleRestartListening(delayMs: 150);
         }
       });
+
+      // Warm up SpeechRecognizer ahead of time for instant speech activation
+      _ensureSpeechInitialized();
 
       _isInitialized = true;
     } catch (_) {}
@@ -197,6 +205,7 @@ class DishiVoiceService {
     _voiceGender = gender == 'male' ? 'male' : 'female';
     _pitch = _voiceGender == 'male' ? 0.72 : 1.22;
     _speechRate = _voiceGender == 'male' ? 0.48 : 0.52;
+    _cachedVoice = null;
     await _applyTtsSettings();
     await _savePreferences();
 
@@ -216,6 +225,7 @@ class DishiVoiceService {
     _voiceGender = persona.isFemale ? 'female' : 'male';
     _pitch = persona.isFemale ? 1.22 : 0.72;
     _speechRate = persona.defaultRate;
+    _cachedVoice = null;
     await _applyTtsSettings();
     await _savePreferences();
 
@@ -228,6 +238,7 @@ class DishiVoiceService {
   /// Set Active Spoken Language
   Future<void> setLanguage(String lang) async {
     _currentLanguage = lang;
+    _cachedVoice = null;
     await _applyTtsSettings();
     await _savePreferences();
 
@@ -244,33 +255,50 @@ class DishiVoiceService {
     await speak(trainingMsg);
   }
 
-  /// Speak response via FlutterTTS with calibrated masculine/feminine acoustics
+  /// Ultra-fast speech response via cached FlutterTTS with fail-safe watchdog timer
   Future<void> speak(String text, {bool resumeListeningAfter = true}) async {
     try {
+      _silenceDebounceTimer?.cancel();
+      _speechWatchdogTimer?.cancel();
       isSpeakingNotifier.value = true;
+
       try {
         await _speech.stop();
         isListeningNotifier.value = false;
       } catch (_) {}
 
       await _flutterTts.stop();
-      await _applyTtsSettings();
       final clean = sanitizeForTts(text);
       lastSpokenResponseNotifier.value = clean;
+
+      // Fail-safe watchdog: estimate speech duration based on word count
+      final wordCount = clean.split(RegExp(r'\s+')).length;
+      final estimatedDurationMs = (wordCount * 330) + 1200;
+      _speechWatchdogTimer = Timer(Duration(milliseconds: estimatedDurationMs), () {
+        if (isSpeakingNotifier.value) {
+          isSpeakingNotifier.value = false;
+          if (resumeListeningAfter && isOnlineNotifier.value) {
+            _scheduleRestartListening(delayMs: 60);
+          }
+        }
+      });
+
       await _flutterTts.speak(clean);
 
       if (!resumeListeningAfter) {
+        _speechWatchdogTimer?.cancel();
         isSpeakingNotifier.value = false;
       }
     } catch (_) {
+      _speechWatchdogTimer?.cancel();
       isSpeakingNotifier.value = false;
       if (resumeListeningAfter && isOnlineNotifier.value) {
-        _scheduleRestartListening(delayMs: 300);
+        _scheduleRestartListening(delayMs: 150);
       }
     }
   }
 
-  /// Native Android TTS calibration with strict female rejection in male matching
+  /// Native Android TTS calibration with voice caching and strict female rejection in male matching
   Future<void> _applyTtsSettings() async {
     try {
       String ttsLocale = "en-US";
@@ -286,6 +314,14 @@ class DishiVoiceService {
 
       await _flutterTts.setPitch(_pitch);
       await _flutterTts.setSpeechRate(_speechRate);
+
+      if (_cachedVoice != null) {
+        await _flutterTts.setVoice({
+          'name': _cachedVoice!['name'],
+          'locale': _cachedVoice!['locale'],
+        });
+        return;
+      }
 
       final dynamic rawVoices = await _flutterTts.getVoices;
       if (rawVoices is List && rawVoices.isNotEmpty) {
@@ -376,6 +412,7 @@ class DishiVoiceService {
         }
 
         if (matchedVoice != null) {
+          _cachedVoice = matchedVoice;
           await _flutterTts.setVoice({
             'name': matchedVoice['name'],
             'locale': matchedVoice['locale'],
@@ -385,77 +422,131 @@ class DishiVoiceService {
     } catch (_) {}
   }
 
-  /// Internal continuous listening loop
+  /// Ensure speech engine is initialized once and stays online
+  Future<bool> _ensureSpeechInitialized() async {
+    if (_isSpeechInitialized) return true;
+    try {
+      _isSpeechInitialized = await _speech.initialize(
+        onStatus: _handleSpeechStatus,
+        onError: _handleSpeechError,
+        debugLogging: false,
+      );
+      return _isSpeechInitialized;
+    } catch (_) {
+      _isSpeechInitialized = false;
+      return false;
+    }
+  }
+
+  void _handleSpeechStatus(String status) {
+    if (status == 'done' || status == 'notListening') {
+      isListeningNotifier.value = false;
+      if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
+        final txt = transcriptNotifier.value.trim();
+        if (txt.isNotEmpty) {
+          _silenceDebounceTimer?.cancel();
+          processVoiceCommand(txt);
+        } else {
+          _scheduleRestartListening(delayMs: 60);
+        }
+      }
+    } else if (status == 'listening') {
+      isListeningNotifier.value = true;
+    }
+  }
+
+  void _handleSpeechError(dynamic error) {
+    isListeningNotifier.value = false;
+    if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
+      _scheduleRestartListening(delayMs: 200);
+    }
+  }
+
+  bool _isHighConfidencePhrase(String low) {
+    const triggers = [
+      'hello dishi', 'hey dishi', 'sema dishi', 'dishi', 'wake up',
+      'thank you', 'asante', 'kwaheri', 'standby', 'stop',
+      'preorder', 'pre-order', 'agiza',
+      'balance', 'salio', 'pesa', 'wallet',
+      'supermarket', 'duka', 'calculator', 'grocer',
+      'gig', 'fundi', 'kazi',
+      'split', 'gawanya',
+      'okoa', 'rescue', 'hungry', 'nimeishiwa', 'chakula',
+      'hostel', 'keja', 'housing',
+      'map', 'ramani', 'where',
+      'timer', 'study', 'focus',
+      'idol', 'campus idol', 'sing', 'imba',
+      'time', 'saa ngapi', 'what time',
+      'child', 'dependant', 'student', 'last bought',
+      'uptown', 'swipe', 'matches', 'chats',
+    ];
+    for (final t in triggers) {
+      if (low.contains(t)) return true;
+    }
+    return false;
+  }
+
+  /// Internal continuous listening loop with ultra-low latency confirmation mode
   Future<void> _startListeningLoop() async {
     if (!isOnlineNotifier.value || isSpeakingNotifier.value || isProcessingNotifier.value) return;
 
     try {
-      bool available = await _speech.initialize(
-        onStatus: (status) {
-          if (status == 'done' || status == 'notListening') {
-            isListeningNotifier.value = false;
-            if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
-              final txt = transcriptNotifier.value.trim();
-              if (txt.isNotEmpty) {
-                _silenceDebounceTimer?.cancel();
-                processVoiceCommand(txt);
-              } else {
-                _scheduleRestartListening(delayMs: 150);
-              }
-            }
-          }
-        },
-        onError: (_) {
-          isListeningNotifier.value = false;
-          if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
-            _scheduleRestartListening(delayMs: 300);
-          }
-        },
-      );
-
-      if (available) {
-        isListeningNotifier.value = true;
-        await _speech.listen(
-          onResult: (val) {
-            transcriptNotifier.value = val.recognizedWords;
-            final words = val.recognizedWords.trim();
-            if (words.isNotEmpty) {
-              if (val.finalResult) {
-                _silenceDebounceTimer?.cancel();
-                _speech.stop();
-                processVoiceCommand(words);
-              } else {
-                // Real-time debounce: trigger 850ms after the comrade pauses speaking!
-                _silenceDebounceTimer?.cancel();
-                _silenceDebounceTimer = Timer(const Duration(milliseconds: 850), () async {
-                  if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
-                    final currentText = transcriptNotifier.value.trim();
-                    if (currentText.isNotEmpty) {
-                      await _speech.stop();
-                      processVoiceCommand(currentText);
-                    }
-                  }
-                });
-              }
-            }
-          },
-          listenOptions: stt.SpeechListenOptions(
-            listenMode: stt.ListenMode.dictation,
-            partialResults: true,
-            cancelOnError: false,
-            localeId: _currentLanguage == 'sw' || _currentLanguage == 'sheng' ? 'sw_KE' : 'en_US',
-          ),
-        );
+      final available = await _ensureSpeechInitialized();
+      if (!available) {
+        _scheduleRestartListening(delayMs: 250);
+        return;
       }
+
+      if (_speech.isListening) {
+        await _speech.stop();
+      }
+
+      isListeningNotifier.value = true;
+
+      await _speech.listen(
+        onResult: (val) {
+          transcriptNotifier.value = val.recognizedWords;
+          final words = val.recognizedWords.trim();
+          if (words.isNotEmpty) {
+            if (val.finalResult) {
+              _silenceDebounceTimer?.cancel();
+              _speech.stop();
+              processVoiceCommand(words);
+            } else {
+              // Ultra-fast responsive debounce: 200ms on high confidence phrase, 350ms on conversational partial
+              final isHigh = _isHighConfidencePhrase(words.toLowerCase());
+              final debounceMs = isHigh ? 200 : 350;
+
+              _silenceDebounceTimer?.cancel();
+              _silenceDebounceTimer = Timer(Duration(milliseconds: debounceMs), () async {
+                if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
+                  final currentText = transcriptNotifier.value.trim();
+                  if (currentText.isNotEmpty) {
+                    await _speech.stop();
+                    processVoiceCommand(currentText);
+                  }
+                }
+              });
+            }
+          }
+        },
+        listenOptions: stt.SpeechListenOptions(
+          listenMode: stt.ListenMode.confirmation,
+          partialResults: true,
+          cancelOnError: false,
+          pauseFor: const Duration(milliseconds: 1000),
+          localeId: _currentLanguage == 'sw' || _currentLanguage == 'sheng' ? 'sw_KE' : 'en_US',
+        ),
+      );
     } catch (_) {
       isListeningNotifier.value = false;
       if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
-        _scheduleRestartListening(delayMs: 400);
+        _scheduleRestartListening(delayMs: 250);
       }
     }
   }
 
-  void _scheduleRestartListening({int delayMs = 150}) {
+  void _scheduleRestartListening({int delayMs = 60}) {
     _rearmTimer?.cancel();
     _rearmTimer = Timer(Duration(milliseconds: delayMs), () {
       if (isOnlineNotifier.value && !isSpeakingNotifier.value && !isProcessingNotifier.value) {
@@ -464,12 +555,19 @@ class DishiVoiceService {
     });
   }
 
+  /// Stop listening immediately
+  Future<void> stopListening() async {
+    _silenceDebounceTimer?.cancel();
+    try {
+      await _speech.stop();
+    } catch (_) {}
+    isListeningNotifier.value = false;
+  }
+
   /// Toggle manual microphone listening state
   Future<void> toggleListening() async {
     if (isListeningNotifier.value) {
-      _silenceDebounceTimer?.cancel();
-      await _speech.stop();
-      isListeningNotifier.value = false;
+      await stopListening();
     } else {
       await _startListeningLoop();
     }
@@ -522,103 +620,107 @@ class DishiVoiceService {
     isProcessingNotifier.value = true;
     HapticFeedback.selectionClick();
 
-    // 1. WAKE WORD & TIME-BASED GREETING: "Hello DISHI"
-    if (low.contains('hello dishi') ||
-        low.contains('hey dishi') ||
-        low.contains('hi dishi') ||
-        low.contains('sema dishi') ||
-        low.contains('habari dishi') ||
-        low.contains('wake up dishi') ||
-        low.contains('dishi voice')) {
-      final greeting = getTimeBasedGreeting(_currentLanguage);
-      currentIntentNotifier.value = 'HELLO_DISHI';
-      isProcessingNotifier.value = false;
-      transcriptNotifier.value = '';
-      await speak(greeting);
-      return;
-    }
-
-    // 2. MANUAL MODE & STANDBY: "Thank you DISHI"
-    if (low.contains('thank you dishi') ||
-        low.contains('thanks dishi') ||
-        low.contains('asante dishi') ||
-        low.contains('asante sana dishi') ||
-        low.contains('thank you') ||
-        low.contains('stop dishi') ||
-        low.contains('standby dishi') ||
-        low.contains('manual mode') ||
-        low.contains('kwaheri dishi')) {
-      await setStandby(speakDismiss: true);
-      return;
-    }
-
-    // 3. VOICE TRAINING & TUTORIAL: "Train me" / "How to use"
-    if (low.contains('train me') ||
-        low.contains('how to use') ||
-        low.contains('how do i use this') ||
-        low.contains('nifundishe') ||
-        low.contains('help with voice') ||
-        low.contains('voice tutorial') ||
-        low.contains('what can i say') ||
-        low.contains('teach me')) {
-      isProcessingNotifier.value = false;
-      transcriptNotifier.value = '';
-      currentIntentNotifier.value = 'VOICE_TRAINING';
-      await launchVoiceTraining();
-      return;
-    }
-
-    // 4. VOICE GENDER SWITCHING
-    if (low.contains('male voice') || low.contains('gentleman voice') || low.contains('sauti ya kiume')) {
-      isProcessingNotifier.value = false;
-      transcriptNotifier.value = '';
-      await setVoiceGender('male');
-      return;
-    }
-    if (low.contains('female voice') || low.contains('lady voice') || low.contains('sauti ya kike')) {
-      isProcessingNotifier.value = false;
-      transcriptNotifier.value = '';
-      await setVoiceGender('female');
-      return;
-    }
-
-    // 5. FAST-PATH DIRECT LOCAL INTENTS: Immediate local response (<20ms) for known actions
-    if (_matchesDirectLocalIntent(low)) {
-      _dispatchLocalFallback(clean);
-      return;
-    }
-
-    // 6. ATTEMPT SECURE BACKEND INTENT PARSING
     try {
-      final resp = await SecureHttpClient.post(
-        ApiConfig.v6VoiceIntent,
-        body: {
-          'text': clean,
-          'role': _userRole,
-          'uid': _userUid ?? '',
-          'active_persona': _selectedPersona.id,
-          'language': _currentLanguage,
-        },
-      ).timeout(const Duration(milliseconds: 3000));
-
-      if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body) as Map<String, dynamic>;
-        final intent = data['intent'] ?? 'GENERAL';
-        final spoken = data['spoken_response'] ?? 'Understood, comrade.';
-        final keepListening = data['keep_listening'] ?? true;
-
-        currentIntentNotifier.value = intent;
+      // 1. WAKE WORD & TIME-BASED GREETING: "Hello DISHI"
+      if (low.contains('hello dishi') ||
+          low.contains('hey dishi') ||
+          low.contains('hi dishi') ||
+          low.contains('sema dishi') ||
+          low.contains('habari dishi') ||
+          low.contains('wake up dishi') ||
+          low.contains('dishi voice')) {
+        final greeting = getTimeBasedGreeting(_currentLanguage);
+        currentIntentNotifier.value = 'HELLO_DISHI';
         isProcessingNotifier.value = false;
         transcriptNotifier.value = '';
-
-        await speak(spoken, resumeListeningAfter: keepListening);
-        _dispatchUniversalNavigation(intent, data);
+        await speak(greeting);
         return;
       }
-    } catch (_) {}
 
-    // 6. ROBUST LOCAL INTENT FALLBACK (Guarantees zero downtime / works fully offline)
-    _dispatchLocalFallback(clean);
+      // 2. MANUAL MODE & STANDBY: "Thank you DISHI"
+      if (low.contains('thank you dishi') ||
+          low.contains('thanks dishi') ||
+          low.contains('asante dishi') ||
+          low.contains('asante sana dishi') ||
+          low.contains('thank you') ||
+          low.contains('stop dishi') ||
+          low.contains('standby dishi') ||
+          low.contains('manual mode') ||
+          low.contains('kwaheri dishi')) {
+        await setStandby(speakDismiss: true);
+        return;
+      }
+
+      // 3. VOICE TRAINING & TUTORIAL: "Train me" / "How to use"
+      if (low.contains('train me') ||
+          low.contains('how to use') ||
+          low.contains('how do i use this') ||
+          low.contains('nifundishe') ||
+          low.contains('help with voice') ||
+          low.contains('voice tutorial') ||
+          low.contains('what can i say') ||
+          low.contains('teach me')) {
+        isProcessingNotifier.value = false;
+        transcriptNotifier.value = '';
+        currentIntentNotifier.value = 'VOICE_TRAINING';
+        await launchVoiceTraining();
+        return;
+      }
+
+      // 4. VOICE GENDER SWITCHING
+      if (low.contains('male voice') || low.contains('gentleman voice') || low.contains('sauti ya kiume')) {
+        isProcessingNotifier.value = false;
+        transcriptNotifier.value = '';
+        await setVoiceGender('male');
+        return;
+      }
+      if (low.contains('female voice') || low.contains('lady voice') || low.contains('sauti ya kike')) {
+        isProcessingNotifier.value = false;
+        transcriptNotifier.value = '';
+        await setVoiceGender('female');
+        return;
+      }
+
+      // 5. FAST-PATH DIRECT LOCAL INTENTS: Immediate local response (<2ms) for known actions
+      if (_matchesDirectLocalIntent(low)) {
+        await _dispatchLocalFallback(clean);
+        return;
+      }
+
+      // 6. ATTEMPT SECURE BACKEND INTENT PARSING with tight 1200ms timeout
+      try {
+        final resp = await SecureHttpClient.post(
+          ApiConfig.v6VoiceIntent,
+          body: {
+            'text': clean,
+            'role': _userRole,
+            'uid': _userUid ?? '',
+            'active_persona': _selectedPersona.id,
+            'language': _currentLanguage,
+          },
+        ).timeout(const Duration(milliseconds: 1200));
+
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body) as Map<String, dynamic>;
+          final intent = data['intent'] ?? 'GENERAL';
+          final spoken = data['spoken_response'] ?? 'Understood, comrade.';
+          final keepListening = data['keep_listening'] ?? true;
+
+          currentIntentNotifier.value = intent;
+          isProcessingNotifier.value = false;
+          transcriptNotifier.value = '';
+
+          await speak(spoken, resumeListeningAfter: keepListening);
+          _dispatchUniversalNavigation(intent, data);
+          return;
+        }
+      } catch (_) {}
+
+      // 7. ROBUST LOCAL INTENT FALLBACK (Guarantees zero downtime / works fully offline)
+      await _dispatchLocalFallback(clean);
+    } finally {
+      isProcessingNotifier.value = false;
+    }
   }
 
   /// Fetches real student dependant details from Firestore for parents:
@@ -805,7 +907,7 @@ class DishiVoiceService {
   }
 
   /// Offline direct fallback intent matcher covering the entire application
-  void _dispatchLocalFallback(String clean) async {
+  Future<void> _dispatchLocalFallback(String clean) async {
     final low = clean.toLowerCase();
     String intent = 'GENERAL';
     String spoken = '';
@@ -1011,7 +1113,35 @@ class DishiVoiceService {
           ? "The current time is $hourStr:$minStr $amPm, comrade."
           : "Sasa ni saa $hourStr na dakika $minStr $amPm, comrade.";
     }
-    // 24. General AI Reply
+    // 24. Food, Hunger & Cafeteria Recommendations
+    else if (low.contains('hungry') ||
+        low.contains('food') ||
+        low.contains('chakula') ||
+        low.contains('lunch') ||
+        low.contains('supper') ||
+        low.contains('breakfast') ||
+        low.contains('eat') ||
+        low.contains('kula') ||
+        low.contains('diet') ||
+        low.contains('lishe') ||
+        low.contains('njaa')) {
+      intent = 'OPEN_PREORDERS';
+      spoken = _currentLanguage == 'en'
+          ? "Feeling hungry? Opening Nyawuora Cafeteria menu for instant pre-order and pickup."
+          : "Una njaa? Inafungua menyu ya mkahawa wa Nyawuora uweze kuagiza chakula mara moja.";
+    }
+    // 25. Identity & AI Assistant Capabilities
+    else if (low.contains('who are you') ||
+        low.contains('wewe ni nani') ||
+        low.contains('what are you') ||
+        low.contains('what can you do') ||
+        low.contains('unaweza kufanya nini')) {
+      intent = 'GENERAL_QUERY';
+      spoken = _currentLanguage == 'en'
+          ? "I am ${_selectedPersona.name}, your continuous voice assistant for DISHI! I handle food pre-orders, balances, campus gigs, Keja hostels, split bills, and emergency food."
+          : "Mimi ni ${_selectedPersona.name}, msaidizi wako wa sauti wa DISHI! Nakusaidia na maagizo ya chakula, salio, vibarua vya chuo, keja, na bili za chakula.";
+    }
+    // 26. General AI Reply
     else {
       intent = 'GENERAL_QUERY';
       spoken = _currentLanguage == 'en'
@@ -1029,7 +1159,7 @@ class DishiVoiceService {
 
   /// Global route dispatcher: smoothly opens destination views via root Navigator
   void _dispatchUniversalNavigation(String intent, Map<String, dynamic> data) async {
-    await Future.delayed(const Duration(milliseconds: 600));
+    await Future.delayed(const Duration(milliseconds: 250));
     final nav = appNavigatorKey.currentState;
     if (nav == null) return;
 

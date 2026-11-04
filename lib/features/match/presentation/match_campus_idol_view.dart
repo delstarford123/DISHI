@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../core/theme/glass_card.dart';
+import '../../../core/services/dishi_voice_service.dart';
 import 'match_chat_view.dart';
 
 class MatchCampusIdolView extends StatefulWidget {
@@ -117,6 +118,12 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
   // ==================== STUDIO RECORDING ====================
   Future<void> _startRecording() async {
     try {
+      // Temporarily release microphone from background voice service
+      await DishiVoiceService.instance.stopListening();
+      await _feedAudioPlayer.stop();
+      await _previewAudioPlayer.stop();
+      await _leaderboardPlayer.stop();
+
       if (await _audioRecorder.hasPermission()) {
         final dir = await getTemporaryDirectory();
         final path = p.join(dir.path, 'campus_idol_${DateTime.now().millisecondsSinceEpoch}.m4a');
@@ -173,7 +180,7 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
         setState(() => _recordingProgress = 0.0);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Audition too short! Hold for at least 1 second.')),
+            const SnackBar(content: Text('Audition too short! Record for at least 1 second.')),
           );
         }
       }
@@ -440,6 +447,7 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
       setState(() => _isPlayingFeed = false);
       _waveformController.stop();
     } else {
+      await DishiVoiceService.instance.stopListening();
       await _feedAudioPlayer.stop();
       setState(() {
         _currentlyPlayingDocId = docId;
@@ -969,15 +977,22 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
                   ),
                 ),
                 GestureDetector(
+                  onTap: () {
+                    if (_isRecording) {
+                      _stopRecording();
+                    } else {
+                      _startRecording();
+                    }
+                  },
                   onLongPressStart: (_) => _startRecording(),
                   onLongPressEnd: (_) => _stopRecording(),
                   child: CircleAvatar(
                     radius: 64,
                     backgroundColor: _isRecording ? Colors.redAccent : const Color(0xFF1E293B),
                     child: Icon(
-                      Icons.mic,
+                      _isRecording ? Icons.stop : Icons.mic,
                       size: 64,
-                      color: _isRecording ? Colors.white : Colors.blueAccent,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -985,17 +1000,23 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
             ),
             const SizedBox(height: 40),
 
-            if (_recordingProgress > 0)
-              Text(
-                '${(_recordingDurationMs / 1000.0).toStringAsFixed(1)}s / 10.0s',
-                style: const TextStyle(color: Colors.redAccent, fontSize: 22, fontWeight: FontWeight.bold),
+            if (_isRecording || _recordingProgress > 0)
+              Column(
+                children: [
+                  Text(
+                    '${(_recordingDurationMs / 1000.0).toStringAsFixed(1)}s / 10.0s',
+                    style: const TextStyle(color: Colors.redAccent, fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text('TAP TO FINISH RECORDING ⏹️', style: TextStyle(color: Colors.redAccent, letterSpacing: 1.5, fontWeight: FontWeight.bold, fontSize: 13)),
+                ],
               )
             else
               const Column(
                 children: [
-                  Text('HOLD TO RECORD', style: TextStyle(color: Colors.white54, letterSpacing: 2, fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text('TAP OR HOLD TO RECORD', style: TextStyle(color: Colors.white, letterSpacing: 2, fontWeight: FontWeight.bold, fontSize: 14)),
                   SizedBox(height: 6),
-                  Text('Release when done to preview & submit', style: TextStyle(color: Colors.white30, fontSize: 11)),
+                  Text('Record up to 10 seconds of your voice to audition', style: TextStyle(color: Colors.white54, fontSize: 12)),
                 ],
               ),
           ],
@@ -1068,6 +1089,7 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
                             await _leaderboardPlayer.stop();
                             setState(() => _playingLeaderboardDocId = null);
                           } else {
+                            await DishiVoiceService.instance.stopListening();
                             await _feedAudioPlayer.stop();
                             await _leaderboardPlayer.stop();
                             setState(() => _playingLeaderboardDocId = doc.id);

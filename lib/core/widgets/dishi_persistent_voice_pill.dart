@@ -97,28 +97,34 @@ class _DishiPersistentVoicePillState extends State<DishiPersistentVoicePill> wit
                         ),
                         child: Row(
                           children: [
-                            // Animated Pulsing Mic Avatar
-                            Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: LinearGradient(
-                                  colors: isListening
-                                      ? [const Color(0xFFFFF9A6), const Color(0xFFFFD700)]
-                                      : [kVoiceNeonCyan, const Color(0xFF009688)],
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: (isListening ? kVoiceNeonGold : kVoiceNeonCyan).withValues(alpha: 0.4),
-                                    blurRadius: 8,
+                            // Animated Pulsing Mic Avatar (Tappable for immediate mic toggle)
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                DishiVoiceService.instance.toggleListening();
+                              },
+                              child: Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: LinearGradient(
+                                    colors: isListening
+                                        ? [const Color(0xFFFFF9A6), const Color(0xFFFFD700)]
+                                        : [kVoiceNeonCyan, const Color(0xFF009688)],
                                   ),
-                                ],
-                              ),
-                              child: Icon(
-                                isListening ? Icons.mic : Icons.mic_none,
-                                color: const Color(0xFF0C101B),
-                                size: 20,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: (isListening ? kVoiceNeonGold : kVoiceNeonCyan).withValues(alpha: 0.4),
+                                      blurRadius: 8,
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  isListening ? Icons.mic : Icons.mic_none,
+                                  color: const Color(0xFF0C101B),
+                                  size: 20,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -137,7 +143,7 @@ class _DishiPersistentVoicePillState extends State<DishiPersistentVoicePill> wit
                                     Row(
                                       children: [
                                         Text(
-                                          'DISHI Voice Online',
+                                          isListening ? 'DISHI Listening...' : 'DISHI Online (Tap to Speak)',
                                           style: TextStyle(
                                             color: isListening ? kVoiceNeonGold : kVoiceNeonCyan,
                                             fontSize: 11,
