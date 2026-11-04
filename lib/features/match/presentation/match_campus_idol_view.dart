@@ -384,12 +384,13 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
                               );
                               final audioUrl = await storageRef.getDownloadURL();
 
+                              final auditionTitle = titleController.text.trim().isNotEmpty ? titleController.text.trim() : 'Campus Audition';
                               // Create document in Firestore
-                              await FirebaseFirestore.instance.collection('campus_idols').add({
+                              final docRef = await FirebaseFirestore.instance.collection('campus_idols').add({
                                 'uid': currentUid,
                                 'userName': artistName,
                                 'userPhoto': artistPhoto,
-                                'title': titleController.text.trim().isNotEmpty ? titleController.text.trim() : 'Campus Audition',
+                                'title': auditionTitle,
                                 'audioUrl': audioUrl,
                                 'durationSeconds': (_recordingDurationMs / 1000.0),
                                 'filter': _selectedFilter,
@@ -408,11 +409,10 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
                                   _recordedFilePath = null;
                                   _isUploading = false;
                                 });
-                                messenger.showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Audition published! Listeners can now vote on your voice! 🎤'),
-                                    backgroundColor: Colors.green,
-                                  ),
+                                _shareAudition(
+                                  id: docRef.id,
+                                  artistName: artistName,
+                                  title: auditionTitle,
                                 );
                                 _tabController.animateTo(0);
                               }
@@ -891,11 +891,11 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
                           Icons.share_outlined,
                           'Share',
                           Colors.white,
-                          () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Audition link copied to clipboard!')),
-                            );
-                          },
+                          () => _shareAudition(
+                            id: doc.id,
+                            artistName: data['userName'] ?? 'Anonymous Comrade',
+                            title: data['title'] ?? 'Campus Voice Audition',
+                          ),
                         ),
                       ],
                     ),
@@ -931,6 +931,63 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
           },
         );
       },
+    );
+  }
+
+  void _shareAudition({
+    required String id,
+    required String artistName,
+    required String title,
+    int? rank,
+  }) {
+    HapticFeedback.lightImpact();
+    final shareUrl = 'https://dishi.delstarfordworks.co.ke/idol?id=$id';
+    final rankPrefix = rank != null ? '🏆 Ranked #$rank on Campus Idol!\n' : '';
+    final shareText = '$rankPrefix🎤 Listen to "$title" by $artistName on DISHI Campus Idol!\n\n'
+        'Turn your chair & vote: $shareUrl';
+
+    Clipboard.setData(ClipboardData(text: shareText));
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF1E293B),
+        behavior: SnackBarBehavior.floating,
+        elevation: 6,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Color(0xFF10B981),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check, color: Colors.white, size: 16),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Audition link copied to clipboard! 🎶',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  Text(
+                    'Paste anywhere to invite friends to listen & vote',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
@@ -1076,7 +1133,17 @@ class _MatchCampusIdolViewState extends State<MatchCampusIdolView> with TickerPr
                         style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 15),
                       ),
                       const Icon(Icons.favorite, color: Colors.redAccent, size: 16),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.share_outlined, color: Colors.white70, size: 20),
+                        tooltip: 'Share Audition',
+                        onPressed: () => _shareAudition(
+                          id: doc.id,
+                          artistName: artistName,
+                          title: data['title'] ?? 'Campus Voice Audition',
+                          rank: index + 1,
+                        ),
+                      ),
                       IconButton(
                         icon: Icon(
                           isPlayingThis ? Icons.pause_circle_filled : Icons.play_circle_fill,
