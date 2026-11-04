@@ -42,6 +42,9 @@ import 'campus_employment_hub.dart';
 import 'split_bill_view.dart';
 
 import 'okoa_food_view.dart';
+import 'student_savings_view.dart';
+import 'dorm_shared_wallet_view.dart';
+import 'student_loans_view.dart';
 
 import 'all_features_view.dart';
 
@@ -2973,15 +2976,11 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
         },
 
         children: [
-
           _buildActiveWalletCard(userModel),
-
           _buildSavingsVaultCard(userModel),
-
           _buildOkoaCard(userModel),
-
           _buildDormWalletCard(userModel),
-
+          _buildStudentLoansCard(userModel),
         ],
 
       ),
@@ -3483,274 +3482,268 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
 
 
   Widget _buildSavingsVaultCard(UserModel userModel) {
-
-    return Container(
-
-      padding: const EdgeInsets.all(24),
-
-      decoration: BoxDecoration(
-
-        gradient: const LinearGradient(
-
-          colors: [Color(0xFF141E30), Color(0xFF243B55)],
-
-          begin: Alignment.bottomLeft,
-
-          end: Alignment.topRight,
-
+    return InkWell(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentSavingsView())),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF141E30), Color(0xFF243B55)],
+            begin: Alignment.bottomLeft,
+            end: Alignment.topRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _neonBlue.withOpacity(0.4), width: 1.5),
+          boxShadow: [BoxShadow(color: _neonBlue.withOpacity(0.15), blurRadius: 20, spreadRadius: 2)],
         ),
-
-        borderRadius: BorderRadius.circular(20),
-
-        border: Border.all(color: _neonBlue.withOpacity(0.3), width: 1.5),
-
-        boxShadow: [BoxShadow(color: _neonBlue.withOpacity(0.15), blurRadius: 20, spreadRadius: 2)]
-
-      ),
-
-      child: SingleChildScrollView(
-
         child: Column(
-
           crossAxisAlignment: CrossAxisAlignment.start,
-
           children: [
-
-          const Row(
-
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-            children: [
-
-              Text('Savings Vault', style: TextStyle(color: _textSecondary, fontSize: 14)),
-
-              Icon(Icons.account_balance, color: _textSecondary, size: 20),
-
-            ],
-
-          ),
-
-          const SizedBox(height: 12),
-
-          Text(_isBalanceVisible ? 'Ksh. ${userModel.vaultBalance.toStringAsFixed(2)}' : 'Ksh. ****', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: 1)),
-
-          const SizedBox(height: 24),
-
-          Row(
-
-            children: [
-
-              Expanded(
-
-                child: ElevatedButton.icon(
-
-                  style: ElevatedButton.styleFrom(
-
-                    backgroundColor: _neonBlue.withOpacity(0.2),
-
-                    foregroundColor: _neonBlue,
-
-                    elevation: 0,
-
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: _neonBlue.withOpacity(0.5))),
-
-                  ),
-
-                  icon: const Icon(Icons.add_circle_outline, size: 18),
-
-                  label: const Text('Deposit'),
-
-                  onPressed: () {
-
-                    _showSavingsDepositBottomSheet(userModel);
-
-                  },
-
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Text('Savings Vault', style: TextStyle(color: _textSecondary, fontSize: 13, fontWeight: FontWeight.bold)),
+                    SizedBox(width: 6),
+                    Icon(Icons.arrow_forward_ios, color: _textSecondary, size: 10),
+                  ],
                 ),
-
-              ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-
-                child: ElevatedButton.icon(
-
-                  style: ElevatedButton.styleFrom(
-
-                    backgroundColor: _neonOrange.withOpacity(0.2),
-
-                    foregroundColor: _neonOrange,
-
-                    elevation: 0,
-
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: _neonOrange.withOpacity(0.5))),
-
-                  ),
-
-                  icon: const Icon(Icons.emergency, size: 18),
-
-                  label: const Text('Withdraw'),
-
-                  onPressed: () {
-
-                    _showSavingsWithdrawBottomSheet(userModel);
-
-                  },
-
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: _neonCyan.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                  child: const Text('Disciplined Goals', style: TextStyle(color: _neonCyan, fontSize: 10, fontWeight: FontWeight.bold)),
                 ),
-
-              ),
-
-            ],
-
-          ),
-
-        ],
-
-      )),
-
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _isBalanceVisible ? 'Ksh. ${userModel.vaultBalance.toStringAsFixed(2)}' : 'Ksh. ****',
+              style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: 1),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _neonBlue.withOpacity(0.25),
+                      foregroundColor: _neonBlue,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: _neonBlue.withOpacity(0.5))),
+                    ),
+                    icon: const Icon(Icons.add_circle_outline, size: 16),
+                    label: const Text('Open Vault', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentSavingsView())),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _neonOrange.withOpacity(0.2),
+                      foregroundColor: _neonOrange,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: _neonOrange.withOpacity(0.5))),
+                    ),
+                    icon: const Icon(Icons.shield_outlined, size: 16),
+                    label: const Text('Categories', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentSavingsView())),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
-
   }
-
-
 
   Widget _buildOkoaCard(UserModel userModel) {
-
-    return Container(
-
-      padding: const EdgeInsets.all(24),
-
-      decoration: BoxDecoration(
-
-        gradient: const LinearGradient(
-
-          colors: [Color(0xFF230707), Color(0xFF4A1010)],
-
-          begin: Alignment.topLeft,
-
-          end: Alignment.bottomRight,
-
-        ),
-
-        borderRadius: BorderRadius.circular(20),
-
-        border: Border.all(color: _neonOrange.withOpacity(0.3), width: 1.5),
-
-        boxShadow: [BoxShadow(color: _neonOrange.withOpacity(0.15), blurRadius: 20, spreadRadius: 2)]
-
-      ),
-
-      child: SingleChildScrollView(
-
-        child: Column(
-
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-
-          const Row(
-
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-            children: [
-
-              Text('Okoa Food Balance', style: TextStyle(color: Colors.white70, fontSize: 14)),
-
-              Icon(Icons.fastfood, color: Colors.white70, size: 20),
-
-            ],
-
+    final bool hasDebt = userModel.okoaBalance < 0;
+    return InkWell(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OkoaFoodView())),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: hasDebt
+                ? [const Color(0xFF2C0B0E), const Color(0xFF4A1015)]
+                : [const Color(0xFF230707), const Color(0xFF4A1010)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-
-          const SizedBox(height: 12),
-
-          Text(_isBalanceVisible ? 'Ksh. ${userModel.okoaBalance.toStringAsFixed(2)}' : 'Ksh. ****', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: 1)),
-
-          const SizedBox(height: 32),
-
-          const Text('Ksh 500 Max Limit', style: TextStyle(color: _neonOrange, fontSize: 12)),
-
-        ],
-
-      )),
-
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: hasDebt ? _neonPink.withOpacity(0.6) : _neonOrange.withOpacity(0.3), width: 1.5),
+          boxShadow: [BoxShadow(color: (hasDebt ? _neonPink : _neonOrange).withOpacity(0.15), blurRadius: 20, spreadRadius: 2)],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      hasDebt ? 'Active Okoa Food Debt' : 'Okoa Food Balance',
+                      style: TextStyle(color: hasDebt ? _neonPink : Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 10),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: (hasDebt ? _neonPink : _neonOrange).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    hasDebt ? 'DUE NOW' : 'ZERO HUNGER',
+                    style: TextStyle(color: hasDebt ? _neonPink : _neonOrange, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _isBalanceVisible ? 'Ksh. ${userModel.okoaBalance.toStringAsFixed(2)}' : 'Ksh. ****',
+              style: TextStyle(
+                color: hasDebt ? _neonPink : Colors.white,
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              hasDebt
+                  ? 'Auto-cleared on next wallet funding • Tap to settle now'
+                  : 'Ksh 500 Max Emergency Limit • Tap to get meal voucher',
+              style: TextStyle(color: hasDebt ? _neonPink : _neonOrange, fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
     );
-
   }
-
-
 
   Widget _buildDormWalletCard(UserModel userModel) {
-
-    return Container(
-
-      padding: const EdgeInsets.all(24),
-
-      decoration: BoxDecoration(
-
-        gradient: const LinearGradient(
-
-          colors: [Color(0xFF1E130C), Color(0xFF9A8478)],
-
-          begin: Alignment.bottomRight,
-
-          end: Alignment.topLeft,
-
-        ),
-
-        borderRadius: BorderRadius.circular(20),
-
-        border: Border.all(color: Colors.orangeAccent.withOpacity(0.3), width: 1.5),
-
-        boxShadow: [BoxShadow(color: Colors.orangeAccent.withOpacity(0.15), blurRadius: 20, spreadRadius: 2)]
-
-      ),
-
-      child: SingleChildScrollView(
-
-        child: Column(
-
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-
-          const Row(
-
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-            children: [
-
-              Text('Dorm Shared Wallet', style: TextStyle(color: Colors.white70, fontSize: 14)),
-
-              Icon(Icons.house, color: Colors.white70, size: 20),
-
-            ],
-
+    return InkWell(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DormSharedWalletView())),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1E130C), Color(0xFF4A2511)],
+            begin: Alignment.bottomRight,
+            end: Alignment.topLeft,
           ),
-
-          const SizedBox(height: 12),
-
-          Text(_isBalanceVisible ? 'Ksh. 0.00' : 'Ksh. ****', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: 1)),
-
-          const SizedBox(height: 32),
-
-          const Text('Shared groceries & tokens', style: TextStyle(color: Colors.orangeAccent, fontSize: 12)),
-
-        ],
-
-      )),
-
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.orangeAccent.withOpacity(0.4), width: 1.5),
+          boxShadow: [BoxShadow(color: Colors.orangeAccent.withOpacity(0.15), blurRadius: 20, spreadRadius: 2)],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text('Dorm Shared Wallet', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+                    SizedBox(width: 6),
+                    Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 10),
+                  ],
+                ),
+                Icon(Icons.cottage, color: Colors.orangeAccent, size: 18),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Shared Vault & Mates',
+              style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Cooking gas, WiFi tokens, and groceries pooled with roommates via DISHI ID.',
+              style: TextStyle(color: Colors.white70, fontSize: 11),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: Colors.orangeAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+              child: const Text('Open Dorm Vault →', style: TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
     );
-
   }
 
-
+  Widget _buildStudentLoansCard(UserModel userModel) {
+    return InkWell(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLoansView())),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0A2218), Color(0xFF133E2B)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _neonCyan.withOpacity(0.4), width: 1.5),
+          boxShadow: [BoxShadow(color: _neonCyan.withOpacity(0.15), blurRadius: 20, spreadRadius: 2)],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Text('Study & Food Micro-Loans', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+                    SizedBox(width: 6),
+                    Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 10),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: _neonCyan.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                  child: const Text('KES 100 - 500', style: TextStyle(color: _neonCyan, fontSize: 10, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Instant Study Support',
+              style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Get instant cash for meal tokens or textbooks. Pay yourself or request parent.',
+              style: TextStyle(color: Colors.white70, fontSize: 11),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: _neonCyan.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+              child: const Text('Borrow / View Loans →', style: TextStyle(color: _neonCyan, fontSize: 11, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildPaginationDots() {
 
@@ -3758,7 +3751,7 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
 
       mainAxisAlignment: MainAxisAlignment.center,
 
-      children: List.generate(4, (index) {
+      children: List.generate(5, (index) {
 
         return AnimatedContainer(
 
@@ -6644,6 +6637,24 @@ class _StudentDashboardViewState extends State<StudentDashboardView>
 
             ),
 
+            _buildGridActionItem(
+              icon: Icons.savings_rounded,
+              label: 'Savings Vault',
+              glowColor: const Color(0xFF00B2FE),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentSavingsView())),
+            ),
+            _buildGridActionItem(
+              icon: Icons.cottage_rounded,
+              label: 'Dorm Wallet',
+              glowColor: const Color(0xFFFF9800),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DormSharedWalletView())),
+            ),
+            _buildGridActionItem(
+              icon: Icons.monetization_on_rounded,
+              label: 'Study Loans',
+              glowColor: _neonCyan,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentLoansView())),
+            ),
             _buildGridActionItem(
 
               icon: Icons.grid_view_rounded,

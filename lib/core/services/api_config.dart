@@ -100,4 +100,31 @@ class ApiConfig {
   // V6 Conversational Voice Assistant ("Sema na DISHI")
   static const String v6Voice = '$v6Base/voice';
   static const String v6VoiceIntent = '$v6Voice/intent';
+
+  // V6 Student Finance: Savings Vault, Okoa Debt, Dorm Shared Wallet & Micro-Loans
+  static const String v6Finance = '$v6Base/finance';
+  static const String v6SavingsCreate = '$v6Finance/savings/create';
+  static const String v6SavingsList = '$v6Finance/savings/list';
+  static const String v6SavingsDeposit = '$v6Finance/savings/deposit';
+  static const String v6SavingsWithdraw = '$v6Finance/savings/withdraw';
+  static const String v6SavingsEarlyLiquidationRequest = '$v6Finance/savings/early_liquidation/request';
+  static const String v6SavingsAdminLiquidationList = '$v6Finance/savings/early_liquidation/admin_list';
+  static const String v6SavingsAdminLiquidationAction = '$v6Finance/savings/early_liquidation/admin_action';
+  static const String v6OkoaDebtStatus = '$v6Finance/okoa/status';
+  static const String v6OkoaDebtSettle = '$v6Finance/okoa/settle';
+  static const String v6DormLookupDishiId = '$v6Finance/dorm_wallet/lookup_dishi_id';
+  static const String v6DormCreate = '$v6Finance/dorm_wallet/create';
+  static const String v6DormInvite = '$v6Finance/dorm_wallet/invite';
+  static const String v6DormRespondInvite = '$v6Finance/dorm_wallet/respond_invite';
+  static const String v6DormMyWallets = '$v6Finance/dorm_wallet/my_wallets';
+  static const String v6DormContribute = '$v6Finance/dorm_wallet/contribute';
+  static const String v6DormProposeExpense = '$v6Finance/dorm_wallet/propose_expense';
+  static const String v6DormVoteExpense = '$v6Finance/dorm_wallet/vote_expense';
+  static const String v6DormDisburseExpense = '$v6Finance/dorm_wallet/disburse_expense';
+  static const String v6DormRefundAll = '$v6Finance/dorm_wallet/refund_all';
+  static const String v6LoansApply = '$v6Finance/loans/apply';
+  static const String v6LoansActive = '$v6Finance/loans/active';
+  static const String v6LoansRepayStudent = '$v6Finance/loans/repay/student';
+  static const String v6LoansRequestParent = '$v6Finance/loans/request_parent';
+  static const String v6LoansRepayParent = '$v6Finance/loans/repay/parent';
 }

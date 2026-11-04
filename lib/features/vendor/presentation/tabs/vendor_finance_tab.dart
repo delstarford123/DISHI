@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../qr_scanner_page.dart';
+import '../vendor_savings_vault_sheet.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
@@ -412,6 +413,68 @@ class _VendorFinanceTabViewState extends State<VendorFinanceTabView> {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
+        // Vendor Business Savings Vault
+        Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: _neonCyan.withOpacity(0.4)),
+            boxShadow: [BoxShadow(color: _neonCyan.withOpacity(0.12), blurRadius: 16, spreadRadius: 1)],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.savings_rounded, color: _neonCyan, size: 20),
+                      SizedBox(width: 8),
+                      Text('Vendor Business Reserves', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: _neonCyan.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                    child: const Text('DISCIPLINED SURPLUS', style: TextStyle(color: _neonCyan, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Set aside daily sales for 50kg rice/flour restocking, stall rent, or kitchen equipment repairs.',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              const SizedBox(height: 14),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _neonCyan,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.account_balance, size: 16),
+                label: const Text('Manage Business Vaults', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => VendorSavingsVaultSheet(vendorUser: widget.user),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+
         // Dishi Agent Section
         _buildSectionHeader('Dishi Agent Portal', Icons.storefront, _neonCyan),
         const SizedBox(height: 8),

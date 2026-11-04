@@ -131,7 +131,7 @@ class UserModel {
       profileImageUrl: json['profileImageUrl'] ?? json['photoUrl'] ?? json['photoURL'] ?? json['avatarUrl'] ?? json['studentImageUrl'] ?? json['image'],
       walletBalance: (json['walletBalance'] ?? json['wallet_balance'] ?? json['balance'] ?? 0.0).toDouble(),
       vaultBalance: (json['vaultBalance'] ?? json['vault_balance'] ?? 0.0).toDouble(),
-      okoaBalance: (json['okoaBalance'] ?? json['okoa_balance'] ?? 0.0).toDouble(),
+      okoaBalance: (json['okoa_debt'] != null && (json['okoa_debt'] as num) > 0) ? -(json['okoa_debt'] as num).toDouble() : (json['okoaBalance'] ?? json['okoa_balance'] ?? 0.0).toDouble(),
       isVerified: json['isVerified'] ?? false,
       isDriverVerified: json['isDriverVerified'] ?? false,
       driverVehicleType: json['driverVehicleType'],

@@ -189,13 +189,60 @@ def _credit_wallet_safely(db, user_ref, user_id, amount, destination='walletBala
     Safely credits user balance atomically in Firestore.
     Updates BOTH walletBalance and wallet_balance if destination is walletBalance.
     Works reliably whether fields were previously initialized or not.
+    Auto-settles outstanding Okoa Food micro-credit debt upon wallet credit.
     """
     amt = float(amount)
     update_dict = {
         'updatedAt': firestore.SERVER_TIMESTAMP,
         'updated_at': firestore.SERVER_TIMESTAMP
     }
+
     if destination in ['walletBalance', 'wallet_balance']:
+        # Check if student has outstanding Okoa Food debt
+        try:
+            user_snap = user_ref.get()
+            if user_snap.exists:
+                user_data = user_snap.to_dict() or {}
+                okoa_debt = float(user_data.get('okoa_debt', 0.0) or 0.0)
+                if okoa_debt > 0:
+                    repay_amt = min(amt, okoa_debt)
+                    remaining_debt = max(0.0, okoa_debt - repay_amt)
+                    net_credit = amt - repay_amt
+
+                    update_dict['okoa_debt'] = remaining_debt
+                    update_dict['okoaBalance'] = -remaining_debt if remaining_debt > 0 else 0.0
+                    update_dict['walletBalance'] = firestore.Increment(net_credit)
+                    update_dict['wallet_balance'] = firestore.Increment(net_credit)
+
+                    if extra_fields:
+                        update_dict.update(extra_fields)
+
+                    user_ref.set(update_dict, merge=True)
+
+                    # Log settlement records
+                    try:
+                        db.collection('okoa_records').add({
+                            'student_uid': user_id,
+                            'settled_amount': repay_amt,
+                            'remaining_debt': remaining_debt,
+                            'source': 'auto_topup_settlement',
+                            'timestamp': firestore.SERVER_TIMESTAMP,
+                            'status': 'settled' if remaining_debt == 0 else 'partial_settlement'
+                        })
+                        db.collection('transactions').add({
+                            'userId': user_id,
+                            'title': 'Okoa Meal Auto-Deduction',
+                            'description': f'Auto-cleared KES {repay_amt:.2f} emergency meal credit on top-up',
+                            'amount': repay_amt,
+                            'type': 'okoa_repayment',
+                            'createdAt': firestore.SERVER_TIMESTAMP
+                        })
+                    except Exception as e_log:
+                        print(f"Okoa log error: {e_log}")
+                    return
+        except Exception as e_okoa:
+            print(f"Okoa auto-deduction check error: {e_okoa}")
+
         update_dict['walletBalance'] = firestore.Increment(amt)
         update_dict['wallet_balance'] = firestore.Increment(amt)
     else:

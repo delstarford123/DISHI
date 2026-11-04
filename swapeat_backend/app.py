@@ -137,6 +137,7 @@ from routes.v6.parent_sync_routes import parent_sync_v6_bp
 from routes.v6.campus_logistics_routes import campus_logistics_v6_bp, ring_call
 from routes.v6.campus_idol_routes import campus_idol_v6_bp, render_idol_preview
 from routes.v6.voice_routes import voice_v6_bp
+from routes.v6.student_finance_v6_routes import student_finance_v6_bp
 from routes.sos_notify_routes import sos_notify_bp
 from routes.games_routes import games_bp
 from routes.system_routes import system_bp
@@ -203,6 +204,7 @@ app.register_blueprint(campus_idol_v6_bp,       url_prefix='/api/v6/idol')
 app.add_url_rule('/idol', 'idol_preview_query', view_func=render_idol_preview, methods=['GET'])
 app.add_url_rule('/idol/<audition_id>', 'idol_preview_path', view_func=render_idol_preview, methods=['GET'])
 app.register_blueprint(voice_v6_bp,             url_prefix='/api/v6/voice')
+app.register_blueprint(student_finance_v6_bp,    url_prefix='/api/v6/finance')
 app.register_blueprint(sos_notify_bp,        url_prefix='/api/v1/notify')
 app.register_blueprint(games_bp,             url_prefix='/api/v1/games')
 

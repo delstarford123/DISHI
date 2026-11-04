@@ -23,6 +23,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'admin_executive_analytics_view.dart';
 import 'admin_employee_payroll_view.dart';
+import 'admin_liquidation_queue_sheet.dart';
 import 'admin_b2b_finance_view.dart';
 import 'admin_c2b_collections_view.dart';
 import '../../../core/services/admin_service.dart';
@@ -466,6 +467,21 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.emergency_outlined, color: _neonOrange),
+                title: const Text('Savings Vault Liquidation Queue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                subtitle: const Text('Approve emergency early withdrawals', style: TextStyle(color: _textSecondary, fontSize: 11)),
+                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 14),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => const AdminLiquidationQueueSheet(),
+                  );
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.storage, color: Colors.greenAccent),
                 title: const Text('Database & Indexes Telemetry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                 trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 14),
@@ -822,11 +838,22 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                       amount: _financeCategories['agentCommissions'] ?? 0.0,
                                       color: const Color(0xFFFFD700),
                                     ),
-                                    _buildFinanceCategoryChip(
-                                      icon: Icons.savings_rounded,
-                                      label: 'Savings Vault',
-                                      amount: _financeCategories['savingsVault'] ?? 0.0,
-                                      color: Colors.purpleAccent,
+                                    InkWell(
+                                      onTap: () {
+                                        showModalBottomSheet(
+                                          context: context,
+                                          isScrollControlled: true,
+                                          backgroundColor: Colors.transparent,
+                                          builder: (_) => const AdminLiquidationQueueSheet(),
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: _buildFinanceCategoryChip(
+                                        icon: Icons.savings_rounded,
+                                        label: 'Savings Vault (Queue)',
+                                        amount: _financeCategories['savingsVault'] ?? 0.0,
+                                        color: Colors.purpleAccent,
+                                      ),
                                     ),
                                     _buildFinanceCategoryChip(
                                       icon: Icons.lock_clock_rounded,
