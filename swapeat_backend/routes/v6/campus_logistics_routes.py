@@ -279,16 +279,69 @@ def consume_meal_pass_token():
     }), 200
 
 
+@campus_logistics_v6_bp.route('/safety/okoa_meal/eligibility/<student_uid>', methods=['GET'])
+def get_okoa_eligibility(student_uid):
+    """
+    Returns live OKOA food eligibility, track record check, and active debt status.
+    """
+    db = firestore.client()
+    u_ref, u_doc, real_uid = resolve_user_ref(db, student_uid)
+    if not u_doc or not u_doc.exists:
+        return jsonify({"error": "Student account not found"}), 404
+
+    u_data = u_doc.to_dict() or {}
+    debt = float(u_data.get('okoa_debt', 0.0) or 0.0)
+    has_debt = debt > 0
+    cur_bal = float(u_data.get('walletBalance', 0.0) or 0.0)
+
+    # Cross-debt check: overdue loans
+    overdue_loans = db.collection('student_loans') \
+        .where('student_uid', '==', real_uid) \
+        .where('status', '==', 'overdue') \
+        .limit(1).stream()
+    has_overdue_loan = any(True for _ in overdue_loans)
+
+    # Track record check: verified phone or at least 1 completed transaction
+    has_phone = bool(u_data.get('phoneNumber') or u_data.get('phone'))
+    tx_check = db.collection('transactions').where('userId', '==', real_uid).limit(1).stream()
+    has_tx = any(True for _ in tx_check)
+    track_record_passed = has_phone or has_tx
+
+    eligible = (not has_debt) and (not has_overdue_loan) and track_record_passed and (cur_bal <= 150)
+
+    reason = "Eligible for Zero-Hunger Emergency Food Credit."
+    if has_debt:
+        reason = f"Active voucher of KES {debt:.0f} must be settled first."
+    elif has_overdue_loan:
+        reason = "Overdue student study loan must be cleared first."
+    elif not track_record_passed:
+        reason = "Please verify your phone number or make a first campus meal purchase to establish track record."
+    elif cur_bal > 150:
+        reason = f"Wallet balance (KES {cur_bal:.2f}) exceeds the KES 150 emergency threshold."
+
+    return jsonify({
+        "success": True,
+        "student_uid": real_uid,
+        "eligible": eligible,
+        "okoa_debt": debt,
+        "display_balance": -debt if has_debt else 0.0,
+        "formatted_display": f"-KES {debt:.2f}" if has_debt else "KES 0.00",
+        "has_debt": has_debt,
+        "has_overdue_loan": has_overdue_loan,
+        "track_record_passed": track_record_passed,
+        "reason": reason
+    }), 200
+
+
 @campus_logistics_v6_bp.route('/safety/okoa_meal/request', methods=['POST'])
 def request_okoa_meal():
     """
     Feature 27: "Okoa Meal" Emergency Credit (Zero-Hunger Safety Net).
-    Provides a small meal voucher (KES 150 - 300) to verified hungry students.
+    Provides a small meal voucher (KES 100 - 350) with strict single-voucher security & track record.
     """
     data = request.json or {}
     student_uid = str(data.get('student_uid', '')).strip()
     amount = float(data.get('amount', 200))
-
     amount = max(100.0, min(350.0, amount))
 
     db = firestore.client()
@@ -296,23 +349,46 @@ def request_okoa_meal():
     if not u_doc or not u_doc.exists:
         return jsonify({"error": "Student account not found"}), 404
 
-    u_data = u_doc.to_dict()
+    u_data = u_doc.to_dict() or {}
+
+    # 1. Security Protocol: Prevent multiple vouchers before paying
     existing_debt = float(u_data.get('okoa_debt', 0))
     if existing_debt > 0:
         return jsonify({
-            "error": f"You have an outstanding Okoa Meal voucher of KES {existing_debt:.0f}. Please top up to settle before requesting another."
+            "error": f"Security Block: You already have an active Okoa Food voucher of KES {existing_debt:.0f}. DISHI Zero-Hunger policy strictly limits to 1 active voucher at a time. Top up your wallet to auto-settle before requesting another."
+        }), 400
+
+    # 2. Security Protocol: Cross-debt check (overdue loan)
+    overdue_loans = db.collection('student_loans') \
+        .where('student_uid', '==', real_uid) \
+        .where('status', '==', 'overdue') \
+        .limit(1).stream()
+    for ol in overdue_loans:
+        old = ol.to_dict()
+        return jsonify({
+            "error": f"Security Block: You have an overdue student loan of KES {old.get('amount', 0):.0f}. Please settle your overdue loan before taking emergency food credits."
+        }), 400
+
+    # 3. Security Protocol: Track record check
+    has_phone = bool(u_data.get('phoneNumber') or u_data.get('phone'))
+    tx_check = db.collection('transactions').where('userId', '==', real_uid).limit(1).stream()
+    has_tx = any(True for _ in tx_check)
+    if not has_phone and not has_tx:
+        return jsonify({
+            "error": "Track Record Required: Please complete your profile with a valid phone number or make your first campus meal purchase before requesting Okoa Food."
         }), 400
 
     cur_bal = float(u_data.get('walletBalance', 0))
     if cur_bal > 150:
         return jsonify({"error": "Okoa Meal is only available when balance is below KES 150."}), 400
 
-    # Credit student food allowance and record debt
+    # Credit student food allowance and record debt (displaying -amount)
     u_ref.update({
         'food_allowance_balance': firestore.Increment(amount),
         'walletBalance': firestore.Increment(amount),
         'wallet_balance': firestore.Increment(amount),
         'okoa_debt': amount,
+        'okoaBalance': -amount,
         'okoa_issued_at': firestore.SERVER_TIMESTAMP
     })
 
@@ -327,7 +403,10 @@ def request_okoa_meal():
     return jsonify({
         "success": True,
         "voucher_credited": amount,
-        "message": f"DISHI Zero-Hunger Safety Net activated. KES {amount:.0f} credited to your food wallet. Repay automatically on next top-up."
+        "okoa_debt": amount,
+        "display_balance": -amount,
+        "formatted_display": f"-KES {amount:.2f}",
+        "message": f"DISHI Zero-Hunger Safety Net activated. KES {amount:.0f} credited to your food wallet. Balance displays -KES {amount:.0f} debt. It will be auto-deducted on your next wallet top-up."
     }), 200
 
 

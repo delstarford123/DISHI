@@ -94,6 +94,7 @@ class ApiConfig {
   static const String v6DineInOrder = '$v6Logistics/dine_in/order';
   static const String v6SubscriptionConsume = '$v6Logistics/subscription/consume';
   static const String v6OkoaMealRequest = '$v6Logistics/safety/okoa_meal/request';
+  static const String v6OkoaMealEligibility = '$v6Logistics/safety/okoa_meal/eligibility';
   static const String v6SplitExpenseCreate = '$v6Logistics/social/split_expense/create';
   static const String v6SkuLookup = v6BarcodeLookup;
 
@@ -123,6 +124,7 @@ class ApiConfig {
   static const String v6DormDisburseExpense = '$v6Finance/dorm_wallet/disburse_expense';
   static const String v6DormRefundAll = '$v6Finance/dorm_wallet/refund_all';
   static const String v6LoansApply = '$v6Finance/loans/apply';
+  static const String v6LoansEligibility = '$v6Finance/loans/eligibility';
   static const String v6LoansActive = '$v6Finance/loans/active';
   static const String v6LoansRepayStudent = '$v6Finance/loans/repay/student';
   static const String v6LoansRequestParent = '$v6Finance/loans/request_parent';

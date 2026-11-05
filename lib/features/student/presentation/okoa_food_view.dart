@@ -7,10 +7,10 @@ import '../../../core/services/api_config.dart';
 
 const Color _bgColor = Color(0xFF0C101B);
 const Color _cardColor = Color(0xFF131A2A);
-const Color _surfaceLight = Color(0xFF1A2235);
 const Color _neonCyan = Color(0xFF05D5AA);
 const Color _neonOrange = Color(0xFFFF6F00);
 const Color _neonPink = Color(0xFFF92B60);
+const Color _neonBlue = Color(0xFF00B2FE);
 const Color _textSecondary = Color(0xFF8B9BB4);
 
 class OkoaFoodView extends StatefulWidget {
@@ -27,6 +27,11 @@ class _OkoaFoodViewState extends State<OkoaFoodView> {
   double _walletBalance = 0.0;
   String _currentUid = '';
   List<Map<String, dynamic>> _history = [];
+
+  // Security Protocol & Track Record State
+  bool _trackRecordPassed = true;
+  bool _hasOverdueLoan = false;
+  String _eligibilityReason = 'Zero-Hunger Safety Net Ready';
 
   @override
   void initState() {
@@ -47,11 +52,26 @@ class _OkoaFoodViewState extends State<OkoaFoodView> {
         });
       }
 
+      // Fetch OKOA eligibility & track record check from backend
+      final elResp = await http.get(
+        Uri.parse('${ApiConfig.v6OkoaMealEligibility}/$_currentUid'),
+      ).timeout(const Duration(seconds: 15));
+
+      if (elResp.statusCode == 200 && mounted) {
+        final elData = json.decode(elResp.body);
+        setState(() {
+          _currentDebt = (elData['okoa_debt'] as num?)?.toDouble() ?? _currentDebt;
+          _trackRecordPassed = elData['track_record_passed'] == true;
+          _hasOverdueLoan = elData['has_overdue_loan'] == true;
+          _eligibilityReason = elData['reason'] ?? _eligibilityReason;
+        });
+      }
+
       // Fetch recent records
       final records = await FirebaseFirestore.instance
           .collection('okoa_records')
           .where('student_uid', isEqualTo: _currentUid)
-          .limit(5)
+          .limit(6)
           .get();
 
       if (mounted) {
@@ -68,6 +88,26 @@ class _OkoaFoodViewState extends State<OkoaFoodView> {
 
   Future<void> _requestOkoaMeal() async {
     if (_currentUid.isEmpty) return;
+    if (_currentDebt > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Security Block: You have an outstanding voucher of KES ${_currentDebt.toStringAsFixed(0)}. Settle it first.'),
+          backgroundColor: _neonPink,
+        ),
+      );
+      return;
+    }
+
+    if (_hasOverdueLoan) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cross-Debt Block: Please settle your overdue student study loan before taking emergency food credit.'),
+          backgroundColor: _neonPink,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -97,7 +137,7 @@ class _OkoaFoodViewState extends State<OkoaFoodView> {
               ],
             ),
             content: Text(
-              data['message'] ?? 'KES ${_selectedVoucher.toStringAsFixed(0)} credited to your food allowance wallet.',
+              data['message'] ?? 'KES ${_selectedVoucher.toStringAsFixed(0)} credited to your food wallet. Displays -KES ${_selectedVoucher.toStringAsFixed(0)} until paid.',
               style: const TextStyle(color: _textSecondary, fontSize: 13),
             ),
             actions: [
@@ -191,7 +231,7 @@ class _OkoaFoodViewState extends State<OkoaFoodView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Live Debt / Credit Status Card
+            // Live Debt / Credit Status Hero Card
             Container(
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
@@ -247,7 +287,7 @@ class _OkoaFoodViewState extends State<OkoaFoodView> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  // Formatted Display: e.g. -KES 200.00
+                  // Formatted Display: -KES 200.00
                   Text(
                     _currentDebt > 0 ? '-KES ${_currentDebt.toStringAsFixed(2)}' : 'KES 0.00',
                     style: TextStyle(
@@ -260,8 +300,8 @@ class _OkoaFoodViewState extends State<OkoaFoodView> {
                   const SizedBox(height: 10),
                   Text(
                     _currentDebt > 0
-                        ? 'You have an outstanding emergency meal debt of KES ${_currentDebt.toStringAsFixed(0)}. This will be auto-deducted the moment you top up your wallet.'
-                        : 'Emergency meal credit available. Interest-free guarantee so no student ever studies on an empty stomach.',
+                        ? 'You have an outstanding emergency meal debt of KES ${_currentDebt.toStringAsFixed(0)}. DISHI will automatically deduct this amount the moment you put money in your wallet.'
+                        : 'Zero-Hunger Safety Net ready. Strictly 1 voucher at a time allowed to ensure fair and responsible campus emergency relief.',
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                   if (_currentDebt > 0) ...[
@@ -291,6 +331,51 @@ class _OkoaFoodViewState extends State<OkoaFoodView> {
                       ],
                     ),
                   ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Security Protocols & Track Record Info Card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _cardColor,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: _neonBlue.withOpacity(0.25)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.shield_outlined, color: _neonBlue, size: 18),
+                      SizedBox(width: 8),
+                      Text('Security Protocols & Track Record', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      _buildChip(
+                        label: _currentDebt > 0 ? '1 Voucher Limit Reached' : 'Single Active Voucher Enforced',
+                        isPassed: _currentDebt <= 0,
+                        icon: _currentDebt > 0 ? Icons.lock : Icons.verified,
+                      ),
+                      _buildChip(
+                        label: _hasOverdueLoan ? 'Overdue Loan Pending' : 'No Overdue Study Loans',
+                        isPassed: !_hasOverdueLoan,
+                        icon: _hasOverdueLoan ? Icons.warning_amber : Icons.check_circle_outline,
+                      ),
+                      _buildChip(
+                        label: _trackRecordPassed ? 'Verified Student Profile' : 'Track Record Pending',
+                        isPassed: _trackRecordPassed,
+                        icon: Icons.person_outline,
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -328,7 +413,7 @@ class _OkoaFoodViewState extends State<OkoaFoodView> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                amt == 150 ? 'Snack/Tea' : (amt == 200 ? 'Standard Meal' : 'Full Combo'),
+                                amt == 150 ? 'Snack / Tea' : (amt == 200 ? 'Standard Meal' : 'Full Combo'),
                                 style: TextStyle(
                                   color: isSel ? Colors.black87 : _textSecondary,
                                   fontSize: 10,
@@ -346,17 +431,21 @@ class _OkoaFoodViewState extends State<OkoaFoodView> {
 
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _neonCyan,
-                  foregroundColor: Colors.black,
+                  backgroundColor: (_hasOverdueLoan || !_trackRecordPassed) ? Colors.white12 : _neonCyan,
+                  foregroundColor: (_hasOverdueLoan || !_trackRecordPassed) ? Colors.white38 : Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                onPressed: _isLoading ? null : _requestOkoaMeal,
+                onPressed: (_isLoading || _hasOverdueLoan || !_trackRecordPassed) ? null : _requestOkoaMeal,
                 child: _isLoading
                     ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2.5))
                     : Text(
-                        'Activate KES ${_selectedVoucher.toStringAsFixed(0)} Emergency Meal Voucher',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        _hasOverdueLoan
+                            ? '⚠️ Settle Overdue Student Loan First'
+                            : (!_trackRecordPassed
+                                ? '🔒 Verify Profile / Track Record First'
+                                : 'Activate KES ${_selectedVoucher.toStringAsFixed(0)} Emergency Meal Voucher'),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
               ),
               const SizedBox(height: 20),
@@ -373,11 +462,13 @@ class _OkoaFoodViewState extends State<OkoaFoodView> {
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('DISHI Zero-Hunger Policy', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text('DISHI Zero-Hunger Policy & Auto-Settlement', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                   SizedBox(height: 12),
-                  _PolicyBullet(icon: Icons.check_circle_outline, text: '0% Interest — You only repay the exact voucher amount.'),
+                  _PolicyBullet(icon: Icons.check_circle_outline, text: '0% Interest — You only repay the exact voucher amount. No extra fees.'),
                   SizedBox(height: 10),
-                  _PolicyBullet(icon: Icons.sync_rounded, text: 'Auto-Deduction — Settle automatically the moment funds enter your wallet.'),
+                  _PolicyBullet(icon: Icons.sync_rounded, text: 'Instant Auto-Deduction — Settle automatically the moment funds are deposited into your wallet.'),
+                  SizedBox(height: 10),
+                  _PolicyBullet(icon: Icons.shield, text: 'Single Voucher Policy — Users cannot take more than 1 meal voucher before paying back existing debt.'),
                   SizedBox(height: 10),
                   _PolicyBullet(icon: Icons.restaurant_rounded, text: 'Purpose-Locked — Valid across all approved campus cafeteria vendors.'),
                 ],
@@ -414,6 +505,26 @@ class _OkoaFoodViewState extends State<OkoaFoodView> {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildChip({required String label, required bool isPassed, required IconData icon}) {
+    final Color color = isPassed ? _neonCyan : _neonOrange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }

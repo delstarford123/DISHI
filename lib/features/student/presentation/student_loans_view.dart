@@ -30,12 +30,20 @@ class _StudentLoansViewState extends State<StudentLoansView> {
   int _selectedAmount = 200;
   String _selectedPurpose = 'Food & Cafeteria Meals';
 
+  // Credit Track Record & Security Verification
+  int _creditScore = 450;
+  String _creditRating = 'Novice Comrade';
+  List<int> _unlockedTiers = [100, 200];
+  int _repaidCount = 0;
+  int _txCount = 0;
+  double _okoaDebt = 0.0;
+
   final List<Map<String, dynamic>> _tiers = [
-    {'amount': 100, 'weeks': 1, 'base_fee_pct': 0.0, 'purpose': 'Meal Token / Urgent Snack', 'fee': 0.0},
-    {'amount': 200, 'weeks': 2, 'base_fee_pct': 1.5, 'purpose': 'Food & Exam Printing / Handouts', 'fee': 3.0},
-    {'amount': 300, 'weeks': 3, 'base_fee_pct': 3.0, 'purpose': 'Course Textbooks & Lab Manuals', 'fee': 9.0},
-    {'amount': 400, 'weeks': 4, 'base_fee_pct': 4.5, 'purpose': 'Study Modules & Revision Packs', 'fee': 18.0},
-    {'amount': 500, 'weeks': 5, 'base_fee_pct': 6.0, 'purpose': 'Essential Food Basket & Academic Kit', 'fee': 30.0},
+    {'amount': 100, 'weeks': 1, 'base_fee_pct': 0.0, 'min_repaid': 0, 'purpose': 'Meal Token / Urgent Snack', 'fee': 0.0},
+    {'amount': 200, 'weeks': 2, 'base_fee_pct': 1.5, 'min_repaid': 0, 'purpose': 'Food & Exam Printing / Handouts', 'fee': 3.0},
+    {'amount': 300, 'weeks': 3, 'base_fee_pct': 3.0, 'min_repaid': 1, 'purpose': 'Course Textbooks & Lab Manuals', 'fee': 9.0},
+    {'amount': 400, 'weeks': 4, 'base_fee_pct': 4.5, 'min_repaid': 2, 'purpose': 'Study Modules & Revision Packs', 'fee': 18.0},
+    {'amount': 500, 'weeks': 5, 'base_fee_pct': 6.0, 'min_repaid': 3, 'purpose': 'Essential Food Basket & Academic Kit', 'fee': 30.0},
   ];
 
   final List<String> _purposes = [
@@ -60,18 +68,42 @@ class _StudentLoansViewState extends State<StudentLoansView> {
     try {
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(_currentUid).get();
       if (userDoc.exists && mounted) {
-        _walletBalance = (userDoc.data()?['walletBalance'] as num?)?.toDouble() ?? 0.0;
+        final uData = userDoc.data() ?? {};
+        _walletBalance = (uData['walletBalance'] as num?)?.toDouble() ?? 0.0;
+        _okoaDebt = (uData['okoa_debt'] as num?)?.toDouble() ?? 0.0;
       }
 
+      // Fetch active loan
       final resp = await http.get(
         Uri.parse('${ApiConfig.v6LoansActive}/$_currentUid'),
       ).timeout(const Duration(seconds: 15));
 
       if (resp.statusCode == 200 && mounted) {
         final resData = json.decode(resp.body);
+        _hasActiveLoan = resData['has_active_loan'] == true;
+        _activeLoan = resData['loan'] != null ? Map<String, dynamic>.from(resData['loan']) : null;
+      }
+
+      // Fetch credit track record & security eligibility
+      final elResp = await http.get(
+        Uri.parse('${ApiConfig.v6LoansEligibility}/$_currentUid'),
+      ).timeout(const Duration(seconds: 15));
+
+      if (elResp.statusCode == 200 && mounted) {
+        final elData = json.decode(elResp.body);
         setState(() {
-          _hasActiveLoan = resData['has_active_loan'] == true;
-          _activeLoan = resData['loan'] != null ? Map<String, dynamic>.from(resData['loan']) : null;
+          _creditScore = (elData['credit_score'] as num?)?.toInt() ?? 450;
+          _creditRating = elData['credit_rating'] ?? 'Novice Comrade';
+          _repaidCount = (elData['repaid_loans_count'] as num?)?.toInt() ?? 0;
+          _txCount = (elData['transactions_count'] as num?)?.toInt() ?? 0;
+          _okoaDebt = (elData['okoa_debt'] as num?)?.toDouble() ?? _okoaDebt;
+          if (elData['unlocked_tiers'] != null) {
+            _unlockedTiers = List<int>.from(elData['unlocked_tiers']);
+          }
+          // Default selection to first unlocked tier if current is locked
+          if (!_unlockedTiers.contains(_selectedAmount) && _unlockedTiers.isNotEmpty) {
+            _selectedAmount = _unlockedTiers.first;
+          }
         });
       }
     } catch (_) {
@@ -80,8 +112,88 @@ class _StudentLoansViewState extends State<StudentLoansView> {
     }
   }
 
+  void _showLockedTierDialog(int amount, int minRepaid) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: _neonOrange, width: 1.5)),
+        title: Row(
+          children: [
+            const Icon(Icons.lock, color: _neonOrange),
+            const SizedBox(width: 8),
+            Text('KES $amount Tier Locked', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'To ensure healthy student borrowing, higher loan tiers require a proven repayment track record.',
+              style: TextStyle(color: _textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: _surfaceLight, borderRadius: BorderRadius.circular(12)),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Required Settled Loans:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      Text('$minRepaid', style: const TextStyle(color: _neonOrange, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Your Settled Loans:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      Text('$_repaidCount', style: const TextStyle(color: _neonCyan, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '💡 Tip: Start with a KES 100 or KES 200 loan and repay on time to unlock KES 300 to KES 500!',
+              style: TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _neonCyan, foregroundColor: Colors.black),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Understood'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _applyForLoan() async {
     if (_currentUid.isEmpty || _hasActiveLoan) return;
+
+    if (_okoaDebt > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please clear your outstanding Okoa Food debt (KES ${_okoaDebt.toStringAsFixed(2)}) before borrowing.'),
+          backgroundColor: _neonPink,
+        ),
+      );
+      return;
+    }
+
+    if (!_unlockedTiers.contains(_selectedAmount)) {
+      final tier = _tiers.firstWhere((t) => t['amount'] == _selectedAmount, orElse: () => _tiers[0]);
+      _showLockedTierDialog(_selectedAmount, tier['min_repaid']);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -246,52 +358,28 @@ class _StudentLoansViewState extends State<StudentLoansView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Active Loan Card or Available Limit Banner
+                    // Active Loan Card if present
                     if (_hasActiveLoan && _activeLoan != null) ...[
                       _buildActiveLoanCard(_activeLoan!),
                       const SizedBox(height: 20),
-                    ] else ...[
-                      // Available Limit Hero Card
-                      Container(
-                        padding: const EdgeInsets.all(22),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF0D241C), Color(0xFF143B2E), Color(0xFF194D3B)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: _neonCyan.withOpacity(0.4), width: 1.5),
-                          boxShadow: [BoxShadow(color: _neonCyan.withOpacity(0.12), blurRadius: 18, spreadRadius: 2)],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Emergency Study & Food Credit', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(color: _neonCyan.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
-                                  child: const Text('ELIGIBLE', style: TextStyle(color: _neonCyan, fontSize: 10, fontWeight: FontWeight.bold)),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            const Text('Up to KES 500', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900)),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Instant funds deposited directly to your wallet for meal tokens, revision books, printing, or lab supplies.',
-                              style: TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
+                    ],
 
-                      // Select Loan Tier (KES 100 to 500)
-                      const Text('Choose Loan Amount:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    // DISHI Campus Credit Track Record & Security Status Card
+                    _buildCreditTrackRecordCard(),
+                    const SizedBox(height: 20),
+
+                    if (!_hasActiveLoan) ...[
+                      // Choose Loan Tier (KES 100 to 500)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Choose Loan Tier:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                          Text(
+                            'Max Allowed: KES ${_unlockedTiers.isNotEmpty ? _unlockedTiers.last : 0}',
+                            style: const TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 10),
 
                       SingleChildScrollView(
@@ -300,35 +388,92 @@ class _StudentLoansViewState extends State<StudentLoansView> {
                           children: _tiers.map((tier) {
                             final int amt = tier['amount'];
                             final isSel = (amt == _selectedAmount);
+                            final bool isUnlocked = _unlockedTiers.contains(amt);
+                            final int minRepaid = tier['min_repaid'] ?? 0;
+
                             return Padding(
                               padding: const EdgeInsets.only(right: 10),
                               child: InkWell(
-                                onTap: () => setState(() => _selectedAmount = amt),
+                                onTap: () {
+                                  if (isUnlocked) {
+                                    setState(() => _selectedAmount = amt);
+                                  } else {
+                                    _showLockedTierDialog(amt, minRepaid);
+                                  }
+                                },
                                 borderRadius: BorderRadius.circular(16),
                                 child: Container(
-                                  width: 110,
+                                  width: 116,
                                   padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
                                   decoration: BoxDecoration(
-                                    color: isSel ? _neonCyan : _cardColor,
+                                    color: isSel
+                                        ? _neonCyan
+                                        : (isUnlocked ? _cardColor : _cardColor.withOpacity(0.5)),
                                     borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: isSel ? _neonCyan : Colors.white12, width: 1.5),
+                                    border: Border.all(
+                                      color: isSel
+                                          ? _neonCyan
+                                          : (isUnlocked ? Colors.white12 : Colors.white10),
+                                      width: 1.5,
+                                    ),
                                   ),
                                   child: Column(
                                     children: [
-                                      Text(
-                                        'KES $amt',
-                                        style: TextStyle(color: isSel ? Colors.black : Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'KES $amt',
+                                            style: TextStyle(
+                                              color: isSel
+                                                  ? Colors.black
+                                                  : (isUnlocked ? Colors.white : Colors.white38),
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          if (!isUnlocked) ...[
+                                            const SizedBox(width: 4),
+                                            const Icon(Icons.lock, size: 13, color: _neonOrange),
+                                          ],
+                                        ],
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         '${tier['weeks']} Wk Term',
-                                        style: TextStyle(color: isSel ? Colors.black87 : _textSecondary, fontSize: 11, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                          color: isSel
+                                              ? Colors.black87
+                                              : (isUnlocked ? _textSecondary : Colors.white24),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         tier['base_fee_pct'] == 0.0 ? '0% Fee' : '+${tier['base_fee_pct']}%',
-                                        style: TextStyle(color: isSel ? Colors.black87 : _neonOrange, fontSize: 10, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                          color: isSel
+                                              ? Colors.black87
+                                              : (isUnlocked ? _neonOrange : Colors.white24),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
+                                      if (!isUnlocked) ...[
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: _neonOrange.withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            minRepaid == 0 ? 'Req. 2+ Tx' : 'Req. $minRepaid Repaid',
+                                            style: const TextStyle(color: _neonOrange, fontSize: 8, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -368,7 +513,12 @@ class _StudentLoansViewState extends State<StudentLoansView> {
                           children: [
                             _breakdownRow('Principal Borrowed', 'KES ${_selectedAmount.toStringAsFixed(0)}'),
                             const SizedBox(height: 8),
-                            _breakdownRow('Base Interest Fee', selectedTier['base_fee_pct'] == 0.0 ? 'KES 0.00 (0%)' : 'KES ${(selectedTier['fee'] as double).toStringAsFixed(2)} (${selectedTier['base_fee_pct']}%)'),
+                            _breakdownRow(
+                              'Base Interest Fee',
+                              selectedTier['base_fee_pct'] == 0.0
+                                  ? 'KES 0.00 (0%)'
+                                  : 'KES ${(selectedTier['fee'] as double).toStringAsFixed(2)} (${selectedTier['base_fee_pct']}%)',
+                            ),
                             const SizedBox(height: 8),
                             _breakdownRow('Repayment Period', '${selectedTier['weeks']} Week(s)'),
                             const SizedBox(height: 8),
@@ -380,18 +530,22 @@ class _StudentLoansViewState extends State<StudentLoansView> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Apply Button
+                      // Apply Button with Security Checks
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _neonCyan,
-                          foregroundColor: Colors.black,
+                          backgroundColor: (_okoaDebt > 0 || _unlockedTiers.isEmpty) ? Colors.white12 : _neonCyan,
+                          foregroundColor: (_okoaDebt > 0 || _unlockedTiers.isEmpty) ? Colors.white38 : Colors.black,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
-                        onPressed: _isLoading ? null : _applyForLoan,
+                        onPressed: (_isLoading || _okoaDebt > 0 || _unlockedTiers.isEmpty) ? null : _applyForLoan,
                         child: Text(
-                          'Get KES $_selectedAmount Disbursed Instantly',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          _okoaDebt > 0
+                              ? '⚠️ Clear Okoa Food Debt First (-KES ${_okoaDebt.toStringAsFixed(0)})'
+                              : (_unlockedTiers.isEmpty
+                                  ? '🔒 Build Campus Track Record First'
+                                  : 'Disburse KES $_selectedAmount Instantly to Wallet'),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -404,15 +558,15 @@ class _StudentLoansViewState extends State<StudentLoansView> {
                       child: const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Campus Financial Support Guarantee', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text('DISHI Borrowing Security Protocols', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                           SizedBox(height: 10),
-                          _BulletPoint(text: 'Dual Repayment: Settle the loan yourself or click "Request Parent" to let your linked parent pay for you.'),
+                          _BulletPoint(text: 'Strictly 1 Active Loan: Concurrent borrowing is prohibited to prevent student debt distress.'),
                           SizedBox(height: 8),
-                          _BulletPoint(text: 'Transparent Fee: KES 100 has 0% interest for 1 week. Graduated 1.5% fee per tier up to KES 500 for 5 weeks.'),
+                          _BulletPoint(text: 'Cross-Debt Protection: Outstanding Okoa Food emergency vouchers must be cleared before cash loans.'),
                           SizedBox(height: 8),
-                          _BulletPoint(text: 'Overdue Policy: An additional 2% fee applies only if the loan is not cleared after the agreed repayment term.'),
+                          _BulletPoint(text: 'Track Record Progression: Higher tiers (KES 300 to 500) require on-time repayment history of smaller loans.'),
                           SizedBox(height: 8),
-                          _BulletPoint(text: 'Strictly 1 active loan per student to prevent student debt distress.'),
+                          _BulletPoint(text: 'Dual Repayment: Pay from wallet or request your linked parent to settle directly from their dashboard.'),
                         ],
                       ),
                     ),
@@ -420,6 +574,109 @@ class _StudentLoansViewState extends State<StudentLoansView> {
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildCreditTrackRecordCard() {
+    final double scorePercent = ((_creditScore - 300) / (850 - 300)).clamp(0.0, 1.0);
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _neonBlue.withOpacity(0.3), width: 1.5),
+        boxShadow: [BoxShadow(color: _neonBlue.withOpacity(0.08), blurRadius: 16, spreadRadius: 1)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.shield_outlined, color: _neonBlue, size: 18),
+                  SizedBox(width: 8),
+                  Text('Credit Track Record', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: _neonBlue.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+                child: Text('$_creditScore / 850', style: const TextStyle(color: _neonBlue, fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: scorePercent,
+              minHeight: 6,
+              backgroundColor: Colors.white10,
+              valueColor: const AlwaysStoppedAnimation<Color>(_neonBlue),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Rating: $_creditRating', style: const TextStyle(color: _neonCyan, fontSize: 12, fontWeight: FontWeight.bold)),
+              Text('$_repaidCount Repaid Loans', style: const TextStyle(color: _textSecondary, fontSize: 11)),
+            ],
+          ),
+          const Divider(color: Colors.white10, height: 18),
+
+          // Security Verification Badges
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _buildStatusChip(
+                label: _hasActiveLoan ? 'Active Loan Running' : 'Single Loan Compliant',
+                isPassed: !_hasActiveLoan,
+                icon: _hasActiveLoan ? Icons.warning_amber : Icons.verified_user,
+              ),
+              _buildStatusChip(
+                label: _okoaDebt > 0 ? 'Okoa Debt: -KES ${_okoaDebt.toStringAsFixed(0)}' : 'Zero Food Debt',
+                isPassed: _okoaDebt <= 0,
+                icon: _okoaDebt > 0 ? Icons.error_outline : Icons.check_circle_outline,
+              ),
+              _buildStatusChip(
+                label: '$_txCount Campus Purchases',
+                isPassed: _txCount >= 2,
+                icon: Icons.history,
+              ),
+              _buildStatusChip(
+                label: '$_repaidCount Loans Settled',
+                isPassed: _repaidCount >= 1,
+                icon: Icons.thumb_up_alt_outlined,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusChip({required String label, required bool isPassed, required IconData icon}) {
+    final Color color = isPassed ? _neonCyan : _neonOrange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+        ],
+      ),
     );
   }
 
@@ -531,8 +788,22 @@ class _StudentLoansViewState extends State<StudentLoansView> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(color: isTotal ? Colors.white : (isHighlight ? _neonOrange : _textSecondary), fontSize: isTotal ? 14 : 12, fontWeight: isTotal ? FontWeight.bold : FontWeight.normal)),
-        Text(value, style: TextStyle(color: isTotal ? _neonCyan : (isHighlight ? _neonOrange : Colors.white), fontSize: isTotal ? 16 : 12, fontWeight: isTotal ? FontWeight.w900 : FontWeight.bold)),
+        Text(
+          label,
+          style: TextStyle(
+            color: isTotal ? Colors.white : (isHighlight ? _neonOrange : _textSecondary),
+            fontSize: isTotal ? 14 : 12,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: isTotal ? _neonCyan : (isHighlight ? _neonOrange : Colors.white),
+            fontSize: isTotal ? 16 : 12,
+            fontWeight: isTotal ? FontWeight.w900 : FontWeight.bold,
+          ),
+        ),
       ],
     );
   }

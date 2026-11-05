@@ -1077,19 +1077,142 @@ def refund_all_dorm_wallet():
 # =====================================================================
 
 LOAN_TIERS = {
-    100: {'weeks': 1, 'base_interest_pct': 0.0, 'purpose': 'Emergency Cafeteria Meal Token'},
-    200: {'weeks': 2, 'base_interest_pct': 1.5, 'purpose': 'Meal & Printing / Exam Materials'},
-    300: {'weeks': 3, 'base_interest_pct': 3.0, 'purpose': 'Course Textbooks & Lab Supplies'},
-    400: {'weeks': 4, 'base_interest_pct': 4.5, 'purpose': 'Study Modules & Revision Packs'},
-    500: {'weeks': 5, 'base_interest_pct': 6.0, 'purpose': 'Essential Food Basket & Academic Project Kit'}
+    100: {'weeks': 1, 'base_interest_pct': 0.0, 'min_repaid': 0, 'purpose': 'Emergency Cafeteria Meal Token'},
+    200: {'weeks': 2, 'base_interest_pct': 1.5, 'min_repaid': 0, 'purpose': 'Meal & Printing / Exam Materials'},
+    300: {'weeks': 3, 'base_interest_pct': 3.0, 'min_repaid': 1, 'purpose': 'Course Textbooks & Lab Supplies'},
+    400: {'weeks': 4, 'base_interest_pct': 4.5, 'min_repaid': 2, 'purpose': 'Study Modules & Revision Packs'},
+    500: {'weeks': 5, 'base_interest_pct': 6.0, 'min_repaid': 3, 'purpose': 'Essential Food Basket & Academic Project Kit'}
 }
 
 OVERDUE_PENALTY_PCT = 2.0 # 2% additional interest when repayment period elapses
 
+def get_student_credit_track_record(db, real_uid, user_data):
+    """
+    Evaluates student creditworthiness, track record, and security protocols.
+    Prevents taking loans more than once before paying.
+    Requires proven transaction activity and graduated tier progression.
+    """
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    # 1. Active or Overdue Loans check (Prevents multiple concurrent loans)
+    active_loans_query = db.collection('student_loans') \
+        .where('student_uid', '==', real_uid) \
+        .where('status', 'in', ['active', 'overdue']) \
+        .limit(1).stream()
+    active_loan = None
+    for doc in active_loans_query:
+        active_loan = doc.to_dict()
+        active_loan['id'] = doc.id
+        break
+
+    # 2. Loan repayment history (count of successfully settled loans)
+    settled_loans_query = db.collection('student_loans') \
+        .where('student_uid', '==', real_uid) \
+        .where('status', '==', 'settled') \
+        .stream()
+    repaid_count = sum(1 for _ in settled_loans_query)
+
+    # 3. OKOA Food debt check (Cross-debt restriction)
+    okoa_debt = float(user_data.get('okoa_debt', 0.0) or 0.0)
+
+    # 4. Campus transaction track record
+    tx_query = db.collection('transactions').where('userId', '==', real_uid).limit(10).stream()
+    tx_count = sum(1 for _ in tx_query)
+    if tx_count < 3:
+        order_query = db.collection('orders').where('userId', '==', real_uid).limit(5).stream()
+        tx_count += sum(1 for _ in order_query)
+
+    # 5. Account age check
+    account_age_hours = 72
+    created_at = user_data.get('createdAt') or user_data.get('created_at')
+    if created_at:
+        try:
+            created_dt = created_at if isinstance(created_at, datetime.datetime) else created_at.to_datetime()
+            account_age_hours = max(0, int((now - created_dt).total_seconds() / 3600))
+        except Exception:
+            account_age_hours = 72
+
+    # 6. Unlocked tiers calculation based on disciplined track record ("know how to use them")
+    unlocked_tiers = []
+    has_basic_track_record = (tx_count >= 2) or (account_age_hours >= 48 and bool(user_data.get('phoneNumber') or user_data.get('phone')))
+
+    if has_basic_track_record:
+        unlocked_tiers.append(100)
+        unlocked_tiers.append(200)
+        if repaid_count >= 1:
+            unlocked_tiers.append(300)
+        if repaid_count >= 2:
+            unlocked_tiers.append(400)
+        if repaid_count >= 3:
+            unlocked_tiers.append(500)
+    elif tx_count >= 1:
+        unlocked_tiers.append(100)
+
+    # 7. DISHI Campus Credit Score (300 - 850)
+    score = 450
+    score += min(150, tx_count * 25)
+    score += min(250, repaid_count * 75)
+    if active_loan and active_loan.get('status') == 'overdue':
+        score -= 200
+    if okoa_debt > 0:
+        score -= 50
+    score = max(300, min(850, score))
+
+    if score >= 750:
+        tier_title = 'Gold Scholar (Elite)'
+    elif score >= 650:
+        tier_title = 'Silver Comrade (Trusted)'
+    elif score >= 500:
+        tier_title = 'Bronze Comrade (Active)'
+    else:
+        tier_title = 'Novice Comrade (Building Record)'
+
+    is_eligible = (active_loan is None) and (okoa_debt <= 0) and (len(unlocked_tiers) > 0)
+
+    ineligibility_reasons = []
+    if active_loan:
+        ineligibility_reasons.append(f'Active loan of KES {active_loan.get("amount", 0):.0f} must be settled first.')
+    if okoa_debt > 0:
+        ineligibility_reasons.append(f'Outstanding Okoa Food debt of KES {okoa_debt:.2f} must be cleared.')
+    if not has_basic_track_record and tx_count == 0:
+        ineligibility_reasons.append('Complete at least 2 campus transactions to establish credit history.')
+
+    return {
+        'is_eligible': is_eligible,
+        'has_active_loan': active_loan is not None,
+        'active_loan': active_loan,
+        'okoa_debt': okoa_debt,
+        'has_okoa_debt': okoa_debt > 0,
+        'transactions_count': tx_count,
+        'repaid_loans_count': repaid_count,
+        'account_age_hours': account_age_hours,
+        'credit_score': score,
+        'credit_rating': tier_title,
+        'unlocked_tiers': unlocked_tiers,
+        'max_borrow_limit': max(unlocked_tiers) if unlocked_tiers else 0,
+        'rejection_reasons': ineligibility_reasons
+    }
+
+@student_finance_v6_bp.route('/loans/eligibility/<student_uid>', methods=['GET'])
+def get_student_loan_eligibility(student_uid):
+    """
+    Returns live credit track record, tier permissions, and security eligibility for loans.
+    """
+    db = firestore.client()
+    user_ref, user_doc, real_uid = resolve_user_ref(db, student_uid)
+    if not user_doc or not user_doc.exists:
+        return jsonify({'error': 'Student not found'}), 404
+
+    user_data = user_doc.to_dict() or {}
+    record = get_student_credit_track_record(db, real_uid, user_data)
+    record['student_uid'] = real_uid
+    record['success'] = True
+    return jsonify(record), 200
+
 @student_finance_v6_bp.route('/loans/apply', methods=['POST'])
 def apply_student_loan():
     """
-    Applies for a micro-loan (KES 100 - 500) for food or study support.
+    Applies for a micro-loan (KES 100 - 500) with strict security protocols & track record validation.
     """
     data = request.json or {}
     student_uid = str(data.get('student_uid', '')).strip()
@@ -1104,10 +1227,32 @@ def apply_student_loan():
     if not user_doc or not user_doc.exists:
         return jsonify({'error': 'Student not found'}), 404
 
-    # Check for active existing loan
-    active_loans = db.collection('student_loans').where('student_uid', '==', real_uid).where('status', 'in', ['active', 'overdue']).limit(1).stream()
-    for _ in active_loans:
-        return jsonify({'error': 'You already have an active loan. Please settle it before borrowing again.'}), 400
+    user_data = user_doc.to_dict() or {}
+    track_record = get_student_credit_track_record(db, real_uid, user_data)
+
+    # 1. Security Protocol: Prevent taking loans more than once before paying
+    if track_record['has_active_loan']:
+        active_amt = track_record['active_loan'].get('amount', 0)
+        return jsonify({
+            'error': f'Security Block: You already have an unsettled loan of KES {active_amt:.0f}. DISHI policy strictly forbids multiple concurrent loans. Repay your current loan to unlock new credit.'
+        }), 400
+
+    # 2. Security Protocol: Cross-debt check (OKOA Food)
+    if track_record['has_okoa_debt']:
+        return jsonify({
+            'error': f'Security Block: Outstanding Okoa Food debt of KES {track_record["okoa_debt"]:.2f} detected. Please top up and clear your emergency food credit before applying for a cash loan.'
+        }), 400
+
+    # 3. Security Protocol: Track record and progressive tier unlocking ("know how to use them")
+    if amount not in track_record['unlocked_tiers']:
+        req_repaid = LOAN_TIERS[amount]['min_repaid']
+        if track_record['transactions_count'] < 2:
+            return jsonify({
+                'error': 'Track Record Required: Complete at least 2 campus transactions (meals, orders, top-ups) to establish your credit record before borrowing.'
+            }), 400
+        return jsonify({
+            'error': f'Tier Locked: Borrowing KES {amount} requires a proven track record of at least {req_repaid} successfully settled loan(s). You have settled {track_record["repaid_loans_count"]} loan(s). Start with KES 100 or 200 and repay on time to unlock higher tiers.'
+        }), 400
 
     tier = LOAN_TIERS[amount]
     weeks = tier['weeks']
@@ -1118,7 +1263,6 @@ def apply_student_loan():
     now = datetime.datetime.now(datetime.timezone.utc)
     due_date = now + timedelta(weeks=weeks)
 
-    user_data = user_doc.to_dict()
     student_name = user_data.get('displayName') or user_data.get('name') or 'Student'
     parent_uid = user_data.get('parentUid')
 
@@ -1263,7 +1407,8 @@ def student_repay_loan():
 
     u_ref.update({
         'walletBalance': firestore.Increment(-total_to_pay),
-        'wallet_balance': firestore.Increment(-total_to_pay)
+        'wallet_balance': firestore.Increment(-total_to_pay),
+        'repaid_loans_count': firestore.Increment(1)
     })
 
     loan_ref.update({
@@ -1399,6 +1544,12 @@ def parent_repay_student_loan():
     })
 
     student_uid = loan_data.get('student_uid')
+    try:
+        db.collection('users').document(student_uid).update({
+            'repaid_loans_count': firestore.Increment(1)
+        })
+    except Exception:
+        pass
     # Notify student
     try:
         _send_notification(
