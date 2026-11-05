@@ -134,7 +134,7 @@ from routes.v6.campus_gigs_routes import campus_gigs_v6_bp
 from routes.v6.vendor_discovery_routes import vendor_discovery_v6_bp
 from routes.v6.commerce_routes import commerce_v6_bp
 from routes.v6.parent_sync_routes import parent_sync_v6_bp
-from routes.v6.campus_logistics_routes import campus_logistics_v6_bp, ring_call
+from routes.v6.campus_logistics_routes import campus_logistics_v6_bp, ring_call, get_call_status, answer_call, decline_call, end_call, cleanup_stale_calls
 from routes.v6.campus_idol_routes import campus_idol_v6_bp, render_idol_preview
 from routes.v6.voice_routes import voice_v6_bp
 from routes.v6.student_finance_v6_routes import student_finance_v6_bp
@@ -200,6 +200,11 @@ app.register_blueprint(commerce_v6_bp,          url_prefix='/api/v6/commerce')
 app.register_blueprint(parent_sync_v6_bp,       url_prefix='/api/v6/parent_sync')
 app.register_blueprint(campus_logistics_v6_bp,  url_prefix='/api/v6/logistics')
 app.add_url_rule('/api/v6/calls/ring', 'ring_call_v6', view_func=ring_call, methods=['POST'])
+app.add_url_rule('/api/v6/calls/<call_id>/status', 'call_status_v6', view_func=get_call_status, methods=['GET'])
+app.add_url_rule('/api/v6/calls/<call_id>/answer', 'call_answer_v6', view_func=answer_call, methods=['POST'])
+app.add_url_rule('/api/v6/calls/<call_id>/decline', 'call_decline_v6', view_func=decline_call, methods=['POST'])
+app.add_url_rule('/api/v6/calls/<call_id>/end', 'call_end_v6', view_func=end_call, methods=['POST'])
+app.add_url_rule('/api/v6/calls/cleanup_stale', 'call_cleanup_stale_v6', view_func=cleanup_stale_calls, methods=['GET', 'POST'])
 app.register_blueprint(campus_idol_v6_bp,       url_prefix='/api/v6/idol')
 app.add_url_rule('/idol', 'idol_preview_query', view_func=render_idol_preview, methods=['GET'])
 app.add_url_rule('/idol/<audition_id>', 'idol_preview_path', view_func=render_idol_preview, methods=['GET'])

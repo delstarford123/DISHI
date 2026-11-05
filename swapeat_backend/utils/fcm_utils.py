@@ -61,28 +61,36 @@ def send_fcm_notification(user_id: str, title: str, body: str, data: dict = None
         return False
 
 
-def send_call_fcm_notification(user_id: str, title: str, body: str, data: dict = None):
+def send_call_fcm_notification(user_id: str, title: str, body: str, data: dict = None, token: str = None):
     """
     Sends a WhatsApp-style High-Priority Calling Notification via Firebase Admin SDK.
     Uses 'dishi_calls' channel, priority='high', ttl=60s to wake up Android device over lockscreen.
     """
     try:
-        db = firestore.client()
-        user_doc = db.collection('users').document(user_id).get()
-        if not user_doc.exists:
-            print(f"[FCM Call] User {user_id} not found.")
-            return False
-
-        user_data = user_doc.to_dict()
-        fcm_token = user_data.get('fcmToken')
+        fcm_token = token
         if not fcm_token:
-            print(f"[FCM Call] User {user_id} has no fcmToken registered.")
+            db = firestore.client()
+            user_doc = db.collection('users').document(user_id).get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict() or {}
+                fcm_token = user_data.get('fcmToken')
+            else:
+                try:
+                    from routes.mpesa_routes import resolve_user_ref
+                    _, udoc, udata = resolve_user_ref(db, user_id)
+                    if udoc and udoc.exists:
+                        fcm_token = (udata or {}).get('fcmToken')
+                except Exception:
+                    pass
+
+        if not fcm_token:
+            print(f"[FCM Call] User {user_id} has no valid fcmToken registered.")
             return False
 
         stringified_data = {k: str(v) for k, v in data.items()} if data else {}
         stringified_data.setdefault('title', str(title))
         stringified_data.setdefault('body', str(body))
-        stringified_data['click_action'] = 'FLUTTER_NOTIFICATION_CLICK'
+        stringified_data.setdefault('click_action', 'FLUTTER_NOTIFICATION_CLICK')
 
         message = messaging.Message(
             notification=messaging.Notification(
@@ -98,6 +106,7 @@ def send_call_fcm_notification(user_id: str, title: str, body: str, data: dict =
                     channel_id='dishi_calls',
                     priority='max',
                     visibility='public',
+                    sound='default',
                     click_action='FLUTTER_NOTIFICATION_CLICK',
                 )
             ),
@@ -110,7 +119,7 @@ def send_call_fcm_notification(user_id: str, title: str, body: str, data: dict =
         )
 
         response = messaging.send(message)
-        print(f"[FCM Call] Dispatched call push to {user_id}: {response}")
+        print(f"[FCM Call] Dispatched call push to {user_id} (token {fcm_token[:15]}...): {response}")
         return True
     except Exception as e:
         import traceback

@@ -17,8 +17,12 @@ HMAC_SECRET = os.getenv('QR_TOKEN_SECRET', 'dishi_qr_pickup_hmac_secret_2026').e
 @campus_logistics_v6_bp.route('/calls/ring', methods=['POST'])
 def ring_call():
     """
-    WhatsApp-Style Incoming Call Push Dispatcher.
-    Delivers instant high-priority FCM wake-up to callee's device even if app is closed.
+    WhatsApp-Style Incoming Call Push Dispatcher & Signaling Sync.
+    1. Resolves caller & callee (by UID, phone, email, or DISHI ID).
+    2. Synchronizes active_calls/{call_id} in Firestore (ensures calleeId, status='ringing', timestamp).
+    3. Prevents self-call push (caller never gets FCM with own name).
+    4. Prevents same-device token reflection (if callee doc has caller's device token from past test login, clear it and suppress push to avoid ringing caller's device).
+    5. Dispatches instant high-priority FCM wake-up to callee's device with full 'incoming_call' payload.
     """
     data = request.json or {}
     callee_id = str(data.get('callee_id', '')).strip()
@@ -31,23 +35,204 @@ def ring_call():
     if not callee_id or not call_id:
         return jsonify({"error": "callee_id and call_id required"}), 400
 
+    db = firestore.client()
+
+    # 1. Resolve Caller
+    caller_ref, caller_doc, real_caller_uid = resolve_user_ref(db, caller_id)
+    caller_data = caller_doc.to_dict() if (caller_doc and caller_doc.exists) else {}
+    real_caller_uid = real_caller_uid or (caller_doc.id if caller_doc else caller_id)
+    caller_token = caller_data.get('fcmToken')
+    if caller_data:
+        caller_name = caller_name or caller_data.get('displayName') or caller_data.get('name') or 'Comrade'
+        caller_avatar = caller_avatar or caller_data.get('profileImageUrl') or caller_data.get('avatar') or ''
+
+    # 2. Resolve Callee
+    callee_ref, callee_doc, real_callee_uid = resolve_user_ref(db, callee_id)
+    callee_data = callee_doc.to_dict() if (callee_doc and callee_doc.exists) else {}
+    real_callee_uid = real_callee_uid or (callee_doc.id if callee_doc else callee_id)
+    callee_token = callee_data.get('fcmToken')
+    callee_name = callee_data.get('displayName') or callee_data.get('name') or 'Student'
+
+    # 3. Synchronize active_calls/{call_id} in Firestore so real-time listeners on devices catch it
+    now_ts = firestore.SERVER_TIMESTAMP
+    call_doc_ref = db.collection('active_calls').document(call_id)
+    try:
+        call_snapshot = call_doc_ref.get()
+        if call_snapshot.exists:
+            cdata = call_snapshot.to_dict() or {}
+            updates = {}
+            if not cdata.get('calleeId') or cdata.get('calleeId') != real_callee_uid:
+                updates['calleeId'] = real_callee_uid
+            if cdata.get('status') not in ['ringing', 'answered']:
+                updates['status'] = 'ringing'
+            if not cdata.get('createdAt'):
+                updates['createdAt'] = now_ts
+            if caller_name and not cdata.get('callerName'):
+                updates['callerName'] = caller_name
+            if caller_avatar and not cdata.get('callerAvatar'):
+                updates['callerAvatar'] = caller_avatar
+            if updates:
+                call_doc_ref.update(updates)
+        else:
+            call_doc_ref.set({
+                'callerId': real_caller_uid,
+                'calleeId': real_callee_uid,
+                'callerName': caller_name,
+                'callerAvatar': caller_avatar,
+                'isVideo': is_video,
+                'status': 'ringing',
+                'createdAt': now_ts,
+            }, merge=True)
+    except Exception as e:
+        print(f"[CALLS] Error updating active_calls/{call_id}: {e}")
+
+    # 4. Prevent Self-Calling Push Loop (Caller calling themselves)
+    if real_caller_uid and real_callee_uid and real_caller_uid == real_callee_uid:
+        print(f"[CALLS] Suppressed self-call push notification for user {real_caller_uid}")
+        return jsonify({
+            "success": True,
+            "message": "Self-call detected. Push notification suppressed to prevent ringing caller's own device.",
+            "call_id": call_id,
+            "caller_id": real_caller_uid,
+            "callee_id": real_callee_uid,
+            "status": "ringing"
+        }), 200
+
+    # 5. Device Token Collision / Stale Test Account Protection
+    # If caller and callee have the identical FCM token, it means the caller logged into both accounts on the same phone.
+    # We must disassociate the stale token from callee and suppress the push so caller's phone doesn't ring itself.
+    if caller_token and callee_token and caller_token == callee_token:
+        print(f"[CALLS] Collision: Callee {real_callee_uid} shares device FCM token with caller {real_caller_uid}. Clearing stale token from callee.")
+        if callee_ref:
+            try:
+                callee_ref.update({'fcmToken': firestore.DELETE_FIELD})
+            except Exception as e:
+                print(f"[CALLS] Failed to delete stale token from callee: {e}")
+        callee_token = None
+
+    # 6. Dispatch FCM Push Notification to Callee (if callee has distinct token)
     payload = {
         'type': 'incoming_call',
         'callId': call_id,
-        'callerId': caller_id,
+        'roomId': call_id,
+        'callerId': real_caller_uid,
         'callerName': caller_name,
         'callerAvatar': caller_avatar,
         'isVideo': 'true' if is_video else 'false',
+        'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+        'title': f"Incoming {'Video' if is_video else 'Voice'} Call",
+        'body': f"{caller_name} is calling you on DISHI...",
     }
 
-    success = send_call_fcm_notification(
-        user_id=callee_id,
-        title=f"Incoming {'Video' if is_video else 'Voice'} Call",
-        body=f"{caller_name} is calling you on DISHI...",
-        data=payload
-    )
+    fcm_success = False
+    if callee_token:
+        fcm_success = send_call_fcm_notification(
+            user_id=real_callee_uid,
+            title=f"Incoming {'Video' if is_video else 'Voice'} Call",
+            body=f"{caller_name} is calling you on DISHI...",
+            data=payload,
+            token=callee_token
+        )
+    else:
+        print(f"[CALLS] Callee {real_callee_uid} has no active FCM push token. Firestore realtime listener active.")
 
-    return jsonify({"success": success, "call_id": call_id}), 200
+    return jsonify({
+        "success": True,
+        "call_id": call_id,
+        "caller_id": real_caller_uid,
+        "callee_id": real_callee_uid,
+        "callee_name": callee_name,
+        "fcm_dispatched": fcm_success,
+        "status": "ringing"
+    }), 200
+
+
+@campus_logistics_v6_bp.route('/calls/<call_id>/status', methods=['GET'])
+def get_call_status(call_id):
+    """Returns the current status of an active or past call."""
+    db = firestore.client()
+    doc = db.collection('active_calls').document(call_id).get()
+    if not doc.exists:
+        return jsonify({"error": "Call not found", "status": "ended"}), 404
+    data = doc.to_dict() or {}
+    return jsonify({
+        "call_id": call_id,
+        "status": data.get('status', 'ended'),
+        "caller_id": data.get('callerId'),
+        "callee_id": data.get('calleeId'),
+        "caller_name": data.get('callerName'),
+        "is_video": data.get('isVideo', False),
+    }), 200
+
+
+@campus_logistics_v6_bp.route('/calls/<call_id>/answer', methods=['POST'])
+def answer_call(call_id):
+    """Explicit endpoint to answer call and transition status to answered."""
+    db = firestore.client()
+    call_ref = db.collection('active_calls').document(call_id)
+    doc = call_ref.get()
+    if not doc.exists:
+        return jsonify({"error": "Call not found"}), 404
+    call_ref.update({
+        'status': 'answered',
+        'answeredAt': firestore.SERVER_TIMESTAMP
+    })
+    return jsonify({"success": True, "call_id": call_id, "status": "answered"}), 200
+
+
+@campus_logistics_v6_bp.route('/calls/<call_id>/decline', methods=['POST'])
+def decline_call(call_id):
+    """Explicit endpoint to decline call and transition status to declined."""
+    db = firestore.client()
+    call_ref = db.collection('active_calls').document(call_id)
+    doc = call_ref.get()
+    if not doc.exists:
+        return jsonify({"error": "Call not found"}), 404
+    req_data = request.json or {}
+    message = req_data.get('message', 'Call declined')
+    call_ref.update({
+        'status': 'declined',
+        'declineMessage': message,
+        'endedAt': firestore.SERVER_TIMESTAMP
+    })
+    return jsonify({"success": True, "call_id": call_id, "status": "declined"}), 200
+
+
+@campus_logistics_v6_bp.route('/calls/<call_id>/end', methods=['POST'])
+def end_call(call_id):
+    """Explicit endpoint to end call and clean up."""
+    db = firestore.client()
+    call_ref = db.collection('active_calls').document(call_id)
+    doc = call_ref.get()
+    if not doc.exists:
+        return jsonify({"success": True, "status": "ended"}), 200
+    call_ref.update({
+        'status': 'ended',
+        'endedAt': firestore.SERVER_TIMESTAMP
+    })
+    return jsonify({"success": True, "call_id": call_id, "status": "ended"}), 200
+
+
+@campus_logistics_v6_bp.route('/calls/cleanup_stale', methods=['POST', 'GET'])
+def cleanup_stale_calls():
+    """Auto-cleans any calls ringing for more than 2 minutes."""
+    db = firestore.client()
+    threshold = datetime.utcnow() - timedelta(minutes=2)
+    cleaned = 0
+    try:
+        ringing_docs = db.collection('active_calls').where('status', '==', 'ringing').stream()
+        for doc in ringing_docs:
+            d = doc.to_dict() or {}
+            created = d.get('createdAt')
+            if not created:
+                doc.reference.update({'status': 'ended', 'endedAt': firestore.SERVER_TIMESTAMP})
+                cleaned += 1
+            elif isinstance(created, datetime) and created.replace(tzinfo=None) < threshold:
+                doc.reference.update({'status': 'ended', 'endedAt': firestore.SERVER_TIMESTAMP})
+                cleaned += 1
+    except Exception as e:
+        print(f"[CALLS] Error during cleanup_stale_calls: {e}")
+    return jsonify({"success": True, "cleaned_count": cleaned}), 200
 
 # =====================================================================
 # PILLAR 3 & 5: SMART LOGISTICS, PRE-ORDERS, SAFETY & ECOSYSTEM (V6)
